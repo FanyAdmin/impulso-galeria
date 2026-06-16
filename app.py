@@ -5,11 +5,13 @@ import os, json
 
 app = Flask(__name__, static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'impulso-secret-2026')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///impulso.db')
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///impulso.db')
+if db_url.startswith('postgres://'):
+    db_url = db_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# ── MODELS ──
 class Pedido(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     folio = db.Column(db.String(20), unique=True)
@@ -47,16 +49,9 @@ class Factura(db.Model):
     num = db.Column(db.String(30))
     rfc = db.Column(db.String(20))
     fecha = db.Column(db.String(20))
-    folios = db.Column(db.Text)  # JSON array
+    folios = db.Column(db.Text)
     total = db.Column(db.Float)
 
-class CuentaCobrar(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    folio = db.Column(db.String(20))
-    suc = db.Column(db.String(50))
-    abonos = db.Column(db.Text, default='[]')
-
-# ── AUTH ──
 USERS = [
     {'key':'jardines','name':'Alondra','display':'Jardines','role':'venta','suc':'Jardines','pwd':'jardines123'},
     {'key':'zibata','name':'Yesica','display':'Zibata','role':'venta','suc':'Zibata','pwd':'zibata123'},
@@ -97,7 +92,6 @@ def require_login(f):
         return f(*args, **kwargs)
     return decorated
 
-# ── PEDIDOS ──
 @app.route('/api/pedidos')
 @require_login
 def get_pedidos():
@@ -118,8 +112,12 @@ def get_pedidos():
 @require_login
 def create_pedido():
     d = request.json
-    p = Pedido(**{k:v for k,v in d.items() if k != 'items'})
-    p.items = json.dumps(d.get('items',[]))
+    existing = Pedido.query.filter_by(folio=d.get('folio','')).first()
+    if existing:
+        return jsonify({'ok':False,'msg':'Folio duplicado'}), 400
+    items = d.pop('items', [])
+    p = Pedido(**{k:v for k,v in d.items() if hasattr(Pedido, k)})
+    p.items = json.dumps(items)
     db.session.add(p)
     db.session.commit()
     return jsonify({'ok':True,'id':p.id})
@@ -135,7 +133,6 @@ def update_pedido(folio):
     db.session.commit()
     return jsonify({'ok':True})
 
-# ── MOVIMIENTOS ──
 @app.route('/api/movimientos')
 @require_login
 def get_movimientos():
@@ -143,19 +140,18 @@ def get_movimientos():
     return jsonify([{
         'id':m.id,'tipo':m.tipo,'concepto':m.concepto,'desc':m.desc,
         'monto':m.monto,'fecha':m.fecha,'mes':m.mes,'cuenta':m.cuenta,
-        'cta_destino':m.cta_destino,'socio':m.socio
+        'cta_destino':m.cta_destino or '','socio':m.socio or ''
     } for m in movs])
 
 @app.route('/api/movimientos', methods=['POST'])
 @require_login
 def create_movimiento():
     d = request.json
-    m = Movimiento(**d)
+    m = Movimiento(**{k:v for k,v in d.items() if hasattr(Movimiento, k)})
     db.session.add(m)
     db.session.commit()
     return jsonify({'ok':True,'id':m.id})
 
-# ── FACTURAS ──
 @app.route('/api/facturas')
 @require_login
 def get_facturas():
@@ -183,7 +179,6 @@ def delete_factura(fid):
     db.session.commit()
     return jsonify({'ok':True})
 
-# ── SERVE APP ──
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
@@ -192,33 +187,54 @@ def index():
 def static_files(path):
     return send_from_directory('static', path)
 
-# ── INIT DB ──
-with app.app_context():
-    db.create_all()
-    # Load initial data if empty
+def seed_data():
+    # Seed pedidos in batches
     if Pedido.query.count() == 0:
         try:
             with open('seed_pedidos.json','r',encoding='utf-8') as f:
                 peds = json.load(f)
-            for p in peds:
-                items = p.pop('items',[])
-                ped = Pedido(**p)
-                ped.items = json.dumps(items)
-                db.session.add(ped)
-            db.session.commit()
+            batch_size = 50
+            for i in range(0, len(peds), batch_size):
+                batch = peds[i:i+batch_size]
+                for p in batch:
+                    items = p.pop('items', [])
+                    try:
+                        ped = Pedido(**{k:v for k,v in p.items() if hasattr(Pedido, k)})
+                        ped.items = json.dumps(items)
+                        db.session.add(ped)
+                    except Exception:
+                        db.session.rollback()
+                        continue
+                db.session.commit()
             print(f'Seeded {len(peds)} pedidos')
         except Exception as e:
-            print(f'Seed error: {e}')
+            print(f'Seed pedidos error: {e}')
+            db.session.rollback()
+
+    # Seed movimientos in batches
     if Movimiento.query.count() == 0:
         try:
             with open('seed_movimientos.json','r',encoding='utf-8') as f:
                 movs = json.load(f)
-            for m in movs:
-                db.session.add(Movimiento(**m))
-            db.session.commit()
+            batch_size = 50
+            for i in range(0, len(movs), batch_size):
+                batch = movs[i:i+batch_size]
+                for m in batch:
+                    try:
+                        mov = Movimiento(**{k:v for k,v in m.items() if hasattr(Movimiento, k)})
+                        db.session.add(mov)
+                    except Exception:
+                        db.session.rollback()
+                        continue
+                db.session.commit()
             print(f'Seeded {len(movs)} movimientos')
         except Exception as e:
-            print(f'Seed error: {e}')
+            print(f'Seed movimientos error: {e}')
+            db.session.rollback()
+
+with app.app_context():
+    db.create_all()
+    seed_data()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT',5000)), debug=False)
