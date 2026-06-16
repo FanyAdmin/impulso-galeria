@@ -187,9 +187,26 @@ def index():
 def static_files(path):
     return send_from_directory('static', path)
 
+
+@app.route('/api/reset-data', methods=['POST'])
+def reset_data():
+    # Only allow with secret key
+    if request.json.get('key') != 'impulso-reset-2026':
+        return jsonify({'ok':False}), 403
+    try:
+        Movimiento.query.delete()
+        Pedido.query.delete()
+        Factura.query.delete()
+        db.session.commit()
+        seed_data()
+        return jsonify({'ok':True,'msg':'Data reset and reloaded'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok':False,'msg':str(e)}), 500
+
 def seed_data():
     # Seed pedidos in batches
-    if Pedido.query.count() == 0:
+    if True:
         try:
             with open('seed_pedidos.json','r',encoding='utf-8') as f:
                 peds = json.load(f)
@@ -212,7 +229,7 @@ def seed_data():
             db.session.rollback()
 
     # Seed movimientos in batches
-    if Movimiento.query.count() == 0:
+    if True:
         try:
             with open('seed_movimientos.json','r',encoding='utf-8') as f:
                 movs = json.load(f)
