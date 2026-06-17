@@ -389,6 +389,10 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 <!-- PEDIDOS -->
 <div class="page" id="page-ped">
   <div class="ph"><div><div class="ph-title">Pedidos</div></div>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-s btn-sm" onclick="expPedXlsx()">&#128202; Excel</button>
+      <button class="btn btn-s btn-sm" onclick="expPedPDF()">&#128196; PDF</button>
+    </div>
     <input id="ped-q" placeholder="🔍 Buscar folio o cliente..." style="width:220px" oninput="rPed()">
   </div>
   <div class="tabs"><div class="tab active" onclick="tabP('todos',this)">Todos</div><div class="tab" onclick="tabP('Pendiente',this)">Pendientes</div><div class="tab" onclick="tabP('Entregado',this)">Entregados</div></div>
@@ -469,7 +473,11 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 
 <!-- MOVIMIENTOS -->
 <div class="page" id="page-mov">
-  <div class="ph"><div><div class="ph-title">Movimientos</div></div></div>
+  <div class="ph"><div><div class="ph-title">Movimientos</div></div>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-s btn-sm" onclick="expMovXlsx()">&#128202; Excel</button>
+      <button class="btn btn-s btn-sm" onclick="expMovPDF()">&#128196; PDF</button>
+    </div></div>
   <div class="card">
     <div class="card-title">Registrar movimiento</div>
     <div class="g3" style="margin-bottom:.75rem">
@@ -602,7 +610,8 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 <div class="page" id="page-nom">
   <div class="ph">
     <div><div class="ph-title">Nomina Semanal</div><div class="ph-sub">Cuanto debo pagar esta semana?</div></div>
-    <select id="nom-sem" onchange="rNom()" style="width:185px"></select>
+    <div style="display:flex;gap:7px;align-items:center">
+      <select id="nom-sem" onchange="rNom()" style="width:185px"></select>
   </div>
   <div class="metrics m3">
     <div class="metric"><div class="m-label">Total a pagar</div><div class="m-val" id="nom-tot">$0</div></div>
@@ -1645,6 +1654,62 @@ function addMov(){
   });
 }
 
+
+// === EXPORTAR MOVIMIENTOS ===
+function expMovXlsx(){
+  var rows=[['MOVIMIENTOS IMPULSO GALERIA'],['Fecha','Tipo','Categoria','Descripcion','Cuenta','Destino','Monto']];
+  for(var i=0;i<movs.length;i++){
+    var m=movs[i];
+    rows.push([m.fecha,m.tipo,m.concepto,m.desc,m.cuenta,m.cta_destino||'',m.monto]);
+  }
+  xlsxExp(rows,'Movimientos_Impulso');
+}
+function expMovPDF(){
+  var rows=[];
+  for(var i=0;i<Math.min(movs.length,200);i++){
+    var m=movs[i];
+    rows.push([m.fecha,m.tipo,m.concepto,m.desc.substring(0,30),m.cuenta,fmt(m.monto)]);
+  }
+  printTbl('MOVIMIENTOS IMPULSO GALERIA',['Fecha','Tipo','Categoria','Descripcion','Cuenta','Monto'],rows);
+}
+
+// === EXPORTAR PEDIDOS ===
+function expPedXlsx(){
+  var list=misP().slice().sort(function(a,b){return b.fecha.localeCompare(a.fecha);});
+  var rows=[['PEDIDOS IMPULSO GALERIA'],['Folio','Fecha','Cliente','Vendedor','Sucursal','Metodo','Total','Anticipo','Restante','Estatus','Tipo Venta']];
+  for(var i=0;i<list.length;i++){
+    var p=list[i];
+    rows.push([p.folio,p.fecha,p.cli,p.vend||'',p.suc,p.met||'',p.total,p.ant,p.rest,p.est,p.tipo_venta||'general']);
+  }
+  xlsxExp(rows,'Pedidos_Impulso');
+}
+function expPedPDF(){
+  var list=misP().slice().sort(function(a,b){return b.fecha.localeCompare(a.fecha);}).slice(0,100);
+  var rows=[];
+  for(var i=0;i<list.length;i++){
+    var p=list[i];
+    rows.push([p.folio,p.fecha,p.cli.substring(0,20),p.suc,fmt(p.total),fmt(p.rest),p.est]);
+  }
+  printTbl('PEDIDOS IMPULSO GALERIA',['Folio','Fecha','Cliente','Suc','Total','Restante','Estatus'],rows);
+}
+
+// === EXPORTAR MOVIMIENTOS ===
+function expMovXlsx(){
+  var rows=[['MOVIMIENTOS IMPULSO GALERIA'],['Fecha','Tipo','Categoria','Descripcion','Cuenta','Destino','Monto']];
+  for(var i=0;i<movs.length;i++){
+    var m=movs[i];
+    rows.push([m.fecha,m.tipo,m.concepto,m.desc,m.cuenta,m.cta_destino||'',m.monto]);
+  }
+  xlsxExp(rows,'Movimientos_Impulso');
+}
+function expMovPDF(){
+  var rows=[];
+  for(var i=0;i<Math.min(movs.length,200);i++){
+    var m=movs[i];
+    rows.push([m.fecha,m.tipo,m.concepto,m.desc.substring(0,30),m.cuenta,fmt(m.monto)]);
+  }
+  printTbl('MOVIMIENTOS IMPULSO GALERIA',['Fecha','Tipo','Categoria','Descripcion','Cuenta','Monto'],rows);
+}
 // Init
 renderUCards();
 </script>
