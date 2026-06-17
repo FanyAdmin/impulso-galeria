@@ -206,7 +206,7 @@ def reset_data():
 
 def seed_data():
     # Seed pedidos in batches
-    if True:
+    if Pedido.query.count() == 0:
         try:
             with open('seed_pedidos.json','r',encoding='utf-8') as f:
                 peds = json.load(f)
@@ -229,7 +229,7 @@ def seed_data():
             db.session.rollback()
 
     # Seed movimientos in batches
-    if True:
+    if Movimiento.query.count() == 0:
         try:
             with open('seed_movimientos.json','r',encoding='utf-8') as f:
                 movs = json.load(f)
@@ -251,6 +251,13 @@ def seed_data():
 
 with app.app_context():
     db.create_all()
+    # Clean duplicates if any
+    if Movimiento.query.count() > 700:
+        Movimiento.query.delete()
+        db.session.commit()
+    if Pedido.query.count() > 2500:
+        Pedido.query.delete()
+        db.session.commit()
     seed_data()
 
 if __name__ == '__main__':
