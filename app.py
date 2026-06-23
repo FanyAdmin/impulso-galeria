@@ -4,6 +4,8 @@ import os, json
 
 app = Flask(__name__, static_folder='estático')
 app.secret_key = os.environ.get('CLAVE_SECRETA', 'impulso-secreto-2026')
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True
 
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///impulso.db')
 if db_url.startswith('postgres://'):
@@ -11,8 +13,6 @@ if db_url.startswith('postgres://'):
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
-
-# ── Modelos ────────────────────────────────────────────────────────────────────
 
 class Pedido(db.Model):
     __tablename__ = 'pedidos_v3'
@@ -49,10 +49,6 @@ class Movimiento(db.Model):
     cta_destino = db.Column(db.String(50))
     socio       = db.Column(db.String(50))
 
-# ── Usuarios ───────────────────────────────────────────────────────────────────
-# El index.html envía: {key, pwd}
-# El index.html espera recibir: {ok: true, user: {key, name, display, role, suc, pwd}}
-
 USUARIOS = {
     'jardines': {
         'password': 'jardines123',
@@ -86,8 +82,6 @@ def requiere_login(f):
         return f(*args, **kwargs)
     return decorado
 
-# ── Rutas estáticas ────────────────────────────────────────────────────────────
-
 @app.route('/')
 def index():
     return send_from_directory('estático', 'index.html')
@@ -95,8 +89,6 @@ def index():
 @app.route('/cotizador')
 def cotizador():
     return send_from_directory('estático', 'Cotizador_Impulso.html')
-
-# ── Auth ───────────────────────────────────────────────────────────────────────
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -136,8 +128,6 @@ def me():
         'key': key, 'name': u['name'], 'display': u['display'],
         'role': u['role'], 'suc': u['suc']
     }})
-
-# ── Pedidos ────────────────────────────────────────────────────────────────────
 
 @app.route('/api/pedidos', methods=['GET'])
 @requiere_login
@@ -209,8 +199,6 @@ def p_dict(p):
         'est': p.est, 'entrega': p.entrega
     }
 
-# ── Movimientos ────────────────────────────────────────────────────────────────
-
 @app.route('/api/movimientos', methods=['GET'])
 @requiere_login
 def get_movimientos():
@@ -257,14 +245,10 @@ def m_dict(m):
         'cta_destino': m.cta_destino, 'socio': m.socio
     }
 
-# ── Facturas (placeholder) ─────────────────────────────────────────────────────
-
 @app.route('/api/facturas', methods=['GET'])
 @requiere_login
 def get_facturas():
     return jsonify([])
-
-# ── Init ───────────────────────────────────────────────────────────────────────
 
 with app.app_context():
     db.create_all()
