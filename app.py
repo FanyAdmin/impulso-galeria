@@ -1,11 +1,15 @@
 from flask import Flask, jsonify, request, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 import os, json
 
-app = Flask(__name__, static_folder='estático')
+app = Flask(__name__, static_folder='static')
 app.secret_key = os.environ.get('CLAVE_SECRETA', 'impulso-secreto-2026')
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+CORS(app, supports_credentials=True)
 
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///impulso.db')
 if db_url.startswith('postgres://'):
@@ -50,27 +54,9 @@ class Movimiento(db.Model):
     socio       = db.Column(db.String(50))
 
 USUARIOS = {
-    'jardines': {
-        'password': 'jardines123',
-        'name': 'Alondra',
-        'display': 'Jardines',
-        'role': 'venta',
-        'suc': 'Jardines',
-    },
-    'zibata': {
-        'password': 'zibata123',
-        'name': 'Zibata',
-        'display': 'Zibata',
-        'role': 'venta',
-        'suc': 'Zibata',
-    },
-    'admin': {
-        'password': 'admin123',
-        'name': 'Estefania',
-        'display': 'Admin',
-        'role': 'admin',
-        'suc': 'Admin',
-    },
+    'jardines': {'password':'jardines123','name':'Alondra','display':'Jardines','role':'venta','suc':'Jardines'},
+    'zibata':   {'password':'zibata123',  'name':'Zibata', 'display':'Zibata',  'role':'venta','suc':'Zibata'},
+    'admin':    {'password':'admin123',   'name':'Estefania','display':'Admin', 'role':'admin','suc':'Admin'},
 }
 
 def requiere_login(f):
@@ -84,11 +70,11 @@ def requiere_login(f):
 
 @app.route('/')
 def index():
-    return send_from_directory('estático', 'index.html')
+    return send_from_directory('static', 'index.html')
 
 @app.route('/cotizador')
 def cotizador():
-    return send_from_directory('estático', 'Cotizador_Impulso.html')
+    return send_from_directory('static', 'Cotizador_Impulso.html')
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -97,20 +83,14 @@ def login():
     pwd = data.get('pwd', '').strip()
     u = USUARIOS.get(key)
     if u and u['password'] == pwd:
+        session.permanent = True
         session['usuario'] = key
         session['suc'] = u['suc']
         session['rol'] = u['role']
-        return jsonify({
-            'ok': True,
-            'user': {
-                'key': key,
-                'name': u['name'],
-                'display': u['display'],
-                'role': u['role'],
-                'suc': u['suc'],
-                'pwd': pwd
-            }
-        })
+        return jsonify({'ok': True, 'user': {
+            'key': key, 'name': u['name'], 'display': u['display'],
+            'role': u['role'], 'suc': u['suc'], 'pwd': pwd
+        }})
     return jsonify({'ok': False, 'msg': 'Credenciales incorrectas'}), 401
 
 @app.route('/api/logout', methods=['POST'])
@@ -144,23 +124,14 @@ def get_pedidos():
 def crear_pedido():
     d = request.json or {}
     p = Pedido(
-        folio=d.get('folio'),
-        tipo_venta=d.get('tipo_venta', 'general'),
-        cli=d.get('cli'),
-        tel=d.get('tel'),
-        suc=d.get('suc', session.get('suc')),
-        vend=d.get('vend'),
-        fecha=d.get('fecha'),
-        mes=d.get('mes'),
-        items=json.dumps(d.get('items', [])),
-        sub=d.get('sub', 0),
-        total=d.get('total', 0),
-        met=d.get('met'),
-        ant=d.get('ant', 0),
-        rest=d.get('rest', 0),
-        obs=d.get('obs'),
-        est=d.get('est', 'Pendiente'),
-        entrega=d.get('entrega')
+        folio=d.get('folio'), tipo_venta=d.get('tipo_venta','general'),
+        cli=d.get('cli'), tel=d.get('tel'),
+        suc=d.get('suc', session.get('suc')), vend=d.get('vend'),
+        fecha=d.get('fecha'), mes=d.get('mes'),
+        items=json.dumps(d.get('items',[])),
+        sub=d.get('sub',0), total=d.get('total',0),
+        met=d.get('met'), ant=d.get('ant',0), rest=d.get('rest',0),
+        obs=d.get('obs'), est=d.get('est','Pendiente'), entrega=d.get('entrega')
     )
     db.session.add(p)
     db.session.commit()
@@ -171,8 +142,7 @@ def crear_pedido():
 def actualizar_pedido(pid):
     p = Pedido.query.get_or_404(pid)
     d = request.json or {}
-    for campo in ['folio','tipo_venta','cli','tel','suc','vend','fecha','mes',
-                  'sub','total','met','ant','rest','obs','est','entrega']:
+    for campo in ['folio','tipo_venta','cli','tel','suc','vend','fecha','mes','sub','total','met','ant','rest','obs','est','entrega']:
         if campo in d:
             setattr(p, campo, d[campo])
     if 'items' in d:
@@ -190,13 +160,13 @@ def borrar_pedido(pid):
 
 def p_dict(p):
     return {
-        'id': p.id, 'folio': p.folio, 'tipo_venta': p.tipo_venta,
-        'cli': p.cli, 'tel': p.tel, 'suc': p.suc, 'vend': p.vend,
-        'fecha': p.fecha, 'mes': p.mes,
-        'items': json.loads(p.items) if p.items else [],
-        'sub': p.sub, 'total': p.total, 'met': p.met,
-        'ant': p.ant, 'rest': p.rest, 'obs': p.obs,
-        'est': p.est, 'entrega': p.entrega
+        'id':p.id,'folio':p.folio,'tipo_venta':p.tipo_venta,
+        'cli':p.cli,'tel':p.tel,'suc':p.suc,'vend':p.vend,
+        'fecha':p.fecha,'mes':p.mes,
+        'items':json.loads(p.items) if p.items else [],
+        'sub':p.sub,'total':p.total,'met':p.met,
+        'ant':p.ant,'rest':p.rest,'obs':p.obs,
+        'est':p.est,'entrega':p.entrega
     }
 
 @app.route('/api/movimientos', methods=['GET'])
@@ -214,16 +184,10 @@ def get_movimientos():
 def crear_movimiento():
     d = request.json or {}
     m = Movimiento(
-        tipo=d.get('tipo'),
-        concepto=d.get('concepto'),
-        desc=d.get('desc'),
-        monto=d.get('monto', 0),
-        fecha=d.get('fecha'),
-        mes=d.get('mes'),
+        tipo=d.get('tipo'), concepto=d.get('concepto'), desc=d.get('desc'),
+        monto=d.get('monto',0), fecha=d.get('fecha'), mes=d.get('mes'),
         suc=d.get('suc', session.get('suc')),
-        cuenta=d.get('cuenta'),
-        cta_destino=d.get('cta_destino'),
-        socio=d.get('socio', '')
+        cuenta=d.get('cuenta'), cta_destino=d.get('cta_destino'), socio=d.get('socio','')
     )
     db.session.add(m)
     db.session.commit()
@@ -239,10 +203,9 @@ def borrar_movimiento(mid):
 
 def m_dict(m):
     return {
-        'id': m.id, 'tipo': m.tipo, 'concepto': m.concepto,
-        'desc': m.desc, 'monto': m.monto, 'fecha': m.fecha,
-        'mes': m.mes, 'suc': m.suc, 'cuenta': m.cuenta,
-        'cta_destino': m.cta_destino, 'socio': m.socio
+        'id':m.id,'tipo':m.tipo,'concepto':m.concepto,'desc':m.desc,
+        'monto':m.monto,'fecha':m.fecha,'mes':m.mes,'suc':m.suc,
+        'cuenta':m.cuenta,'cta_destino':m.cta_destino,'socio':m.socio
     }
 
 @app.route('/api/facturas', methods=['GET'])
