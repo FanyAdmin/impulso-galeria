@@ -2,7 +2,7 @@ from flask import Flask, jsonify, request, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 import os, json
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__, static_folder='estático')
 app.secret_key = os.environ.get('CLAVE_SECRETA', 'impulso-secreto-2026')
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///impulso.db')
 if db_url.startswith('postgres://'):
@@ -56,17 +56,17 @@ def requiere_login(f):
 
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
+    return send_from_directory('estático', 'index.html')
 
 @app.route('/cotizador')
 def cotizador():
-    return send_from_directory('static', 'Cotizador_Impulso.html')
+    return send_from_directory('estático', 'Cotizador_Impulso.html')
 
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json or {}
-    user = data.get('usuario', '').strip()
-    pwd  = data.get('password', '').strip()
+    user = data.get('key', data.get('usuario', '')).strip()
+    pwd  = data.get('pwd', data.get('password', '')).strip()
     u = USUARIOS.get(user)
     if u and u['password'] == pwd:
         session['usuario'] = user
