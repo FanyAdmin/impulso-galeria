@@ -188,7 +188,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div class="field"><label>Teléfono</label><input id="mp-t" placeholder="(442)..."></div>
       <div id="mp-vip-badge" style="display:none;grid-column:span 2;background:#FEF3C7;border:1px solid #F59E0B;border-radius:6px;padding:6px 10px;font-size:12px;color:#92400E;font-weight:600">⭐ Cliente VIP — 10% de descuento aplicado</div>
       <div class="field"><label>Vendedor</label><select id="mp-vend"></select></div>
-      <div class="field"><label>Método de pago</label><select id="mp-m"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select></div>
+      <div class="field"><label>Método de pago</label><select id="mp-m"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Galería / Intercambio</option></select></div>
       <div class="field gc2"><label>Descuento</label>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
           <button type="button" class="btn btn-s btn-xs" onclick="applyDesc(0)" id="desc-0" style="padding:4px 8px">Sin descuento</button>
@@ -974,10 +974,11 @@ function rPed(f){
     const entD=new Date(p.entrega);
     const atr=p.est==='Pendiente'&&hoy>entD?Math.floor((hoy-entD)/864e5):0;
     const badge=p.est==='Entregado'?'<span class="badge bg">Entregado</span>':atr>0?`<span class="badge br">${atr}d atraso</span>`:'<span class="badge by">Pendiente</span>';
+    const metBadge=p.met==='Galería / Intercambio'?'<span class="badge" style="background:#EDE9FE;color:#6D28D9">🖼 Galería</span>':'';
     const btn=p.est==='Pendiente'?`<button class="btn btn-s btn-xs" onclick="openEnt(${idx})">📦 Entregar</button>`:'';
     const tvB=p.tipo_venta==='factura'?'<span class="badge bb" style="font-size:10px">📄 Factura</span>':'<span class="badge bgr" style="font-size:10px">Gral</span>';
     const tvBtn=`<button class="btn btn-s btn-xs" onclick="toggleTV(${idx})" style="padding:1px 5px;font-size:10px" title="Cambiar tipo">&#8644;</button>`;
-    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
+    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}</td><td>${p.suc}</td><td>${metBadge||p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
       <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td><button class="btn btn-s btn-xs" onclick="editPed(${idx})" style="margin-right:3px">✏️</button><button class="btn btn-s btn-xs" style="color:var(--red)" onclick="delPed(${idx})">🗑</button></td></tr>`;
@@ -1081,7 +1082,7 @@ function rDia(){
     const btn=p.est==='Pendiente'?`<button class="btn btn-s btn-xs" onclick="openEnt(${idx})">📦 Entregar</button>`:'';
     const tvB=p.tipo_venta==='factura'?'<span class="badge bb" style="font-size:10px">📄 Factura</span>':'<span class="badge bgr" style="font-size:10px">Gral</span>';
     const tvBtn=`<button class="btn btn-s btn-xs" onclick="toggleTV(${idx})" style="padding:1px 5px;font-size:10px" title="Cambiar tipo">&#8644;</button>`;
-    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td></tr>`;
+    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${metBadge||p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td></tr>`;
   }).join('');
 }
 
