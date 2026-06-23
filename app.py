@@ -1,9 +1,9 @@
-from flask import Flask, jsonify, request, session, send_from_directory
+from flask import Flask, jsonify, request, session, send_from_directory, send_file
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os, json
 
-app = Flask(__name__, static_folder='estático')
+app = Flask(__name__)
 app.secret_key = os.environ.get('CLAVE_SECRETA', 'impulso-secreto-2026')
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = False
@@ -17,6 +17,8 @@ if db_url.startswith('postgres://'):
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class Pedido(db.Model):
     __tablename__ = 'pedidos_v3'
@@ -68,13 +70,21 @@ def requiere_login(f):
         return f(*args, **kwargs)
     return decorado
 
+def serve_static(filename):
+    # Try multiple folder names
+    for folder in ['static', 'estático', 'estatico']:
+        path = os.path.join(BASE_DIR, folder, filename)
+        if os.path.exists(path):
+            return send_from_directory(os.path.join(BASE_DIR, folder), filename)
+    return jsonify({'error': f'{filename} no encontrado'}), 404
+
 @app.route('/')
 def index():
-    return send_from_directory('estático', 'index.html')
+    return serve_static('index.html')
 
 @app.route('/cotizador')
 def cotizador():
-    return send_from_directory('estático', 'Cotizador_Impulso.html')
+    return serve_static('Cotizador_Impulso.html')
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -212,6 +222,11 @@ def m_dict(m):
 @requiere_login
 def get_facturas():
     return jsonify([])
+
+@app.route('/debug')
+def debug():
+    folders = os.listdir(BASE_DIR)
+    return jsonify({'base_dir': BASE_DIR, 'files': folders})
 
 with app.app_context():
     db.create_all()
