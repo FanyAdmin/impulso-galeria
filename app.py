@@ -228,6 +228,36 @@ def debug():
     folders = os.listdir(BASE_DIR)
     return jsonify({'base_dir': BASE_DIR, 'files': folders})
 
+
+@app.route('/api/import_pedidos', methods=['POST'])
+def import_pedidos():
+    data = request.json or {}
+    secret = data.get('secret', '')
+    if secret != 'impulso2026':
+        return jsonify({'error': 'No autorizado'}), 401
+    pedidos_data = data.get('pedidos', [])
+    count = 0
+    for d in pedidos_data:
+        try:
+            import json as _json
+            p = Pedido(
+                folio=d.get('folio'), tipo_venta=d.get('tipo_venta','general'),
+                cli=d.get('cli'), tel=d.get('tel'),
+                suc=d.get('suc','Jardines'), vend=d.get('vend'),
+                fecha=d.get('fecha'), mes=d.get('mes'),
+                items=_json.dumps(d.get('items',[])),
+                sub=d.get('sub',0), total=d.get('total',0),
+                met=d.get('met','Efectivo'), ant=d.get('ant',0),
+                rest=d.get('rest',0), obs=d.get('obs',''),
+                est=d.get('est','Pendiente'), entrega=d.get('entrega','')
+            )
+            db.session.add(p)
+            count += 1
+        except Exception as e:
+            pass
+    db.session.commit()
+    return jsonify({'ok': True, 'imported': count})
+
 with app.app_context():
     db.create_all()
 
