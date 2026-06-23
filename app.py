@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os, json
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__, static_folder='estático')
 app.secret_key = os.environ.get('CLAVE_SECRETA', 'impulso-secreto-2026')
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = False
@@ -70,11 +70,11 @@ def requiere_login(f):
 
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
+    return send_from_directory('estático', 'index.html')
 
 @app.route('/cotizador')
 def cotizador():
-    return send_from_directory('static', 'Cotizador_Impulso.html')
+    return send_from_directory('estático', 'Cotizador_Impulso.html')
 
 @app.route('/api/login', methods=['POST'])
 def login():
