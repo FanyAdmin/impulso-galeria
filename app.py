@@ -9,7 +9,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = False
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 
-CORS(app, supports_credentials=True)
+CORS(app, supports_credentials=True, origins='*')
 
 db_url = os.environ.get('DATABASE_URL', 'sqlite:///impulso.db')
 if db_url.startswith('postgres://'):
