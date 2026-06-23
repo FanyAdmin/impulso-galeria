@@ -12,6 +12,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 class Pedido(db.Model):
+    __tablename__ = 'pedido2'
     id          = db.Column(db.Integer, primary_key=True)
     folio       = db.Column(db.String(20), unique=True)
     cli         = db.Column(db.String(100))
@@ -28,6 +29,7 @@ class Pedido(db.Model):
     articulos   = db.Column(db.Text)
 
 class Movimiento(db.Model):
+    __tablename__ = 'movimiento2'
     id       = db.Column(db.Integer, primary_key=True)
     tipo     = db.Column(db.String(10))
     concepto = db.Column(db.String(100))
@@ -94,17 +96,15 @@ def get_pedidos():
     q = Pedido.query
     if rol != 'admin':
         q = q.filter_by(suc=suc)
-    pedidos = q.order_by(Pedido.id.desc()).all()
-    return jsonify([p_dict(p) for p in pedidos])
+    return jsonify([p_dict(p) for p in q.order_by(Pedido.id.desc()).all()])
 
 @app.route('/api/pedidos', methods=['POST'])
 @requiere_login
 def crear_pedido():
     data = request.json or {}
-    data['suc'] = session.get('suc')
     p = Pedido(
         folio=data.get('folio'), cli=data.get('cli'), tel=data.get('tel'),
-        suc=data.get('suc'), vendedor=data.get('vendedor'),
+        suc=session.get('suc'), vendedor=data.get('vendedor'),
         fecha=data.get('fecha'), mes=data.get('mes'),
         total=data.get('total', 0), hormiga=data.get('hormiga', 0),
         descansar=data.get('descansar', 0), conoci=data.get('conoci'),
@@ -153,18 +153,16 @@ def get_movimientos():
     q = Movimiento.query
     if rol != 'admin':
         q = q.filter_by(suc=suc)
-    movs = q.order_by(Movimiento.id.desc()).all()
-    return jsonify([m_dict(m) for m in movs])
+    return jsonify([m_dict(m) for m in q.order_by(Movimiento.id.desc()).all()])
 
 @app.route('/api/movimientos', methods=['POST'])
 @requiere_login
 def crear_movimiento():
     data = request.json or {}
-    data['suc'] = session.get('suc')
     m = Movimiento(
         tipo=data.get('tipo'), concepto=data.get('concepto'),
         monto=data.get('monto', 0), fecha=data.get('fecha'),
-        mes=data.get('mes'), suc=data.get('suc'), notas=data.get('notas', '')
+        mes=data.get('mes'), suc=session.get('suc'), notas=data.get('notas', '')
     )
     db.session.add(m)
     db.session.commit()
@@ -185,73 +183,8 @@ def m_dict(m):
         'suc': m.suc, 'notas': m.notas
     }
 
-def seed():
-    if Pedido.query.count() == 0:
-        try:
-            with open('seed_pedidos.json') as f:
-                for d in json.load(f):
-                    db.session.add(Pedido(
-                        folio=d.get('folio'), cli=d.get('cli'), tel=d.get('tel'),
-                        suc=d.get('suc'), vendedor=d.get('vendedor'),
-                        fecha=d.get('fecha'), mes=d.get('mes'),
-                        total=d.get('total',0), hormiga=d.get('hormiga',0),
-                        descansar=d.get('descansar',0), conoci=d.get('conoci'),
-                        est=d.get('est','Pendiente'),
-                        articulos=json.dumps(d.get('articulos',[]))
-                    ))
-            db.session.commit()
-        except:
-            pass
-    if Movimiento.query.count() == 0:
-        try:
-            with open('seed_movimientos.json') as f:
-                for d in json.load(f):
-                    db.session.add(Movimiento(
-                        tipo=d.get('tipo'), concepto=d.get('concepto'),
-                        monto=d.get('monto',0), fecha=d.get('fecha'),
-                        mes=d.get('mes'), suc=d.get('suc'), notas=d.get('notas','')
-                    ))
-            db.session.commit()
-        except:
-            pass
-
 with app.app_context():
     db.create_all()
-    extra_cols = {
-        'pedido': [
-            ('vendedor', 'VARCHAR(50)'),
-            ('hormiga', 'FLOAT'),
-            ('descansar', 'FLOAT'),
-            ('conoci', 'VARCHAR(30)'),
-            ('articulos', 'TEXT'),
-            ('folio', 'VARCHAR(20)'),
-            ('cli', 'VARCHAR(100)'),
-            ('tel', 'VARCHAR(20)'),
-            ('suc', 'VARCHAR(50)'),
-            ('fecha', 'VARCHAR(20)'),
-            ('mes', 'INTEGER'),
-            ('total', 'FLOAT'),
-            ('est', 'VARCHAR(30)'),
-        ],
-        'movimiento': [
-            ('tipo', 'VARCHAR(10)'),
-            ('concepto', 'VARCHAR(100)'),
-            ('monto', 'FLOAT'),
-            ('fecha', 'VARCHAR(20)'),
-            ('mes', 'INTEGER'),
-            ('suc', 'VARCHAR(50)'),
-            ('notas', 'VARCHAR(200)'),
-        ]
-    }
-    with db.engine.connect() as con:
-        for tabla, cols in extra_cols.items():
-            for col, tipo in cols:
-                try:
-                    con.execute(db.text(f'ALTER TABLE {tabla} ADD COLUMN {col} {tipo}'))
-                    con.commit()
-                except:
-                    pass
-    seed()
 
 if __name__ == '__main__':
     app.run(debug=True)
