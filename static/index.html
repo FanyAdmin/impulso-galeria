@@ -746,7 +746,7 @@ function selU(k){document.querySelectorAll('.ucard').forEach(c=>c.classList.remo
 function doLogin(){
   if(!CU){showLE('Selecciona un usuario');return;}
   const pwd=document.getElementById('pwd').value;
-  fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},
+  fetch('/api/login',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({key:CU,pwd})})
   .then(r=>r.json()).then(data=>{
     if(!data.ok){showLE(data.msg||'Credenciales incorrectas');return;}
@@ -1582,9 +1582,9 @@ const LOGO_B64="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0
 // === API SYNC ===
 function loadData(){
   Promise.all([
-    fetch('/api/pedidos').then(r=>r.json()),
-    fetch('/api/movimientos').then(r=>r.json()),
-    fetch('/api/facturas').then(r=>r.json())
+    fetch('/api/pedidos',{credentials:'include'}).then(r=>r.json()),
+    fetch('/api/movimientos',{credentials:'include'}).then(r=>r.json()),
+    fetch('/api/facturas',{credentials:'include'}).then(r=>r.json())
   ]).then(([peds,movs_data,facs])=>{
     pedidos=peds;
     movs=movs_data;
@@ -1597,8 +1597,8 @@ function loadData(){
 // Auto-sync every 60 seconds
 setInterval(function(){
   if(!CU) return;
-  fetch('/api/pedidos').then(r=>r.json()).then(peds=>{pedidos=peds;});
-  fetch('/api/movimientos').then(r=>r.json()).then(m=>{movs=m;});
+  fetch('/api/pedidos',{credentials:'include'}).then(r=>r.json()).then(peds=>{pedidos=peds;});
+  fetch('/api/movimientos',{credentials:'include'}).then(r=>r.json()).then(m=>{movs=m;});
 },60000);
 
 // Override guardarPed to save to API
@@ -1621,7 +1621,7 @@ function guardarPed(){
     ant,rest:total*1.16-ant,
     obs:document.getElementById('mp-o').value.trim(),
     est:'Pendiente',entrega:addBiz(hoy)};
-  fetch('/api/pedidos',{method:'POST',headers:{'Content-Type':'application/json'},
+  fetch('/api/pedidos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(newPed)})
   .then(r=>r.json()).then(()=>{
     pedidos.unshift(newPed);
@@ -1643,7 +1643,7 @@ function addMov(){
   if(!desc||!monto){alert('Completa descripcion y monto');return;}
   const newMov={tipo,concepto:cat,desc,monto,fecha:todayStr(),
     mes:new Date().getMonth(),cuenta:cta,cta_destino:cta2,socio:''};
-  fetch('/api/movimientos',{method:'POST',headers:{'Content-Type':'application/json'},
+  fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(newMov)})
   .then(r=>r.json()).then(()=>{
     movs.unshift(newMov);
