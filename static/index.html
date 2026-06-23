@@ -184,10 +184,21 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="radio" name="mp-tv" value="factura"> Requiere factura</label>
         </div>
       </div>
-      <div class="field"><label>Cliente (opcional)</label><input id="mp-c" placeholder="Nombre del cliente"></div>
+      <div class="field"><label>Cliente (opcional)</label><input id="mp-c" placeholder="Nombre del cliente" oninput="checkVIP(this.value)"></div>
       <div class="field"><label>Teléfono</label><input id="mp-t" placeholder="(442)..."></div>
+      <div id="mp-vip-badge" style="display:none;grid-column:span 2;background:#FEF3C7;border:1px solid #F59E0B;border-radius:6px;padding:6px 10px;font-size:12px;color:#92400E;font-weight:600">⭐ Cliente VIP — 10% de descuento aplicado</div>
       <div class="field"><label>Vendedor</label><select id="mp-vend"></select></div>
       <div class="field"><label>Método de pago</label><select id="mp-m"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select></div>
+      <div class="field gc2"><label>Descuento</label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+          <button type="button" class="btn btn-s btn-xs" onclick="applyDesc(0)" id="desc-0" style="padding:4px 8px">Sin descuento</button>
+          <button type="button" class="btn btn-s btn-xs" onclick="applyDesc(5)" id="desc-5" style="padding:4px 8px">5%</button>
+          <button type="button" class="btn btn-s btn-xs" onclick="applyDesc(10)" id="desc-10" style="padding:4px 8px">10%</button>
+          <button type="button" class="btn btn-s btn-xs" onclick="applyDesc(15)" id="desc-15" style="padding:4px 8px">15%</button>
+          <button type="button" class="btn btn-s btn-xs" onclick="applyDesc(16)" id="desc-16" style="padding:4px 8px">16%</button>
+          <button type="button" class="btn btn-s btn-xs" onclick="applyDesc(50)" id="desc-50" style="padding:4px 8px">50%</button>
+        </div>
+      </div>
       <div class="field"><label>Anticipo ($)</label><input type="number" id="mp-a" placeholder="0.00" oninput="calcMR()"></div>
       <div class="field"><label>Total</label><input class="ro" id="mp-tot" readonly></div>
       <div class="field"><label>Restante</label><input class="ro" id="mp-r" readonly style="font-weight:600"></div>
@@ -300,6 +311,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-item admin-only" style="display:none" onclick="go('com')" id="nav-com">💸 Comisiones</div>
   <div class="sb-item" onclick="go('fac')" id="nav-fac">📄 Facturacion</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('usr')" id="nav-usr">👤 Usuarios</div>
+  <div class="sb-item admin-only" style="display:none" onclick="go('vip');rVIP()" id="nav-vip">⭐ Clientes VIP</div>
   <div class="sb-foot">
     <div class="sb-user" id="sb-user">—</div>
     <div class="sb-role" id="sb-role">—</div>
@@ -529,6 +541,18 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 <div class="page" id="page-usr">
   <div class="ph"><div><div class="ph-title">Gestión de Usuarios</div></div><button class="btn btn-p" onclick="openAddUsr()">+ Agregar usuario</button></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Nombre</th><th>Login</th><th>Sucursal</th><th>Rol</th><th></th></tr></thead><tbody id="usr-body"></tbody></table></div>
+</div>
+
+<!-- VIP Clientes -->
+<div class="page admin-only" id="page-vip" style="display:none">
+  <div class="ph"><div><div class="ph-title">Clientes VIP</div><div class="ph-sub">10% de descuento automático</div></div></div>
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;gap:8px">
+      <input id="vip-input" placeholder="Nombre exacto del cliente" style="flex:1">
+      <button class="btn btn-p" onclick="addVIP()" style="white-space:nowrap;padding:10px 16px">+ Agregar VIP</button>
+    </div>
+  </div>
+  <div class="card"><div id="vip-list"></div></div>
 </div>
 
 <!-- COMISIONES -->
@@ -956,7 +980,7 @@ function rPed(f){
     return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
-      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td></tr>`;
+      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td><button class="btn btn-s btn-xs" onclick="editPed(${idx})" style="margin-right:3px">✏️</button><button class="btn btn-s btn-xs" style="color:var(--red)" onclick="delPed(${idx})">🗑</button></td></tr>`;
   }).join('');
   document.getElementById('p-pag').innerHTML=total>1?
     `<span style="margin-right:4px;color:var(--text2)">Pág ${pedPage+1} de ${total} · ${list.length} pedidos</span>
@@ -1607,25 +1631,27 @@ function guardarPed(){
   const u=USERS.find(x=>x.key===CU);
   if(!u){alert('Sesion expirada, vuelve a entrar');return;}
   const folioEl=document.getElementById('mp-f');
-  const antEl=document.getElementById('mp-ant');
+  const antEl=document.getElementById('mp-a');
   const tvEl=document.querySelector('input[name="mp-tv"]:checked');
   const cliEl=document.getElementById('mp-c');
   const telEl=document.getElementById('mp-t');
   const vendEl=document.getElementById('mp-vend');
   const metEl=document.getElementById('mp-m');
   const obsEl=document.getElementById('mp-o');
+  const totEl=document.getElementById('mp-tot');
   const folio=(folioEl?folioEl.value.trim():'')||('P'+Date.now());
   const ant=parseFloat(antEl?antEl.value:0)||0;
-  const total=cart.reduce((a,i)=>a+i.sub,0);
+  const sub=cart.reduce((a,i)=>a+i.sub,0);
+  const totalFinal=totEl&&totEl._raw?totEl._raw:sub*1.16;
   const hoy=todayStr();
   const newPed={folio,tipo_venta:tvEl?tvEl.value:'general',
     cli:(cliEl?cliEl.value.trim():'')||'—',
     tel:telEl?telEl.value.trim():'',
     suc:u.suc,vend:vendEl?vendEl.value:'',
     fecha:hoy,mes:new Date().getMonth(),
-    items:[...cart],sub:total,total:total*1.16,
+    items:[...cart],sub:sub,total:totalFinal,
     met:metEl?metEl.value:'Efectivo',
-    ant,rest:total*1.16-ant,
+    ant,rest:Math.max(0,totalFinal-ant),
     obs:obsEl?obsEl.value.trim():'',
     est:'Pendiente',entrega:addBiz(hoy)};
   fetch('/api/pedidos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
@@ -1650,7 +1676,7 @@ function addMov(){
   if(!desc||!monto){alert('Completa descripcion y monto');return;}
   const newMov={tipo,concepto:cat,desc,monto,fecha:todayStr(),
     mes:new Date().getMonth(),cuenta:cta,cta_destino:cta2,socio:''};
-  fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+  fetch('/api/movimientos',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(newMov)})
   .then(r=>r.json()).then(()=>{
     movs.unshift(newMov);
@@ -1719,6 +1745,109 @@ function expMovPDF(){
 }
 // Init
 renderUCards();
+
+// ─── VIP CLIENTES ────────────────────────────────────────────────────────────
+let VIP_CLIENTS = JSON.parse(localStorage.getItem('vip_clients')||'[]');
+
+function saveVIP(){localStorage.setItem('vip_clients',JSON.stringify(VIP_CLIENTS));}
+
+function checkVIP(nombre){
+  const n = nombre.toLowerCase().trim();
+  const isVIP = VIP_CLIENTS.some(v=>v.toLowerCase()===n);
+  document.getElementById('mp-vip-badge').style.display = isVIP ? 'block' : 'none';
+  if(isVIP) applyDesc(10);
+  else applyDesc(0);
+}
+
+function applyDesc(pct){
+  // Update button styles
+  [0,5,10,15,16,50].forEach(p=>{
+    const btn = document.getElementById('desc-'+p);
+    if(btn) btn.classList.toggle('btn-p', p===pct);
+    if(btn) btn.classList.toggle('btn-s', p!==pct);
+  });
+  // Recalculate total with discount
+  const sub = cart.reduce((a,b)=>a+b.sub,0);
+  const desc = sub * (pct/100);
+  const total = (sub - desc) * 1.16;
+  const totEl = document.getElementById('mp-tot');
+  const antEl = document.getElementById('mp-a');
+  if(totEl) totEl.value = fmt(total);
+  totEl._raw = total;
+  const ant = parseFloat(antEl?antEl.value:0)||0;
+  const rEl = document.getElementById('mp-r');
+  if(rEl) rEl.value = fmt(Math.max(0, total - ant));
+  // Store discount
+  totEl._desc = pct;
+}
+
+// ─── BORRAR / EDITAR PEDIDO ──────────────────────────────────────────────────
+function delPed(idx){
+  const p = pedidos[idx];
+  if(!p) return;
+  if(!confirm('¿Eliminar pedido '+p.folio+'? Esta acción no se puede deshacer.')) return;
+  if(p.id){
+    fetch('/api/pedidos/'+p.id,{method:'DELETE',credentials:'include'})
+    .then(r=>r.json()).then(()=>{
+      pedidos.splice(idx,1);
+      rPed();
+    }).catch(e=>alert('Error eliminando pedido'));
+  } else {
+    pedidos.splice(idx,1);
+    rPed();
+  }
+}
+
+function editPed(idx){
+  const p = pedidos[idx];
+  if(!p) return;
+  const newEst = prompt('Estado del pedido:', p.est||'Pendiente');
+  if(newEst===null) return;
+  const newObs = prompt('Observaciones:', p.obs||'');
+  if(newObs===null) return;
+  p.est = newEst;
+  p.obs = newObs;
+  if(p.id){
+    fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({est:newEst,obs:newObs})
+    }).then(r=>r.json()).then(()=>rPed());
+  } else {
+    rPed();
+  }
+}
+
+// ─── VIP ADMIN (solo admin) ──────────────────────────────────────────────────
+function rVIP(){
+  const container = document.getElementById('vip-list');
+  if(!container) return;
+  if(!VIP_CLIENTS.length){
+    container.innerHTML='<p style="color:var(--text3);font-size:13px">Sin clientes VIP registrados</p>';
+    return;
+  }
+  container.innerHTML = VIP_CLIENTS.map((v,i)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px">⭐ ${v}</span>
+      <button class="btn btn-s btn-xs" style="color:var(--red)" onclick="delVIP(${i})">Eliminar</button>
+    </div>`).join('');
+}
+
+function addVIP(){
+  const input = document.getElementById('vip-input');
+  const nombre = input.value.trim();
+  if(!nombre){alert('Escribe el nombre del cliente');return;}
+  if(VIP_CLIENTS.includes(nombre)){alert('Ya existe');return;}
+  VIP_CLIENTS.push(nombre);
+  saveVIP();
+  input.value='';
+  rVIP();
+}
+
+function delVIP(i){
+  VIP_CLIENTS.splice(i,1);
+  saveVIP();
+  rVIP();
+}
 </script>
 </body>
 </html>
