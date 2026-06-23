@@ -11,8 +11,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# ── Modelos ──────────────────────────────────────────────────────────────────
-
 class Pedido(db.Model):
     id          = db.Column(db.Integer, primary_key=True)
     folio       = db.Column(db.String(20), unique=True)
@@ -27,11 +25,11 @@ class Pedido(db.Model):
     descansar   = db.Column(db.Float)
     conoci      = db.Column(db.String(30))
     est         = db.Column(db.String(30))
-    articulos   = db.Column(db.Text)   # JSON string
+    articulos   = db.Column(db.Text)
 
 class Movimiento(db.Model):
     id       = db.Column(db.Integer, primary_key=True)
-    tipo     = db.Column(db.String(10))   # ingreso / egreso
+    tipo     = db.Column(db.String(10))
     concepto = db.Column(db.String(100))
     monto    = db.Column(db.Float)
     fecha    = db.Column(db.String(20))
@@ -39,16 +37,11 @@ class Movimiento(db.Model):
     suc      = db.Column(db.String(50))
     notas    = db.Column(db.String(200))
 
-# ── Auth ──────────────────────────────────────────────────────────────────────
-
 USUARIOS = {
     'jardines': {'password': 'jardines123', 'suc': 'Jardines', 'rol': 'sucursal'},
     'zibata':   {'password': 'zibata123',   'suc': 'Zibata',   'rol': 'sucursal'},
     'admin':    {'password': 'admin123',    'suc': 'admin',    'rol': 'admin'},
 }
-
-def usuario_actual():
-    return session.get('usuario')
 
 def requiere_login(f):
     from functools import wraps
@@ -59,8 +52,6 @@ def requiere_login(f):
         return f(*args, **kwargs)
     return decorado
 
-# ── Rutas estáticas ───────────────────────────────────────────────────────────
-
 @app.route('/')
 def index():
     return send_from_directory('static', 'index.html')
@@ -68,12 +59,6 @@ def index():
 @app.route('/cotizador')
 def cotizador():
     return send_from_directory('static', 'Cotizador_Impulso.html')
-
-@app.route('/static/<path:filename>')
-def static_files(filename):
-    return send_from_directory('static', filename)
-
-# ── Auth endpoints ────────────────────────────────────────────────────────────
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -101,8 +86,6 @@ def me():
     info = USUARIOS[u]
     return jsonify({'ok': True, 'usuario': u, 'suc': info['suc'], 'rol': info['rol']})
 
-# ── Pedidos ───────────────────────────────────────────────────────────────────
-
 @app.route('/api/pedidos', methods=['GET'])
 @requiere_login
 def get_pedidos():
@@ -120,19 +103,13 @@ def crear_pedido():
     data = request.json or {}
     data['suc'] = session.get('suc')
     p = Pedido(
-        folio    = data.get('folio'),
-        cli      = data.get('cli'),
-        tel      = data.get('tel'),
-        suc      = data.get('suc'),
-        vendedor = data.get('vendedor'),
-        fecha    = data.get('fecha'),
-        mes      = data.get('mes'),
-        total    = data.get('total', 0),
-        hormiga  = data.get('hormiga', 0),
-        descansar= data.get('descansar', 0),
-        conoci   = data.get('conoci'),
-        est      = data.get('est', 'Pendiente'),
-        articulos= json.dumps(data.get('articulos', []))
+        folio=data.get('folio'), cli=data.get('cli'), tel=data.get('tel'),
+        suc=data.get('suc'), vendedor=data.get('vendedor'),
+        fecha=data.get('fecha'), mes=data.get('mes'),
+        total=data.get('total', 0), hormiga=data.get('hormiga', 0),
+        descansar=data.get('descansar', 0), conoci=data.get('conoci'),
+        est=data.get('est', 'Pendiente'),
+        articulos=json.dumps(data.get('articulos', []))
     )
     db.session.add(p)
     db.session.commit()
@@ -168,8 +145,6 @@ def p_dict(p):
         'articulos': json.loads(p.articulos) if p.articulos else []
     }
 
-# ── Movimientos ───────────────────────────────────────────────────────────────
-
 @app.route('/api/movimientos', methods=['GET'])
 @requiere_login
 def get_movimientos():
@@ -187,13 +162,9 @@ def crear_movimiento():
     data = request.json or {}
     data['suc'] = session.get('suc')
     m = Movimiento(
-        tipo    = data.get('tipo'),
-        concepto= data.get('concepto'),
-        monto   = data.get('monto', 0),
-        fecha   = data.get('fecha'),
-        mes     = data.get('mes'),
-        suc     = data.get('suc'),
-        notas   = data.get('notas', '')
+        tipo=data.get('tipo'), concepto=data.get('concepto'),
+        monto=data.get('monto', 0), fecha=data.get('fecha'),
+        mes=data.get('mes'), suc=data.get('suc'), notas=data.get('notas', '')
     )
     db.session.add(m)
     db.session.commit()
@@ -214,10 +185,7 @@ def m_dict(m):
         'suc': m.suc, 'notas': m.notas
     }
 
-# ── Init ──────────────────────────────────────────────────────────────────────
-
 def seed():
-    """Carga datos iniciales si la tabla está vacía."""
     if Pedido.query.count() == 0:
         try:
             with open('seed_pedidos.json') as f:
@@ -232,9 +200,8 @@ def seed():
                         articulos=json.dumps(d.get('articulos',[]))
                     ))
             db.session.commit()
-        except Exception:
+        except:
             pass
-
     if Movimiento.query.count() == 0:
         try:
             with open('seed_movimientos.json') as f:
@@ -245,11 +212,45 @@ def seed():
                         mes=d.get('mes'), suc=d.get('suc'), notas=d.get('notas','')
                     ))
             db.session.commit()
-        except Exception:
+        except:
             pass
 
 with app.app_context():
     db.create_all()
+    extra_cols = {
+        'pedido': [
+            ('vendedor', 'VARCHAR(50)'),
+            ('hormiga', 'FLOAT'),
+            ('descansar', 'FLOAT'),
+            ('conoci', 'VARCHAR(30)'),
+            ('articulos', 'TEXT'),
+            ('folio', 'VARCHAR(20)'),
+            ('cli', 'VARCHAR(100)'),
+            ('tel', 'VARCHAR(20)'),
+            ('suc', 'VARCHAR(50)'),
+            ('fecha', 'VARCHAR(20)'),
+            ('mes', 'INTEGER'),
+            ('total', 'FLOAT'),
+            ('est', 'VARCHAR(30)'),
+        ],
+        'movimiento': [
+            ('tipo', 'VARCHAR(10)'),
+            ('concepto', 'VARCHAR(100)'),
+            ('monto', 'FLOAT'),
+            ('fecha', 'VARCHAR(20)'),
+            ('mes', 'INTEGER'),
+            ('suc', 'VARCHAR(50)'),
+            ('notas', 'VARCHAR(200)'),
+        ]
+    }
+    with db.engine.connect() as con:
+        for tabla, cols in extra_cols.items():
+            for col, tipo in cols:
+                try:
+                    con.execute(db.text(f'ALTER TABLE {tabla} ADD COLUMN {col} {tipo}'))
+                    con.commit()
+                except:
+                    pass
     seed()
 
 if __name__ == '__main__':
