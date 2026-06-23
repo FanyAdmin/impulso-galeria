@@ -1604,22 +1604,29 @@ setInterval(function(){
 // Override guardarPed to save to API
 const _origGuardarPed=guardarPed;
 function guardarPed(){
-  // Build pedido object same way as before
   const u=USERS.find(x=>x.key===CU);
-  const folio=document.getElementById('mp-f').value.trim()||('P'+Date.now());
-  const ant=parseFloat(document.getElementById('mp-ant').value)||0;
-  const total=cart.reduce((a,i)=>a+i.sub,0);
+  if(!u){alert('Sesion expirada, vuelve a entrar');return;}
+  const folioEl=document.getElementById('mp-f');
+  const antEl=document.getElementById('mp-ant');
   const tvEl=document.querySelector('input[name="mp-tv"]:checked');
+  const cliEl=document.getElementById('mp-c');
+  const telEl=document.getElementById('mp-t');
+  const vendEl=document.getElementById('mp-vend');
+  const metEl=document.getElementById('mp-m');
+  const obsEl=document.getElementById('mp-o');
+  const folio=(folioEl?folioEl.value.trim():'')||('P'+Date.now());
+  const ant=parseFloat(antEl?antEl.value:0)||0;
+  const total=cart.reduce((a,i)=>a+i.sub,0);
   const hoy=todayStr();
   const newPed={folio,tipo_venta:tvEl?tvEl.value:'general',
-    cli:document.getElementById('mp-c').value.trim()||'—',
-    tel:document.getElementById('mp-t').value.trim(),
-    suc:u.suc,vend:document.getElementById('mp-vend').value,
+    cli:(cliEl?cliEl.value.trim():'')||'—',
+    tel:telEl?telEl.value.trim():'',
+    suc:u.suc,vend:vendEl?vendEl.value:'',
     fecha:hoy,mes:new Date().getMonth(),
     items:[...cart],sub:total,total:total*1.16,
-    met:document.getElementById('mp-m').value,
+    met:metEl?metEl.value:'Efectivo',
     ant,rest:total*1.16-ant,
-    obs:document.getElementById('mp-o').value.trim(),
+    obs:obsEl?obsEl.value.trim():'',
     est:'Pendiente',entrega:addBiz(hoy)};
   fetch('/api/pedidos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(newPed)})
@@ -1627,7 +1634,7 @@ function guardarPed(){
     pedidos.unshift(newPed);
     cart=[];molSel=null;
     CM('mod-ped');rPed();rCart();
-  });
+  }).catch(e=>console.error('Error guardando pedido:',e));
 }
 
 // Override addMov to save to API
