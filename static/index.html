@@ -1022,9 +1022,26 @@ function confEnt(){
 }
 
 // ─── CXC ──────────────────────────────────────────────────────────────────────
-function misC(){const u=USERS.find(x=>x.key===CU);return u.role==='admin'?cuentas:cuentas.filter(c=>c.suc===u.suc);}
+function misC(){
+  const u=USERS.find(x=>x.key===CU);
+  // Build CxC from pedidos with rest > 0
+  const peds = u.role==='admin' ? pedidos : pedidos.filter(p=>p.suc===u.suc);
+  return peds.filter(p=>p.rest>0).map(p=>({
+    id: p.id,
+    folio: p.folio,
+    cli: p.cli,
+    suc: p.suc,
+    fecha: p.fecha,
+    entrega: p.entrega,
+    total: p.total,
+    saldo: p.rest,
+    abon: p.ant,
+    liq: p.rest<=0,
+    est: p.est
+  }));
+}
 function rCxC(){
-  const list=misC(),ab=list.filter(c=>!c.liq);
+  const list=misC(),ab=list.filter(c=>!c.liq||c.saldo>0);
   document.getElementById('cxc-n').textContent=ab.length;
   document.getElementById('cxc-p').textContent=fmtK(ab.reduce((a,b)=>a+b.saldo,0));
   document.getElementById('cxc-a').textContent=fmtK(list.reduce((a,b)=>a+b.abon,0));
@@ -1082,7 +1099,8 @@ function rDia(){
     const btn=p.est==='Pendiente'?`<button class="btn btn-s btn-xs" onclick="openEnt(${idx})">📦 Entregar</button>`:'';
     const tvB=p.tipo_venta==='factura'?'<span class="badge bb" style="font-size:10px">📄 Factura</span>':'<span class="badge bgr" style="font-size:10px">Gral</span>';
     const tvBtn=`<button class="btn btn-s btn-xs" onclick="toggleTV(${idx})" style="padding:1px 5px;font-size:10px" title="Cambiar tipo">&#8644;</button>`;
-    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${metBadge||p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td></tr>`;
+    const mb=p.met==='Galería / Intercambio'?'<span class="badge" style="background:#EDE9FE;color:#6D28D9">🖼 Galería</span>':'';
+    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${mb||p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td></tr>`;
   }).join('');
 }
 
