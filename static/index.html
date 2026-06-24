@@ -797,7 +797,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:rDia,cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();rNom();},
-    lft:populateLFT,vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();}
+    lft:()=>{try{populateLFT();}catch(e){console.error('LFT error:',e);}},vends:rVends,com:rCom,fac:()=>{try{initFacMes();rFac();}catch(e){console.error('FAC error:',e);}}
   })[id]?.();
 }
 
