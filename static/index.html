@@ -1648,7 +1648,7 @@ function guardarPed(){
     cli:(cliEl?cliEl.value.trim():'')||'—',
     tel:telEl?telEl.value.trim():'',
     suc:u.suc,vend:vendEl?vendEl.value:'',
-    fecha:hoy,mes:new Date().getMonth()+1,
+    fecha:hoy,mes:new Date().getMonth(),
     items:[...cart],sub:sub,total:totalFinal,
     met:metEl?metEl.value:'Efectivo',
     ant,rest:Math.max(0,totalFinal-ant),
