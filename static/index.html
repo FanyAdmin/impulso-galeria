@@ -635,7 +635,15 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card">
       <div class="card-title">Empleado</div>
-      <div class="field"><label>Selecciona</label><select id="lft-emp" onchange="calcLFT()"><option value="">- Selecciona -</option></select></div>
+      <div class="field"><label>Selecciona</label><select id="lft-emp" onchange="calcLFT()">
+  <option value="">- Selecciona -</option>
+  <option value="1">Alondra Trejo</option>
+  <option value="2">Roberto</option>
+  <option value="3">Christian Ramirez</option>
+  <option value="4">Delia Mesa</option>
+  <option value="5">Yesica</option>
+  <option value="6">Ana Karen Ramirez</option>
+</select></div>
       <div id="lft-info" style="display:none">
         <div class="sbox" id="lft-datos"></div>
         <div class="tabs">
