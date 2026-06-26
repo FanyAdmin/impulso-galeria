@@ -281,6 +281,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cot')" id="nav-cot">🧮 Cotizador</div>
   <div class="sb-item" onclick="go('ped')" id="nav-ped">📋 Pedidos</div>
+  <div class="sb-item" onclick="go('pend');rPend()" id="nav-pend">📌 Pendientes</div>
   <div class="sb-item" onclick="go('cxc')" id="nav-cxc">💰 Cuentas x cobrar</div>
   <div class="sb-item" onclick="go('dia')" id="nav-dia">📊 Mi día</div>
   <div class="sb-section">Catálogo</div>
@@ -624,6 +625,13 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div style="display:flex;justify-content:flex-end;margin-top:.875rem"><button class="btn btn-p" onclick="pagarNom()">Registrar pago de nomina</button></div>
 </div>
 </div>
+<div class="page" id="page-pend">
+  <div class="ph">
+    <div><div class="ph-title">Pendientes</div><div class="ph-sub">Tareas y seguimientos del equipo</div></div>
+    <button class="btn btn-p btn-sm" onclick="openNuevoPend()">+ Nuevo pendiente</button>
+  </div>
+  <div id="pend-body"></div>
+</div>
 <div class="page" id="page-vip">
   <div class="ph"><div><div class="ph-title">Clientes VIP</div><div class="ph-sub">10% de descuento automático</div></div></div>
   <div class="card" style="margin-bottom:16px"><div style="display:flex;gap:8px"><input id="vip-input" placeholder="Nombre exacto del cliente" style="flex:1;padding:10px;border:1.5px solid #ccc;border-radius:6px"><button onclick="addVIP()" style="padding:10px 16px;background:#1A5C3A;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600">+ Agregar VIP</button></div></div>
@@ -790,7 +798,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:rDia,cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();rNom();},
-    lft:populateLFT,vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();}
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();}
   })[id]?.();
 }
 
@@ -917,7 +925,7 @@ function genPDF(){
 function openModPed(){
   if(!cart.length){alert('El carrito está vacío');return;}
   const sub=cart.reduce((a,b)=>a+b.sub,0),total=sub*1.16;
-  ['mp-f','mp-c','mp-t','mp-a','mp-o'].forEach(id=>document.getElementById(id).value='');
+  const u_cur=USERS.find(x=>x.key===CU);const nextF=u_cur?getNextFolio(u_cur.suc):'';['mp-f','mp-c','mp-t','mp-a','mp-o'].forEach(id=>document.getElementById(id).value='');document.getElementById('mp-f').value=nextF;
   document.getElementById('mp-tot').value=fmt(total);
   document.getElementById('mp-r').value=fmt(total);
   document.getElementById('mp-res').innerHTML=
@@ -973,7 +981,8 @@ function rPed(f){
     return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
-      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td></tr>`;
+      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td>
+      <td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
   document.getElementById('p-pag').innerHTML=total>1?
     `<span style="margin-right:4px;color:var(--text2)">Pág ${pedPage+1} de ${total} · ${list.length} pedidos</span>
@@ -1029,7 +1038,8 @@ function rCxC(){
     return `<tr><td class="mono" style="font-weight:600">${c.folio}</td><td>${c.cli}</td><td>${c.suc}</td><td>${c.fechaE}</td>
       <td class="mono">${fmt(c.total)}</td><td class="mono">${fmt(c.abon)}</td>
       <td class="mono" style="${!c.liq?'color:var(--red);font-weight:600':''}">${fmt(c.saldo)}</td>
-      <td>${badge}</td><td>${btn}</td></tr>`;
+      <td>${badge}</td><td>${btn}</td>
+      <td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 function openAb(idx){
@@ -1074,7 +1084,8 @@ function rDia(){
     const btn=p.est==='Pendiente'?`<button class="btn btn-s btn-xs" onclick="openEnt(${idx})">📦 Entregar</button>`:'';
     const tvB=p.tipo_venta==='factura'?'<span class="badge bb" style="font-size:10px">📄 Factura</span>':'<span class="badge bgr" style="font-size:10px">Gral</span>';
     const tvBtn=`<button class="btn btn-s btn-xs" onclick="toggleTV(${idx})" style="padding:1px 5px;font-size:10px" title="Cambiar tipo">&#8644;</button>`;
-    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td></tr>`;
+    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td>
+      <td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 
@@ -1789,6 +1800,87 @@ function misC(){
   const u=USERS.find(x=>x.key===CU);
   const peds=u&&u.role==='admin'?pedidos:pedidos.filter(p=>p.suc===(u&&u.suc));
   return peds.filter(p=>p.rest>0).map(p=>({id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,fecha:p.fecha,entrega:p.entrega,total:p.total,saldo:p.rest,abon:p.ant,liq:false,est:p.est}));
+}
+
+// ─── FOLIO AUTOMÁTICO ────────────────────────────────────────────────────────
+function getNextFolio(suc){
+  const peds = pedidos.filter(p=>p.suc===suc);
+  if(!peds.length) return suc==='Jardines'?'4000':'100';
+  const nums = peds.map(p=>parseInt(p.folio)).filter(n=>!isNaN(n));
+  if(!nums.length) return suc==='Jardines'?'4000':'100';
+  return String(Math.max(...nums)+1);
+}
+
+// ─── PENDIENTES ───────────────────────────────────────────────────────────────
+function rPend(){
+  fetch('/api/pendientes',{credentials:'include'})
+  .then(r=>r.json()).then(data=>{
+    const body=document.getElementById('pend-body');
+    if(!data.length){
+      body.innerHTML='<div style="text-align:center;padding:40px;color:#888">No hay pendientes. ¡Todo al corriente! ✅</div>';
+      return;
+    }
+    const abiertos=data.filter(p=>p.est!=='cerrado');
+    const cerrados=data.filter(p=>p.est==='cerrado');
+    let html='';
+    if(abiertos.length){
+      html+=abiertos.map(p=>pendCard(p)).join('');
+    }
+    if(cerrados.length){
+      html+=`<div style="margin-top:20px;padding:10px 0;border-top:1px solid #eee;color:#888;font-size:12px;font-weight:600;text-transform:uppercase">Cerrados (${cerrados.length})</div>`;
+      html+=cerrados.map(p=>pendCard(p)).join('');
+    }
+    body.innerHTML=html;
+  }).catch(()=>{
+    document.getElementById('pend-body').innerHTML='<div style="padding:20px;color:#888">Error cargando pendientes</div>';
+  });
+}
+
+function pendCard(p){
+  const cerrado=p.est==='cerrado';
+  return `<div style="background:${cerrado?'#F0FFF4':'#fff'};border:1.5px solid ${cerrado?'#6EE7B7':'#E0DED8'};border-radius:8px;padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px">${p.desc}</div>
+        ${p.cliente?`<div style="font-size:12px;color:#5C5A52">👤 ${p.cliente}${p.folio_ref?' · Folio '+p.folio_ref:''}</div>`:''}
+        <div style="font-size:12px;color:#5C5A52;margin-top:4px">📌 ${p.asignado} · ${p.fecha}</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+        ${cerrado
+          ?`<span style="background:#D1FAE5;color:#065F46;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600">✅ Cerrado</span>`
+          :`<button onclick="cerrarPend(${p.id})" style="padding:5px 10px;background:#1A5C3A;color:white;border:none;border-radius:6px;cursor:pointer;font-size:12px">✅ Cerrar</button>`
+        }
+        <button onclick="delPend(${p.id})" style="padding:5px 8px;border:1px solid #fca5a5;background:white;color:#991B1B;border-radius:6px;cursor:pointer;font-size:12px">🗑</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openNuevoPend(){
+  const desc=prompt('Descripción del pendiente:');
+  if(!desc||!desc.trim())return;
+  const cliente=prompt('Cliente (opcional):')||'';
+  const folio_ref=prompt('Folio de referencia (opcional):')||'';
+  const asignado=prompt('Asignado a (Alondra/Yesica/Admin):')||'Todos';
+  const u=USERS.find(x=>x.key===CU);
+  const nuevo={desc:desc.trim(),cliente,folio_ref,asignado,fecha:todayStr(),est:'abierto',suc:u?u.suc:'Admin'};
+  fetch('/api/pendientes',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(nuevo)
+  }).then(r=>r.json()).then(()=>rPend());
+}
+
+function cerrarPend(id){
+  fetch('/api/pendientes/'+id,{method:'PUT',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({est:'cerrado'})
+  }).then(r=>r.json()).then(()=>rPend());
+}
+
+function delPend(id){
+  if(!confirm('¿Eliminar este pendiente?'))return;
+  fetch('/api/pendientes/'+id,{method:'DELETE',credentials:'include'})
+  .then(r=>r.json()).then(()=>rPend());
 }
 </script>
 </body>
