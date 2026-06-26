@@ -27,7 +27,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 .shell{display:flex;height:100vh;overflow:hidden}
 .sidebar{width:204px;min-width:204px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
 .content{flex:1;overflow-y:auto;background:var(--bg)}
-.page{display:none;padding:1.5rem;min-height:calc(100vh - 4rem)}.page.active{display:block}
+.page{display:none;padding:1.5rem}.page.active{display:block}
 
 /* ── SIDEBAR ── */
 .sb-logo{padding:1.25rem 1rem 1rem;border-bottom:1px solid var(--border)}
@@ -184,21 +184,11 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="radio" name="mp-tv" value="factura"> Requiere factura</label>
         </div>
       </div>
-      <div class="field"><label>Cliente (opcional)</label><input id="mp-c" placeholder="Nombre del cliente" oninput="checkVIP(this.value)"></div>
-      <div id="mp-vip-badge" style="display:none;grid-column:span 2;background:#FEF3C7;border:1px solid #F59E0B;border-radius:6px;padding:6px 10px;font-size:12px;color:#92400E;font-weight:600">⭐ Cliente VIP — 10% aplicado</div>
+      <div class="field"><label>Cliente (opcional)</label><input id="mp-c" placeholder="Nombre del cliente" oninput="checkVIP(this.value)"></div><div id="mp-vip-badge" style="display:none;grid-column:span 2;background:#FEF3C7;border:1px solid #F59E0B;border-radius:6px;padding:6px 10px;font-size:12px;color:#92400E;font-weight:600">⭐ Cliente VIP — 10% aplicado</div>
       <div class="field"><label>Teléfono</label><input id="mp-t" placeholder="(442)..."></div>
       <div class="field"><label>Vendedor</label><select id="mp-vend"></select></div>
       <div class="field"><label>Método de pago</label><select id="mp-m"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Galería / Intercambio</option></select></div>
-      <div class="field gc2"><label>Descuento</label>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
-          <button type="button" onclick="applyDesc(0)" id="desc-0" style="padding:5px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px;background:#fff">Sin desc.</button>
-          <button type="button" onclick="applyDesc(5)" id="desc-5" style="padding:5px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px;background:#fff">5%</button>
-          <button type="button" onclick="applyDesc(10)" id="desc-10" style="padding:5px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px;background:#fff">10%</button>
-          <button type="button" onclick="applyDesc(15)" id="desc-15" style="padding:5px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px;background:#fff">15%</button>
-          <button type="button" onclick="applyDesc(16)" id="desc-16" style="padding:5px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px;background:#fff">16%</button>
-          <button type="button" onclick="applyDesc(50)" id="desc-50" style="padding:5px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px;background:#fff">50%</button>
-        </div>
-      </div>
+      <div class="field gc2"><label>Descuento</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px"><button type="button" onclick="applyDesc(0)" id="desc-0" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">Sin desc</button><button type="button" onclick="applyDesc(5)" id="desc-5" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">5%</button><button type="button" onclick="applyDesc(10)" id="desc-10" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">10%</button><button type="button" onclick="applyDesc(15)" id="desc-15" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">15%</button><button type="button" onclick="applyDesc(16)" id="desc-16" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">16%</button><button type="button" onclick="applyDesc(50)" id="desc-50" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">50%</button></div></div>
       <div class="field"><label>Anticipo ($)</label><input type="number" id="mp-a" placeholder="0.00" oninput="calcMR()"></div>
       <div class="field"><label>Total</label><input class="ro" id="mp-tot" readonly></div>
       <div class="field"><label>Restante</label><input class="ro" id="mp-r" readonly style="font-weight:600"></div>
@@ -471,7 +461,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Folio</th><th>Sucursal</th><th>Días</th><th>Total</th></tr></thead><tbody id="a-atr"></tbody></table></div>
     </div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;min-height:400px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card"><div class="card-title">Por sucursal hoy</div><div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Sucursal</th><th>Notas</th><th>Monto</th></tr></thead><tbody id="a-suc"></tbody></table></div></div>
     <div class="card"><div class="card-title">Pedidos pendientes por mes</div><div id="a-pend" style="font-size:12px"></div></div>
   </div>
@@ -633,21 +623,15 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="tw"><table class="tbl"><thead><tr><th>Empleado</th><th>Sucursal</th><th>Dias</th><th>Faltas</th><th>Salario</th><th>Descuento</th><th>A pagar</th><th></th></tr></thead><tbody id="nom-body"></tbody></table></div>
   <div style="display:flex;justify-content:flex-end;margin-top:.875rem"><button class="btn btn-p" onclick="pagarNom()">Registrar pago de nomina</button></div>
 </div>
-
 <div class="page" id="page-vip">
   <div class="ph"><div><div class="ph-title">Clientes VIP</div><div class="ph-sub">10% de descuento automático</div></div></div>
-  <div class="card" style="margin-bottom:16px">
-    <div style="display:flex;gap:8px">
-      <input id="vip-input" placeholder="Nombre exacto del cliente" style="flex:1;padding:10px;border:1.5px solid #ccc;border-radius:6px">
-      <button onclick="addVIP()" style="padding:10px 16px;background:#1A5C3A;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600">+ Agregar VIP</button>
-    </div>
-  </div>
+  <div class="card" style="margin-bottom:16px"><div style="display:flex;gap:8px"><input id="vip-input" placeholder="Nombre exacto del cliente" style="flex:1;padding:10px;border:1.5px solid #ccc;border-radius:6px"><button onclick="addVIP()" style="padding:10px 16px;background:#1A5C3A;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600">+ Agregar VIP</button></div></div>
   <div class="card"><div id="vip-list"></div></div>
 </div>
 <!-- LFT -->
 <div class="page" id="page-lft">
   <div class="ph"><div><div class="ph-title">Calculadora LFT</div></div></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;min-height:400px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card">
       <div class="card-title">Empleado</div>
       <div class="field"><label>Selecciona</label><select id="lft-emp" onchange="calcLFT()"><option value="">- Selecciona -</option></select></div>
@@ -685,7 +669,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="metric"><div class="m-label">Monto pendiente</div><div class="m-val" id="fac-monto">$0</div></div>
     <div class="metric"><div class="m-label">Facturas emitidas</div><div class="m-val" id="fac-emitidas">0</div></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;min-height:400px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card">
       <div class="card-title">Pendientes de facturar</div>
       <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th><input type="checkbox" id="fac-all" onclick="selAllFac(this)"></th><th>Folio</th><th>Cliente</th><th>Fecha</th><th>Total</th></tr></thead><tbody id="fac-pend-body"></tbody></table></div>
@@ -1629,9 +1613,9 @@ setInterval(function(){
 const _origGuardarPed=guardarPed;
 function guardarPed(){
   const u=USERS.find(x=>x.key===CU);
-  if(!u){alert('Sesion expirada, vuelve a entrar');return;}
+  if(!u){alert('Sesion expirada');return;}
   const folioEl=document.getElementById('mp-f');
-  const antEl=document.getElementById('mp-a')||document.getElementById('mp-ant');
+  const antEl=document.getElementById('mp-a');
   const tvEl=document.querySelector('input[name="mp-tv"]:checked');
   const cliEl=document.getElementById('mp-c');
   const telEl=document.getElementById('mp-t');
@@ -1642,8 +1626,7 @@ function guardarPed(){
   const folio=(folioEl?folioEl.value.trim():'')||('P'+Date.now());
   const ant=parseFloat(antEl?antEl.value:0)||0;
   const sub=cart.reduce((a,i)=>a+i.sub,0);
-  const desc=totEl&&totEl._desc?totEl._desc:0;
-  const totalFinal=totEl&&totEl._raw?totEl._raw:sub*(1-desc/100)*1.16;
+  const totalFinal=totEl&&totEl._raw?totEl._raw:sub*1.16;
   const hoy=todayStr();
   const newPed={folio,tipo_venta:tvEl?tvEl.value:'general',
     cli:(cliEl?cliEl.value.trim():'')||'—',
@@ -1661,7 +1644,7 @@ function guardarPed(){
     pedidos.unshift({...newPed,id:data.id});
     cart=[];molSel=null;
     CM('mod-ped');rPed();rCart();
-  }).catch(e=>console.error('Error guardando pedido:',e));
+  }).catch(e=>console.error('Error:',e));
 }
 
 // Override addMov to save to API
@@ -1747,12 +1730,8 @@ function expMovPDF(){
 // Init
 renderUCards();
 
-// ─── DESCUENTOS ──────────────────────────────────────────────────────────────
 function applyDesc(pct){
-  [0,5,10,15,16,50].forEach(p=>{
-    const btn=document.getElementById('desc-'+p);
-    if(btn){btn.style.background=p===pct?'#1A5C3A':'#fff';btn.style.color=p===pct?'#fff':'#333';}
-  });
+  [0,5,10,15,16,50].forEach(p=>{var b=document.getElementById('desc-'+p);if(b){b.style.background=p===pct?'#1A5C3A':'#fff';b.style.color=p===pct?'#fff':'#333';}});
   const sub=cart.reduce((a,b)=>a+b.sub,0);
   const total=sub*(1-pct/100)*1.16;
   const totEl=document.getElementById('mp-tot');
@@ -1761,8 +1740,6 @@ function applyDesc(pct){
   const rEl=document.getElementById('mp-r');
   if(rEl)rEl.value=fmt(Math.max(0,total-ant));
 }
-
-// ─── VIP ─────────────────────────────────────────────────────────────────────
 let VIP_CLIENTS=JSON.parse(localStorage.getItem('vip_clients')||'[]');
 function saveVIP(){localStorage.setItem('vip_clients',JSON.stringify(VIP_CLIENTS));}
 function checkVIP(nombre){
@@ -1773,49 +1750,28 @@ function checkVIP(nombre){
 }
 function rVIP(){
   const c=document.getElementById('vip-list');if(!c)return;
-  c.innerHTML=!VIP_CLIENTS.length?'<p style="color:#888;font-size:13px">Sin clientes VIP</p>':
-    VIP_CLIENTS.map((v,i)=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee"><span>⭐ ${v}</span><button onclick="delVIP(${i})" style="color:#991B1B;border:none;background:none;cursor:pointer;font-size:12px">Eliminar</button></div>`).join('');
+  c.innerHTML=!VIP_CLIENTS.length?'<p style="color:#888;font-size:13px">Sin clientes VIP</p>':VIP_CLIENTS.map((v,i)=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee"><span>⭐ ${v}</span><button onclick="delVIP(${i})" style="color:#991B1B;border:none;background:none;cursor:pointer">Eliminar</button></div>`).join('');
 }
-function addVIP(){
-  const input=document.getElementById('vip-input');
-  const n=input.value.trim();
-  if(!n){alert('Escribe el nombre');return;}
-  if(VIP_CLIENTS.includes(n)){alert('Ya existe');return;}
-  VIP_CLIENTS.push(n);saveVIP();input.value='';rVIP();
-}
+function addVIP(){var input=document.getElementById('vip-input');var n=input.value.trim();if(!n){alert('Escribe el nombre');return;}if(VIP_CLIENTS.includes(n)){alert('Ya existe');return;}VIP_CLIENTS.push(n);saveVIP();input.value='';rVIP();}
 function delVIP(i){VIP_CLIENTS.splice(i,1);saveVIP();rVIP();}
-
-// ─── BORRAR/EDITAR PEDIDO ────────────────────────────────────────────────────
 function delPed(idx){
   const p=pedidos[idx];if(!p)return;
   if(!confirm('¿Eliminar pedido '+p.folio+'?'))return;
-  if(p.id){
-    fetch('/api/pedidos/'+p.id,{method:'DELETE',credentials:'include'})
-    .then(r=>r.json()).then(()=>{pedidos.splice(idx,1);rPed();});
-  }else{pedidos.splice(idx,1);rPed();}
+  if(p.id){fetch('/api/pedidos/'+p.id,{method:'DELETE',credentials:'include'}).then(r=>r.json()).then(()=>{pedidos.splice(idx,1);rPed();});}
+  else{pedidos.splice(idx,1);rPed();}
 }
 function editPed(idx){
   const p=pedidos[idx];if(!p)return;
   const newEst=prompt('Estado:',p.est||'Pendiente');if(newEst===null)return;
   const newObs=prompt('Observaciones:',p.obs||'');if(newObs===null)return;
   p.est=newEst;p.obs=newObs;
-  if(p.id){
-    fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({est:newEst,obs:newObs})
-    }).then(r=>r.json()).then(()=>rPed());
-  }else rPed();
+  if(p.id){fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({est:newEst,obs:newObs})}).then(r=>r.json()).then(()=>rPed());}
+  else rPed();
 }
-
-// ─── CxC desde pedidos ───────────────────────────────────────────────────────
 function misC(){
   const u=USERS.find(x=>x.key===CU);
-  const peds=u.role==='admin'?pedidos:pedidos.filter(p=>p.suc===u.suc);
-  return peds.filter(p=>p.rest>0).map(p=>({
-    id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,
-    fecha:p.fecha,entrega:p.entrega,
-    total:p.total,saldo:p.rest,abon:p.ant,liq:false,est:p.est
-  }));
+  const peds=u&&u.role==='admin'?pedidos:pedidos.filter(p=>p.suc===(u&&u.suc));
+  return peds.filter(p=>p.rest>0).map(p=>({id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,fecha:p.fecha,entrega:p.entrega,total:p.total,saldo:p.rest,abon:p.ant,liq:false,est:p.est}));
 }
 </script>
 </body>
