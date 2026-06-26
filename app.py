@@ -55,6 +55,18 @@ class Movimiento(db.Model):
     cta_destino = db.Column(db.String(50))
     socio       = db.Column(db.String(50))
 
+
+class Pendiente(db.Model):
+    __tablename__ = 'pendientes'
+    id       = db.Column(db.Integer, primary_key=True)
+    desc     = db.Column(db.String(300))
+    cliente  = db.Column(db.String(100))
+    folio_ref= db.Column(db.String(30))
+    asignado = db.Column(db.String(50))
+    fecha    = db.Column(db.String(20))
+    est      = db.Column(db.String(20), default='abierto')
+    suc      = db.Column(db.String(50))
+
 USUARIOS = {
     'jardines': {'password':'jardines123','name':'Alondra','display':'Jardines','role':'venta','suc':'Jardines'},
     'zibata':   {'password':'zibata123',  'name':'Zibata', 'display':'Zibata',  'role':'venta','suc':'Zibata'},
@@ -257,6 +269,45 @@ def import_pedidos():
             pass
     db.session.commit()
     return jsonify({'ok': True, 'imported': count})
+
+
+@app.route('/api/pendientes', methods=['GET'])
+@requiere_login
+def get_pendientes():
+    return jsonify([pend_dict(p) for p in Pendiente.query.order_by(Pendiente.id.desc()).all()])
+
+@app.route('/api/pendientes', methods=['POST'])
+@requiere_login
+def crear_pendiente():
+    d = request.json or {}
+    p = Pendiente(desc=d.get('desc'), cliente=d.get('cliente',''),
+        folio_ref=d.get('folio_ref',''), asignado=d.get('asignado','Todos'),
+        fecha=d.get('fecha'), est='abierto', suc=d.get('suc', session.get('suc')))
+    db.session.add(p)
+    db.session.commit()
+    return jsonify(pend_dict(p)), 201
+
+@app.route('/api/pendientes/<int:pid>', methods=['PUT'])
+@requiere_login
+def actualizar_pendiente(pid):
+    p = Pendiente.query.get_or_404(pid)
+    d = request.json or {}
+    if 'est' in d: p.est = d['est']
+    if 'desc' in d: p.desc = d['desc']
+    db.session.commit()
+    return jsonify(pend_dict(p))
+
+@app.route('/api/pendientes/<int:pid>', methods=['DELETE'])
+@requiere_login
+def borrar_pendiente(pid):
+    p = Pendiente.query.get_or_404(pid)
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+def pend_dict(p):
+    return {'id':p.id,'desc':p.desc,'cliente':p.cliente,'folio_ref':p.folio_ref,
+            'asignado':p.asignado,'fecha':p.fecha,'est':p.est,'suc':p.suc}
 
 with app.app_context():
     db.create_all()
