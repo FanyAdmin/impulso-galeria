@@ -631,7 +631,6 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 </div>
 <!-- LFT -->
 <div class="page" id="page-lft">
-  <h1 style="color:red;font-size:40px;padding:20px">CALCULADORA LFT CARGANDO</h1>
   <div class="ph"><div><div class="ph-title">Calculadora LFT</div></div></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card">
@@ -1484,7 +1483,14 @@ function genReciboNom(empId,sv,ap,faltas,desc){
 }
 
 // === LFT ===
-function populateLFT(){var h='<option value="">- Selecciona -</option>';for(var i=0;i<EMPLEADOS.length;i++)h+='<option value="'+EMPLEADOS[i].id+'">'+EMPLEADOS[i].nombre+'</option>';var el=document.getElementById('lft-emp');if(el)el.innerHTML=h;}
+function populateLFT(){
+  var h='<option value="">- Selecciona -</option>';
+  var emps = typeof EMPLEADOS !== 'undefined' ? EMPLEADOS : [];
+  for(var i=0;i<emps.length;i++)
+    h+='<option value="'+emps[i].id+'">'+emps[i].nombre+'</option>';
+  var el=document.getElementById('lft-emp');
+  if(el)el.innerHTML=h;
+}
 function calcLFT(){
   var empId=parseInt(document.getElementById('lft-emp').value);
   var emp=null;for(var i=0;i<EMPLEADOS.length;i++){if(EMPLEADOS[i].id===empId){emp=EMPLEADOS[i];break;}}
