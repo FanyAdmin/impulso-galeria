@@ -625,10 +625,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div style="display:flex;justify-content:flex-end;margin-top:.875rem"><button class="btn btn-p" onclick="pagarNom()">Registrar pago de nomina</button></div>
 </div>
 <div class="page" id="page-pend">
-  <div class="ph">
-    <div><div class="ph-title">Pendientes</div><div class="ph-sub">Tareas y seguimientos del equipo</div></div>
-    <button class="btn btn-p btn-sm" onclick="openNuevoPend()">+ Nuevo pendiente</button>
-  </div>
+  <div class="ph"><div><div class="ph-title">Pendientes</div><div class="ph-sub">Tareas y seguimientos del equipo</div></div><button class="btn btn-p btn-sm" onclick="openNuevoPend()">+ Nuevo pendiente</button></div>
   <div id="pend-body"></div>
 </div>
 <div class="page" id="page-vip">
@@ -642,15 +639,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card">
       <div class="card-title">Empleado</div>
-      <div class="field"><label>Selecciona</label><select id="lft-emp" onchange="calcLFT()">
-  <option value="">- Selecciona -</option>
-  <option value="1">Alondra Trejo</option>
-  <option value="2">Roberto</option>
-  <option value="3">Christian Ramirez</option>
-  <option value="4">Delia Mesa</option>
-  <option value="5">Yesica</option>
-  <option value="6">Ana Karen Ramirez</option>
-</select></div>
+      <div class="field"><label>Selecciona</label><select id="lft-emp" onchange="calcLFT()"><option value="">- Selecciona -</option><option value="1">Alondra Trejo</option><option value="2">Roberto</option><option value="3">Christian Ramirez</option><option value="4">Delia Mesa</option><option value="5">Yesica</option><option value="6">Ana Karen Ramirez</option></select></div>
       <div id="lft-info" style="display:none">
         <div class="sbox" id="lft-datos"></div>
         <div class="tabs">
@@ -1806,7 +1795,7 @@ function rPend(){
     let html=abiertos.map(p=>pendCard(p)).join('');
     if(cerrados.length)html+=`<div style="margin-top:20px;padding:10px 0;border-top:1px solid #eee;color:#888;font-size:12px;font-weight:600">CERRADOS (${cerrados.length})</div>`+cerrados.map(p=>pendCard(p)).join('');
     body.innerHTML=html;
-  }).catch(()=>{document.getElementById('pend-body').innerHTML='<div style="padding:20px;color:#888">Error cargando pendientes</div>';});
+  }).catch(()=>{document.getElementById('pend-body').innerHTML='<div style="padding:20px;color:#888">Cargando...</div>';});
 }
 function pendCard(p){
   const cerrado=p.est==='cerrado';
@@ -1840,12 +1829,6 @@ function cerrarPend(id){
 function delPend(id){
   if(!confirm('¿Eliminar este pendiente?'))return;
   fetch('/api/pendientes/'+id,{method:'DELETE',credentials:'include'}).then(r=>r.json()).then(()=>rPend());
-}
-function populateLFT(){
-  var emps=[{id:1,nombre:'Alondra Trejo'},{id:2,nombre:'Roberto'},{id:3,nombre:'Christian Ramirez'},{id:4,nombre:'Delia Mesa'},{id:5,nombre:'Yesica'},{id:6,nombre:'Ana Karen Ramirez'}];
-  var h='<option value="">- Selecciona -</option>';
-  for(var i=0;i<emps.length;i++)h+='<option value="'+emps[i].id+'">'+emps[i].nombre+'</option>';
-  var el=document.getElementById('lft-emp');if(el)el.innerHTML=h;
 }
 </script>
 </body>
