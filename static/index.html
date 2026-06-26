@@ -27,7 +27,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 .shell{display:flex;height:100vh;overflow:hidden}
 .sidebar{width:204px;min-width:204px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
 .content{flex:1;overflow-y:auto;background:var(--bg)}
-.page{display:none;padding:1.5rem}.page.active{display:block}
+.page{display:none;padding:1.5rem;min-height:calc(100vh - 4rem)}.page.active{display:block}
 
 /* ── SIDEBAR ── */
 .sb-logo{padding:1.25rem 1rem 1rem;border-bottom:1px solid var(--border)}
@@ -471,7 +471,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Folio</th><th>Sucursal</th><th>Días</th><th>Total</th></tr></thead><tbody id="a-atr"></tbody></table></div>
     </div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;min-height:400px">
     <div class="card"><div class="card-title">Por sucursal hoy</div><div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Sucursal</th><th>Notas</th><th>Monto</th></tr></thead><tbody id="a-suc"></tbody></table></div></div>
     <div class="card"><div class="card-title">Pedidos pendientes por mes</div><div id="a-pend" style="font-size:12px"></div></div>
   </div>
@@ -647,7 +647,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 <!-- LFT -->
 <div class="page" id="page-lft">
   <div class="ph"><div><div class="ph-title">Calculadora LFT</div></div></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;min-height:400px">
     <div class="card">
       <div class="card-title">Empleado</div>
       <div class="field"><label>Selecciona</label><select id="lft-emp" onchange="calcLFT()"><option value="">- Selecciona -</option></select></div>
@@ -685,7 +685,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="metric"><div class="m-label">Monto pendiente</div><div class="m-val" id="fac-monto">$0</div></div>
     <div class="metric"><div class="m-label">Facturas emitidas</div><div class="m-val" id="fac-emitidas">0</div></div>
   </div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;min-height:400px">
     <div class="card">
       <div class="card-title">Pendientes de facturar</div>
       <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th><input type="checkbox" id="fac-all" onclick="selAllFac(this)"></th><th>Folio</th><th>Cliente</th><th>Fecha</th><th>Total</th></tr></thead><tbody id="fac-pend-body"></tbody></table></div>
