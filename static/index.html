@@ -215,6 +215,27 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 </div>
 </div>
 
+<div class="modal-bg" id="mod-edit-ped" style="display:none">
+<div class="modal" style="width:560px">
+  <div class="modal-hdr"><div class="modal-ttl" id="edit-ped-ttl">Editar Pedido</div><button class="modal-x" onclick="CM('mod-edit-ped')">✕</button></div>
+  <div class="modal-body">
+    <div class="g2">
+      <div class="field"><label>Folio</label><input id="ep-f" class="ro" readonly></div>
+      <div class="field"><label>Estatus</label><select id="ep-est"><option>Pendiente</option><option>Entregado</option><option>Cancelado</option></select></div>
+      <div class="field"><label>Cliente</label><input id="ep-c" placeholder="Nombre del cliente"></div>
+      <div class="field"><label>Teléfono</label><input id="ep-t" placeholder="(442)..."></div>
+      <div class="field"><label>Vendedor</label><select id="ep-vend"></select></div>
+      <div class="field"><label>Método de pago</label><select id="ep-m"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Galería / Intercambio</option></select></div>
+      <div class="field"><label>Anticipo ($)</label><input type="number" id="ep-a" placeholder="0.00"></div>
+      <div class="field"><label>Entrega prometida</label><input type="date" id="ep-ent"></div>
+      <div class="field gc2"><label>Observaciones</label><input id="ep-o" placeholder="Notas del pedido..."></div>
+    </div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-edit-ped')">Cancelar</button><button class="btn btn-p" onclick="guardarEditPed()">✓ Guardar cambios</button></div>
+</div>
+</div>
+
+
 <div class="modal-bg" id="mod-ab" style="display:none">
 <div class="modal">
   <div class="modal-hdr"><div class="modal-ttl">Registrar Abono</div><button class="modal-x" onclick="CM('mod-ab')">✕</button></div>
@@ -1773,13 +1794,45 @@ function delPed(idx){
   if(p.id){fetch('/api/pedidos/'+p.id,{method:'DELETE',credentials:'include'}).then(r=>r.json()).then(()=>{pedidos.splice(idx,1);rPed();});}
   else{pedidos.splice(idx,1);rPed();}
 }
+let editPedIdx=null;
 function editPed(idx){
   const p=pedidos[idx];if(!p)return;
-  const newEst=prompt('Estado:',p.est||'Pendiente');if(newEst===null)return;
-  const newObs=prompt('Observaciones:',p.obs||'');if(newObs===null)return;
-  p.est=newEst;p.obs=newObs;
-  if(p.id){fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({est:newEst,obs:newObs})}).then(r=>r.json()).then(()=>rPed());}
-  else rPed();
+  editPedIdx=idx;
+  document.getElementById('edit-ped-ttl').textContent='Editar Pedido — '+p.folio;
+  document.getElementById('ep-f').value=p.folio||'';
+  document.getElementById('ep-est').value=p.est||'Pendiente';
+  document.getElementById('ep-c').value=p.cli||'';
+  document.getElementById('ep-t').value=p.tel||'';
+  document.getElementById('ep-m').value=p.met||'Efectivo';
+  document.getElementById('ep-a').value=p.ant||'';
+  document.getElementById('ep-o').value=p.obs||'';
+  document.getElementById('ep-ent').value=p.entrega||'';
+  // Poblar vendedores
+  const vs=document.getElementById('ep-vend');
+  vs.innerHTML='<option value="">- Vendedor -</option>'+VENDEDORES.map(v=>`<option value="${v.nombre}">${v.nombre}</option>`).join('');
+  vs.value=p.vend||'';
+  OM('mod-edit-ped');
+}
+function guardarEditPed(){
+  if(editPedIdx===null)return;
+  const p=pedidos[editPedIdx];if(!p)return;
+  const ant=parseFloat(document.getElementById('ep-a').value)||0;
+  const updates={
+    est:document.getElementById('ep-est').value,
+    cli:document.getElementById('ep-c').value.trim()||p.cli,
+    tel:document.getElementById('ep-t').value.trim(),
+    vend:document.getElementById('ep-vend').value,
+    met:document.getElementById('ep-m').value,
+    ant:ant,
+    rest:Math.max(0,(p.total||0)-ant),
+    obs:document.getElementById('ep-o').value.trim(),
+    entrega:document.getElementById('ep-ent').value
+  };
+  Object.assign(p,updates);
+  if(p.id){
+    fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)})
+    .then(r=>r.json()).then(()=>{CM('mod-edit-ped');rPed();});
+  } else {CM('mod-edit-ped');rPed();}
 }
 function misC(){
   const u=USERS.find(x=>x.key===CU);
