@@ -55,17 +55,6 @@ class Movimiento(db.Model):
     cta_destino = db.Column(db.String(50))
     socio       = db.Column(db.String(50))
 
-class Pendiente(db.Model):
-    __tablename__ = 'pendientes'
-    id        = db.Column(db.Integer, primary_key=True)
-    desc      = db.Column(db.String(300))
-    cliente   = db.Column(db.String(100))
-    folio_ref = db.Column(db.String(30))
-    asignado  = db.Column(db.String(50))
-    fecha     = db.Column(db.String(20))
-    est       = db.Column(db.String(20), default='abierto')
-    suc       = db.Column(db.String(50))
-
 USUARIOS = {
     'jardines': {'password':'jardines123','name':'Alondra','display':'Jardines','role':'venta','suc':'Jardines'},
     'zibata':   {'password':'zibata123',  'name':'Zibata', 'display':'Zibata',  'role':'venta','suc':'Zibata'},
@@ -82,6 +71,7 @@ def requiere_login(f):
     return decorado
 
 def serve_static(filename):
+    # Try multiple folder names
     for folder in ['static', 'estático', 'estatico']:
         path = os.path.join(BASE_DIR, folder, filename)
         if os.path.exists(path):
@@ -233,18 +223,79 @@ def m_dict(m):
 def get_facturas():
     return jsonify([])
 
+@app.route('/debug')
+def debug():
+    folders = os.listdir(BASE_DIR)
+    return jsonify({'base_dir': BASE_DIR, 'files': folders})
+
+
+@app.route('/api/import_pedidos', methods=['POST'])
+def import_pedidos():
+    data = request.json or {}
+    secret = data.get('secret', '')
+    if secret != 'impulso2026':
+        return jsonify({'error': 'No autorizado'}), 401
+    pedidos_data = data.get('pedidos', [])
+    count = 0
+    for d in pedidos_data:
+        try:
+            import json as _json
+            p = Pedido(
+                folio=d.get('folio'), tipo_venta=d.get('tipo_venta','general'),
+                cli=d.get('cli'), tel=d.get('tel'),
+                suc=d.get('suc','Jardines'), vend=d.get('vend'),
+                fecha=d.get('fecha'), mes=d.get('mes'),
+                items=_json.dumps(d.get('items',[])),
+                sub=d.get('sub',0), total=d.get('total',0),
+                met=d.get('met','Efectivo'), ant=d.get('ant',0),
+                rest=d.get('rest',0), obs=d.get('obs',''),
+                est=d.get('est','Pendiente'), entrega=d.get('entrega','')
+            )
+            db.session.add(p)
+            count += 1
+        except Exception as e:
+            pass
+    db.session.commit()
+    return jsonify({'ok': True, 'imported': count})
+
+
+# ── PENDIENTES ────────────────────────────────────────────────────────────────
+
+class Pendiente(db.Model):
+    __tablename__ = 'pendientes'
+    id        = db.Column(db.Integer, primary_key=True)
+    desc      = db.Column(db.String(300))
+    cliente   = db.Column(db.String(100))
+    folio_ref = db.Column(db.String(50))
+    asignado  = db.Column(db.String(100))
+    fecha     = db.Column(db.String(20))
+    est       = db.Column(db.String(30), default='abierto')
+    suc       = db.Column(db.String(50))
+
+def pend_dict(p):
+    return {'id':p.id,'desc':p.desc,'cliente':p.cliente,'folio_ref':p.folio_ref,
+            'asignado':p.asignado,'fecha':p.fecha,'est':p.est,'suc':p.suc}
+
 @app.route('/api/pendientes', methods=['GET'])
 @requiere_login
 def get_pendientes():
-    return jsonify([pend_dict(p) for p in Pendiente.query.order_by(Pendiente.id.desc()).all()])
+    rol = session.get('rol')
+    suc = session.get('suc')
+    q = Pendiente.query
+    if rol != 'admin':
+        q = q.filter_by(suc=suc)
+    return jsonify([pend_dict(p) for p in q.order_by(Pendiente.id.desc()).all()])
 
 @app.route('/api/pendientes', methods=['POST'])
 @requiere_login
 def crear_pendiente():
     d = request.json or {}
-    p = Pendiente(desc=d.get('desc'), cliente=d.get('cliente',''),
+    p = Pendiente(
+        desc=d.get('desc'), cliente=d.get('cliente',''),
         folio_ref=d.get('folio_ref',''), asignado=d.get('asignado','Todos'),
-        fecha=d.get('fecha'), est='abierto', suc=d.get('suc', session.get('suc')))
+        fecha=d.get('fecha'), est=d.get('est','abierto'),
+        suc=d.get('suc', session.get('suc'))
+    )
     db.session.add(p)
     db.session.commit()
     return jsonify(pend_dict(p)), 201
@@ -254,8 +305,9 @@ def crear_pendiente():
 def actualizar_pendiente(pid):
     p = Pendiente.query.get_or_404(pid)
     d = request.json or {}
-    if 'est' in d: p.est = d['est']
-    if 'desc' in d: p.desc = d['desc']
+    for campo in ['desc','cliente','folio_ref','asignado','fecha','est','suc']:
+        if campo in d:
+            setattr(p, campo, d[campo])
     db.session.commit()
     return jsonify(pend_dict(p))
 
@@ -266,36 +318,6 @@ def borrar_pendiente(pid):
     db.session.delete(p)
     db.session.commit()
     return jsonify({'ok': True})
-
-def pend_dict(p):
-    return {'id':p.id,'desc':p.desc,'cliente':p.cliente,'folio_ref':p.folio_ref,
-            'asignado':p.asignado,'fecha':p.fecha,'est':p.est,'suc':p.suc}
-
-@app.route('/api/import_pedidos', methods=['POST'])
-def import_pedidos():
-    data = request.json or {}
-    if data.get('secret') != 'impulso2026':
-        return jsonify({'error': 'No autorizado'}), 401
-    count = 0
-    for d in data.get('pedidos', []):
-        try:
-            p = Pedido(folio=d.get('folio'), tipo_venta=d.get('tipo_venta','general'),
-                cli=d.get('cli'), tel=d.get('tel'), suc=d.get('suc','Jardines'),
-                vend=d.get('vend'), fecha=d.get('fecha'), mes=d.get('mes'),
-                items=json.dumps(d.get('items',[])), sub=d.get('sub',0),
-                total=d.get('total',0), met=d.get('met','Efectivo'),
-                ant=d.get('ant',0), rest=d.get('rest',0), obs=d.get('obs',''),
-                est=d.get('est','Pendiente'), entrega=d.get('entrega',''))
-            db.session.add(p)
-            count += 1
-        except:
-            pass
-    db.session.commit()
-    return jsonify({'ok': True, 'imported': count})
-
-@app.route('/debug')
-def debug():
-    return jsonify({'base_dir': BASE_DIR, 'files': os.listdir(BASE_DIR)})
 
 with app.app_context():
     db.create_all()
