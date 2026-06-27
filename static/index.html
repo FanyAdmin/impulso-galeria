@@ -1532,7 +1532,7 @@ function rFac(){
   var mes=parseInt(document.getElementById('fac-mes').value);
   var u=null;for(var i=0;i<USERS.length;i++){if(USERS[i].key===CU){u=USERS[i];break;}}
   var pendAll=pedidos.filter(function(p){return p.tipo_venta==='factura'&&!p.factura_num&&(u.role==='admin'||p.suc===u.suc);});
-  var pend=pedidos.filter(function(p){return p.mes===mes&&p.tipo_venta==='factura'&&!p.factura_num&&(u.role==='admin'||p.suc===u.suc);});
+  var pend=pedidos.filter(function(p){return parseInt(p.mes)===mes&&p.tipo_venta==='factura'&&!p.factura_num&&(u.role==='admin'||p.suc===u.suc);});
   document.getElementById('fac-n').textContent=pendAll.length;
   document.getElementById('fac-monto').textContent=fmtK(pendAll.reduce(function(a,b){return a+b.total;},0));
   document.getElementById('fac-emitidas').textContent=FACTURAS.length;
