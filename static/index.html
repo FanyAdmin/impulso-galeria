@@ -990,7 +990,7 @@ function rPed(f){
     return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
-      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td><button onclick="editPed(idx)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
   document.getElementById('p-pag').innerHTML=total>1?
     `<span style="margin-right:4px;color:var(--text2)">Pág ${pedPage+1} de ${total} · ${list.length} pedidos</span>
@@ -1046,7 +1046,7 @@ function rCxC(){
     return `<tr><td class="mono" style="font-weight:600">${c.folio}</td><td>${c.cli}</td><td>${c.suc}</td><td>${c.fechaE}</td>
       <td class="mono">${fmt(c.total)}</td><td class="mono">${fmt(c.abon)}</td>
       <td class="mono" style="${!c.liq?'color:var(--red);font-weight:600':''}">${fmt(c.saldo)}</td>
-      <td>${badge}</td><td>${btn}</td><td><button onclick="editPed(idx)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 function openAb(idx){
@@ -1091,7 +1091,7 @@ function rDia(){
     const btn=p.est==='Pendiente'?`<button class="btn btn-s btn-xs" onclick="openEnt(${idx})">📦 Entregar</button>`:'';
     const tvB=p.tipo_venta==='factura'?'<span class="badge bb" style="font-size:10px">📄 Factura</span>':'<span class="badge bgr" style="font-size:10px">Gral</span>';
     const tvBtn=`<button class="btn btn-s btn-xs" onclick="toggleTV(${idx})" style="padding:1px 5px;font-size:10px" title="Cambiar tipo">&#8644;</button>`;
-    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td><td><button onclick="editPed(idx)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 
