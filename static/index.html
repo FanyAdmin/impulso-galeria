@@ -492,7 +492,12 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 <!-- ÓRDENES -->
 <div class="page" id="page-ord">
   <div class="ph"><div><div class="ph-title">Órdenes de Compra</div><div class="ph-sub">Molduras pendientes de surtir por proveedor</div></div></div>
+  <div class="chips">
+    <div class="chip active" onclick="switchOrdTab('activas',this)">Pendientes</div>
+    <div class="chip" onclick="switchOrdTab('historial',this)">Historial</div>
+  </div>
   <div id="ord-c"></div>
+  <div id="ord-hist" style="display:none"></div>
 </div>
 
 <!-- MOVIMIENTOS -->
@@ -927,6 +932,7 @@ function genPDF(){
   <div class="thanks">GRACIAS</div>
   <div class="ftr"><div class="sign">Firma autorizada</div><div class="sign">Fecha</div></div>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
+  saveOrdHist(pv, items);
   const w=window.open('','_blank');w.document.write(html);w.document.close();
 }
 
@@ -1196,6 +1202,40 @@ function rOrd(){
       <tbody>${byP[pv].map(it=>`<tr><td>${it.mol}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.fols)].join(', ')}</td></tr>`).join('')}</tbody></table></div>
     </div>`).join('');
 }
+let ORDS_HIST = JSON.parse(localStorage.getItem('impulso_ords_hist')||'[]');
+function saveOrdHist(pv, items){
+  const entry={pv,prov:PROVS[pv]||pv,fecha:new Date().toLocaleDateString('es-MX'),items:items.map(i=>({...i,fols:[...new Set(i.fols)]}))};
+  ORDS_HIST.unshift(entry);
+  localStorage.setItem('impulso_ords_hist',JSON.stringify(ORDS_HIST));
+  rOrdHist();
+}
+function switchOrdTab(tab, el){
+  document.querySelectorAll('#page-ord .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('ord-c').style.display=tab==='activas'?'':'none';
+  document.getElementById('ord-hist').style.display=tab==='historial'?'':'none';
+  if(tab==='historial') rOrdHist();
+}
+function rOrdHist(){
+  const h=document.getElementById('ord-hist');if(!h)return;
+  ORDS_HIST=JSON.parse(localStorage.getItem('impulso_ords_hist')||'[]');
+  if(!ORDS_HIST.length){h.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Sin historial de órdenes impresas</div>';return;}
+  h.innerHTML=ORDS_HIST.map((e,i)=>`
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+        <div><div style="font-size:13px;font-weight:600">${e.prov}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:1px">Impresa el ${e.fecha} · ${e.items.reduce((a,b)=>a+b.pzas,0)} piezas</div></div>
+        <button class="btn btn-s btn-sm" onclick="delOrdHist(${i})">🗑 Eliminar</button>
+      </div>
+      <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Moldura</th><th style="text-align:center">Piezas</th><th>Pedidos</th></tr></thead>
+      <tbody>${e.items.map(it=>`<tr><td>${it.mol}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">${it.fols.join(', ')}</td></tr>`).join('')}</tbody></table></div>
+    </div>`).join('');
+}
+function delOrdHist(i){
+  ORDS_HIST.splice(i,1);
+  localStorage.setItem('impulso_ords_hist',JSON.stringify(ORDS_HIST));
+  rOrdHist();
+}
 function printOrd(pv){
   const items=[];
   pedidos.filter(p=>p.est==='Pendiente'&&p.items).forEach(p=>
@@ -1221,6 +1261,7 @@ function printOrd(pv){
   <tbody>${items.map(it=>`<tr><td>${it.mol}</td><td style="text-align:center;font-weight:700">${it.pzas}</td><td style="color:#888;font-size:11px">${[...new Set(it.fols)].join(', ')}</td></tr>`).join('')}</tbody></table>
   <div class="ftr"><div class="sign">Firma autorizada</div><div class="sign">Fecha de recepción</div></div>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
+  saveOrdHist(pv, items);
   const w=window.open('','_blank');w.document.write(html);w.document.close();
 }
 
