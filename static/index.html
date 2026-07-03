@@ -1058,12 +1058,27 @@ function rCxC(){
   body.innerHTML=list.map(c=>{
     const idx=cuentas.indexOf(c);
     const badge=c.liq?'<span class="badge bg">Liquidado</span>':'<span class="badge br">Pendiente</span>';
-    const btn=!c.liq?`<button class="btn btn-s btn-xs" onclick="openAb(${idx})">+ Abonar</button>`:'';
-    return `<tr><td class="mono" style="font-weight:600">${c.folio}</td><td>${c.cli}</td><td>${c.suc}</td><td>${c.fechaE}</td>
+    const pedIdx=c._pedIdx!==undefined?c._pedIdx:cuentas.indexOf(c);
+    const btn=!c.liq?`<button class="btn btn-s btn-xs" onclick="openAbCxC(${idx})">+ Abonar</button>`:'';
+    return `<tr><td class="mono" style="font-weight:600">${c.folio}</td><td>${c.cli}</td><td>${c.suc}</td><td>${c.fechaE||c.fecha||'—'}</td>
       <td class="mono">${fmt(c.total)}</td><td class="mono">${fmt(c.abon)}</td>
       <td class="mono" style="${!c.liq?'color:var(--red);font-weight:600':''}">${fmt(c.saldo)}</td>
-      <td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${pedIdx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${pedIdx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
+}
+let _cxcList=[];
+function openAbCxC(listIdx){
+  _cxcList=misC();
+  const c=_cxcList[listIdx];
+  abIdx=listIdx;
+  // También guardar referencia al pedido real
+  abIdx._c=c;
+  document.getElementById('ab-monto').value='';
+  document.getElementById('ma-res').innerHTML=`
+    <div class="srow"><span>Folio</span><span><strong>${c.folio}</strong></span></div>
+    <div class="srow tot"><span>Saldo pendiente</span><span style="color:var(--red)" class="mono">${fmt(c.saldo)}</span></div>`;
+  document.getElementById('ab-hist').innerHTML=c.abonos&&c.abonos.length?c.abonos.map(a=>`<div class="ab-row"><span>${a.fecha} · ${a.met}</span><span class="mono" style="font-weight:600">${fmt(a.monto)}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:5px 0">Sin abonos anteriores</div>';
+  OM('mod-ab');
 }
 function openAb(idx){
   abIdx=idx;const c=cuentas[idx];
@@ -1078,9 +1093,27 @@ function guardarAb(){
   if(abIdx===null)return;
   const m=parseFloat(document.getElementById('ab-monto').value)||0;
   if(!m){alert('Ingresa el monto');return;}
+  // Si viene de CxC (openAbCxC), trabajar sobre pedido real
+  if(_cxcList&&_cxcList.length&&typeof abIdx==='number'&&_cxcList[abIdx]){
+    const c=_cxcList[abIdx];
+    const p=pedidos.find(x=>x.id===c.id||(x.folio===c.folio&&x.suc===c.suc));
+    if(p){
+      p.ant=(p.ant||0)+m;
+      p.rest=Math.max(0,(p.rest||0)-m);
+      if(p.rest<=0)p.rest=0;
+      if(p.id){
+        fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ant:p.ant,rest:p.rest,est:p.rest<=0?'Entregado':p.est})
+        }).then(r=>r.json()).then(()=>{CM('mod-ab');rCxC();});
+        return;
+      }
+    }
+  }
+  // Fallback: lógica original con cuentas[]
   const c=cuentas[abIdx];
-  c.abonos.push({fecha:todayStr(),monto:m,met:document.getElementById('ab-m').value});
-  c.abon+=m;c.saldo=Math.max(0,c.saldo-m);if(c.saldo<=0){c.saldo=0;c.liq=true;}
+  if(c){c.abonos.push({fecha:todayStr(),monto:m,met:document.getElementById('ab-m').value});
+  c.abon+=m;c.saldo=Math.max(0,c.saldo-m);if(c.saldo<=0){c.saldo=0;c.liq=true;}}
   CM('mod-ab');rCxC();
 }
 
@@ -1889,7 +1922,7 @@ function guardarEditPed(){
 function misC(){
   const u=USERS.find(x=>x.key===CU);
   const peds=u&&u.role==='admin'?pedidos:pedidos.filter(p=>p.suc===(u&&u.suc));
-  return peds.filter(p=>p.rest>0).map(p=>({id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,fecha:p.fecha,entrega:p.entrega,total:p.total,saldo:p.rest,abon:p.ant,liq:false,est:p.est}));
+  return peds.filter(p=>p.rest>0).map(p=>({id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,fecha:p.fecha,fechaE:p.fecha,entrega:p.entrega,total:p.total,saldo:p.rest,abon:p.ant,abonos:[],liq:false,est:p.est,_pedIdx:pedidos.indexOf(p)}));
 }
 function rPend(){
   fetch('/api/pendientes',{credentials:'include'})
