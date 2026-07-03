@@ -1055,10 +1055,9 @@ function rCxC(){
   document.getElementById('cxc-a').textContent=fmtK(list.reduce((a,b)=>a+b.abon,0));
   const body=document.getElementById('cxc-body');
   if(!list.length){body.innerHTML=`<tr><td colspan="9" class="tbl-empty">Sin cuentas por cobrar</td></tr>`;return;}
-  body.innerHTML=list.map(c=>{
-    const idx=cuentas.indexOf(c);
+  body.innerHTML=list.map((c,idx)=>{
     const badge=c.liq?'<span class="badge bg">Liquidado</span>':'<span class="badge br">Pendiente</span>';
-    const pedIdx=c._pedIdx!==undefined?c._pedIdx:cuentas.indexOf(c);
+    const pedIdx=c._pedIdx!==undefined?c._pedIdx:pedidos.findIndex(p=>p.folio===c.folio&&p.suc===c.suc);
     const btn=!c.liq?`<button class="btn btn-s btn-xs" onclick="openAbCxC(${idx})">+ Abonar</button>`:'';
     return `<tr><td class="mono" style="font-weight:600">${c.folio}</td><td>${c.cli}</td><td>${c.suc}</td><td>${c.fechaE||c.fecha||'—'}</td>
       <td class="mono">${fmt(c.total)}</td><td class="mono">${fmt(c.abon)}</td>
