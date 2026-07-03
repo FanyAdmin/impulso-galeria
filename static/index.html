@@ -1351,7 +1351,9 @@ function getIngreso(concepto,mes){return movs.filter(m=>m.concepto===concepto&&m
 function getGasto(concepto,mes){return movs.filter(m=>m.concepto===concepto&&m.mes===mes&&m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);}
 
 function rER(){
-  const mesesVis=MESES_C.slice(0,6);
+  const mesAct=new Date().getMonth();
+  const mesesIdx=Array.from({length:6},(_,i)=>(mesAct-5+i+12)%12);
+  const mesesVis=mesesIdx.map(i=>MESES_C[i]);
   const tbl=document.getElementById('er-tbl');
   const head=`<thead><tr><th style="min-width:200px;position:sticky;left:0;z-index:2;background:var(--surface2)">Concepto</th>${mesesVis.map(m=>`<th style="text-align:right;min-width:95px">${m}</th>`).join('')}<th style="text-align:right;min-width:95px;background:#F0EFE9">Total</th></tr></thead>`;
 
@@ -1367,10 +1369,10 @@ function rER(){
   ];
 
   const totals={};
-  sections.forEach(s=>{if(s.items){totals[s.key]=Array(6).fill(0).map((_,mi)=>s.items.reduce((a,it)=>a+s.fn(it,mi),0));}});
+  sections.forEach(s=>{if(s.items){totals[s.key]=mesesIdx.map((mi)=>s.items.reduce((a,it)=>a+s.fn(it,mi),0));}});
   totals.ub=Array(6).fill(0).map((_,i)=>(totals.ing||Array(6).fill(0))[i]-(totals.cos||Array(6).fill(0))[i]);
   totals.un=Array(6).fill(0).map((_,i)=>(totals.ub||Array(6).fill(0))[i]-(totals.gv||Array(6).fill(0))[i]-(totals.ga||Array(6).fill(0))[i]);
-  totals.ret=Array(6).fill(0).map((_,mi)=>(ER_CATS.retiros||[]).reduce((a,it)=>a+getGasto(it,mi),0));
+  totals.ret=mesesIdx.map((mi)=>(ER_CATS.retiros||[]).reduce((a,it)=>a+getGasto(it,mi),0));
   totals.urt=Array(6).fill(0).map((_,i)=>(totals.un||Array(6).fill(0))[i]-(totals.ret||Array(6).fill(0))[i]);
 
   let rows='';
