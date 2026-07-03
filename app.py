@@ -319,6 +319,53 @@ def borrar_pendiente(pid):
     db.session.commit()
     return jsonify({'ok': True})
 
+
+# ── VENDEDORES ────────────────────────────────────────────────────────────────
+
+class Vendedor(db.Model):
+    __tablename__ = 'vendedores'
+    id        = db.Column(db.Integer, primary_key=True)
+    nombre    = db.Column(db.String(100))
+    suc       = db.Column(db.String(50))
+    comision  = db.Column(db.Float, default=0)
+    estatus   = db.Column(db.String(20), default='activo')
+
+def vend_dict(v):
+    return {'id':v.id,'nombre':v.nombre,'suc':v.suc,'comision':v.comision,'estatus':v.estatus}
+
+@app.route('/api/vendedores', methods=['GET'])
+@requiere_login
+def get_vendedores():
+    return jsonify([vend_dict(v) for v in Vendedor.query.order_by(Vendedor.nombre).all()])
+
+@app.route('/api/vendedores', methods=['POST'])
+@requiere_login
+def crear_vendedor():
+    d = request.json or {}
+    v = Vendedor(nombre=d.get('nombre'), suc=d.get('suc',''), comision=d.get('comision',0), estatus=d.get('estatus','activo'))
+    db.session.add(v)
+    db.session.commit()
+    return jsonify(vend_dict(v)), 201
+
+@app.route('/api/vendedores/<int:vid>', methods=['PUT'])
+@requiere_login
+def actualizar_vendedor(vid):
+    v = Vendedor.query.get_or_404(vid)
+    d = request.json or {}
+    for campo in ['nombre','suc','comision','estatus']:
+        if campo in d:
+            setattr(v, campo, d[campo])
+    db.session.commit()
+    return jsonify(vend_dict(v))
+
+@app.route('/api/vendedores/<int:vid>', methods=['DELETE'])
+@requiere_login
+def borrar_vendedor(vid):
+    v = Vendedor.query.get_or_404(vid)
+    db.session.delete(v)
+    db.session.commit()
+    return jsonify({'ok': True})
+
 with app.app_context():
     db.create_all()
 
