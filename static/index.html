@@ -949,9 +949,11 @@ function openModPed(){
   OM('mod-ped');
 }
 function calcMR(){
-  const sub=cart.reduce((a,b)=>a+b.sub,0),total=sub*1.16;
+  const sub=cart.reduce((a,b)=>a+b.sub,0),autoTotal=sub*1.16;
+  const totEl=document.getElementById('mp-tot');
+  const rawTot=totEl&&totEl._manual&&totEl._raw?totEl._raw:autoTotal;
   const ant=parseFloat(document.getElementById('mp-a').value)||0;
-  document.getElementById('mp-r').value=fmt(Math.max(0,total-ant));
+  document.getElementById('mp-r').value=fmt(Math.max(0,rawTot-ant));
 }
 function onTotEdit(el){
   // El usuario editó el total manualmente
