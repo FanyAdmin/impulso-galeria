@@ -959,8 +959,8 @@ function onTotEdit(el){
   if(!isNaN(raw)){el._raw=raw;el._manual=true;}
   else{el._raw=null;el._manual=false;}
   // Actualizar restante
-  const ant=parseFloat(document.getElementById('mp-ant')?.value||0)||0;
-  const rest=document.getElementById('mp-rest');
+  const ant=parseFloat(document.getElementById('mp-a')?.value||0)||0;
+  const rest=document.getElementById('mp-r');
   if(rest&&!isNaN(raw))rest.value=fmt(Math.max(0,raw-ant));
 }
 function guardarPed(){
