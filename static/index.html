@@ -1346,9 +1346,9 @@ function rMovs(f=''){
 function fMov(f,el){document.querySelectorAll('#page-mov .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');rMovs(f);}
 
 // ─── ESTADO DE RESULTADOS ─────────────────────────────────────────────────────
-function getMonto(concepto,mes){return movs.filter(m=>m.concepto===concepto&&m.mes===mes&&m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0)+movs.filter(m=>m.concepto===concepto&&m.mes===mes&&m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);}
-function getIngreso(concepto,mes){return movs.filter(m=>m.concepto===concepto&&m.mes===mes&&m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);}
-function getGasto(concepto,mes){return movs.filter(m=>m.concepto===concepto&&m.mes===mes&&m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);}
+function getMonto(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes).reduce((a,b)=>a+b.monto,0);}
+function getIngreso(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes&&m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);}
+function getGasto(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes&&m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);}
 
 function rER(){
   const mesAct=new Date().getMonth();
@@ -1383,7 +1383,7 @@ function rER(){
     rows+=`<tr class="er-sec ${sec.cls}"><td style="position:sticky;left:0;z-index:1">${sec.label}</td>${vals.map(v=>`<td style="text-align:right;font-variant-numeric:tabular-nums">${v>0||sec.total?fmt(v):'—'}</td>`).join('')}<td style="text-align:right;font-weight:700;background:#F0EFE9;${neg?'color:var(--red)':''}">${fmt(rowTotal)}</td></tr>`;
     if(sec.items){
       sec.items.forEach(item=>{
-        const iVals=Array(6).fill(0).map((_,mi)=>sec.fn(item,mi));
+        const iVals=mesesIdx.map((mi)=>sec.fn(item,mi));
         const iTotal=iVals.reduce((a,b)=>a+b,0);
         rows+=`<tr class="er-item"><td style="position:sticky;left:0;z-index:1;background:var(--surface)">${item}</td>${iVals.map(v=>`<td style="text-align:right;font-variant-numeric:tabular-nums">${v>0?fmt(v):'—'}</td>`).join('')}<td style="text-align:right;background:#FAFAF8;${iTotal>0?'':'color:var(--text3)'}">${iTotal>0?fmt(iTotal):'—'}</td></tr>`;
       });
