@@ -965,22 +965,7 @@ function onTotEdit(el){
   const rest=document.getElementById('mp-r');
   if(rest&&!isNaN(raw))rest.value=fmt(Math.max(0,raw-ant));
 }
-function guardarPed(){
-  const folio=document.getElementById('mp-f').value.trim();
-  if(!folio){alert('Ingresa el número de nota');return;}
-  const sub=cart.reduce((a,b)=>a+b.sub,0),total=sub*1.16;
-  const ant=parseFloat(document.getElementById('mp-a').value)||0;
-  const rest=Math.max(0,total-ant);
-  const u=USERS.find(x=>x.key===CU);
-  const hoy=todayStr();
-  var tvEl=document.querySelector('input[name="mp-tv"]:checked');
-  pedidos.unshift({folio,tipo_venta:tvEl?tvEl.value:'general',cli:document.getElementById('mp-c').value.trim()||'—',tel:document.getElementById('mp-t').value.trim(),
-    suc:u.suc,vend:u.name,fecha:hoy,mes:new Date().getMonth(),
-    items:[...cart],sub,total,met:document.getElementById('mp-m').value,
-    ant,rest,obs:document.getElementById('mp-o').value.trim(),
-    est:'Pendiente',entrega:addBiz(hoy),obs:''});
-  cart=[];rCart();CM('mod-ped');go('ped');
-}
+// guardarPed: ver versión con API más abajo
 
 // ─── PEDIDOS ──────────────────────────────────────────────────────────────────
 const PPP=25;
@@ -1049,7 +1034,7 @@ function confEnt(){
 }
 
 // ─── CXC ──────────────────────────────────────────────────────────────────────
-function misC(){const u=USERS.find(x=>x.key===CU);return u.role==='admin'?cuentas:cuentas.filter(c=>c.suc===u.suc);}
+// misC: ver versión con pedidos[] más abajo
 function rCxC(){
   const list=misC(),ab=list.filter(c=>!c.liq);
   document.getElementById('cxc-n').textContent=ab.length;
@@ -1714,6 +1699,9 @@ function loadData(){
     FACTURAS=facs;
     go('cot');
     console.log('Data loaded: '+pedidos.length+' pedidos, '+movs.length+' movs');
+    // Re-render active page in case user navigated before data arrived
+    const activePage=document.querySelector('.page.active');
+    if(activePage){const pid=activePage.id.replace('page-','');if(pid!=='cot')go(pid);}
   }).catch(e=>console.error('Load error:',e));
 }
 
