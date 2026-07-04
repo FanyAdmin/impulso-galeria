@@ -1551,7 +1551,7 @@ function rAsist(){
   document.getElementById('asist-hdr').innerHTML=hh;
   var ch='';for(var i=0;i<pd;i++)ch+='<div></div>';
   for(var d=1;d<=dm;d++){
-    var dow=new Date(2026,mes,d).getDay(),fin=dow===0||dow===6,est=ASISTENCIAS[key][d];
+    var dow=new Date(2026,mes,d).getDay(),fin=dow===0,est=ASISTENCIAS[key][d];
     var st='padding:6px 4px;text-align:center;border:1px solid var(--border);border-radius:4px;font-size:11px;min-height:32px;display:flex;align-items:center;justify-content:center;';
     if(fin)st+='background:var(--surface2);color:var(--text3);';
     else if(est===true)st+='background:var(--green-l);border-color:var(--green);color:var(--green);font-weight:600;cursor:pointer;';
@@ -1560,7 +1560,7 @@ function rAsist(){
     ch+='<div style="'+st+'"'+(fin?'':' onclick="togAsist('+empId+','+mes+','+d+')"')+'>'+d+'</div>';
   }
   document.getElementById('asist-cal').innerHTML=ch;
-  var pr=0,au=0,lb=0;for(var d=1;d<=dm;d++){var dow=new Date(2026,mes,d).getDay();if(dow!==0&&dow!==6){lb++;if(ASISTENCIAS[key][d]===true)pr++;else if(ASISTENCIAS[key][d]===false)au++;}}
+  var pr=0,au=0,lb=0;for(var d=1;d<=dm;d++){var dow=new Date(2026,mes,d).getDay();if(dow!==0){lb++;if(ASISTENCIAS[key][d]===true)pr++;else if(ASISTENCIAS[key][d]===false)au++;}}
   var desc=au*(emp.salario/6);
   document.getElementById('asist-met').innerHTML='<div class="metric"><div class="m-label">Dias laborables</div><div class="m-val">'+lb+'</div></div><div class="metric"><div class="m-label">Presentes</div><div class="m-val" style="color:var(--green)">'+pr+'</div></div><div class="metric"><div class="m-label">Ausentes</div><div class="m-val" style="color:var(--red)">'+au+'</div><div class="m-sub">Descuento: '+fmt(desc)+'</div></div>';
 }
