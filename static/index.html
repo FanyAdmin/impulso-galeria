@@ -1622,8 +1622,8 @@ function rNom(){
   if(!EMPLEADOS.length){body.innerHTML='<tr><td colspan="8" class="tbl-empty">Sin empleados</td></tr>';document.getElementById('nom-tot').textContent='$0';document.getElementById('nom-desc').textContent='$0';document.getElementById('nom-nem').textContent='0';return;}
   var tp=0,td=0,h='';
   for(var i=0;i<EMPLEADOS.length;i++){
-    var e=EMPLEADOS[i],key=e.id+'_2026_'+mes,asist=ASISTENCIAS[key]||{},t=0,f=0,d=new Date(si);
-    for(var j=0;j<6;j++,d.setDate(d.getDate()+1)){var dow=d.getDay();if(dow===0||dow===6)continue;if(asist[d.getDate()]===false)f++;else t++;}
+    var e=EMPLEADOS[i],t=0,f=0,d=new Date(si);
+    for(var j=0;j<7;j++,d.setDate(d.getDate()+1)){var dow=d.getDay();if(dow===0)continue;var dk=e.id+'_'+d.getFullYear()+'_'+d.getMonth();var da=ASISTENCIAS[dk]||{};if(da[d.getDate()]===false)f++;else t++;}
     var desc=f*(e.salario/6),ap=e.salario-desc;tp+=ap;td+=desc;
     h+='<tr><td style="font-weight:500">'+e.nombre+'</td><td>'+e.suc+'</td><td>'+t+'</td>';
     h+='<td>'+(f>0?'<span class="badge br">'+f+'</span>':'0')+'</td>';
