@@ -1527,7 +1527,8 @@ var EMPLEADOS=[
   {id:5,nombre:'Yesica',puesto:'Vendedora',suc:'Zibata',ingreso:'2025-11-01',salario:2500,metpago:'Transferencia',banco:'HSBC',curp:'',rfc:'',tel:'',dir:''},
   {id:6,nombre:'Ana Karen Ramirez',puesto:'Auxiliar de enmarcado',suc:'Jardines',ingreso:'2026-06-15',salario:2700,metpago:'Efectivo',banco:'',curp:'',rfc:'',tel:'',dir:''}
 ];
-var editEmpIdx=null,ASISTENCIAS={},lftTabAct='vac';
+var editEmpIdx=null,lftTabAct='vac';
+var ASISTENCIAS=JSON.parse(localStorage.getItem('impulso_asist')||'{}');
 function antig(fi){var d=new Date(fi),h=new Date();var a=Math.floor((h-d)/(365.25*864e5)),m=Math.floor(((h-d)%(365.25*864e5))/(30.44*864e5));return{anos:a,meses:m,txt:a+' ano'+(a!==1?'s':'')+', '+m+' mes'+(m!==1?'es':'')};}
 function diasVac(a){if(a<1)return 0;if(a<2)return 12;if(a<3)return 14;if(a<4)return 16;if(a<5)return 18;if(a<10)return 20;if(a<15)return 22;return 24;}
 function rEmps(){var h='';for(var i=0;i<EMPLEADOS.length;i++){var e=EMPLEADOS[i],a=antig(e.ingreso);h+='<tr><td style="font-weight:500">'+e.nombre+'</td><td>'+e.puesto+'</td><td>'+e.suc+'</td><td>'+e.ingreso+'</td><td class="mono">'+fmt(e.salario)+'</td><td>'+a.txt+'</td><td style="display:flex;gap:4px"><button class="btn btn-s btn-xs" onclick="editEmp('+i+')">Editar</button><button class="btn btn-d btn-xs" onclick="delEmp('+i+')">Eliminar</button></td></tr>';}document.getElementById('emp-body').innerHTML=h||'<tr><td colspan="7" class="tbl-empty">Sin empleados</td></tr>';}
@@ -1563,7 +1564,7 @@ function rAsist(){
   var desc=au*(emp.salario/6);
   document.getElementById('asist-met').innerHTML='<div class="metric"><div class="m-label">Dias laborables</div><div class="m-val">'+lb+'</div></div><div class="metric"><div class="m-label">Presentes</div><div class="m-val" style="color:var(--green)">'+pr+'</div></div><div class="metric"><div class="m-label">Ausentes</div><div class="m-val" style="color:var(--red)">'+au+'</div><div class="m-sub">Descuento: '+fmt(desc)+'</div></div>';
 }
-function togAsist(empId,mes,dia){var key=empId+'_2026_'+mes;if(!ASISTENCIAS[key])ASISTENCIAS[key]={};var a=ASISTENCIAS[key][dia];if(a===undefined)ASISTENCIAS[key][dia]=true;else if(a===true)ASISTENCIAS[key][dia]=false;else delete ASISTENCIAS[key][dia];rAsist();}
+function togAsist(empId,mes,dia){var key=empId+'_2026_'+mes;if(!ASISTENCIAS[key])ASISTENCIAS[key]={};var a=ASISTENCIAS[key][dia];if(a===undefined)ASISTENCIAS[key][dia]=true;else if(a===true)ASISTENCIAS[key][dia]=false;else delete ASISTENCIAS[key][dia];localStorage.setItem('impulso_asist',JSON.stringify(ASISTENCIAS));rAsist();}
 
 // === NOMINA ===
 function initNomSems(){var sel=document.getElementById('nom-sem');if(!sel)return;var h='',ini=new Date('2026-01-05');for(var i=0;i<26;i++){var d=new Date(ini);d.setDate(ini.getDate()+i*7);var fin=new Date(d);fin.setDate(d.getDate()+5);var lbl=d.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+' - '+fin.toLocaleDateString('es-MX',{day:'numeric',month:'short'});h+='<option value="'+d.toISOString().slice(0,10)+'">'+lbl+'</option>';}sel.innerHTML=h;var hn=new Date(),opts=sel.options;for(var i=0;i<opts.length;i++){var d=new Date(opts[i].value),f=new Date(d);f.setDate(d.getDate()+6);if(hn>=d&&hn<=f){sel.value=opts[i].value;break;}}}
