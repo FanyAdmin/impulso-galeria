@@ -835,19 +835,18 @@ function pickMol(id){
 }
 function tX(k){document.getElementById('xb-'+k).classList.toggle('on',document.getElementById('x-'+k).checked);}
 function calcP(){
-  if(!molSel)return;
   const l1=parseFloat(document.getElementById('l1').value)||0;
   const l2=parseFloat(document.getElementById('l2').value)||0;
   const q=parseInt(document.getElementById('qty').value)||1;
   if(!l1||!l2){document.getElementById('p-sin').textContent='$0.00';document.getElementById('p-con').textContent='$0.00';return;}
   const mc=((l1/100)+(l2/100))*2;
   const vm=(l1/100)*(l2/100);
-  const pm=(mc+molSel.desp_cm)*molSel.precio_lista*q;
+  const pm=molSel?(mc+molSel.desp_cm)*molSel.precio_lista*q:0;
   let ex=0;Object.keys(XP).forEach(k=>{if(document.getElementById('x-'+k)&&document.getElementById('x-'+k).checked)ex+=vm*XP[k]*q;});
   const si=pm+ex,ci=si*1.16;
   document.getElementById('p-sin').textContent=fmt(si);
   document.getElementById('p-con').textContent=fmt(ci);
-  document.getElementById('p-det').textContent=`Marco: ${mc.toFixed(3)} m · Vidrio: ${vm.toFixed(4)} m²`;
+  document.getElementById('p-det').textContent=molSel?`Marco: ${mc.toFixed(3)} m · Vidrio: ${vm.toFixed(4)} m²`:`Solo extras · Vidrio: ${vm.toFixed(4)} m²`;
 }
 function addCart(){
   const l1=parseFloat(document.getElementById('l1').value)||0;
