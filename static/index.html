@@ -401,7 +401,16 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
             <div class="srow tot"><span>Total con IVA</span><span class="mono" id="cs-tot">$0.00</span></div>
           </div>
           <div style="display:flex;flex-direction:column;gap:5px">
-            <button class="btn btn-s" onclick="genPDF()" style="justify-content:center">📄 Generar cotización PDF</button>
+            <div style="display:flex;gap:5px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+            <span style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Descuento:</span>
+            <button class="chip" id="dc-0" onclick="setCotDesc(0)" style="padding:3px 8px;font-size:11px">Sin desc</button>
+            <button class="chip" id="dc-5" onclick="setCotDesc(5)" style="padding:3px 8px;font-size:11px">5%</button>
+            <button class="chip" id="dc-10" onclick="setCotDesc(10)" style="padding:3px 8px;font-size:11px">10%</button>
+            <button class="chip" id="dc-15" onclick="setCotDesc(15)" style="padding:3px 8px;font-size:11px">15%</button>
+            <button class="chip" id="dc-16" onclick="setCotDesc(16)" style="padding:3px 8px;font-size:11px">16%</button>
+            <button class="chip" id="dc-50" onclick="setCotDesc(50)" style="padding:3px 8px;font-size:11px">50%</button>
+          </div>
+          <button class="btn btn-s" onclick="genPDF()" style="justify-content:center">📄 Generar cotización PDF</button>
             <button class="btn btn-p" onclick="openModPed()" style="justify-content:center">✓ Convertir a pedido</button>
           </div>
         </div>
@@ -901,12 +910,12 @@ function clrCart(){cart=[];rCart();}
 // PDF
 function genPDF(){
   if(!cart.length){alert('El carrito está vacío');return;}
-  const sub=cart.reduce((a,b)=>a+b.sub,0),iva=sub*.16,total=sub+iva;
+  const subRaw=cart.reduce((a,b)=>a+b.sub,0),descMonto=subRaw*cotDesc/100,sub=subRaw-descMonto,iva=sub*.16,total=sub+iva;
   const fecha=new Date().toLocaleDateString('es-MX');
   const rows=cart.map(x=>`<tr><td>${x.mol}</td><td style="text-align:center">${x.q}</td><td style="text-align:center">${x.l1}×${x.l2} cm</td><td>${x.en.join(', ')||'—'}</td><td style="text-align:right">${fmt(x.pm)}</td><td style="text-align:right">${fmt(x.sub)}</td></tr>`).join('');
   const u=USERS.find(x=>x.key===CU);
   const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cotización Impulso</title>
-  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Georgia,serif;padding:40px;color:#1a1a1a;font-size:13px}
+  <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Calibri',Calibri,sans-serif;padding:40px;color:#1a1a1a;font-size:13px}
   .hdr{display:flex;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #1A5C3A}
   .logo{font-size:24px;font-weight:700;letter-spacing:.12em;color:#1A5C3A}.logo-s{font-size:9px;letter-spacing:.18em;color:#888;margin-top:3px}
   .co{font-size:28px;color:#ccc;font-weight:300;letter-spacing:.08em}
@@ -932,11 +941,10 @@ function genPDF(){
     <span class="lbl">No. Cotización</span><strong>#${Date.now().toString().slice(-5)}</strong></div>
   </div>
   <table><thead><tr><th>Moldura</th><th style="text-align:center">Pzas</th><th style="text-align:center">Medidas</th><th>Extras</th><th style="text-align:right">Precio Unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${rows}</tbody></table>
-  <table class="tots"><tr><td>Subtotal sin IVA</td><td style="text-align:right">${fmt(sub)}</td></tr><tr><td>IVA 16%</td><td style="text-align:right">${fmt(iva)}</td></tr><tr><td>TOTAL</td><td style="text-align:right">${fmt(total)}</td></tr></table>
+  <table class="tots">${cotDesc>0?`<tr><td>Subtotal</td><td style="text-align:right">${fmt(subRaw)}</td></tr><tr><td style="color:#cc3333">Descuento ${cotDesc}%</td><td style="text-align:right;color:#cc3333">−${fmt(descMonto)}</td></tr>`:''}<tr><td>Subtotal sin IVA</td><td style="text-align:right">${fmt(sub)}</td></tr><tr><td>IVA 16%</td><td style="text-align:right">${fmt(iva)}</td></tr><tr><td>TOTAL</td><td style="text-align:right">${fmt(total)}</td></tr></table>
   <div class="thanks">GRACIAS</div>
   <div class="ftr"><div class="sign">Firma autorizada</div><div class="sign">Fecha</div></div>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
-  saveOrdHist(pv, items);
   const w=window.open('','_blank');w.document.write(html);w.document.close();
 }
 
