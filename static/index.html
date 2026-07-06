@@ -727,7 +727,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 
 <script>
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
-const XP={va:1073,vn:930.3,v2:2006,ml:666,'2m':1331,cj:1320,vm:2737.10};
+const XP={va:1073,vn:930.3,v2:2006,ml:666,'2m':1331,cj:1320,vm:4600};
 const XL={va:'Vid Anti',vn:'V Normal',v2:'/2Vid',ml:'ML','2m':'2ML',cj:'Cama Justa',vm:'Vid Museo'};
 const PROVS={PROPIO:'Propio',SM:'Servimarco',MM:'Marcos y Marcos',MX:'Mexicana de Marcos','MARCOS LEON':'Marcos León'};
 const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -850,18 +850,22 @@ function calcP(){
   document.getElementById('p-det').textContent=`Marco: ${mc.toFixed(3)} m · Vidrio: ${vm.toFixed(4)} m²`;
 }
 function addCart(){
-  if(!molSel){alert('Selecciona una moldura primero');return;}
   const l1=parseFloat(document.getElementById('l1').value)||0;
   const l2=parseFloat(document.getElementById('l2').value)||0;
   const q=parseInt(document.getElementById('qty').value)||1;
   if(!l1||!l2){alert('Ingresa las medidas');return;}
   const mc=((l1/100)+(l2/100))*2;
   const vm=(l1/100)*(l2/100);
-  const pm=(mc+molSel.desp_cm)*molSel.precio_lista*q;
+  // Si no hay moldura, verificar que al menos haya un extra seleccionado
   let en=[],ev=0;
   Object.keys(XP).forEach(k=>{if(document.getElementById('x-'+k)&&document.getElementById('x-'+k).checked){ev+=vm*XP[k]*q;en.push(XL[k]);}});
+  if(!molSel&&ev===0){alert('Selecciona una moldura o al menos un extra');return;}
+  const pm=molSel?(mc+molSel.desp_cm)*molSel.precio_lista*q:0;
   const sub=pm+ev;
-  cart.push({mid:molSel.id,mol:molSel.nombre,prov:molSel.proveedor,l1,l2,q,pm,ev,en,sub,subIva:sub*1.16});
+  const nombreMol=molSel?molSel.nombre:'Solo extras';
+  const provMol=molSel?molSel.proveedor:'SERVICIO';
+  const midMol=molSel?molSel.id:0;
+  cart.push({mid:midMol,mol:nombreMol,prov:provMol,l1,l2,q,pm,ev,en,sub,subIva:sub*1.16});
   rCart();
   molSel=null;
   document.getElementById('mol-q').value='';document.getElementById('mol-sel').innerHTML='';
