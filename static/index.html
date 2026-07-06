@@ -758,11 +758,12 @@ let catPage=0,catEst='';
 let pedPage=0,pedFilter='todos',pedQ='';
 let editMolIdx=null,entIdx=null,abIdx=null,editUsrIdx=null;
 
-let USERS=[
+const USERS_DEFAULT=[
   {key:'jardines',name:'Alondra',display:'Jardines',role:'venta',suc:'Jardines',pwd:'jardines123'},
   {key:'zibata',name:'Zibata',display:'Zibata',role:'venta',suc:'Zibata',pwd:'zibata123'},
   {key:'admin',name:'Estefania',display:'Admin',role:'admin',suc:'Admin',pwd:'admin123'}
 ];
+let USERS=JSON.parse(localStorage.getItem('impulso_users')||'null')||USERS_DEFAULT.map(u=>({...u}));
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const fmt=(n)=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1413,9 +1414,9 @@ function saveUsr(){
   if(pwd.length<4){alert('La contraseña debe tener al menos 4 caracteres');return;}
   if(editUsrIdx===null){if(USERS.find(u=>u.key===key)){alert('Ya existe un usuario con ese login');return;}USERS.push({key,name:nom,display:suc,role:rol,suc,pwd});}
   else USERS[editUsrIdx]={...USERS[editUsrIdx],name:nom,key,display:suc,role:rol,suc,pwd};
-  CM('mod-usr');rUsuarios();renderUCards();
+  localStorage.setItem('impulso_users',JSON.stringify(USERS));CM('mod-usr');rUsuarios();renderUCards();
 }
-function delUsr(i){if(!confirm('¿Eliminar usuario '+USERS[i].name+'?'))return;USERS.splice(i,1);rUsuarios();renderUCards();}
+function delUsr(i){if(!confirm('¿Eliminar usuario '+USERS[i].name+'?'))return;USERS.splice(i,1);localStorage.setItem('impulso_users',JSON.stringify(USERS));rUsuarios();renderUCards();}
 
 // Agregar concepto ER
 function saveConc(){
