@@ -187,7 +187,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div class="field"><label>Cliente (opcional)</label><input id="mp-c" placeholder="Nombre del cliente" oninput="checkVIP(this.value)"></div><div id="mp-vip-badge" style="display:none;grid-column:span 2;background:#FEF3C7;border:1px solid #F59E0B;border-radius:6px;padding:6px 10px;font-size:12px;color:#92400E;font-weight:600">⭐ Cliente VIP — 10% aplicado</div>
       <div class="field"><label>Teléfono</label><input id="mp-t" placeholder="(442)..."></div>
       <div class="field"><label>Vendedor</label><select id="mp-vend"></select></div>
-      <div class="field"><label>Método de pago</label><select id="mp-m"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Galería / Intercambio</option><option>No dejó anticipo</option></select></div>
+      <div class="field"><label>Método de pago</label><select id="mp-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field gc2"><label>Descuento</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px"><button type="button" onclick="applyDesc(0)" id="desc-0" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">Sin desc</button><button type="button" onclick="applyDesc(5)" id="desc-5" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">5%</button><button type="button" onclick="applyDesc(10)" id="desc-10" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">10%</button><button type="button" onclick="applyDesc(15)" id="desc-15" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">15%</button><button type="button" onclick="applyDesc(16)" id="desc-16" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">16%</button><button type="button" onclick="applyDesc(50)" id="desc-50" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">50%</button></div></div>
       <div class="field"><label>Anticipo ($)</label><input type="number" id="mp-a" placeholder="0.00" oninput="calcMR()"></div>
       <div class="field"><label>Total <span style="font-size:9px;color:var(--text3);font-weight:400">(editable)</span></label><input id="mp-tot" style="font-weight:700" oninput="onTotEdit(this)" placeholder="$0.00"></div>
@@ -205,7 +205,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="modal-body">
     <div id="me-res" class="sbox"></div>
     <div class="g2">
-      <div class="field"><label>Método de pago</label><select id="me-m"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select></div>
+      <div class="field"><label>Método de pago</label><select id="me-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field"><label>Monto cobrado ($)</label><input type="number" id="me-monto" placeholder="0.00" oninput="calcES()"></div>
       <div class="field gc2"><label>Saldo pendiente</label><input class="ro" id="me-s" readonly style="font-weight:600"></div>
     </div>
@@ -225,7 +225,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div class="field"><label>Cliente</label><input id="ep-c" placeholder="Nombre del cliente"></div>
       <div class="field"><label>Teléfono</label><input id="ep-t" placeholder="(442)..."></div>
       <div class="field"><label>Vendedor</label><select id="ep-vend"></select></div>
-      <div class="field"><label>Método de pago</label><select id="ep-m"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Galería / Intercambio</option><option>No dejó anticipo</option></select></div>
+      <div class="field"><label>Método de pago</label><select id="ep-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field"><label>Anticipo ($)</label><input type="number" id="ep-a" placeholder="0.00"></div>
       <div class="field"><label>Entrega prometida</label><input type="date" id="ep-ent"></div>
       <div class="field gc2"><label>Observaciones</label><input id="ep-o" placeholder="Notas del pedido..."></div>
@@ -242,7 +242,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="modal-body">
     <div id="ma-res" class="sbox"></div>
     <div class="g2">
-      <div class="field"><label>Método</label><select id="ab-m"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select></div>
+      <div class="field"><label>Método</label><select id="ab-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field"><label>Monto ($)</label><input type="number" id="ab-monto" placeholder="0.00"></div>
     </div>
     <div><div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Historial de pagos</div>
@@ -1108,12 +1108,12 @@ function rDia(){
   const hoy=todayStr();
   const list=misP().filter(p=>p.fecha===hoy);
   document.getElementById('d-n').textContent=list.length;
-  document.getElementById('d-v').textContent=fmtK(list.reduce((a,b)=>a+b.total,0));
-  document.getElementById('d-c').textContent=fmtK(list.reduce((a,b)=>a+b.ant,0));
-  document.getElementById('d-pc').textContent=fmtK(list.reduce((a,b)=>a+b.rest,0));
-  const mets={Efectivo:0,Tarjeta:0,Transferencia:0};
-  list.forEach(p=>mets[p.met||'Efectivo']=(mets[p.met||'Efectivo']||0)+p.total);
-  document.getElementById('d-mets').innerHTML=Object.entries(mets).map(([m,v])=>`<div><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">${m}</div><div class="mono" style="font-size:16px;font-weight:700;margin-top:1px">${fmtK(v)}</div></div>`).join('');
+  document.getElementById('d-v').textContent=fmt(list.reduce((a,b)=>a+b.total,0));
+  document.getElementById('d-c').textContent=fmt(list.reduce((a,b)=>a+b.ant,0));
+  document.getElementById('d-pc').textContent=fmt(list.reduce((a,b)=>a+b.rest,0));
+  const mets={};
+  list.forEach(p=>{const k=p.met||'Efectivo';mets[k]=(mets[k]||0)+p.total;});
+  document.getElementById('d-mets').innerHTML=Object.entries(mets).filter(([,v])=>v>0).map(([m,v])=>`<div><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">${m}</div><div class="mono" style="font-size:16px;font-weight:700;margin-top:1px">${fmt(v)}</div></div>`).join('');
   const hoyD=new Date();
   const body=document.getElementById('dia-body');
   if(!list.length){body.innerHTML=`<tr><td colspan="8" class="tbl-empty">Sin pedidos hoy · Crea uno desde el cotizador</td></tr>`;return;}
