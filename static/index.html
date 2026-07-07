@@ -256,13 +256,14 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 <div class="modal">
   <div class="modal-hdr"><div class="modal-ttl" id="mm-ttl">Editar Moldura</div><button class="modal-x" onclick="CM('mod-mol')">✕</button></div>
   <div class="modal-body">
-    <div class="field"><label>Nombre</label><input class="ro" id="mm-n" readonly></div>
+    <div class="field"><label>Nombre</label><input id="mm-n" placeholder="Nombre de la moldura"></div>
     <div class="g2">
       <div class="field"><label>Precio lista ($/ml)</label><input type="number" id="mm-p" step="0.0001"></div>
-      <div class="field"><label>Proveedor</label><input class="ro" id="mm-pv" readonly></div>
+      <div class="field"><label>Proveedor</label><select id="mm-pv"><option value="PROPIO">Propio</option><option value="SM">SM (Servimarco)</option><option value="MM">MM (Mexicana)</option><option value="MX">MX</option><option value="MARCOS LEON">Marcos León</option></select></div>
     </div>
     <div class="field"><label>Estatus</label><select id="mm-e"><option value="activa">Activa</option><option value="agotada">Agotada</option><option value="descontinuada">Descontinuada</option></select></div>
   </div>
+  <div class="field"><label>Desp. cm</label><input type="number" id="mm-d" step="0.1" placeholder="0" value="0"></div>
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-mol')">Cancelar</button><button class="btn btn-p" onclick="saveMol()">✓ Guardar</button></div>
 </div>
 </div>
@@ -459,7 +460,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 
 <!-- CATÁLOGO -->
 <div class="page" id="page-cat">
-  <div class="ph"><div><div class="ph-title">Catálogo de Molduras</div><div class="ph-sub" id="cat-cnt">—</div></div></div>
+  <div class="ph"><div><div class="ph-title">Catálogo de Molduras</div><div class="ph-sub" id="cat-cnt">—</div></div><button class="btn btn-p" onclick="openNewMol()">+ Agregar moldura</button></div>
   <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-bottom:.875rem">
     <input id="cat-q" placeholder="🔍 Buscar moldura..." style="width:200px" oninput="catPage=0;rCat()">
     <select id="cat-pv" style="width:170px" onchange="catPage=0;rCat()"><option value="">Todos los proveedores</option><option>PROPIO</option><option>SM</option><option>MM</option><option>MX</option><option>MARCOS LEON</option></select>
@@ -767,7 +768,17 @@ let cuentas=[];
 let movs=[];
 let catPage=0,catEst='';
 let pedPage=0,pedFilter='todos',pedQ='';
-let editMolIdx=null,entIdx=null,abIdx=null,editUsrIdx=null;
+let editMolIdx=null,entIdx=null,abIdx=null,editUsrIdx=null,newMolMode=false;
+function openNewMol(){
+  newMolMode=true;editMolIdx=null;
+  document.getElementById('mm-n').value='';
+  document.getElementById('mm-p').value='';
+  document.getElementById('mm-pv').value='PROPIO';
+  document.getElementById('mm-d').value='0';
+  document.getElementById('mm-e').value='activa';
+  document.getElementById('mm-ttl').textContent='Nueva Moldura';
+  OM('mod-mol');
+}
 
 const USERS_DEFAULT=[
   {key:'jardines',name:'Alondra',display:'Jardines',role:'venta',suc:'Jardines',pwd:'jardines123'},
@@ -1175,16 +1186,33 @@ function rCat(){
 function eMol(idx){
   editMolIdx=idx;const m=MOLS[idx];
   document.getElementById('mm-n').value=m.nombre;
+  newMolMode=false;
+  document.getElementById('mm-n').value=m.nombre;
   document.getElementById('mm-p').value=m.precio_lista;
-  document.getElementById('mm-pv').value=PROVS[m.proveedor]||m.proveedor;
+  document.getElementById('mm-pv').value=m.proveedor||'PROPIO';
+  document.getElementById('mm-d').value=m.desp_cm||0;
   document.getElementById('mm-e').value=m.estatus;
   document.getElementById('mm-ttl').textContent='Editar: '+m.nombre.substring(0,30);
   OM('mod-mol');
 }
 function saveMol(){
-  if(editMolIdx===null)return;
-  MOLS[editMolIdx].precio_lista=parseFloat(document.getElementById('mm-p').value)||MOLS[editMolIdx].precio_lista;
-  MOLS[editMolIdx].estatus=document.getElementById('mm-e').value;
+  const nombre=document.getElementById('mm-n').value.trim();
+  const precio=parseFloat(document.getElementById('mm-p').value)||0;
+  const prov=document.getElementById('mm-pv').value;
+  const desp=parseFloat(document.getElementById('mm-d').value)||0;
+  const estatus=document.getElementById('mm-e').value;
+  if(!nombre){alert('Ingresa el nombre de la moldura');return;}
+  if(newMolMode){
+    const newMol={id:Date.now(),nombre,proveedor:prov,precio_lista:precio,desp_cm:desp,estatus};
+    MOLS.unshift(newMol);
+  } else {
+    if(editMolIdx===null)return;
+    MOLS[editMolIdx].nombre=nombre;
+    MOLS[editMolIdx].precio_lista=precio;
+    MOLS[editMolIdx].proveedor=prov;
+    MOLS[editMolIdx].desp_cm=desp;
+    MOLS[editMolIdx].estatus=estatus;
+  }
   CM('mod-mol');rCat();
 }
 
