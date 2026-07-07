@@ -760,6 +760,8 @@ const MOLS=(typeof _MD!=="undefined")?_MD.map(function(m){return {id:m[0],nombre
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let CU=null,cart=[],molSel=null;
+let cotDesc=0;
+function setCotDesc(pct){cotDesc=pct;document.querySelectorAll("[id^=\"dc-\"]").forEach(function(b){b.classList.remove("active");});var el=document.getElementById("dc-"+pct);if(el)el.classList.add("active");rCart();}
 let pedidos=[];
 let cuentas=[];
 let movs=[];
@@ -899,10 +901,11 @@ function rCart(){
         <div style="text-align:right"><div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.04em">Con IVA</div><div class="mono" style="font-size:12px;font-weight:600;color:var(--green)">${fmt(x.subIva)}</div></div>
       </div>
     </div>`).join('');
-  const sub=cart.reduce((a,b)=>a+b.sub,0),iva=sub*.16;
-  document.getElementById('cs-sub').textContent=fmt(sub);
+  const subRaw=cart.reduce((a,b)=>a+b.sub,0);
+  const desc=subRaw*(cotDesc||0)/100,subFinal=subRaw-desc,iva=subFinal*.16;
+  document.getElementById('cs-sub').textContent=fmt(subRaw)+(cotDesc>0?' → '+fmt(subFinal)+' (−'+cotDesc+'%)':'');
   document.getElementById('cs-iva').textContent=fmt(iva);
-  document.getElementById('cs-tot').textContent=fmt(sub+iva);
+  document.getElementById('cs-tot').textContent=fmt(subFinal+iva);
 }
 function rmCart(i){cart.splice(i,1);rCart();}
 function clrCart(){cart=[];rCart();}
