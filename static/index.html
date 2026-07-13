@@ -853,8 +853,8 @@ function OM(id){document.getElementById(id).style.display='flex';}
 function renderUCards(){
   document.getElementById('u-grid').innerHTML=USERS.map(u=>`
     <div class="ucard" onclick="selU('${u.key}')" id="uc-${u.key}">
-      <div class="uicon" style="background:${u.role==='admin'?'#FEF3C7':u.suc==='Zibata'?'#EFF6FF':'#E6F4ED'}">${u.role==='admin'?'⚙️':u.suc==='Zibata'?'🏬':'🏪'}</div>
-      <div><div style="font-size:12px;font-weight:500">${u.display}</div><div style="font-size:10px;color:var(--text3)">${u.role==='admin'?'Administrador':'Punto de venta'}</div></div>
+      <div class="uicon" style="background:${u.role==='admin'?'#FEF3C7':u.suc==='Zibata'?'#EFF6FF':'#E6F4ED'}">${u.role==='owner'?'👑':u.role==='admin'?'⚙️':u.suc==='Zibata'?'🏬':'🏪'}</div>
+      <div><div style="font-size:12px;font-weight:500">${u.display}</div><div style="font-size:10px;color:var(--text3)">${u.role==='owner'?'Dueña':u.role==='admin'?'Administrador':'Punto de venta'}</div></div>
     </div>`).join('');
 }
 function selU(k){document.querySelectorAll('.ucard').forEach(c=>c.classList.remove('sel'));const el=document.getElementById('uc-'+k);if(el)el.classList.add('sel');CU=k;}
