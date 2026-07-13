@@ -1506,19 +1506,30 @@ function rER(){
 }
 
 // ─── BANCOS ───────────────────────────────────────────────────────────────────
+function saldoCta(c){
+  // Entradas directas a esta cuenta
+  const e=movs.filter(m=>m.cuenta===c&&(m.tipo==='Entrada'||m.tipo==='Retiro')).reduce((a,b)=>a+b.monto,0);
+  // Salidas directas de esta cuenta
+  const s=movs.filter(m=>m.cuenta===c&&(m.tipo==='Salida')).reduce((a,b)=>a+b.monto,0);
+  // Traspasos: sale de cuenta origen
+  const tSal=movs.filter(m=>m.cuenta===c&&m.tipo==='Traspaso').reduce((a,b)=>a+b.monto,0);
+  // Traspasos: llega a cuenta destino
+  const tEnt=movs.filter(m=>m.cta_destino===c&&m.tipo==='Traspaso').reduce((a,b)=>a+b.monto,0);
+  return {e:e+tEnt, s:s+tSal};
+}
 function rBancos(){
   const ctas=Object.keys(BANCOS_INIT);
   let total=0;
   const rows=ctas.map(c=>{
-    const e=movs.filter(m=>m.cuenta===c&&m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);
-    const s=movs.filter(m=>m.cuenta===c&&m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);
+    const {e,s}=saldoCta(c);
     const sal=(BANCOS_INIT[c]||0)+e-s;total+=sal;
     return `<tr><td style="font-weight:500">${c}</td><td class="mono">${fmt(BANCOS_INIT[c]||0)}</td><td class="mono" style="color:var(--green)">${fmt(e)}</td><td class="mono" style="color:var(--red)">${fmt(s)}</td><td class="mono" style="font-weight:700">${fmt(sal)}</td></tr>`;
   });
   document.getElementById('ban-body').innerHTML=rows.join('');
-  document.getElementById('ban-m').innerHTML=ctas.filter(c=>(BANCOS_INIT[c]||0)>0||movs.some(m=>m.cuenta===c)).slice(0,3).map(c=>{
-    const e=movs.filter(m=>m.cuenta===c&&m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);
-    const s=movs.filter(m=>m.cuenta===c&&m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);
+  // Mostrar solo cuentas con saldo o movimientos
+  const ctasActivas=ctas.filter(c=>{const {e,s}=saldoCta(c);return (BANCOS_INIT[c]||0)>0||e>0||s>0;});
+  document.getElementById('ban-m').innerHTML=ctasActivas.slice(0,3).map(c=>{
+    const {e,s}=saldoCta(c);
     return `<div class="metric"><div class="m-label">${c}</div><div class="m-val">${fmtK((BANCOS_INIT[c]||0)+e-s)}</div></div>`;
   }).join('')+`<div class="metric" style="background:var(--green-l)"><div class="m-label">Total en cuentas</div><div class="m-val" style="color:var(--green)">${fmtK(total)}</div></div>`;
 }
