@@ -56,9 +56,10 @@ class Movimiento(db.Model):
     socio       = db.Column(db.String(50))
 
 USUARIOS = {
-    'jardines': {'password':'jardines123','name':'Alondra','display':'Jardines','role':'venta','suc':'Jardines'},
-    'zibata':   {'password':'zibata123',  'name':'Zibata', 'display':'Zibata',  'role':'venta','suc':'Zibata'},
-    'admin':    {'password':'admin123',   'name':'Estefania','display':'Admin', 'role':'admin','suc':'Admin'},
+    'jardines':  {'password':'jardines123', 'name':'Alondra',   'display':'Jardines',  'role':'venta', 'suc':'Jardines'},
+    'zibata':    {'password':'zibata123',   'name':'Zibata',    'display':'Zibata',    'role':'venta', 'suc':'Zibata'},
+    'admin':     {'password':'admin123',    'name':'Ana Karen', 'display':'Admin',     'role':'admin', 'suc':'Admin'},
+    'estefania': {'password':'impulso2026', 'name':'Estefania', 'display':'Estefania', 'role':'owner', 'suc':'Admin'},
 }
 
 def requiere_login(f):
@@ -125,7 +126,7 @@ def get_pedidos():
     rol = session.get('rol')
     suc = session.get('suc')
     q = Pedido.query
-    if rol != 'admin':
+    if rol not in ('admin', 'owner'):
         q = q.filter_by(suc=suc)
     return jsonify([p_dict(p) for p in q.order_by(Pedido.id.desc()).all()])
 
@@ -185,7 +186,7 @@ def get_movimientos():
     rol = session.get('rol')
     suc = session.get('suc')
     q = Movimiento.query
-    if rol != 'admin':
+    if rol not in ('admin', 'owner'):
         q = q.filter_by(suc=suc)
     return jsonify([m_dict(m) for m in q.order_by(Movimiento.id.desc()).all()])
 
@@ -202,6 +203,17 @@ def crear_movimiento():
     db.session.add(m)
     db.session.commit()
     return jsonify(m_dict(m)), 201
+
+@app.route('/api/movimientos/<int:mid>', methods=['PUT'])
+@requiere_login
+def actualizar_movimiento(mid):
+    m = Movimiento.query.get_or_404(mid)
+    d = request.json or {}
+    for campo in ['tipo','concepto','desc','monto','fecha','mes','suc','cuenta','cta_destino','socio']:
+        if campo in d:
+            setattr(m, campo, d[campo])
+    db.session.commit()
+    return jsonify(m_dict(m))
 
 @app.route('/api/movimientos/<int:mid>', methods=['DELETE'])
 @requiere_login
@@ -282,7 +294,7 @@ def get_pendientes():
     rol = session.get('rol')
     suc = session.get('suc')
     q = Pendiente.query
-    if rol != 'admin':
+    if rol not in ('admin', 'owner'):
         q = q.filter_by(suc=suc)
     return jsonify([pend_dict(p) for p in q.order_by(Pendiente.id.desc()).all()])
 
