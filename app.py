@@ -126,7 +126,7 @@ def get_pedidos():
     rol = session.get('rol')
     suc = session.get('suc')
     q = Pedido.query
-    if rol not in ('admin', 'owner'):
+    if rol not in ('admin','owner'):
         q = q.filter_by(suc=suc)
     return jsonify([p_dict(p) for p in q.order_by(Pedido.id.desc()).all()])
 
@@ -186,7 +186,7 @@ def get_movimientos():
     rol = session.get('rol')
     suc = session.get('suc')
     q = Movimiento.query
-    if rol not in ('admin', 'owner'):
+    if rol not in ('admin','owner'):
         q = q.filter_by(suc=suc)
     return jsonify([m_dict(m) for m in q.order_by(Movimiento.id.desc()).all()])
 
@@ -294,7 +294,7 @@ def get_pendientes():
     rol = session.get('rol')
     suc = session.get('suc')
     q = Pendiente.query
-    if rol not in ('admin', 'owner'):
+    if rol not in ('admin','owner'):
         q = q.filter_by(suc=suc)
     return jsonify([pend_dict(p) for p in q.order_by(Pendiente.id.desc()).all()])
 
@@ -375,6 +375,50 @@ def actualizar_vendedor(vid):
 def borrar_vendedor(vid):
     v = Vendedor.query.get_or_404(vid)
     db.session.delete(v)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ── ACTIVITY LOG ──────────────────────────────────────────────────────────────
+
+class ActivityLog(db.Model):
+    __tablename__ = 'activity_log'
+    id        = db.Column(db.Integer, primary_key=True)
+    ts        = db.Column(db.String(30))
+    user      = db.Column(db.String(50))
+    user_name = db.Column(db.String(100))
+    accion    = db.Column(db.String(100))
+    detalle   = db.Column(db.String(300))
+
+def act_dict(a):
+    return {'id':a.id,'ts':a.ts,'user':a.user,'userName':a.user_name,'accion':a.accion,'detalle':a.detalle}
+
+@app.route('/api/activity', methods=['GET'])
+@requiere_login
+def get_activity():
+    logs = ActivityLog.query.order_by(ActivityLog.id.desc()).limit(200).all()
+    return jsonify([act_dict(a) for a in logs])
+
+@app.route('/api/activity', methods=['POST'])
+@requiere_login
+def post_activity():
+    d = request.json or {}
+    from datetime import datetime
+    a = ActivityLog(
+        ts=datetime.utcnow().isoformat(),
+        user=session.get('usuario','?'),
+        user_name=d.get('userName','?'),
+        accion=d.get('accion',''),
+        detalle=d.get('detalle','')
+    )
+    db.session.add(a)
+    db.session.commit()
+    return jsonify(act_dict(a)), 201
+
+@app.route('/api/activity', methods=['DELETE'])
+@requiere_login
+def clear_activity():
+    ActivityLog.query.delete()
     db.session.commit()
     return jsonify({'ok': True})
 
