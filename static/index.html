@@ -592,7 +592,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 
 <!-- COMISIONES -->
 <div class="page" id="page-activity">
-  <div class="ph"><div><div class="ph-title">Actividad Reciente</div><div class="ph-sub">Cambios realizados por el equipo</div></div><button class="btn btn-s" onclick="ACTIVITY_LOG=[];localStorage.setItem('impulso_activity','[]');clearActivityBadge();rActivity()">Limpiar historial</button></div>
+  <div class="ph"><div><div class="ph-title">Actividad Reciente</div><div class="ph-sub">Cambios realizados por el equipo</div></div><button class="btn btn-s" onclick="fetch('/api/activity',{method:'DELETE',credentials:'include'}).then(()=>{clearActivityBadge();rActivity();})">Limpiar historial</button></div>
   <div id="activity-list"></div>
 </div>
 
@@ -820,24 +820,16 @@ function canEdit(){return isAdmin();}  // admin y owner pueden editar
 let ACTIVITY_LOG=JSON.parse(localStorage.getItem('impulso_activity')||'[]');
 function logActivity(accion,detalle){
   const u=USERS.find(x=>x.key===CU);
-  const entry={ts:new Date().toISOString(),user:CU,userName:u?u.name:'?',accion,detalle};
-  ACTIVITY_LOG.unshift(entry);
-  if(ACTIVITY_LOG.length>200)ACTIVITY_LOG=ACTIVITY_LOG.slice(0,200);
-  localStorage.setItem('impulso_activity',JSON.stringify(ACTIVITY_LOG));
-  // Marcar cambios pendientes para Estefania
-  if(CU!=='estefania'){
-    let pending=parseInt(localStorage.getItem('impulso_pending_changes')||'0');
-    pending++;
-    localStorage.setItem('impulso_pending_changes',pending.toString());
-    updateActivityBadge();
-  }
+  fetch('/api/activity',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({userName:u?u.name:'?',accion,detalle})
+  }).catch(()=>{});
 }
 function updateActivityBadge(){
   const badge=document.getElementById('activity-badge');
   if(!badge)return;
-  const pending=parseInt(localStorage.getItem('impulso_pending_changes')||'0');
-  badge.textContent=pending>0?pending:'';
-  badge.style.display=pending>0?'':'none';
+  // Badge se actualiza al cargar actividad
+  badge.style.display='none';
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -873,7 +865,13 @@ function doLogin(){
     document.getElementById('sb-suc').textContent=u.display;
     document.querySelectorAll('.admin-only').forEach(el=>el.style.display=(u.role==='admin'||u.role==='owner')?'':'none');
     document.querySelectorAll('.owner-only').forEach(el=>el.style.display=u.role==='owner'?'':'none');
-    updateActivityBadge();
+    // Cargar badge de actividad para owner
+  if(u.role==='owner'){
+    fetch('/api/activity',{credentials:'include'}).then(r=>r.json()).then(logs=>{
+      const badge=document.getElementById('activity-badge');
+      if(badge&&logs.length>0){badge.textContent=logs.length;badge.style.display='';}
+    }).catch(()=>{});
+  }
     document.getElementById('dia-f').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     rMvCat();initComMes();initAsistSels();initNomSems();populateVendSel();initFacMes();
     loadData();
@@ -1899,18 +1897,19 @@ const LOGO_B64="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0
 
 function rActivity(){
   const el=document.getElementById('activity-list');if(!el)return;
-  ACTIVITY_LOG=JSON.parse(localStorage.getItem('impulso_activity')||'[]');
-  if(!ACTIVITY_LOG.length){el.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Sin actividad registrada</div>';return;}
-  el.innerHTML='<div class="tw"><table class="tbl"><thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>'+
-  ACTIVITY_LOG.map(e=>{
-    const dt=new Date(e.ts);
-    const fecha=dt.toLocaleDateString('es-MX')+' '+dt.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
-    const color=e.accion.includes('Borró')?'color:#dc2626':e.accion.includes('Editó')?'color:#d97706':'';
-    return `<tr><td style="color:var(--text3);font-size:11px">${fecha}</td><td style="font-weight:500">${e.userName||e.user}</td><td style="${color};font-weight:500">${e.accion}</td><td style="color:var(--text2)">${e.detalle||''}</td></tr>`;
-  }).join('')+'</tbody></table></div>';
+  el.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Cargando...</div>';
+  fetch('/api/activity',{credentials:'include'}).then(r=>r.json()).then(logs=>{
+    if(!logs.length){el.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Sin actividad registrada</div>';return;}
+    el.innerHTML='<div class="tw"><table class="tbl"><thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>'+
+    logs.map(e=>{
+      const dt=new Date(e.ts);
+      const fecha=dt.toLocaleDateString('es-MX')+' '+dt.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'});
+      const color=e.accion.includes('Borró')?'color:#dc2626':e.accion.includes('Editó')?'color:#d97706':'';
+      return `<tr><td style="color:var(--text3);font-size:11px">${fecha}</td><td style="font-weight:500">${e.userName||e.user}</td><td style="${color};font-weight:500">${e.accion}</td><td style="color:var(--text2)">${e.detalle||''}</td></tr>`;
+    }).join('')+'</tbody></table></div>';
+  }).catch(()=>{el.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Error al cargar actividad</div>';});
 }
 function clearActivityBadge(){
-  localStorage.setItem('impulso_pending_changes','0');
   const badge=document.getElementById('activity-badge');
   if(badge){badge.textContent='';badge.style.display='none';}
 }
