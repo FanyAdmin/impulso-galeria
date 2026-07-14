@@ -556,11 +556,24 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="metric"><div class="m-label">Salidas</div><div class="m-val" id="mv-s">$0</div></div>
     <div class="metric"><div class="m-label">Balance</div><div class="m-val" id="mv-b">$0</div></div>
   </div>
-  <div class="chips">
-    <div class="chip active" onclick="fMov('',this)">Todos</div>
-    <div class="chip" onclick="fMov('Entrada',this)">Entradas</div>
-    <div class="chip" onclick="fMov('Salida',this)">Salidas</div>
-    <div class="chip" onclick="fMov('Traspaso',this)">Traspasos</div>
+  <div class="chips" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+    <div class="chip active" onclick="fMov('',this)" data-f="">Todos</div>
+    <div class="chip" onclick="fMov('Entrada',this)" data-f="Entrada">Entradas</div>
+    <div class="chip" onclick="fMov('Salida',this)" data-f="Salida">Salidas</div>
+    <div class="chip" onclick="fMov('Traspaso',this)" data-f="Traspaso">Traspasos</div>
+    <div style="margin-left:8px;display:flex;align-items:center;gap:6px">
+      <span style="font-size:11px;color:var(--text3)">Cuenta:</span>
+      <select id="mv-cta-fil" onchange="rMovs(document.querySelector('#page-mov .chip.active')?.dataset?.f||'')" style="font-size:11px;padding:3px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface)">
+        <option value="">Todas</option>
+        <option>Efectivo</option>
+        <option>HSBC</option>
+        <option>INBURSA</option>
+        <option>Bzipay</option>
+        <option>El Patio</option>
+        <option>Zibata</option>
+        <option>Efectivo Zibata</option>
+      </select>
+    </div>
   </div>
   <div class="tw"><table class="tbl"><thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Cuenta</th><th>Monto</th></tr></thead><tbody id="mv-body"></tbody></table></div>
 </div>
@@ -1452,7 +1465,9 @@ function borrarMov(idx){
   else{movs.splice(idx,1);rMovs();}
 }
 function rMovs(f=''){
-  const list=f?movs.filter(m=>m.tipo.toLowerCase()===f.toLowerCase()||m.tipo.toUpperCase()===f.toUpperCase()):movs;
+  const ctaFil=(document.getElementById('mv-cta-fil')?.value||'').toLowerCase();
+  let list=f?movs.filter(m=>m.tipo.toLowerCase()===f.toLowerCase()):movs;
+  if(ctaFil)list=list.filter(m=>(m.cuenta||'').toLowerCase()===ctaFil||(m.cta_destino||'').toLowerCase()===ctaFil);
   const body=document.getElementById('mv-body');
   body.innerHTML=list.slice(0,100).length?list.slice(0,100).map(m=>{
     const bc=m.tipo.toLowerCase().includes('entrada')?'bg':m.tipo.toLowerCase().includes('salida')?'br':'bb';
@@ -1461,9 +1476,9 @@ function rMovs(f=''){
   }).join(''):`<tr><td colspan="6" class="tbl-empty">Sin movimientos</td></tr>`;
   const e=movs.filter(m=>m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);
   const s=movs.filter(m=>m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);
-  document.getElementById('mv-e').textContent=fmtK(e);
-  document.getElementById('mv-s').textContent=fmtK(s);
-  document.getElementById('mv-b').textContent=fmtK(e-s);
+  document.getElementById('mv-e').textContent=fmt(e);
+  document.getElementById('mv-s').textContent=fmt(s);
+  document.getElementById('mv-b').textContent=fmt(e-s);
 }
 function fMov(f,el){document.querySelectorAll('#page-mov .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');rMovs(f);}
 
