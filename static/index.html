@@ -849,7 +849,8 @@ function updateActivityBadge(){
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const fmt=(n)=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
-const fmtK=(n)=>n>=1000000?'$'+(n/1000000).toFixed(1)+'M':n>=1000?'$'+(n/1000).toFixed(0)+'K':'$'+Math.round(n);
+const fmtC=(n)=>n>=1000000?'$'+(n/1000000).toFixed(1)+'M':n>=1000?'$'+(n/1000).toFixed(0)+'K':'$'+Math.round(n);
+const fmtK=(n)=>fmt(n); // tarjetas siempre en MXN exacto
 function addBiz(d,n=12){let r=new Date(d),c=0;r.setDate(r.getDate()+1);while(c<n){r.setDate(r.getDate()+1);if(r.getDay()!==0&&r.getDay()!==6)c++;}return r.toISOString().slice(0,10);}
 function diffDays(a,b){return Math.floor((new Date(a)-new Date(b))/864e5);}
 function todayStr(){return new Date().toISOString().slice(0,10);}
@@ -1298,7 +1299,7 @@ function rDash(){
   document.getElementById('a-chart').innerHTML=byMes.map((v,i)=>`
     <div style="display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%">
       <div style="width:100%;background:var(--green-l);border-radius:3px 3px 0 0;height:${Math.max(4,Math.round(v/maxV*72))}px;position:relative">
-        <div style="position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:600;color:var(--text2);white-space:nowrap">${fmtK(v)}</div>
+        <div style="position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:600;color:var(--text2);white-space:nowrap">${fmtC(v)}</div>
       </div>
     </div>`).join('');
   document.getElementById('a-chart-labels').innerHTML=MESES_C.slice(0,6).map(m=>`<div>${m}</div>`).join('');
