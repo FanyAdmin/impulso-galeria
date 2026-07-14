@@ -2166,7 +2166,7 @@ function guardarEditPed(){
 }
 function misC(){
   const u=USERS.find(x=>x.key===CU);
-  const peds=u&&u.role==='admin'?pedidos:pedidos.filter(p=>p.suc===(u&&u.suc));
+  const peds=u&&(u.role==='admin'||u.role==='owner')?pedidos:pedidos.filter(p=>p.suc===(u&&u.suc));
   return peds.filter(p=>p.rest>0).map(p=>({id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,fecha:p.fecha,fechaE:p.fecha,entrega:p.entrega,total:p.total,saldo:p.rest,abon:p.ant,abonos:[],liq:false,est:p.est,_pedIdx:pedidos.indexOf(p)}));
 }
 function rPend(){
