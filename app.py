@@ -53,14 +53,64 @@ class Movimiento(db.Model):
     suc         = db.Column(db.String(50))
     cuenta      = db.Column(db.String(50))
     cta_destino = db.Column(db.String(50))
-    socio       = db.Column(db.String(50))
+    socio      = db.Column(db.String(50))
 
-USUARIOS = {
-    'jardines':  {'password':'jardines123', 'name':'Alondra',   'display':'Jardines',  'role':'venta', 'suc':'Jardines'},
-    'zibata':    {'password':'zibata123',   'name':'Zibata',    'display':'Zibata',    'role':'venta', 'suc':'Zibata'},
-    'admin':     {'password':'admin123',    'name':'Ana Karen', 'display':'Admin',     'role':'admin', 'suc':'Admin'},
-    'estefania': {'password':'impulso2026', 'name':'Estefania', 'display':'Estefania', 'role':'owner', 'suc':'Admin'},
-}
+# ── USUARIOS EN BD ────────────────────────────────────────────────────────────
+
+class Usuario(db.Model):
+    __tablename__ = 'usuarios'
+    id       = db.Column(db.Integer, primary_key=True)
+    key      = db.Column(db.String(50), unique=True, nullable=False)
+    password = db.Column(db.String(100), nullable=False)
+    name     = db.Column(db.String(100))
+    display  = db.Column(db.String(50))
+    role     = db.Column(db.String(20), default='venta')
+    suc      = db.Column(db.String(50))
+
+USUARIOS_SEED = [
+    {'key':'jardines',  'password':'jardines123', 'name':'Alondra',   'display':'Jardines',  'role':'venta', 'suc':'Jardines'},
+    {'key':'zibata',    'password':'zibata123',   'name':'Zibata',    'display':'Zibata',    'role':'venta', 'suc':'Zibata'},
+    {'key':'admin',     'password':'admin123',    'name':'Ana Karen', 'display':'Admin',     'role':'admin', 'suc':'Admin'},
+    {'key':'estefania', 'password':'impulso2026', 'name':'Estefania', 'display':'Estefania', 'role':'owner', 'suc':'Admin'},
+]
+USUARIOS_PROTEGIDOS = ('admin', 'estefania')  # no se pueden borrar
+
+def usr_dict(u, incluir_pwd=False):
+    d = {'id':u.id,'key':u.key,'name':u.name,'display':u.display,'role':u.role,'suc':u.suc}
+    if incluir_pwd:
+        d['pwd'] = u.password
+    return d
+
+def seed_usuarios():
+    """Inserta los usuarios base solo si no existen. Nunca pisa contraseñas ya cambiadas."""
+    for s in USUARIOS_SEED:
+        if not Usuario.query.filter_by(key=s['key']).first():
+            db.session.add(Usuario(**s))
+    db.session.commit()
+
+# ── EMPLEADOS EN BD ───────────────────────────────────────────────────────────
+
+class Empleado(db.Model):
+    __tablename__ = 'empleados'
+    id      = db.Column(db.Integer, primary_key=True)
+    nombre  = db.Column(db.String(100), nullable=False)
+    puesto  = db.Column(db.String(100))
+    suc     = db.Column(db.String(50))
+    ingreso = db.Column(db.String(20))
+    salario = db.Column(db.Float, default=0)
+    metpago = db.Column(db.String(50))
+    banco   = db.Column(db.String(100))
+    curp    = db.Column(db.String(30))
+    rfc     = db.Column(db.String(20))
+    tel     = db.Column(db.String(30))
+    dir     = db.Column(db.String(300))
+
+def emp_dict(e):
+    return {'id':e.id,'nombre':e.nombre,'puesto':e.puesto,'suc':e.suc,
+            'ingreso':e.ingreso,'salario':e.salario,'metpago':e.metpago,
+            'banco':e.banco,'curp':e.curp,'rfc':e.rfc,'tel':e.tel,'dir':e.dir}
+
+# ── HELPERS DE AUTORIZACIÓN ───────────────────────────────────────────────────
 
 def requiere_login(f):
     from functools import wraps
@@ -71,8 +121,19 @@ def requiere_login(f):
         return f(*args, **kwargs)
     return decorado
 
+def requiere_admin(f):
+    """Solo admin u owner."""
+    from functools import wraps
+    @wraps(f)
+    def decorado(*args, **kwargs):
+        if not session.get('usuario'):
+            return jsonify({'error': 'No autenticado'}), 401
+        if session.get('rol') not in ('admin', 'owner'):
+            return jsonify({'error': 'Sin permisos'}), 403
+        return f(*args, **kwargs)
+    return decorado
+
 def serve_static(filename):
-    # Try multiple folder names
     for folder in ['static', 'estático', 'estatico']:
         path = os.path.join(BASE_DIR, folder, filename)
         if os.path.exists(path):
@@ -87,21 +148,20 @@ def index():
 def cotizador():
     return serve_static('Cotizador_Impulso.html')
 
+# ── AUTH (ahora contra la BD) ─────────────────────────────────────────────────
+
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json or {}
     key = data.get('key', '').strip()
     pwd = data.get('pwd', '').strip()
-    u = USUARIOS.get(key)
-    if u and u['password'] == pwd:
+    u = Usuario.query.filter_by(key=key).first()
+    if u and u.password == pwd:
         session.permanent = True
         session['usuario'] = key
-        session['suc'] = u['suc']
-        session['rol'] = u['role']
-        return jsonify({'ok': True, 'user': {
-            'key': key, 'name': u['name'], 'display': u['display'],
-            'role': u['role'], 'suc': u['suc'], 'pwd': pwd
-        }})
+        session['suc'] = u.suc
+        session['rol'] = u.role
+        return jsonify({'ok': True, 'user': usr_dict(u, incluir_pwd=True)})
     return jsonify({'ok': False, 'msg': 'Credenciales incorrectas'}), 401
 
 @app.route('/api/logout', methods=['POST'])
@@ -114,11 +174,121 @@ def me():
     key = session.get('usuario')
     if not key:
         return jsonify({'ok': False}), 401
-    u = USUARIOS[key]
-    return jsonify({'ok': True, 'user': {
-        'key': key, 'name': u['name'], 'display': u['display'],
-        'role': u['role'], 'suc': u['suc']
-    }})
+    u = Usuario.query.filter_by(key=key).first()
+    if not u:
+        session.clear()
+        return jsonify({'ok': False}), 401
+    return jsonify({'ok': True, 'user': usr_dict(u)})
+
+# ── CRUD USUARIOS ─────────────────────────────────────────────────────────────
+
+@app.route('/api/usuarios', methods=['GET'])
+def get_usuarios():
+    # Sin sesión: lista sanitizada (para las tarjetas de login).
+    # Con sesión admin/owner: incluye contraseña (para el modal de edición).
+    es_gestor = session.get('rol') in ('admin', 'owner')
+    usuarios = Usuario.query.order_by(Usuario.id).all()
+    return jsonify([usr_dict(u, incluir_pwd=es_gestor) for u in usuarios])
+
+@app.route('/api/usuarios', methods=['POST'])
+@requiere_admin
+def crear_usuario():
+    d = request.json or {}
+    key = (d.get('key') or '').strip().lower()
+    pwd = (d.get('pwd') or '').strip()
+    if not key or not pwd or not d.get('name'):
+        return jsonify({'error': 'Faltan campos'}), 400
+    if Usuario.query.filter_by(key=key).first():
+        return jsonify({'error': 'Ya existe un usuario con ese login'}), 400
+    # Solo la dueña puede crear otros owners
+    if d.get('role') == 'owner' and session.get('rol') != 'owner':
+        return jsonify({'error': 'Solo la dueña puede crear usuarios owner'}), 403
+    u = Usuario(key=key, password=pwd, name=d.get('name'),
+                display=d.get('display', d.get('suc','')),
+                role=d.get('role','venta'), suc=d.get('suc',''))
+    db.session.add(u)
+    db.session.commit()
+    return jsonify(usr_dict(u, incluir_pwd=True)), 201
+
+@app.route('/api/usuarios/<int:uid>', methods=['PUT'])
+@requiere_admin
+def actualizar_usuario(uid):
+    u = Usuario.query.get_or_404(uid)
+    # Solo la dueña puede modificar cuentas owner
+    if u.role == 'owner' and session.get('rol') != 'owner':
+        return jsonify({'error': 'Solo la dueña puede modificar esta cuenta'}), 403
+    d = request.json or {}
+    if 'role' in d and d['role'] == 'owner' and session.get('rol') != 'owner':
+        return jsonify({'error': 'Solo la dueña puede asignar rol owner'}), 403
+    nueva_key = (d.get('key') or u.key).strip().lower()
+    if nueva_key != u.key:
+        if u.key in USUARIOS_PROTEGIDOS:
+            return jsonify({'error': 'No se puede cambiar el login de este usuario base'}), 400
+        if Usuario.query.filter_by(key=nueva_key).first():
+            return jsonify({'error': 'Ya existe un usuario con ese login'}), 400
+        u.key = nueva_key
+    for campo in ['name', 'display', 'role', 'suc']:
+        if campo in d:
+            setattr(u, campo, d[campo])
+    if d.get('pwd'):
+        u.password = d['pwd'].strip()
+    db.session.commit()
+    return jsonify(usr_dict(u, incluir_pwd=True))
+
+@app.route('/api/usuarios/<int:uid>', methods=['DELETE'])
+@requiere_admin
+def borrar_usuario(uid):
+    u = Usuario.query.get_or_404(uid)
+    if u.key in USUARIOS_PROTEGIDOS:
+        return jsonify({'error': 'Este usuario no se puede eliminar'}), 400
+    if u.role == 'owner' and session.get('rol') != 'owner':
+        return jsonify({'error': 'Solo la dueña puede eliminar cuentas owner'}), 403
+    db.session.delete(u)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+# ── CRUD EMPLEADOS ────────────────────────────────────────────────────────────
+
+@app.route('/api/empleados', methods=['GET'])
+@requiere_login
+def get_empleados():
+    return jsonify([emp_dict(e) for e in Empleado.query.order_by(Empleado.id).all()])
+
+@app.route('/api/empleados', methods=['POST'])
+@requiere_admin
+def crear_empleado():
+    d = request.json or {}
+    if not d.get('nombre'):
+        return jsonify({'error': 'Nombre requerido'}), 400
+    e = Empleado(nombre=d.get('nombre'), puesto=d.get('puesto',''),
+                 suc=d.get('suc',''), ingreso=d.get('ingreso',''),
+                 salario=d.get('salario',0), metpago=d.get('metpago',''),
+                 banco=d.get('banco',''), curp=d.get('curp',''),
+                 rfc=d.get('rfc',''), tel=d.get('tel',''), dir=d.get('dir',''))
+    db.session.add(e)
+    db.session.commit()
+    return jsonify(emp_dict(e)), 201
+
+@app.route('/api/empleados/<int:eid>', methods=['PUT'])
+@requiere_admin
+def actualizar_empleado(eid):
+    e = Empleado.query.get_or_404(eid)
+    d = request.json or {}
+    for campo in ['nombre','puesto','suc','ingreso','salario','metpago','banco','curp','rfc','tel','dir']:
+        if campo in d:
+            setattr(e, campo, d[campo])
+    db.session.commit()
+    return jsonify(emp_dict(e))
+
+@app.route('/api/empleados/<int:eid>', methods=['DELETE'])
+@requiere_admin
+def borrar_empleado(eid):
+    e = Empleado.query.get_or_404(eid)
+    db.session.delete(e)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+# ── PEDIDOS ───────────────────────────────────────────────────────────────────
 
 @app.route('/api/pedidos', methods=['GET'])
 @requiere_login
@@ -180,6 +350,8 @@ def p_dict(p):
         'est':p.est,'entrega':p.entrega
     }
 
+# ── MOVIMIENTOS ───────────────────────────────────────────────────────────────
+
 @app.route('/api/movimientos', methods=['GET'])
 @requiere_login
 def get_movimientos():
@@ -240,7 +412,6 @@ def debug():
     folders = os.listdir(BASE_DIR)
     return jsonify({'base_dir': BASE_DIR, 'files': folders})
 
-
 @app.route('/api/import_pedidos', methods=['POST'])
 def import_pedidos():
     data = request.json or {}
@@ -269,7 +440,6 @@ def import_pedidos():
             pass
     db.session.commit()
     return jsonify({'ok': True, 'imported': count})
-
 
 # ── PENDIENTES ────────────────────────────────────────────────────────────────
 
@@ -331,7 +501,6 @@ def borrar_pendiente(pid):
     db.session.commit()
     return jsonify({'ok': True})
 
-
 # ── VENDEDORES ────────────────────────────────────────────────────────────────
 
 class Vendedor(db.Model):
@@ -378,7 +547,6 @@ def borrar_vendedor(vid):
     db.session.commit()
     return jsonify({'ok': True})
 
-
 # ── ACTIVITY LOG ──────────────────────────────────────────────────────────────
 
 class ActivityLog(db.Model):
@@ -424,6 +592,7 @@ def clear_activity():
 
 with app.app_context():
     db.create_all()
+    seed_usuarios()
 
 if __name__ == '__main__':
     app.run(debug=True)
