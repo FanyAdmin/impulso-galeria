@@ -811,7 +811,18 @@ const USERS_DEFAULT=[
   {key:'admin',name:'Ana Karen',display:'Admin',role:'admin',suc:'Admin',pwd:'admin123'},
   {key:'estefania',name:'Estefania',display:'Estefania',role:'owner',suc:'Admin',pwd:'impulso2026'}
 ];
-let USERS=JSON.parse(localStorage.getItem('impulso_users')||'null')||USERS_DEFAULT.map(u=>({...u}));
+let USERS=(function(){
+  const saved=JSON.parse(localStorage.getItem('impulso_users')||'null');
+  if(!saved)return USERS_DEFAULT.map(u=>({...u}));
+  // Asegurar que los usuarios base siempre existan con sus roles correctos
+  const merged=[...saved];
+  USERS_DEFAULT.forEach(def=>{
+    const existing=merged.find(u=>u.key===def.key);
+    if(!existing)merged.push({...def});
+    else if(existing.role!==def.role)existing.role=def.role; // corregir rol si cambió
+  });
+  return merged;
+})();
 function isOwner(){const u=USERS.find(x=>x.key===CU);return u&&u.role==='owner';}
 function isAdmin(){const u=USERS.find(x=>x.key===CU);return u&&(u.role==='admin'||u.role==='owner');}
 function canEdit(){return isAdmin();}  // admin y owner pueden editar
@@ -1048,7 +1059,7 @@ function onTotEdit(el){
 
 // ─── PEDIDOS ──────────────────────────────────────────────────────────────────
 const PPP=25;
-function misP(){const u=USERS.find(x=>x.key===CU);return u.role==='admin'?pedidos:pedidos.filter(p=>p.suc===u.suc);}
+function misP(){const u=USERS.find(x=>x.key===CU);return (u.role==='admin'||u.role==='owner')?pedidos:pedidos.filter(p=>p.suc===u.suc);}
 function rPed(f){
   if(f!==undefined){pedFilter=f;pedPage=0;}
   const q=(document.getElementById('ped-q').value||'').toLowerCase();
@@ -1072,7 +1083,7 @@ function rPed(f){
     return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
-      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
   document.getElementById('p-pag').innerHTML=total>1?
     `<span style="margin-right:4px;color:var(--text2)">Pág ${pedPage+1} de ${total} · ${list.length} pedidos</span>
@@ -1128,7 +1139,7 @@ function rCxC(){
     return `<tr><td class="mono" style="font-weight:600">${c.folio}</td><td>${c.cli}</td><td>${c.suc}</td><td>${c.fechaE||c.fecha||'—'}</td>
       <td class="mono">${fmt(c.total)}</td><td class="mono">${fmt(c.abon)}</td>
       <td class="mono" style="${!c.liq?'color:var(--red);font-weight:600':''}">${fmt(c.saldo)}</td>
-      <td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${pedIdx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${pedIdx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${pedIdx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${pedIdx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 let _cxcList=[];
@@ -1205,7 +1216,7 @@ function rDia(){
     const btn=p.est==='Pendiente'?`<button class="btn btn-s btn-xs" onclick="openEnt(${idx})">📦 Entregar</button>`:'';
     const tvB=p.tipo_venta==='factura'?'<span class="badge bb" style="font-size:10px">📄 Factura</span>':'<span class="badge bgr" style="font-size:10px">Gral</span>';
     const tvBtn=`<button class="btn btn-s btn-xs" onclick="toggleTV(${idx})" style="padding:1px 5px;font-size:10px" title="Cambiar tipo">&#8644;</button>`;
-    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${USERS.find(x=>x.key===CU)?.role==='admin'?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 
@@ -1311,7 +1322,7 @@ function tabA(p,el){document.querySelectorAll('#page-dash .tab').forEach(t=>t.cl
 // ─── ÓRDENES ──────────────────────────────────────────────────────────────────
 function rOrd(){
   const u=USERS.find(x=>x.key===CU);
-  const pend=pedidos.filter(p=>p.est==='Pendiente'&&p.items&&(u.role==='admin'||p.suc===u.suc));
+  const pend=pedidos.filter(p=>p.est==='Pendiente'&&p.items&&(u.role==='admin'||u.role==='owner'||p.suc===u.suc));
   const byP={};
   pend.forEach(p=>(p.items||[]).forEach(it=>{const pv=it.prov||'PROPIO';if(!byP[pv])byP[pv]=[];const ex=byP[pv].find(x=>x.mol===it.mol);if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}else byP[pv].push({mol:it.mol,pzas:it.q,fols:[p.folio],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});}));
   const provs=Object.keys(byP);
@@ -1536,10 +1547,10 @@ function rBancos(){
 function rUsuarios(){
   document.getElementById('usr-body').innerHTML=USERS.map((u,i)=>`
     <tr><td style="font-weight:500">${u.name}</td><td class="mono" style="color:var(--text2)">${u.key}</td><td>${u.suc}</td>
-    <td><span class="badge ${u.role==='admin'?'by':'bg'}">${u.role==='admin'?'Admin':'Venta'}</span></td>
+    <td><span class="badge ${u.role==='owner'?'br':u.role==='admin'?'by':'bg'}">${u.role==='owner'?'Dueña':u.role==='admin'?'Admin':'Venta'}</span></td>
     <td style="display:flex;gap:5px">
       <button class="btn btn-s btn-xs" onclick="openEditUsr(${i})">✏️ Editar</button>
-      ${u.key!=='admin'?`<button class="btn btn-d btn-xs" onclick="delUsr(${i})">🗑</button>`:''}
+      ${(u.key!=='admin'&&u.key!=='estefania')?`<button class="btn btn-d btn-xs" onclick="delUsr(${i})">🗑</button>`:''}
     </td></tr>`).join('');
 }
 function openAddUsr(){editUsrIdx=null;document.getElementById('mu-ttl').textContent='+ Nuevo usuario';['mu-n','mu-k','mu-p'].forEach(id=>document.getElementById(id).value='');document.getElementById('mu-s').value='Jardines';document.getElementById('mu-r').value='venta';OM('mod-usr');}
@@ -1578,7 +1589,7 @@ function populateVendSel(){
   var h='';
   for(var i=0;i<VENDEDORES.length;i++){
     var v=VENDEDORES[i];
-    if(v.estatus==='activo'&&(u.role==='admin'||v.suc===u.suc||v.suc==='Galeria'))
+    if(v.estatus==='activo'&&(u.role==='admin'||u.role==='owner'||v.suc===u.suc||v.suc==='Galeria'))
       h+='<option value="'+v.nombre+'">'+v.nombre+' ('+v.suc+')</option>';
   }
   var el=document.getElementById('mp-vend');if(el)el.innerHTML=h;
@@ -1831,8 +1842,8 @@ function initFacMes(){var s=document.getElementById('fac-mes');if(!s)return;var 
 function rFac(){
   var mes=parseInt(document.getElementById('fac-mes').value);
   var u=null;for(var i=0;i<USERS.length;i++){if(USERS[i].key===CU){u=USERS[i];break;}}
-  var pendAll=pedidos.filter(function(p){return p.tipo_venta==='factura'&&!p.factura_num&&(u.role==='admin'||p.suc===u.suc);});
-  var pend=pedidos.filter(function(p){return p.tipo_venta==='factura'&&!p.factura_num&&(u.role==='admin'||p.suc===u.suc);});
+  var pendAll=pedidos.filter(function(p){return p.tipo_venta==='factura'&&!p.factura_num&&((u.role==='admin'||u.role==='owner')||p.suc===u.suc);});
+  var pend=pedidos.filter(function(p){return p.tipo_venta==='factura'&&!p.factura_num&&((u.role==='admin'||u.role==='owner')||p.suc===u.suc);});
   document.getElementById('fac-n').textContent=pendAll.length;
   document.getElementById('fac-monto').textContent=fmtK(pendAll.reduce(function(a,b){return a+b.total;},0));
   document.getElementById('fac-emitidas').textContent=FACTURAS.length;
