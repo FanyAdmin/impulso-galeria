@@ -1496,6 +1496,8 @@ function rER(){
     {label:'(−) Retiros / Distribucion de utilidades',cls:'er-cos',key:'ret',items:ER_CATS.retiros||[],fn:getGasto},
     {label:'(=) Utilidad Retenida',cls:'er-ub',key:'urt',total:true},
   ];
+  // Retiros y Utilidad Retenida solo visibles para la dueña
+  const visSections=isOwner()?sections:sections.filter(s=>s.key!=='ret'&&s.key!=='urt');
 
   const totals={};
   sections.forEach(s=>{if(s.items){totals[s.key]=mesesIdx.map((mi)=>s.items.reduce((a,it)=>a+s.fn(it,mi),0));}});
@@ -1505,7 +1507,7 @@ function rER(){
   totals.urt=Array(6).fill(0).map((_,i)=>(totals.un||Array(6).fill(0))[i]-(totals.ret||Array(6).fill(0))[i]);
 
   let rows='';
-  sections.forEach(sec=>{
+  visSections.forEach(sec=>{
     const vals=totals[sec.key]||Array(6).fill(0);
     const rowTotal=vals.reduce((a,b)=>a+b,0);
     const neg=sec.key==='un'?rowTotal<0:false;
