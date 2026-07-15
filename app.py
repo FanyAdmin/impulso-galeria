@@ -53,7 +53,7 @@ class Movimiento(db.Model):
     suc         = db.Column(db.String(50))
     cuenta      = db.Column(db.String(50))
     cta_destino = db.Column(db.String(50))
-    socio      = db.Column(db.String(50))
+    socio       = db.Column(db.String(50))
 
 # ── USUARIOS EN BD ────────────────────────────────────────────────────────────
 
@@ -134,6 +134,7 @@ def requiere_admin(f):
     return decorado
 
 def serve_static(filename):
+    # Try multiple folder names
     for folder in ['static', 'estático', 'estatico']:
         path = os.path.join(BASE_DIR, folder, filename)
         if os.path.exists(path):
@@ -148,7 +149,15 @@ def index():
 def cotizador():
     return serve_static('Cotizador_Impulso.html')
 
-# ── AUTH (ahora contra la BD) ─────────────────────────────────────────────────
+@app.route('/cotizador-movil')
+def cotizador_movil():
+    return serve_static('cotizador_movil.html')
+
+@app.route('/sw-cotizador.js')
+def sw_cotizador():
+    return serve_static('sw-cotizador.js')
+
+# ── AUTH (contra la BD) ───────────────────────────────────────────────────────
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -412,6 +421,7 @@ def debug():
     folders = os.listdir(BASE_DIR)
     return jsonify({'base_dir': BASE_DIR, 'files': folders})
 
+
 @app.route('/api/import_pedidos', methods=['POST'])
 def import_pedidos():
     data = request.json or {}
@@ -440,6 +450,7 @@ def import_pedidos():
             pass
     db.session.commit()
     return jsonify({'ok': True, 'imported': count})
+
 
 # ── PENDIENTES ────────────────────────────────────────────────────────────────
 
@@ -501,6 +512,7 @@ def borrar_pendiente(pid):
     db.session.commit()
     return jsonify({'ok': True})
 
+
 # ── VENDEDORES ────────────────────────────────────────────────────────────────
 
 class Vendedor(db.Model):
@@ -546,6 +558,7 @@ def borrar_vendedor(vid):
     db.session.delete(v)
     db.session.commit()
     return jsonify({'ok': True})
+
 
 # ── ACTIVITY LOG ──────────────────────────────────────────────────────────────
 
