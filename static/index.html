@@ -151,6 +151,29 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 /* ── ABONO ROW ── */
 .ab-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
 .ab-row:last-child{border-bottom:none}
+
+/* ── RESPONSIVE MÓVIL ── */
+.mob-bar{display:none}
+.sb-overlay{display:none}
+@media(max-width:820px){
+  .mob-bar{display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:900;background:var(--surface);border-bottom:1px solid var(--border);padding:9px 12px}
+  .mob-burger{font-size:19px;line-height:1;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--text)}
+  .mob-title{font-size:14px;font-weight:700;letter-spacing:.06em}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:1201;transform:translateX(-105%);transition:transform .25s ease;box-shadow:2px 0 18px rgba(0,0,0,.2)}
+  .sidebar.open{transform:translateX(0)}
+  .sb-overlay.show{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:1200}
+  .page{padding:.875rem}
+  .ph{flex-wrap:wrap;gap:8px}
+  .ph input{width:100%!important}
+  .m4,.m3{grid-template-columns:1fr 1fr}
+  .g2,.g3{grid-template-columns:1fr}
+  .xgrid{grid-template-columns:1fr 1fr}
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .tw table{min-width:640px}
+  div[style*="grid-template-columns:1fr 380px"]{grid-template-columns:1fr!important}
+  .modal{max-height:92vh;overflow-y:auto}
+  input,select{font-size:16px}
+}
 </style>
 </head>
 <body>
@@ -353,7 +376,9 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 </div>
 
 <!-- CONTENT -->
+<div class="sb-overlay" id="sb-overlay" onclick="toggleSB(false)"></div>
 <div class="content">
+<div class="mob-bar"><button class="mob-burger" onclick="toggleSB()">☰</button><span class="mob-title">IMPULSO</span></div>
 
 <!-- COTIZADOR -->
 <div class="page active" id="page-cot">
@@ -846,6 +871,16 @@ function updateActivityBadge(){
   // Badge se actualiza al cargar actividad
   badge.style.display='none';
 }
+
+// ─── MENÚ MÓVIL ───
+function toggleSB(force){
+  const sb=document.querySelector('.sidebar'),ov=document.getElementById('sb-overlay');
+  const open=typeof force==='boolean'?force:!sb.classList.contains('open');
+  sb.classList.toggle('open',open);ov.classList.toggle('show',open);
+}
+document.addEventListener('click',function(e){
+  if(window.innerWidth<=820&&e.target.closest('.sb-item'))toggleSB(false);
+});
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const fmt=(n)=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
