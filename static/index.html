@@ -576,9 +576,10 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     </div>
     <div style="margin-top:.75rem;display:flex;justify-content:flex-end"><button class="btn btn-p" onclick="addMov()">+ Registrar</button></div>
   </div>
-  <div class="metrics m3">
+  <div class="metrics m4">
     <div class="metric"><div class="m-label">Entradas</div><div class="m-val" id="mv-e">$0</div></div>
     <div class="metric"><div class="m-label">Salidas</div><div class="m-val" id="mv-s">$0</div></div>
+    <div class="metric"><div class="m-label">Retiros</div><div class="m-val" id="mv-r">$0</div></div>
     <div class="metric"><div class="m-label">Balance</div><div class="m-val" id="mv-b">$0</div></div>
   </div>
   <div class="chips" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
@@ -1503,9 +1504,11 @@ function rMovs(f=''){
   }).join(''):`<tr><td colspan="6" class="tbl-empty">Sin movimientos</td></tr>`;
   const e=movs.filter(m=>m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);
   const s=movs.filter(m=>m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);
+  const r=movs.filter(m=>m.tipo.toLowerCase().includes('retiro')).reduce((a,b)=>a+b.monto,0);
   document.getElementById('mv-e').textContent=fmt(e);
   document.getElementById('mv-s').textContent=fmt(s);
-  document.getElementById('mv-b').textContent=fmt(e-s);
+  const mvR=document.getElementById('mv-r');if(mvR)mvR.textContent=fmt(r);
+  document.getElementById('mv-b').textContent=fmt(e-s-r);
 }
 function fMov(f,el){document.querySelectorAll('#page-mov .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');rMovs(f);}
 
@@ -1513,6 +1516,7 @@ function fMov(f,el){document.querySelectorAll('#page-mov .chip').forEach(c=>c.cl
 function getMonto(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes).reduce((a,b)=>a+b.monto,0);}
 function getIngreso(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes&&m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);}
 function getGasto(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes&&m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);}
+function getRetiro(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes&&(m.tipo.toLowerCase().includes('retiro')||m.tipo.toLowerCase().includes('salida'))).reduce((a,b)=>a+b.monto,0);}
 
 function rER(){
   const mesAct=new Date().getMonth();
@@ -1528,7 +1532,7 @@ function rER(){
     {label:'(−) Gastos de Venta',cls:'er-gv',key:'gv',items:ER_CATS.gastos_venta,fn:getGasto},
     {label:'(−) Gastos Administrativos',cls:'er-ga',key:'ga',items:ER_CATS.gastos_admin,fn:getGasto},
     {label:'(=) Utilidad Neta',cls:'er-un',key:'un',total:true},
-    {label:'(−) Retiros / Distribucion de utilidades',cls:'er-cos',key:'ret',items:ER_CATS.retiros||[],fn:getGasto},
+    {label:'(−) Retiros / Distribucion de utilidades',cls:'er-cos',key:'ret',items:ER_CATS.retiros||[],fn:getRetiro},
     {label:'(=) Utilidad Retenida',cls:'er-ub',key:'urt',total:true},
   ];
   // Retiros y Utilidad Retenida solo visibles para la dueña
@@ -1538,7 +1542,7 @@ function rER(){
   sections.forEach(s=>{if(s.items){totals[s.key]=mesesIdx.map((mi)=>s.items.reduce((a,it)=>a+s.fn(it,mi),0));}});
   totals.ub=Array(6).fill(0).map((_,i)=>(totals.ing||Array(6).fill(0))[i]-(totals.cos||Array(6).fill(0))[i]);
   totals.un=Array(6).fill(0).map((_,i)=>(totals.ub||Array(6).fill(0))[i]-(totals.gv||Array(6).fill(0))[i]-(totals.ga||Array(6).fill(0))[i]);
-  totals.ret=mesesIdx.map((mi)=>(ER_CATS.retiros||[]).reduce((a,it)=>a+getGasto(it,mi),0));
+  totals.ret=mesesIdx.map((mi)=>(ER_CATS.retiros||[]).reduce((a,it)=>a+getRetiro(it,mi),0));
   totals.urt=Array(6).fill(0).map((_,i)=>(totals.un||Array(6).fill(0))[i]-(totals.ret||Array(6).fill(0))[i]);
 
   let rows='';
@@ -1561,9 +1565,9 @@ function rER(){
 // ─── BANCOS ───────────────────────────────────────────────────────────────────
 function saldoCta(c){
   // Entradas directas a esta cuenta
-  const e=movs.filter(m=>m.cuenta===c&&(m.tipo==='Entrada'||m.tipo==='Retiro')).reduce((a,b)=>a+b.monto,0);
-  // Salidas directas de esta cuenta
-  const s=movs.filter(m=>m.cuenta===c&&(m.tipo==='Salida')).reduce((a,b)=>a+b.monto,0);
+  const e=movs.filter(m=>m.cuenta===c&&m.tipo==='Entrada').reduce((a,b)=>a+b.monto,0);
+  // Salidas directas de esta cuenta (los retiros también sacan dinero)
+  const s=movs.filter(m=>m.cuenta===c&&(m.tipo==='Salida'||m.tipo==='Retiro')).reduce((a,b)=>a+b.monto,0);
   // Traspasos: sale de cuenta origen
   const tSal=movs.filter(m=>m.cuenta===c&&m.tipo==='Traspaso').reduce((a,b)=>a+b.monto,0);
   // Traspasos: llega a cuenta destino
