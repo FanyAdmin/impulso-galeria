@@ -264,6 +264,22 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 </div>
 </div>
 
+<div class="modal-bg" id="mod-edit-ab" style="display:none">
+<div class="modal" style="width:440px">
+  <div class="modal-hdr"><div class="modal-ttl" id="ea-ttl">✏️ Editar cobro</div><button class="modal-x" onclick="CM('mod-edit-ab')">✕</button></div>
+  <div class="modal-body">
+    <div id="ea-info" style="font-size:12px;color:var(--text3);margin-bottom:10px"></div>
+    <div class="g2">
+      <div class="field"><label>Monto ($)</label><input type="number" id="ea-monto"></div>
+      <div class="field"><label>Método de pago</label><select id="ea-met"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>Intercambio Galería</option></select></div>
+      <div class="field"><label>Fecha del cobro</label><input type="date" id="ea-fecha"></div>
+      <div class="field"><label>Tipo</label><select id="ea-tipo"><option value="Liquidacion">Liquidación</option><option value="Abono">Abono</option></select></div>
+    </div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-d" onclick="delAbono()">🗑 Eliminar</button><button class="btn btn-s" onclick="CM('mod-edit-ab')">Cancelar</button><button class="btn btn-p" onclick="guardarEditAbono()">✓ Guardar</button></div>
+</div>
+</div>
+
 <div class="modal-bg" id="mod-ent" style="display:none">
 <div class="modal">
   <div class="modal-hdr"><div class="modal-ttl">Registrar Entrega</div><button class="modal-x" onclick="CM('mod-ent')">✕</button></div>
@@ -294,6 +310,10 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div class="field"><label>Anticipo ($)</label><input type="number" id="ep-a" placeholder="0.00"></div>
       <div class="field"><label>Entrega prometida</label><input type="date" id="ep-ent"></div>
       <div class="field gc2"><label>Observaciones</label><input id="ep-o" placeholder="Notas del pedido..."></div>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">💵 Cobros registrados de este pedido</div>
+      <div id="ep-cobros" style="font-size:12px"></div>
     </div>
   </div>
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-edit-ped')">Cancelar</button><button class="btn btn-p" onclick="guardarEditPed()">✓ Guardar cambios</button></div>
@@ -548,7 +568,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Método</th><th>Total</th><th>Anticipo</th><th>Días restantes</th><th>Estatus</th><th></th></tr></thead><tbody id="dia-body"></tbody></table></div>
   <div class="card" id="dia-cobros-card" style="display:none;margin-top:.875rem">
     <div class="card-title">💵 Liquidaciones y abonos de hoy (pedidos anteriores)</div>
-    <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th></tr></thead><tbody id="dia-cobros"></tbody></table></div>
+    <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th><th></th></tr></thead><tbody id="dia-cobros"></tbody></table></div>
   </div>
 </div>
 
@@ -1311,6 +1331,45 @@ function guardarAb(){
 
 // ─── MI DÍA ───────────────────────────────────────────────────────────────────
 
+
+// ─── EDITAR COBROS (abonos registrados) ───────────────────────────────────────
+let _eaId=null;
+function openEditAbono(id){
+  const a=ABONOS.find(x=>x.id===id);if(!a){alert('Cobro no encontrado; recarga la página');return;}
+  _eaId=id;
+  document.getElementById('ea-ttl').textContent='✏️ Cobro — Folio '+a.folio;
+  document.getElementById('ea-info').innerHTML='<strong>'+(a.cli||'—')+'</strong> · '+(a.suc||'—');
+  document.getElementById('ea-monto').value=a.monto;
+  document.getElementById('ea-met').value=a.met||'Efectivo';
+  document.getElementById('ea-fecha').value=a.fecha||todayStr();
+  document.getElementById('ea-tipo').value=a.tipo||'Abono';
+  OM('mod-edit-ab');
+}
+function guardarEditAbono(){
+  const a=ABONOS.find(x=>x.id===_eaId);if(!a)return;
+  const cambios={monto:parseFloat(document.getElementById('ea-monto').value)||0,met:document.getElementById('ea-met').value,fecha:document.getElementById('ea-fecha').value,tipo:document.getElementById('ea-tipo').value};
+  if(!cambios.monto){alert('Ingresa el monto');return;}
+  fetch('/api/abonos/'+_eaId,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(cambios)})
+  .then(r=>r.json()).then(d=>{
+    if(d.error){alert(d.error);return;}
+    Object.assign(a,d);
+    logActivity('Editó cobro','Folio '+a.folio+' — '+fmt(a.monto)+' ('+a.met+', '+a.fecha+')');
+    CM('mod-edit-ab');rDia();
+    if(document.getElementById('ep-cobros')&&document.getElementById('mod-edit-ped').style.display!=='none')pintarCobrosPed();
+  }).catch(()=>alert('Error de conexión'));
+}
+function delAbono(){
+  const a=ABONOS.find(x=>x.id===_eaId);if(!a)return;
+  if(!confirm('¿Eliminar este cobro de '+fmt(a.monto)+' del folio '+a.folio+'?\nNota: esto solo borra el registro del cobro; el anticipo del pedido no cambia.'))return;
+  fetch('/api/abonos/'+_eaId,{method:'DELETE',credentials:'include'})
+  .then(r=>r.json()).then(d=>{
+    if(d.error){alert(d.error);return;}
+    ABONOS=ABONOS.filter(x=>x.id!==_eaId);
+    logActivity('Eliminó cobro','Folio '+a.folio+' — '+fmt(a.monto));
+    CM('mod-edit-ab');rDia();
+    if(document.getElementById('ep-cobros')&&document.getElementById('mod-edit-ped').style.display!=='none')pintarCobrosPed();
+  }).catch(()=>alert('Error de conexión'));
+}
 // ─── COBRO MANUAL (retroactivo o correcciones) ────────────────────────────────
 let _cbPedido=null;
 function openCobroManual(){
@@ -1392,7 +1451,8 @@ function rDia(){
   if(cobCard){
     if(abHoy.length){
       cobCard.style.display='';
-      document.getElementById('dia-cobros').innerHTML=abHoy.map(a=>`<tr><td class="mono" style="font-weight:600">${a.folio}</td><td>${a.cli||'—'}</td><td>${a.suc||'—'}</td><td><span class="badge ${a.tipo==='Liquidacion'?'bg':'by'}">${a.tipo==='Liquidacion'?'Liquidación':'Abono'}</span></td><td>${a.met||'—'}</td><td class="mono" style="text-align:right;font-weight:700;color:var(--green)">${fmt(a.monto)}</td></tr>`).join('');
+      const esAdmDia=u&&(u.role==='admin'||u.role==='owner');
+      document.getElementById('dia-cobros').innerHTML=abHoy.map(a=>`<tr><td class="mono" style="font-weight:600">${a.folio}</td><td>${a.cli||'—'}</td><td>${a.suc||'—'}</td><td><span class="badge ${a.tipo==='Liquidacion'?'bg':'by'}">${a.tipo==='Liquidacion'?'Liquidación':'Abono'}</span></td><td>${a.met||'—'}</td><td class="mono" style="text-align:right;font-weight:700;color:var(--green)">${fmt(a.monto)}</td><td style="text-align:right">${esAdmDia&&a.id?`<button onclick="openEditAbono(${a.id})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px">✏️</button>`:''}</td></tr>`).join('');
     }else cobCard.style.display='none';
   }
   const hoyD=new Date();
@@ -2496,6 +2556,22 @@ function delPed(idx){
   else{pedidos.splice(idx,1);rPed();}
 }
 let editPedIdx=null;
+function pintarCobrosPed(){
+  const cont=document.getElementById('ep-cobros');if(cont===null)return;
+  const p=pedidos[editPedIdx];if(!p){cont.innerHTML='';return;}
+  const u=USERS.find(x=>x.key===CU);const esAdm=u&&(u.role==='admin'||u.role==='owner');
+  const abs=ABONOS.filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc));
+  if(!abs.length){cont.innerHTML='<div style="color:var(--text3)">Sin cobros registrados con fecha. El anticipo inicial vive en el campo de arriba.</div>';return;}
+  cont.innerHTML=abs.map(a=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div><span class="badge ${a.tipo==='Liquidacion'?'bg':'by'}" style="font-size:10px">${a.tipo==='Liquidacion'?'Liquidación':'Abono'}</span>
+      <span style="margin-left:6px;color:var(--text2)">${a.fecha||'—'} · ${a.met||'—'}</span></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="mono" style="font-weight:700">${fmt(a.monto)}</span>
+        ${esAdm&&a.id?`<button onclick="openEditAbono(${a.id})" style="padding:2px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px">✏️</button>`:''}
+      </div>
+    </div>`).join('');
+}
 function editPed(idx){
   const p=pedidos[idx];if(!p)return;
   editPedIdx=idx;
@@ -2512,6 +2588,7 @@ function editPed(idx){
   const vs=document.getElementById('ep-vend');
   vs.innerHTML='<option value="">- Vendedor -</option>'+VENDEDORES.map(v=>`<option value="${v.nombre}">${v.nombre}</option>`).join('');
   vs.value=p.vend||'';
+  pintarCobrosPed();
   OM('mod-edit-ped');
 }
 function guardarEditPed(){
