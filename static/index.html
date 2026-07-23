@@ -548,10 +548,12 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 <div class="page" id="page-ord">
   <div class="ph"><div><div class="ph-title">Órdenes de Compra</div><div class="ph-sub">Molduras pendientes de surtir por proveedor</div></div></div>
   <div class="chips">
-    <div class="chip active" onclick="switchOrdTab('activas',this)">Pendientes</div>
-    <div class="chip" onclick="switchOrdTab('historial',this)">Historial</div>
+    <div class="chip active" id="chip-ord-pend" onclick="switchOrdTab('activas',this)">Pendientes de pedir</div>
+    <div class="chip" id="chip-ord-seg" onclick="switchOrdTab('seguimiento',this)">Seguimiento</div>
+    <div class="chip" id="chip-ord-hist" onclick="switchOrdTab('historial',this)">Historial</div>
   </div>
   <div id="ord-c"></div>
+  <div id="ord-seg" style="display:none"></div>
   <div id="ord-hist" style="display:none"></div>
 </div>
 
@@ -571,7 +573,8 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div id="mv-cta2-wrap" style="display:none"><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Cuenta Destino</label><select id="mv-cta2" style="width:100%"><option>Efectivo</option><option>HSBC</option><option>INBURSA</option><option>Bzipay</option><option>El Patio</option><option>Zibata</option><option>Efectivo Zibata</option></select></div>
     </div>
     <div class="g3">
-      <div style="grid-column:1/3"><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Descripción</label><input id="mv-d" placeholder="ej. Pago Servimarco" style="width:100%"></div>
+      <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Fecha</label><input type="date" id="mv-f" style="width:100%"></div>
+      <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Descripción</label><input id="mv-d" placeholder="ej. Pago Servimarco" style="width:100%"></div>
       <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Monto ($)</label><input type="number" id="mv-m" style="width:100%"></div>
     </div>
     <div style="margin-top:.75rem;display:flex;justify-content:flex-end"><button class="btn btn-p" onclick="addMov()">+ Registrar</button></div>
@@ -897,8 +900,8 @@ function OM(id){document.getElementById(id).style.display='flex';}
 function renderUCards(){
   document.getElementById('u-grid').innerHTML=USERS.map(u=>`
     <div class="ucard" onclick="selU('${u.key}')" id="uc-${u.key}">
-      <div class="uicon" style="background:${u.role==='admin'?'#FEF3C7':u.suc==='Zibata'?'#EFF6FF':'#E6F4ED'}">${u.role==='owner'?'👑':u.role==='admin'?'⚙️':u.suc==='Zibata'?'🏬':'🏪'}</div>
-      <div><div style="font-size:12px;font-weight:500">${u.display}</div><div style="font-size:10px;color:var(--text3)">${u.role==='owner'?'Dueña':u.role==='admin'?'Administrador':'Punto de venta'}</div></div>
+      <div class="uicon" style="background:${u.role==='admin'?'#FEF3C7':u.role==='taller'?'#FDE8D7':u.suc==='Zibata'?'#EFF6FF':'#E6F4ED'}">${u.role==='owner'?'👑':u.role==='admin'?'⚙️':u.role==='taller'?'🔨':u.suc==='Zibata'?'🏬':'🏪'}</div>
+      <div><div style="font-size:12px;font-weight:500">${u.display}</div><div style="font-size:10px;color:var(--text3)">${u.role==='owner'?'Dueña':u.role==='admin'?'Administrador':u.role==='taller'?'Taller':'Punto de venta'}</div></div>
     </div>`).join('');
 }
 function selU(k){document.querySelectorAll('.ucard').forEach(c=>c.classList.remove('sel'));const el=document.getElementById('uc-'+k);if(el)el.classList.add('sel');CU=k;}
@@ -913,10 +916,15 @@ function doLogin(){
     document.getElementById('login').style.display='none';
     document.getElementById('app').style.display='flex';
     document.getElementById('sb-user').textContent=u.name;
-    document.getElementById('sb-role').textContent=u.role==='owner'?'Dueña':u.role==='admin'?'Administrador':'Punto de venta';
+    document.getElementById('sb-role').textContent=u.role==='owner'?'Dueña':u.role==='admin'?'Administrador':u.role==='taller'?'Taller':'Punto de venta';
     document.getElementById('sb-suc').textContent=u.display;
     document.querySelectorAll('.admin-only').forEach(el=>el.style.display=(u.role==='admin'||u.role==='owner')?'':'none');
     document.querySelectorAll('.owner-only').forEach(el=>el.style.display=u.role==='owner'?'':'none');
+    if(u.role==='taller'){
+      // Taller solo ve Pendientes y Órdenes de compra (con Seguimiento)
+      document.querySelectorAll('.sb-item,.sb-sec,.sb-section').forEach(el=>el.style.display='none');
+      ['nav-pend','nav-ord'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
+    }
     // Cargar badge de actividad para owner
   if(u.role==='owner'){
     fetch('/api/activity',{credentials:'include'}).then(r=>r.json()).then(logs=>{
@@ -926,6 +934,7 @@ function doLogin(){
   }
     document.getElementById('dia-f').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
     rMvCat();initComMes();initAsistSels();initNomSems();populateVendSel();initFacMes();
+    const mvF=document.getElementById('mv-f');if(mvF)mvF.value=todayStr();
     loadUsers();loadEmpleados();loadData();
   }).catch(()=>showLE('Error de conexion'));
 }
@@ -1180,7 +1189,7 @@ function rCxC(){
     return `<tr><td class="mono" style="font-weight:600">${c.folio}</td><td>${c.cli}</td><td>${c.suc}</td><td>${c.fechaE||c.fecha||'—'}</td>
       <td class="mono">${fmt(c.total)}</td><td class="mono">${fmt(c.abon)}</td>
       <td class="mono" style="${!c.liq?'color:var(--red);font-weight:600':''}">${fmt(c.saldo)}</td>
-      <td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${pedIdx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${pedIdx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td>${badge}${c.casillero?'<div style="font-size:11px;font-weight:700;margin-top:3px">📦 '+c.casillero+'</div>':(c.taller_est&&c.taller_est!=='Por pedir'?'<div style="font-size:10px;color:var(--text3);margin-top:3px">'+c.taller_est+'</div>':'')}</td><td>${btn}</td><td><button onclick="editPed(${pedIdx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${pedIdx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 let _cxcList=[];
@@ -1361,66 +1370,180 @@ function rDash(){
 function tabA(p,el){document.querySelectorAll('#page-dash .tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');rDash();}
 
 // ─── ÓRDENES ──────────────────────────────────────────────────────────────────
+let ORDENES=[];
+const DIAS_PEDIDO=[1,3,5]; // lunes, miércoles, viernes
+function proxDiaPedido(){
+  const d=new Date();
+  for(let i=0;i<7;i++){const f=new Date(d);f.setDate(d.getDate()+i);if(DIAS_PEDIDO.includes(f.getDay()))return {f,hoy:i===0};}
+}
+function itemsPedidos(){
+  // Pares folio|moldura que ya fueron pedidos a proveedor
+  const s=new Set();
+  ORDENES.forEach(o=>(o.items||[]).forEach(it=>(it.fols||[]).forEach(f=>s.add(f+'|'+it.mol))));
+  return s;
+}
 function rOrd(){
   const u=USERS.find(x=>x.key===CU);
-  const pend=pedidos.filter(p=>p.est==='Pendiente'&&p.items&&(u.role==='admin'||u.role==='owner'||p.suc===u.suc));
+  const pend=pedidos.filter(p=>p.est==='Pendiente'&&p.items&&(u.role==='admin'||u.role==='owner'||u.role==='taller'||p.suc===u.suc));
+  const yaPedidos=itemsPedidos();
   const byP={};
-  pend.forEach(p=>(p.items||[]).forEach(it=>{const pv=it.prov||'PROPIO';if(!byP[pv])byP[pv]=[];const ex=byP[pv].find(x=>x.mol===it.mol);if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}else byP[pv].push({mol:it.mol,pzas:it.q,fols:[p.folio],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});}));
+  pend.forEach(p=>(p.items||[]).forEach(it=>{if(!it.mol||yaPedidos.has(p.folio+'|'+it.mol))return;const pv=it.prov||'PROPIO';if(!byP[pv])byP[pv]=[];const ex=byP[pv].find(x=>x.mol===it.mol);if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}else byP[pv].push({mol:it.mol,pzas:it.q,fols:[p.folio],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});}));
   const provs=Object.keys(byP);
-  if(!provs.length){document.getElementById('ord-c').innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Sin pedidos pendientes de surtir</div>';return;}
-  document.getElementById('ord-c').innerHTML=provs.map(pv=>`
+  const px=proxDiaPedido();
+  const banner=`<div style="background:${px.hoy?'var(--green-l)':'var(--surface2)'};border:1px solid ${px.hoy?'#A7D7BC':'var(--border)'};border-radius:var(--rad);padding:10px 14px;margin-bottom:14px;font-size:13px">${px.hoy?'🟢 <strong>Hoy es día de pedido</strong>':'📅 Próximo día de pedido: <strong>'+px.f.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})+'</strong>'} <span style="color:var(--text3)">· Se pide lunes, miércoles y viernes</span></div>`;
+  if(!provs.length){document.getElementById('ord-c').innerHTML=banner+'<div style="text-align:center;color:var(--text3);padding:3rem">Todo pedido ✓ — sin molduras pendientes de surtir</div>';return;}
+  document.getElementById('ord-c').innerHTML=banner+provs.map(pv=>`
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
         <div><div style="font-size:13px;font-weight:600">${PROVS[pv]||pv}</div>
         <div style="font-size:11px;color:var(--text3);margin-top:1px">${byP[pv].length} molduras · ${byP[pv].reduce((a,b)=>a+b.pzas,0)} piezas</div></div>
-        <button class="btn btn-s btn-sm" onclick="printOrd('${pv}')">🖨️ Imprimir</button>
+        <button class="btn btn-p btn-sm" onclick="pedirOrd('${pv}')">🖨️ Pedir</button>
       </div>
       <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Moldura</th><th style="text-align:center">Piezas</th><th>Medidas</th><th>Pedidos</th></tr></thead>
       <tbody>${byP[pv].map(it=>`<tr><td>${it.mol}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.fols)].join(', ')}</td></tr>`).join('')}</tbody></table></div>
     </div>`).join('');
 }
-let ORDS_HIST = JSON.parse(localStorage.getItem('impulso_ords_hist')||'[]');
-function saveOrdHist(pv, items){
-  const entry={pv,prov:PROVS[pv]||pv,fecha:new Date().toLocaleDateString('es-MX'),items:items.map(i=>({...i,fols:[...new Set(i.fols)]}))};
-  ORDS_HIST.unshift(entry);
-  localStorage.setItem('impulso_ords_hist',JSON.stringify(ORDS_HIST));
-  rOrdHist();
-}
+
 function switchOrdTab(tab, el){
   document.querySelectorAll('#page-ord .chip').forEach(c=>c.classList.remove('active'));
-  el.classList.add('active');
+  if(el)el.classList.add('active');
   document.getElementById('ord-c').style.display=tab==='activas'?'':'none';
+  document.getElementById('ord-seg').style.display=tab==='seguimiento'?'':'none';
   document.getElementById('ord-hist').style.display=tab==='historial'?'':'none';
   if(tab==='historial') rOrdHist();
+  if(tab==='seguimiento') rOrdSeg();
 }
 function rOrdHist(){
   const h=document.getElementById('ord-hist');if(!h)return;
-  ORDS_HIST=JSON.parse(localStorage.getItem('impulso_ords_hist')||'[]');
-  if(!ORDS_HIST.length){h.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Sin historial de órdenes impresas</div>';return;}
-  h.innerHTML=ORDS_HIST.map((e,i)=>`
+  if(!ORDENES.length){h.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Sin historial de órdenes pedidas</div>';return;}
+  const u=USERS.find(x=>x.key===CU);const esAdm=u&&(u.role==='admin'||u.role==='owner');
+  h.innerHTML=ORDENES.map(e=>`
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
-        <div><div style="font-size:13px;font-weight:600">${e.prov}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:1px">Impresa el ${e.fecha} · ${e.items.reduce((a,b)=>a+b.pzas,0)} piezas</div></div>
-        <button class="btn btn-s btn-sm" onclick="delOrdHist(${i})">🗑 Eliminar</button>
+        <div><div style="font-size:13px;font-weight:600">${e.prov_nombre||e.prov}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:1px">Pedida el ${e.fecha} · ${(e.items||[]).reduce((a,b)=>a+b.pzas,0)} piezas</div></div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-s btn-sm" onclick="reimprimirOrd(${e.id})">🖨️ Reimprimir</button>
+          ${esAdm?`<button class="btn btn-d btn-sm" onclick="delOrdHist(${e.id})">🗑</button>`:''}
+        </div>
       </div>
       <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Moldura</th><th style="text-align:center">Piezas</th><th>Medidas</th><th>Pedidos</th></tr></thead>
-      <tbody>${e.items.map(it=>`<tr><td>${it.mol}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td><td style="color:var(--text3);font-size:11px">${it.fols.join(', ')}</td></tr>`).join('')}</tbody></table></div>
+      <tbody>${(e.items||[]).map(it=>`<tr><td>${it.mol}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td><td style="color:var(--text3);font-size:11px">${(it.fols||[]).join(', ')}</td></tr>`).join('')}</tbody></table></div>
     </div>`).join('');
 }
-function delOrdHist(i){
-  ORDS_HIST.splice(i,1);
-  localStorage.setItem('impulso_ords_hist',JSON.stringify(ORDS_HIST));
-  rOrdHist();
+function reimprimirOrd(id){
+  const o=ORDENES.find(x=>x.id===id);
+  if(o)printOrd(o.prov,o.items);
 }
-function printOrd(pv){
+function delOrdHist(id){
+  if(!confirm('¿Eliminar esta orden del historial?\nSus molduras volverán a Pendientes de pedir.'))return;
+  fetch('/api/ordenes/'+id,{method:'DELETE',credentials:'include'})
+  .then(r=>r.json()).then(d=>{
+    if(d.error){alert(d.error);return;}
+    ORDENES=ORDENES.filter(o=>o.id!==id);
+    logActivity('Eliminó orden de compra','ID '+id);
+    rOrdHist();rOrd();
+  }).catch(()=>alert('Error de conexión'));
+}
+
+// ─── SEGUIMIENTO DE TALLER ────────────────────────────────────────────────────
+const TALLER_ESTADOS=['Por pedir','Material pedido','Llegó','En taller','En casillero'];
+const TALLER_COLORES={'Por pedir':'#9B9890','Material pedido':'#B45309','Llegó':'#1D4ED8','En taller':'#7C3AED','En casillero':'#15803D'};
+function rOrdSeg(){
+  const c=document.getElementById('ord-seg');if(!c)return;
+  const u=USERS.find(x=>x.key===CU);
+  const cola=pedidos.filter(p=>p.est==='Pendiente'&&(u.role==='admin'||u.role==='owner'||u.role==='taller'||p.suc===u.suc));
+  if(!cola.length){c.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Sin pedidos en curso 🎉</div>';return;}
+  // Orden: los más avanzados al final; dentro de cada estado, folio ascendente
+  const orden=cola.slice().sort((a,b)=>TALLER_ESTADOS.indexOf(a.taller_est||'Por pedir')-TALLER_ESTADOS.indexOf(b.taller_est||'Por pedir')||String(a.folio).localeCompare(String(b.folio)));
+  c.innerHTML=`<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Molduras</th><th>Estado</th><th>Casillero</th><th></th></tr></thead><tbody>`+
+  orden.map(p=>{
+    const est=p.taller_est||'Por pedir';
+    const idx=TALLER_ESTADOS.indexOf(est);
+    const molsTxt=(p.items||[]).filter(it=>it.mol).map(it=>it.mol+' ×'+it.q).join(', ')||'Solo extras/servicio';
+    const sig=idx<TALLER_ESTADOS.length-1?TALLER_ESTADOS[idx+1]:null;
+    const pi=pedidos.indexOf(p);
+    return `<tr>
+      <td class="mono" style="font-weight:600">${p.folio}</td>
+      <td>${p.cli}</td><td>${p.suc}</td>
+      <td style="font-size:11px;color:var(--text2);max-width:260px">${molsTxt}</td>
+      <td><span class="badge" style="background:${TALLER_COLORES[est]}18;color:${TALLER_COLORES[est]};border:1px solid ${TALLER_COLORES[est]}40">${est}</span></td>
+      <td class="mono" style="font-weight:700">${p.casillero?'📦 '+p.casillero:'—'}</td>
+      <td style="white-space:nowrap">
+        ${sig?`<button class="btn btn-p btn-xs" onclick="avanzarTaller(${pi})">→ ${sig}</button>`:''}
+        ${idx>0?`<button class="btn btn-s btn-xs" onclick="retrocederTaller(${pi})" title="Regresar un paso">↩</button>`:''}
+      </td></tr>`;
+  }).join('')+'</tbody></table></div>';
+}
+function guardarTaller(p,cambios){
+  Object.assign(p,cambios);
+  if(p.id)fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(cambios)}).catch(()=>{});
+  rOrdSeg();
+}
+function avanzarTaller(pi){
+  const p=pedidos[pi];if(!p)return;
+  const idx=TALLER_ESTADOS.indexOf(p.taller_est||'Por pedir');
+  const sig=TALLER_ESTADOS[idx+1];if(!sig)return;
+  const cambios={taller_est:sig};
+  if(sig==='En casillero'){
+    const num=prompt('Número de casillero:',p.casillero||'');
+    if(num===null)return;
+    cambios.casillero=num.trim();
+  }
+  guardarTaller(p,cambios);
+  logActivity('Taller: '+sig,'Folio '+p.folio+(cambios.casillero?' — Casillero '+cambios.casillero:''));
+}
+function retrocederTaller(pi){
+  const p=pedidos[pi];if(!p)return;
+  const idx=TALLER_ESTADOS.indexOf(p.taller_est||'Por pedir');
+  if(idx<=0)return;
+  const ant=TALLER_ESTADOS[idx-1];
+  const cambios={taller_est:ant};
+  if(p.taller_est==='En casillero')cambios.casillero='';
+  guardarTaller(p,cambios);
+  logActivity('Taller: regresó a '+ant,'Folio '+p.folio);
+}
+function pedirOrd(pv){
+  const px=proxDiaPedido();
+  if(!px.hoy&&!confirm('Hoy no es día de pedido (lunes, miércoles o viernes).\n¿Pedir de todas formas?'))return;
+  const yaPedidos=itemsPedidos();
   const items=[];
   pedidos.filter(p=>p.est==='Pendiente'&&p.items).forEach(p=>
-    (p.items||[]).filter(it=>(it.prov||'PROPIO')===pv).forEach(it=>{
+    (p.items||[]).filter(it=>it.mol&&(it.prov||'PROPIO')===pv&&!yaPedidos.has(p.folio+'|'+it.mol)).forEach(it=>{
       const ex=items.find(x=>x.mol===it.mol);
-      if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);}
-      else items.push({mol:it.mol,pzas:it.q,fols:[p.folio]});
+      if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}
+      else items.push({mol:it.mol,pzas:it.q,fols:[p.folio],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});
     }));
+  if(!items.length){alert('No hay molduras pendientes de este proveedor');return;}
+  const orden={prov:pv,prov_nombre:PROVS[pv]||pv,fecha:new Date().toLocaleDateString('es-MX'),items:items.map(i=>({...i,fols:[...new Set(i.fols)]}))};
+  fetch('/api/ordenes',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(orden)})
+  .then(r=>r.json()).then(d=>{
+    if(d.error){alert(d.error);return;}
+    ORDENES.unshift(d);
+    // Avanzar los pedidos involucrados a "Material pedido"
+    const folios=[...new Set(items.flatMap(i=>i.fols))];
+    folios.forEach(f=>{
+      const p=pedidos.find(x=>x.folio===f&&x.est==='Pendiente');
+      if(p&&p.id&&(!p.taller_est||p.taller_est==='Por pedir')){
+        p.taller_est='Material pedido';
+        fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({taller_est:'Material pedido'})}).catch(()=>{});
+      }
+    });
+    logActivity('Pidió orden de compra',(PROVS[pv]||pv)+' — '+items.reduce((a,b)=>a+b.pzas,0)+' piezas');
+    printOrd(pv,items);
+    rOrd();
+  }).catch(()=>alert('Error de conexión al registrar la orden'));
+}
+function printOrd(pv,itemsPre){
+  const items=itemsPre||[];
+  if(!items.length){
+    pedidos.filter(p=>p.est==='Pendiente'&&p.items).forEach(p=>
+      (p.items||[]).filter(it=>(it.prov||'PROPIO')===pv).forEach(it=>{
+        const ex=items.find(x=>x.mol===it.mol);
+        if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);}
+        else items.push({mol:it.mol,pzas:it.q,fols:[p.folio]});
+      }));
+  }
   const fecha=new Date().toLocaleDateString('es-MX');
   const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Orden de Compra</title>
   <style>body{font-family:Calibri,Candara,Optima,sans-serif;padding:40px;color:#1a1a1a;font-size:13px}
@@ -1438,8 +1561,9 @@ function printOrd(pv){
   <tbody>${items.map(it=>`<tr><td>${it.mol}</td><td style="text-align:center;font-weight:700">${it.pzas}</td><td style="color:#888;font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td><td style="color:#888;font-size:11px">${[...new Set(it.fols)].join(', ')}</td></tr>`).join('')}</tbody></table>
   <div class="ftr"><div class="sign">Firma autorizada</div><div class="sign">Fecha de recepción</div></div>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
-  saveOrdHist(pv, items);
-  const w=window.open('','_blank');w.document.write(html);w.document.close();
+  const w=window.open('','_blank');
+  if(!w){alert('Permite ventanas emergentes para imprimir la orden');return;}
+  w.document.write(html);w.document.close();
 }
 
 // ─── MOVIMIENTOS ──────────────────────────────────────────────────────────────
@@ -1451,17 +1575,7 @@ function rMvCat(){
   const wrap=document.getElementById('mv-cta2-wrap');
   if(wrap) wrap.style.display=(tipo==='Traspaso'||tipo==='Retiro')?'block':'none';
 }
-function addMov(){
-  const tipo=document.getElementById('mv-t').value,cat=document.getElementById('mv-c').value;
-  const desc=document.getElementById('mv-d').value.trim(),monto=parseFloat(document.getElementById('mv-m').value)||0;
-  const cta=document.getElementById('mv-cta').value;
-  if(!desc||!monto){alert('Completa descripción y monto');return;}
-  const cta2El=document.getElementById('mv-cta2');
-  const cta2=cta2El?cta2El.value:'';
-  movs.unshift({tipo,partida:tipo==='Entrada'?'Ingreso':tipo==='Salida'?'GastoAdmin.':tipo==='Retiro'?'Retiro':'Traspaso',concepto:cat,desc,monto,fecha:todayStr(),mes:new Date().getMonth(),cuenta:cta,cta_destino:cta2,socio:''});
-  document.getElementById('mv-d').value='';document.getElementById('mv-m').value='';
-  rMovs();
-}
+// addMov está definida más abajo (versión que guarda en la BD)
 
 let editMovIdx=null;
 function editMov(idx){
@@ -1479,7 +1593,7 @@ function editMov(idx){
 function guardarEditMov(){
   if(editMovIdx===null)return;
   const m=movs[editMovIdx];if(!m)return;
-  const updates={tipo:document.getElementById('em-t').value,concepto:document.getElementById('em-cat').value.trim(),cuenta:document.getElementById('em-cta').value,cta_destino:document.getElementById('em-cta2').value,desc:document.getElementById('em-desc').value.trim(),monto:parseFloat(document.getElementById('em-monto').value)||0,fecha:document.getElementById('em-fecha').value,mes:new Date(document.getElementById('em-fecha').value).getMonth()};
+  const updates={tipo:document.getElementById('em-t').value,concepto:document.getElementById('em-cat').value.trim(),cuenta:document.getElementById('em-cta').value,cta_destino:document.getElementById('em-cta2').value,desc:document.getElementById('em-desc').value.trim(),monto:parseFloat(document.getElementById('em-monto').value)||0,fecha:document.getElementById('em-fecha').value,mes:parseInt(document.getElementById('em-fecha').value.split('-')[1],10)-1};
   Object.assign(m,updates);
   logActivity('Editó movimiento',(updates.concepto||'')+' — '+fmt(updates.monto));
   if(m.id){fetch('/api/movimientos/'+m.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)}).then(r=>r.json()).then(()=>{CM('mod-edit-mov');rMovs();});}
@@ -2024,13 +2138,17 @@ function loadData(){
     fetch('/api/pedidos',{credentials:'include'}).then(r=>r.json()),
     fetch('/api/movimientos',{credentials:'include'}).then(r=>r.json()),
     fetch('/api/facturas',{credentials:'include'}).then(r=>r.json()),
-    fetch('/api/vendedores',{credentials:'include'}).then(r=>r.json()).catch(()=>[])
-  ]).then(([peds,movs_data,facs,vends])=>{
+    fetch('/api/vendedores',{credentials:'include'}).then(r=>r.json()).catch(()=>[]),
+    fetch('/api/ordenes',{credentials:'include'}).then(r=>r.json()).catch(()=>[])
+  ]).then(([peds,movs_data,facs,vends,ords])=>{
     pedidos=peds;
     movs=movs_data;
     FACTURAS=facs;
     if(vends&&vends.length) VENDEDORES=vends;
-    go('cot');
+    ORDENES=ords||[];
+    const uAct=USERS.find(x=>x.key===CU);
+    if(uAct&&uAct.role==='taller'){go('ord');switchOrdTab('seguimiento',document.getElementById('chip-ord-seg'));}
+    else go('cot');
     console.log('Data loaded: '+pedidos.length+' pedidos, '+movs.length+' movs');
     // Re-render active page in case user navigated before data arrived
     const activePage=document.querySelector('.page.active');
@@ -2043,6 +2161,7 @@ setInterval(function(){
   if(!CU) return;
   fetch('/api/pedidos',{credentials:'include'}).then(r=>r.json()).then(peds=>{pedidos=peds;});
   fetch('/api/movimientos',{credentials:'include'}).then(r=>r.json()).then(m=>{movs=m;});
+  fetch('/api/ordenes',{credentials:'include'}).then(r=>r.json()).then(o=>{ORDENES=o||[];}).catch(()=>{});
 },60000);
 
 // Override guardarPed to save to API
@@ -2084,7 +2203,6 @@ function guardarPed(){
 }
 
 // Override addMov to save to API
-const _origAddMov=addMov;
 function addMov(){
   const tipo=document.getElementById('mv-t').value;
   const cat=document.getElementById('mv-c').value;
@@ -2094,8 +2212,11 @@ function addMov(){
   const cta2El=document.getElementById('mv-cta2');
   const cta2=cta2El?cta2El.value:'';
   if(!desc||!monto){alert('Completa descripcion y monto');return;}
-  const newMov={tipo,concepto:cat,desc,monto,fecha:todayStr(),
-    mes:new Date().getMonth(),cuenta:cta,cta_destino:cta2,socio:''};
+  const fEl=document.getElementById('mv-f');
+  const fecha=(fEl&&fEl.value)?fEl.value:todayStr();
+  const mesMov=parseInt(fecha.split('-')[1],10)-1; // mes desde la fecha, sin bug de zona horaria
+  const newMov={tipo,concepto:cat,desc,monto,fecha:fecha,
+    mes:mesMov,cuenta:cta,cta_destino:cta2,socio:''};
   fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(newMov)})
   .then(r=>r.json()).then(()=>{
@@ -2246,7 +2367,7 @@ function guardarEditPed(){
 function misC(){
   const u=USERS.find(x=>x.key===CU);
   const peds=u&&(u.role==='admin'||u.role==='owner')?pedidos:pedidos.filter(p=>p.suc===(u&&u.suc));
-  return peds.filter(p=>p.rest>0).map(p=>({id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,fecha:p.fecha,fechaE:p.fecha,entrega:p.entrega,total:p.total,saldo:p.rest,abon:p.ant,abonos:[],liq:false,est:p.est,_pedIdx:pedidos.indexOf(p)}));
+  return peds.filter(p=>p.rest>0).map(p=>({id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,fecha:p.fecha,fechaE:p.fecha,entrega:p.entrega,total:p.total,saldo:p.rest,abon:p.ant,abonos:[],liq:false,est:p.est,taller_est:p.taller_est,casillero:p.casillero,_pedIdx:pedidos.indexOf(p)}));
 }
 function rPend(){
   fetch('/api/pendientes',{credentials:'include'})
