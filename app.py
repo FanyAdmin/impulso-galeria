@@ -494,6 +494,25 @@ def crear_abono():
     db.session.commit()
     return jsonify(ab_dict(a)), 201
 
+@app.route('/api/abonos/<int:aid>', methods=['PUT'])
+@requiere_admin
+def actualizar_abono(aid):
+    a = Abono.query.get_or_404(aid)
+    d = request.json or {}
+    for campo in ['monto', 'met', 'fecha', 'tipo']:
+        if campo in d:
+            setattr(a, campo, d[campo])
+    db.session.commit()
+    return jsonify(ab_dict(a))
+
+@app.route('/api/abonos/<int:aid>', methods=['DELETE'])
+@requiere_admin
+def borrar_abono(aid):
+    a = Abono.query.get_or_404(aid)
+    db.session.delete(a)
+    db.session.commit()
+    return jsonify({'ok': True})
+
 
 # ── ÓRDENES DE COMPRA (lotes pedidos a proveedores) ───────────────────────────
 
