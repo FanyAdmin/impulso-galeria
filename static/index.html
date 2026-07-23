@@ -241,6 +241,29 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 </div>
 </div>
 
+<div class="modal-bg" id="mod-cobro" style="display:none">
+<div class="modal" style="width:460px">
+  <div class="modal-hdr"><div class="modal-ttl">➕ Registrar cobro</div><button class="modal-x" onclick="CM('mod-cobro')">✕</button></div>
+  <div class="modal-body">
+    <div class="g2">
+      <div class="field"><label>Folio del pedido</label><input id="cb-folio" placeholder="ej. 2410" oninput="buscarFolioCobro()"></div>
+      <div class="field"><label>Fecha del cobro</label><input type="date" id="cb-fecha"></div>
+    </div>
+    <div id="cb-info" style="font-size:12px;margin:4px 0 10px;color:var(--text3)">Escribe el folio para buscar el pedido</div>
+    <div class="g2">
+      <div class="field"><label>Monto ($)</label><input type="number" id="cb-monto" placeholder="0.00"></div>
+      <div class="field"><label>Método de pago</label><select id="cb-met"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>Intercambio Galería</option></select></div>
+      <div class="field"><label>Tipo</label><select id="cb-tipo"><option value="Liquidacion">Liquidación</option><option value="Abono">Abono</option></select></div>
+    </div>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;margin-top:8px;cursor:pointer">
+      <input type="checkbox" id="cb-sumar" style="width:auto;margin-top:2px">
+      <span>También <strong>sumar al anticipo</strong> del pedido y descontar del restante.<br><span style="color:var(--text3)">Déjalo APAGADO si el dinero ya está reflejado en el pedido (como en cobros viejos) y solo quieres registrar la fecha y el método.</span></span>
+    </label>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-cobro')">Cancelar</button><button class="btn btn-p" onclick="guardarCobroManual()">✓ Registrar</button></div>
+</div>
+</div>
+
 <div class="modal-bg" id="mod-ent" style="display:none">
 <div class="modal">
   <div class="modal-hdr"><div class="modal-ttl">Registrar Entrega</div><button class="modal-x" onclick="CM('mod-ent')">✕</button></div>
@@ -511,7 +534,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 
 <!-- MI DÍA -->
 <div class="page" id="page-dia">
-  <div class="ph"><div><div class="ph-title">Mi Día</div><div class="ph-sub" id="dia-f">—</div></div></div>
+  <div class="ph"><div><div class="ph-title">Mi Día</div><div class="ph-sub" id="dia-f">—</div></div><button class="btn btn-p admin-only" style="display:none" onclick="openCobroManual()">➕ Registrar cobro</button></div>
   <div class="metrics m4">
     <div class="metric" style="border-left:4px solid var(--text3)"><div class="m-label">🧾 Pedidos nuevos</div><div class="m-val" id="d-n" style="font-size:26px">0</div></div>
     <div class="metric" style="border-left:4px solid #1D4ED8"><div class="m-label">🛒 Ventas hoy</div><div class="m-val" id="d-v">$0</div></div>
@@ -1287,6 +1310,50 @@ function guardarAb(){
 }
 
 // ─── MI DÍA ───────────────────────────────────────────────────────────────────
+
+// ─── COBRO MANUAL (retroactivo o correcciones) ────────────────────────────────
+let _cbPedido=null;
+function openCobroManual(){
+  _cbPedido=null;
+  document.getElementById('cb-folio').value='';
+  document.getElementById('cb-monto').value='';
+  document.getElementById('cb-fecha').value=todayStr();
+  document.getElementById('cb-sumar').checked=false;
+  document.getElementById('cb-info').textContent='Escribe el folio para buscar el pedido';
+  OM('mod-cobro');
+}
+function buscarFolioCobro(){
+  const f=document.getElementById('cb-folio').value.trim();
+  const info=document.getElementById('cb-info');
+  _cbPedido=null;
+  if(!f){info.textContent='Escribe el folio para buscar el pedido';return;}
+  const matches=pedidos.filter(p=>String(p.folio)===f);
+  if(!matches.length){info.innerHTML='<span style="color:var(--red)">No se encontró ningún pedido con ese folio</span>';return;}
+  _cbPedido=matches[0];
+  info.innerHTML='✓ <strong>'+_cbPedido.cli+'</strong> · '+_cbPedido.suc+' · Total '+fmt(_cbPedido.total)+' · Abonado '+fmt(_cbPedido.ant)+' · Resta <strong>'+fmt(_cbPedido.rest)+'</strong>'+(matches.length>1?' <span style="color:var(--amber,#B45309)">(hay '+matches.length+' pedidos con este folio; se usará el de '+_cbPedido.suc+')</span>':'');
+}
+function guardarCobroManual(){
+  if(!_cbPedido){alert('Busca primero un folio válido');return;}
+  const m=parseFloat(document.getElementById('cb-monto').value)||0;
+  if(!m){alert('Ingresa el monto');return;}
+  const fecha=document.getElementById('cb-fecha').value||todayStr();
+  const met=document.getElementById('cb-met').value;
+  const tipo=document.getElementById('cb-tipo').value;
+  const sumar=document.getElementById('cb-sumar').checked;
+  const p=_cbPedido;
+  const ab={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:m,met:met,fecha:fecha,tipo:tipo};
+  fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(ab)})
+  .then(r=>r.json()).then(d=>{
+    if(d.error){alert(d.error);return;}
+    ABONOS.unshift(d);
+    if(sumar){
+      p.ant=(p.ant||0)+m;p.rest=Math.max(0,(p.rest||0)-m);
+      if(p.id)fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({ant:p.ant,rest:p.rest,est:p.rest<=0?'Entregado':p.est})}).catch(()=>{});
+    }
+    logActivity('Registró cobro manual','Folio '+p.folio+' — '+fmt(m)+' ('+met+', '+fecha+')');
+    CM('mod-cobro');rDia();if(document.querySelector('#page-cxc.active'))rCxC();
+  }).catch(()=>alert('Error de conexión'));
+}
 function rDia(){
   const hoy=todayStr();
   const u=USERS.find(x=>x.key===CU);
