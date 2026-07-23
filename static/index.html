@@ -918,6 +918,8 @@ function doLogin(){
     document.getElementById('sb-user').textContent=u.name;
     document.getElementById('sb-role').textContent=u.role==='owner'?'Dueña':u.role==='admin'?'Administrador':u.role==='taller'?'Taller':'Punto de venta';
     document.getElementById('sb-suc').textContent=u.display;
+    // Restaurar TODO el menú antes de aplicar reglas del rol (evita heredar el menú de la sesión anterior)
+    document.querySelectorAll('.sb-item,.sb-sec,.sb-section').forEach(el=>{if(!el.classList.contains('admin-only')&&!el.classList.contains('owner-only'))el.style.display='';});
     document.querySelectorAll('.admin-only').forEach(el=>el.style.display=(u.role==='admin'||u.role==='owner')?'':'none');
     document.querySelectorAll('.owner-only').forEach(el=>el.style.display=u.role==='owner'?'':'none');
     if(u.role==='taller'){
@@ -939,7 +941,7 @@ function doLogin(){
   }).catch(()=>showLE('Error de conexion'));
 }
 function showLE(m){const e=document.getElementById('lerr');e.textContent=m;e.style.display='block';}
-function logout(){CU=null;cart=[];molSel=null;document.getElementById('app').style.display='none';document.getElementById('login').style.display='flex';document.getElementById('pwd').value='';document.getElementById('lerr').style.display='none';document.querySelectorAll('.ucard').forEach(c=>c.classList.remove('sel'));}
+function logout(){CU=null;cart=[];molSel=null;document.getElementById('app').style.display='none';document.getElementById('login').style.display='flex';document.getElementById('pwd').value='';document.getElementById('lerr').style.display='none';document.querySelectorAll('.ucard').forEach(c=>c.classList.remove('sel'));try{go('cot');}catch(e){}}
 
 // ─── NAV ──────────────────────────────────────────────────────────────────────
 function go(id){
