@@ -222,6 +222,25 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 </div>
 </div>
 
+<div class="modal-bg" id="mod-cas" style="display:none">
+<div class="modal" style="width:480px;max-width:94vw">
+  <div class="modal-hdr"><div class="modal-ttl" id="cas-ttl">📦 Elegir casillero</div><button class="modal-x" onclick="CM('mod-cas')">✕</button></div>
+  <div class="modal-body">
+    <div id="cas-info" style="font-size:13px;color:var(--text2);margin-bottom:12px"></div>
+    <div id="cas-grid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px"></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-d" onclick="setCasillero('')">Quitar casillero</button><button class="btn btn-s" onclick="CM('mod-cas')">Cancelar</button></div>
+</div>
+</div>
+
+<div class="modal-bg" id="mod-detped" style="display:none">
+<div class="modal" style="width:620px;max-width:94vw">
+  <div class="modal-hdr"><div class="modal-ttl" id="detped-ttl">Detalles del pedido</div><button class="modal-x" onclick="CM('mod-detped')">✕</button></div>
+  <div class="modal-body" id="detped-body" style="max-height:70vh;overflow-y:auto"></div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-detped')">Cerrar</button></div>
+</div>
+</div>
+
 <div class="modal-bg" id="mod-ent" style="display:none">
 <div class="modal">
   <div class="modal-hdr"><div class="modal-ttl">Registrar Entrega</div><button class="modal-x" onclick="CM('mod-ent')">✕</button></div>
@@ -1191,7 +1210,7 @@ function rCxC(){
     return `<tr><td class="mono" style="font-weight:600">${c.folio}</td><td>${c.cli}</td><td>${c.suc}</td><td>${c.fechaE||c.fecha||'—'}</td>
       <td class="mono">${fmt(c.total)}</td><td class="mono">${fmt(c.abon)}</td>
       <td class="mono" style="${!c.liq?'color:var(--red);font-weight:600':''}">${fmt(c.saldo)}</td>
-      <td>${badge}${c.casillero?'<div style="font-size:11px;font-weight:700;margin-top:3px">📦 '+c.casillero+'</div>':(c.taller_est&&c.taller_est!=='Por pedir'?'<div style="font-size:10px;color:var(--text3);margin-top:3px">'+c.taller_est+'</div>':'')}</td><td>${btn}</td><td><button onclick="editPed(${pedIdx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${pedIdx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td>${badge}${c.casillero?'<div style="font-size:11px;font-weight:700;margin-top:3px">📦 '+c.casillero+'</div>':''}</td><td>${btn}</td><td><button onclick="editPed(${pedIdx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${pedIdx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 let _cxcList=[];
@@ -1378,10 +1397,11 @@ function proxDiaPedido(){
   const d=new Date();
   for(let i=0;i<7;i++){const f=new Date(d);f.setDate(d.getDate()+i);if(DIAS_PEDIDO.includes(f.getDay()))return {f,hoy:i===0};}
 }
+function claveItem(folio,mol){return String(folio).trim()+'|'+String(mol).trim().toUpperCase();}
 function itemsPedidos(){
   // Pares folio|moldura que ya fueron pedidos a proveedor
   const s=new Set();
-  ORDENES.forEach(o=>(o.items||[]).forEach(it=>(it.fols||[]).forEach(f=>s.add(f+'|'+it.mol))));
+  ORDENES.forEach(o=>(o.items||[]).forEach(it=>(it.fols||[]).forEach(f=>s.add(claveItem(f,it.mol)))));
   return s;
 }
 function rOrd(){
@@ -1389,7 +1409,7 @@ function rOrd(){
   const pend=pedidos.filter(p=>p.est==='Pendiente'&&p.items&&(u.role==='admin'||u.role==='owner'||u.role==='taller'||p.suc===u.suc));
   const yaPedidos=itemsPedidos();
   const byP={};
-  pend.forEach(p=>(p.items||[]).forEach(it=>{if(!it.mol||yaPedidos.has(p.folio+'|'+it.mol))return;const pv=it.prov||'PROPIO';if(!byP[pv])byP[pv]=[];const ex=byP[pv].find(x=>x.mol===it.mol);if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}else byP[pv].push({mol:it.mol,pzas:it.q,fols:[p.folio],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});}));
+  pend.forEach(p=>(p.items||[]).forEach(it=>{if(!it.mol||yaPedidos.has(claveItem(p.folio,it.mol)))return;const pv=it.prov||'PROPIO';if(!byP[pv])byP[pv]=[];const ex=byP[pv].find(x=>x.mol===it.mol);if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}else byP[pv].push({mol:it.mol,pzas:it.q,fols:[p.folio],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});}));
   const provs=Object.keys(byP);
   const px=proxDiaPedido();
   const banner=`<div style="background:${px.hoy?'var(--green-l)':'var(--surface2)'};border:1px solid ${px.hoy?'#A7D7BC':'var(--border)'};border-radius:var(--rad);padding:10px 14px;margin-bottom:14px;font-size:13px">${px.hoy?'🟢 <strong>Hoy es día de pedido</strong>':'📅 Próximo día de pedido: <strong>'+px.f.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})+'</strong>'} <span style="color:var(--text3)">· Se pide lunes, miércoles y viernes</span></div>`;
@@ -1448,62 +1468,87 @@ function delOrdHist(id){
   }).catch(()=>alert('Error de conexión'));
 }
 
-// ─── SEGUIMIENTO DE TALLER ────────────────────────────────────────────────────
-const TALLER_ESTADOS=['Por pedir','Material pedido','Llegó','En taller','En casillero'];
-const TALLER_COLORES={'Por pedir':'#9B9890','Material pedido':'#B45309','Llegó':'#1D4ED8','En taller':'#7C3AED','En casillero':'#15803D'};
+// ─── SEGUIMIENTO: pedidos en curso + casillero ────────────────────────────────
 function rOrdSeg(){
   const c=document.getElementById('ord-seg');if(!c)return;
   const u=USERS.find(x=>x.key===CU);
   const cola=pedidos.filter(p=>p.est==='Pendiente'&&(u.role==='admin'||u.role==='owner'||u.role==='taller'||p.suc===u.suc));
   if(!cola.length){c.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Sin pedidos en curso 🎉</div>';return;}
-  // Orden: los más avanzados al final; dentro de cada estado, folio ascendente
-  const orden=cola.slice().sort((a,b)=>TALLER_ESTADOS.indexOf(a.taller_est||'Por pedir')-TALLER_ESTADOS.indexOf(b.taller_est||'Por pedir')||String(a.folio).localeCompare(String(b.folio)));
-  c.innerHTML=`<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Molduras</th><th>Estado</th><th>Casillero</th><th></th></tr></thead><tbody>`+
+  // Sin casillero primero; luego por folio
+  const orden=cola.slice().sort((a,b)=>((a.casillero?1:0)-(b.casillero?1:0))||String(a.folio).localeCompare(String(b.folio)));
+  c.innerHTML=`<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Molduras</th><th>Entrega</th><th>Casillero</th><th></th></tr></thead><tbody>`+
   orden.map(p=>{
-    const est=p.taller_est||'Por pedir';
-    const idx=TALLER_ESTADOS.indexOf(est);
     const molsTxt=(p.items||[]).filter(it=>it.mol).map(it=>it.mol+' ×'+it.q).join(', ')||'Solo extras/servicio';
-    const sig=idx<TALLER_ESTADOS.length-1?TALLER_ESTADOS[idx+1]:null;
     const pi=pedidos.indexOf(p);
     return `<tr>
       <td class="mono" style="font-weight:600">${p.folio}</td>
       <td>${p.cli}</td><td>${p.suc}</td>
-      <td style="font-size:11px;color:var(--text2);max-width:260px">${molsTxt}</td>
-      <td><span class="badge" style="background:${TALLER_COLORES[est]}18;color:${TALLER_COLORES[est]};border:1px solid ${TALLER_COLORES[est]}40">${est}</span></td>
-      <td class="mono" style="font-weight:700">${p.casillero?'📦 '+p.casillero:'—'}</td>
-      <td style="white-space:nowrap">
-        ${sig?`<button class="btn btn-p btn-xs" onclick="avanzarTaller(${pi})">→ ${sig}</button>`:''}
-        ${idx>0?`<button class="btn btn-s btn-xs" onclick="retrocederTaller(${pi})" title="Regresar un paso">↩</button>`:''}
-      </td></tr>`;
+      <td style="font-size:11px;color:var(--text2);max-width:280px">${molsTxt}</td>
+      <td style="color:var(--text3);font-size:11px">${p.entrega||'—'}</td>
+      <td class="mono" style="font-weight:700;font-size:14px">${p.casillero?'📦 '+p.casillero:'<span style="color:var(--text3)">—</span>'}</td>
+      <td style="white-space:nowrap"><button class="btn ${p.casillero?'btn-s':'btn-p'} btn-xs" onclick="asignarCasillero(${pi})">📦 Casillero</button> <button class="btn btn-s btn-xs" onclick="verDetallesPed(${pi})">👁 Detalles</button></td>
+    </tr>`;
   }).join('')+'</tbody></table></div>';
 }
-function guardarTaller(p,cambios){
-  Object.assign(p,cambios);
-  if(p.id)fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(cambios)}).catch(()=>{});
-  rOrdSeg();
+let _casPedIdx=null;
+const CASILLEROS_MAX=20;
+function casillerosOcupados(){
+  const m={};
+  pedidos.filter(p=>p.est==='Pendiente'&&p.casillero).forEach(p=>{m[String(p.casillero)]=p.folio;});
+  return m;
 }
-function avanzarTaller(pi){
+function asignarCasillero(pi){
   const p=pedidos[pi];if(!p)return;
-  const idx=TALLER_ESTADOS.indexOf(p.taller_est||'Por pedir');
-  const sig=TALLER_ESTADOS[idx+1];if(!sig)return;
-  const cambios={taller_est:sig};
-  if(sig==='En casillero'){
-    const num=prompt('Número de casillero:',p.casillero||'');
-    if(num===null)return;
-    cambios.casillero=num.trim();
+  _casPedIdx=pi;
+  document.getElementById('cas-ttl').textContent='📦 Casillero — Folio '+p.folio;
+  document.getElementById('cas-info').innerHTML='<strong>'+p.cli+'</strong> · '+p.suc+(p.casillero?' · Actual: casillero '+p.casillero:'');
+  const ocupados=casillerosOcupados();
+  let h='';
+  for(let n=1;n<=CASILLEROS_MAX;n++){
+    const ns=String(n);
+    const esActual=String(p.casillero||'')===ns;
+    const ocupado=ocupados[ns]&&!esActual;
+    h+=`<button onclick="${ocupado?`alert('El casillero ${ns} está ocupado por el folio ${ocupados[ns]}')`:`setCasillero('${ns}')`}"
+      style="padding:0;height:64px;font-size:20px;font-weight:800;border-radius:10px;cursor:pointer;font-family:ui-monospace,monospace;
+      ${esActual?'background:var(--green);color:#fff;border:2px solid var(--green)':
+        ocupado?'background:var(--surface2);color:var(--text3);border:1.5px solid var(--border);text-decoration:line-through':
+        'background:var(--surface);color:var(--text);border:1.5px solid var(--border2)'}">${n}</button>`;
   }
-  guardarTaller(p,cambios);
-  logActivity('Taller: '+sig,'Folio '+p.folio+(cambios.casillero?' — Casillero '+cambios.casillero:''));
+  document.getElementById('cas-grid').innerHTML=h;
+  OM('mod-cas');
 }
-function retrocederTaller(pi){
+function setCasillero(num){
+  const p=pedidos[_casPedIdx];if(!p)return;
+  p.casillero=String(num).trim();
+  if(p.id)fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({casillero:p.casillero})}).catch(()=>{});
+  logActivity(p.casillero?'Casillero asignado':'Casillero liberado','Folio '+p.folio+(p.casillero?' → Casillero '+p.casillero:''));
+  CM('mod-cas');
+  rOrdSeg();
+  if(document.getElementById('cxc-body')&&document.querySelector('#page-cxc.active'))rCxC();
+}
+function verDetallesPed(pi){
   const p=pedidos[pi];if(!p)return;
-  const idx=TALLER_ESTADOS.indexOf(p.taller_est||'Por pedir');
-  if(idx<=0)return;
-  const ant=TALLER_ESTADOS[idx-1];
-  const cambios={taller_est:ant};
-  if(p.taller_est==='En casillero')cambios.casillero='';
-  guardarTaller(p,cambios);
-  logActivity('Taller: regresó a '+ant,'Folio '+p.folio);
+  document.getElementById('detped-ttl').textContent='Pedido '+p.folio+' — '+p.cli;
+  const items=(p.items||[]);
+  const filas=items.length?items.map(it=>`<tr>
+      <td>${it.mol||'—'}</td>
+      <td style="text-align:center">${it.esServicio?'—':(it.l1&&it.l2?it.l1+'×'+it.l2+' cm':'—')}</td>
+      <td style="text-align:center;font-weight:600">${it.q||1}</td>
+      <td style="font-size:11px;color:var(--text2)">${(it.en||[]).join(', ')||'—'}</td>
+    </tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3)">Sin artículos detallados</td></tr>';
+  document.getElementById('detped-body').innerHTML=`
+    <div class="g2" style="margin-bottom:12px">
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Cliente</div><div style="font-weight:600">${p.cli||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Teléfono</div><div>${p.tel||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Sucursal</div><div>${p.suc||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Vendedor</div><div>${p.vend||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Fecha del pedido</div><div>${p.fecha||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Entrega estimada</div><div style="font-weight:600">${p.entrega||'—'}</div></div>
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Casillero</div><div style="font-weight:700;font-size:16px">${p.casillero?'📦 '+p.casillero:'—'}</div></div>
+    </div>
+    ${p.obs?`<div style="background:var(--surface2);border-radius:8px;padding:9px 12px;font-size:12px;margin-bottom:12px"><strong>Observaciones:</strong> ${p.obs}</div>`:''}
+    <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Moldura / Concepto</th><th style="text-align:center">Medidas</th><th style="text-align:center">Cant.</th><th>Extras</th></tr></thead><tbody>${filas}</tbody></table></div>`;
+  OM('mod-detped');
 }
 function pedirOrd(pv){
   const px=proxDiaPedido();
@@ -1511,32 +1556,32 @@ function pedirOrd(pv){
   const yaPedidos=itemsPedidos();
   const items=[];
   pedidos.filter(p=>p.est==='Pendiente'&&p.items).forEach(p=>
-    (p.items||[]).filter(it=>it.mol&&(it.prov||'PROPIO')===pv&&!yaPedidos.has(p.folio+'|'+it.mol)).forEach(it=>{
+    (p.items||[]).filter(it=>it.mol&&(it.prov||'PROPIO')===pv&&!yaPedidos.has(claveItem(p.folio,it.mol))).forEach(it=>{
       const ex=items.find(x=>x.mol===it.mol);
       if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}
       else items.push({mol:it.mol,pzas:it.q,fols:[p.folio],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});
     }));
   if(!items.length){alert('No hay molduras pendientes de este proveedor');return;}
+  // Abrir la ventana ANTES del guardado (si se abre después, el navegador la bloquea)
+  const w=window.open('','_blank');
   const orden={prov:pv,prov_nombre:PROVS[pv]||pv,fecha:new Date().toLocaleDateString('es-MX'),items:items.map(i=>({...i,fols:[...new Set(i.fols)]}))};
   fetch('/api/ordenes',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(orden)})
-  .then(r=>r.json()).then(d=>{
-    if(d.error){alert(d.error);return;}
+  .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(d=>{
+    if(d.error)throw new Error(d.error);
     ORDENES.unshift(d);
-    // Avanzar los pedidos involucrados a "Material pedido"
-    const folios=[...new Set(items.flatMap(i=>i.fols))];
-    folios.forEach(f=>{
-      const p=pedidos.find(x=>x.folio===f&&x.est==='Pendiente');
-      if(p&&p.id&&(!p.taller_est||p.taller_est==='Por pedir')){
-        p.taller_est='Material pedido';
-        fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({taller_est:'Material pedido'})}).catch(()=>{});
-      }
-    });
     logActivity('Pidió orden de compra',(PROVS[pv]||pv)+' — '+items.reduce((a,b)=>a+b.pzas,0)+' piezas');
-    printOrd(pv,items);
+    printOrd(pv,items,w);
+    // Sincronizar con el servidor para que el resto de dispositivos coincidan
+    fetch('/api/ordenes',{credentials:'include'}).then(r=>r.json()).then(o=>{ORDENES=o||ORDENES;rOrd();}).catch(()=>rOrd());
     rOrd();
-  }).catch(()=>alert('Error de conexión al registrar la orden'));
+  })
+  .catch(err=>{
+    if(w)w.close();
+    alert('No se pudo registrar la orden: '+err.message+'\nLa lista no cambió; intenta de nuevo.');
+  });
 }
-function printOrd(pv,itemsPre){
+function printOrd(pv,itemsPre,wPre){
   const items=itemsPre||[];
   if(!items.length){
     pedidos.filter(p=>p.est==='Pendiente'&&p.items).forEach(p=>
@@ -1563,7 +1608,7 @@ function printOrd(pv,itemsPre){
   <tbody>${items.map(it=>`<tr><td>${it.mol}</td><td style="text-align:center;font-weight:700">${it.pzas}</td><td style="color:#888;font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td><td style="color:#888;font-size:11px">${[...new Set(it.fols)].join(', ')}</td></tr>`).join('')}</tbody></table>
   <div class="ftr"><div class="sign">Firma autorizada</div><div class="sign">Fecha de recepción</div></div>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
-  const w=window.open('','_blank');
+  const w=wPre||window.open('','_blank');
   if(!w){alert('Permite ventanas emergentes para imprimir la orden');return;}
   w.document.write(html);w.document.close();
 }
