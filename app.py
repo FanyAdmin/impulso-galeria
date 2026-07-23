@@ -40,6 +40,8 @@ class Pedido(db.Model):
     obs        = db.Column(db.String(300))
     est        = db.Column(db.String(30), default='Pendiente')
     entrega    = db.Column(db.String(20))
+    taller_est = db.Column(db.String(30))
+    casillero  = db.Column(db.String(30))
 
 class Movimiento(db.Model):
     __tablename__ = 'movimientos_v3'
@@ -72,6 +74,7 @@ USUARIOS_SEED = [
     {'key':'zibata',    'password':'zibata123',   'name':'Zibata',    'display':'Zibata',    'role':'venta', 'suc':'Zibata'},
     {'key':'admin',     'password':'admin123',    'name':'Ana Karen', 'display':'Admin',     'role':'admin', 'suc':'Admin'},
     {'key':'estefania', 'password':'impulso2026', 'name':'Estefania', 'display':'Estefania', 'role':'owner', 'suc':'Admin'},
+    {'key':'taller',    'password':'taller2026',  'name':'Taller',    'display':'Taller',    'role':'taller','suc':'Taller'},
 ]
 USUARIOS_PROTEGIDOS = ('admin', 'estefania')  # no se pueden borrar
 
@@ -305,7 +308,7 @@ def get_pedidos():
     rol = session.get('rol')
     suc = session.get('suc')
     q = Pedido.query
-    if rol not in ('admin','owner'):
+    if rol not in ('admin','owner','taller'):
         q = q.filter_by(suc=suc)
     return jsonify([p_dict(p) for p in q.order_by(Pedido.id.desc()).all()])
 
@@ -321,7 +324,8 @@ def crear_pedido():
         items=json.dumps(d.get('items',[])),
         sub=d.get('sub',0), total=d.get('total',0),
         met=d.get('met'), ant=d.get('ant',0), rest=d.get('rest',0),
-        obs=d.get('obs'), est=d.get('est','Pendiente'), entrega=d.get('entrega')
+        obs=d.get('obs'), est=d.get('est','Pendiente'), entrega=d.get('entrega'),
+        taller_est=d.get('taller_est','Por pedir'), casillero=d.get('casillero','')
     )
     db.session.add(p)
     db.session.commit()
@@ -332,7 +336,7 @@ def crear_pedido():
 def actualizar_pedido(pid):
     p = Pedido.query.get_or_404(pid)
     d = request.json or {}
-    for campo in ['folio','tipo_venta','cli','tel','suc','vend','fecha','mes','sub','total','met','ant','rest','obs','est','entrega']:
+    for campo in ['folio','tipo_venta','cli','tel','suc','vend','fecha','mes','sub','total','met','ant','rest','obs','est','entrega','taller_est','casillero']:
         if campo in d:
             setattr(p, campo, d[campo])
     if 'items' in d:
@@ -356,7 +360,8 @@ def p_dict(p):
         'items':json.loads(p.items) if p.items else [],
         'sub':p.sub,'total':p.total,'met':p.met,
         'ant':p.ant,'rest':p.rest,'obs':p.obs,
-        'est':p.est,'entrega':p.entrega
+        'est':p.est,'entrega':p.entrega,
+        'taller_est':p.taller_est,'casillero':p.casillero
     }
 
 # ── MOVIMIENTOS ───────────────────────────────────────────────────────────────
@@ -452,6 +457,45 @@ def import_pedidos():
     return jsonify({'ok': True, 'imported': count})
 
 
+
+# ── ÓRDENES DE COMPRA (lotes pedidos a proveedores) ───────────────────────────
+
+class OrdenCompra(db.Model):
+    __tablename__ = 'ordenes_compra'
+    id          = db.Column(db.Integer, primary_key=True)
+    prov        = db.Column(db.String(50))
+    prov_nombre = db.Column(db.String(100))
+    fecha       = db.Column(db.String(30))
+    items       = db.Column(db.Text)  # JSON: [{mol,pzas,meds,fols}]
+
+def ord_dict(o):
+    return {'id':o.id,'prov':o.prov,'prov_nombre':o.prov_nombre,'fecha':o.fecha,
+            'items':json.loads(o.items) if o.items else []}
+
+@app.route('/api/ordenes', methods=['GET'])
+@requiere_login
+def get_ordenes():
+    return jsonify([ord_dict(o) for o in OrdenCompra.query.order_by(OrdenCompra.id.desc()).all()])
+
+@app.route('/api/ordenes', methods=['POST'])
+@requiere_login
+def crear_orden():
+    d = request.json or {}
+    o = OrdenCompra(prov=d.get('prov',''), prov_nombre=d.get('prov_nombre',''),
+                    fecha=d.get('fecha',''), items=json.dumps(d.get('items',[])))
+    db.session.add(o)
+    db.session.commit()
+    return jsonify(ord_dict(o)), 201
+
+@app.route('/api/ordenes/<int:oid>', methods=['DELETE'])
+@requiere_admin
+def borrar_orden(oid):
+    o = OrdenCompra.query.get_or_404(oid)
+    db.session.delete(o)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
 # ── PENDIENTES ────────────────────────────────────────────────────────────────
 
 class Pendiente(db.Model):
@@ -475,7 +519,7 @@ def get_pendientes():
     rol = session.get('rol')
     suc = session.get('suc')
     q = Pendiente.query
-    if rol not in ('admin','owner'):
+    if rol not in ('admin','owner','taller'):
         q = q.filter_by(suc=suc)
     return jsonify([pend_dict(p) for p in q.order_by(Pendiente.id.desc()).all()])
 
@@ -603,8 +647,25 @@ def clear_activity():
     db.session.commit()
     return jsonify({'ok': True})
 
+def migrar_columnas():
+    """Agrega columnas nuevas a tablas existentes (create_all no altera tablas ya creadas)."""
+    from sqlalchemy import text
+    for stmt in [
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS taller_est VARCHAR(30)",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS casillero VARCHAR(30)",
+    ]:
+        try:
+            db.session.execute(text(stmt)); db.session.commit()
+        except Exception:
+            db.session.rollback()
+            try:  # SQLite local no soporta IF NOT EXISTS en columnas
+                db.session.execute(text(stmt.replace(' IF NOT EXISTS',''))); db.session.commit()
+            except Exception:
+                db.session.rollback()
+
 with app.app_context():
     db.create_all()
+    migrar_columnas()
     seed_usuarios()
 
 if __name__ == '__main__':
