@@ -513,13 +513,20 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 <div class="page" id="page-dia">
   <div class="ph"><div><div class="ph-title">Mi Día</div><div class="ph-sub" id="dia-f">—</div></div></div>
   <div class="metrics m4">
-    <div class="metric"><div class="m-label">Notas hoy</div><div class="m-val" id="d-n">0</div></div>
-    <div class="metric"><div class="m-label">Ventas hoy</div><div class="m-val" id="d-v">$0</div></div>
-    <div class="metric"><div class="m-label">Cobrado</div><div class="m-val" id="d-c">$0</div></div>
-    <div class="metric"><div class="m-label">Por cobrar</div><div class="m-val" id="d-pc">$0</div></div>
+    <div class="metric" style="border-left:4px solid var(--text3)"><div class="m-label">🧾 Pedidos nuevos</div><div class="m-val" id="d-n" style="font-size:26px">0</div></div>
+    <div class="metric" style="border-left:4px solid #1D4ED8"><div class="m-label">🛒 Ventas hoy</div><div class="m-val" id="d-v">$0</div></div>
+    <div class="metric" style="background:var(--green-l);border-left:4px solid var(--green)"><div class="m-label" style="color:var(--green)">💵 Cobrado hoy</div><div class="m-val" id="d-c" style="color:var(--green)">$0</div></div>
+    <div class="metric" style="background:#FEF3C7;border-left:4px solid #B45309"><div class="m-label" style="color:#92400E">⏳ Por cobrar</div><div class="m-val" id="d-pc" style="color:#92400E">$0</div></div>
   </div>
-  <div class="card"><div class="card-title">Por método de pago hoy</div><div style="display:flex;gap:2rem" id="d-mets"></div></div>
+  <div class="card">
+    <div class="card-title">💰 Dinero cobrado hoy por cuenta</div>
+    <div id="d-cuentas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px"></div>
+  </div>
   <div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Método</th><th>Total</th><th>Anticipo</th><th>Días restantes</th><th>Estatus</th><th></th></tr></thead><tbody id="dia-body"></tbody></table></div>
+  <div class="card" id="dia-cobros-card" style="display:none;margin-top:.875rem">
+    <div class="card-title">💵 Liquidaciones y abonos de hoy (pedidos anteriores)</div>
+    <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th></tr></thead><tbody id="dia-cobros"></tbody></table></div>
+  </div>
 </div>
 
 <!-- CATÁLOGO -->
@@ -1187,10 +1194,20 @@ function calcES(){
 function confEnt(){
   if(entIdx===null)return;
   const p=pedidos[entIdx],c=parseFloat(document.getElementById('me-monto').value)||0,s=Math.max(0,p.rest-c);
+  const met=document.getElementById('me-m').value;
   p.ant+=c;p.rest=s;p.est='Entregado';p.entregaF=todayStr();
+  // Persistir la entrega en la BD (antes solo quedaba en el navegador)
+  if(p.id)fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({ant:p.ant,rest:p.rest,est:'Entregado'})}).catch(()=>{});
+  // Registrar el cobro de hoy como abono con fecha (para Mi Día)
+  if(c>0){
+    const ab={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:c,met:met,fecha:todayStr(),tipo:s>0?'Abono':'Liquidacion'};
+    fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(ab)})
+    .then(r=>r.json()).then(d=>{if(d&&d.id)ABONOS.unshift(d);rDia();}).catch(()=>{ABONOS.unshift(ab);rDia();});
+  }
+  logActivity('Entregó pedido','Folio '+p.folio+(c>0?' — cobró '+fmt(c)+' ('+met+')':''));
   if(s>0){const ex=cuentas.findIndex(x=>x.folio===p.folio);
     if(ex>=0)cuentas[ex].saldo=s;
-    else cuentas.push({folio:p.folio,cli:p.cli,suc:p.suc,total:p.total,abon:p.ant,saldo:s,fechaE:p.entregaF,abonos:[{fecha:p.entregaF,monto:c,met:document.getElementById('me-m').value}],liq:false});}
+    else cuentas.push({folio:p.folio,cli:p.cli,suc:p.suc,total:p.total,abon:p.ant,saldo:s,fechaE:p.entregaF,abonos:[{fecha:p.entregaF,monto:c,met:met}],liq:false});}
   CM('mod-ent');rPed();rCxC();rDia();
 }
 
@@ -1248,11 +1265,16 @@ function guardarAb(){
       p.ant=(p.ant||0)+m;
       p.rest=Math.max(0,(p.rest||0)-m);
       if(p.rest<=0)p.rest=0;
+      const metAb=document.getElementById('ab-m')?document.getElementById('ab-m').value:'Efectivo';
+      const abReg={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:m,met:metAb,fecha:todayStr(),tipo:p.rest<=0?'Liquidacion':'Abono'};
+      fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(abReg)})
+      .then(r=>r.json()).then(d=>{if(d&&d.id)ABONOS.unshift(d);}).catch(()=>{ABONOS.unshift(abReg);});
+      logActivity('Abonó a cuenta','Folio '+p.folio+' — '+fmt(m)+' ('+metAb+')');
       if(p.id){
         fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({ant:p.ant,rest:p.rest,est:p.rest<=0?'Entregado':p.est})
-        }).then(r=>r.json()).then(()=>{CM('mod-ab');rCxC();});
+        }).then(r=>r.json()).then(()=>{CM('mod-ab');rCxC();rDia();});
         return;
       }
     }
@@ -1267,14 +1289,45 @@ function guardarAb(){
 // ─── MI DÍA ───────────────────────────────────────────────────────────────────
 function rDia(){
   const hoy=todayStr();
+  const u=USERS.find(x=>x.key===CU);
   const list=misP().filter(p=>p.fecha===hoy);
+  // Abonos/liquidaciones registrados HOY (visibles según rol)
+  const abHoy=ABONOS.filter(a=>a.fecha===hoy&&(u.role==='admin'||u.role==='owner'||u.role==='taller'||a.suc===u.suc));
+  // Anticipo original de los pedidos de hoy = ant actual menos los abonos posteriores de ese pedido
+  const abDelPed=p=>ABONOS.filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc)).reduce((s,a)=>s+a.monto,0);
+  const antOrig=p=>Math.max(0,(p.ant||0)-abDelPed(p));
+  const cobradoHoy=list.reduce((s,p)=>s+antOrig(p),0)+abHoy.reduce((s,a)=>s+a.monto,0);
   document.getElementById('d-n').textContent=list.length;
   document.getElementById('d-v').textContent=fmt(list.reduce((a,b)=>a+b.total,0));
-  document.getElementById('d-c').textContent=fmt(list.reduce((a,b)=>a+b.ant,0));
+  document.getElementById('d-c').textContent=fmt(cobradoHoy);
   document.getElementById('d-pc').textContent=fmt(list.reduce((a,b)=>a+b.rest,0));
+  // Desglose por método: lo realmente cobrado hoy (anticipos de hoy + abonos de hoy)
   const mets={};
-  list.forEach(p=>{const k=p.met||'Efectivo';mets[k]=(mets[k]||0)+p.total;});
-  document.getElementById('d-mets').innerHTML=Object.entries(mets).filter(([,v])=>v>0).map(([m,v])=>`<div><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">${m}</div><div class="mono" style="font-size:16px;font-weight:700;margin-top:1px">${fmt(v)}</div></div>`).join('');
+  list.forEach(p=>{const k=p.met||'Efectivo';const v=antOrig(p);if(v>0)mets[k]=(mets[k]||0)+v;});
+  abHoy.forEach(a=>{const k=a.met||'Efectivo';mets[k]=(mets[k]||0)+a.monto;});
+  // Agrupar por cuenta: Efectivo / HSBC / INBURSA / Otros
+  const ctaDeMet=m=>{m=(m||'').toLowerCase();if(m.includes('inbursa'))return 'INBURSA';if(m.includes('hsbc'))return 'HSBC';if(m.includes('efectivo'))return 'Efectivo';return 'Otros';};
+  const CTA_ICON={Efectivo:'💵',HSBC:'🏦',INBURSA:'🏛️',Otros:'🔖'};
+  const CTA_COLOR={Efectivo:'#15803D',HSBC:'#B91C1C',INBURSA:'#1D4ED8',Otros:'#6B7280'};
+  const cuentasDia={};
+  Object.entries(mets).forEach(([m,v])=>{const c=ctaDeMet(m);if(!cuentasDia[c])cuentasDia[c]={total:0,dets:[]};cuentasDia[c].total+=v;cuentasDia[c].dets.push([m,v]);});
+  const ordenCtas=['Efectivo','HSBC','INBURSA','Otros'].filter(c=>cuentasDia[c]);
+  document.getElementById('d-cuentas').innerHTML=ordenCtas.length?ordenCtas.map(c=>{
+    const d=cuentasDia[c];
+    return `<div style="border:1.5px solid ${CTA_COLOR[c]}30;border-left:5px solid ${CTA_COLOR[c]};border-radius:10px;padding:14px;background:${CTA_COLOR[c]}08">
+      <div style="font-size:12px;font-weight:700;color:${CTA_COLOR[c]};text-transform:uppercase;letter-spacing:.05em">${CTA_ICON[c]} ${c}</div>
+      <div class="mono" style="font-size:24px;font-weight:800;margin-top:4px">${fmt(d.total)}</div>
+      ${d.dets.length>1||d.dets[0][0]!==c?`<div style="margin-top:6px;font-size:11px;color:var(--text3)">${d.dets.map(([m,v])=>m+': '+fmt(v)).join('<br>')}</div>`:''}
+    </div>`;
+  }).join(''):'<div style="color:var(--text3);font-size:13px;padding:8px 0">Sin cobros registrados hoy · aquí verás Efectivo, HSBC e INBURSA conforme entre dinero 💤</div>';
+  // Tabla de liquidaciones/abonos de hoy
+  const cobCard=document.getElementById('dia-cobros-card');
+  if(cobCard){
+    if(abHoy.length){
+      cobCard.style.display='';
+      document.getElementById('dia-cobros').innerHTML=abHoy.map(a=>`<tr><td class="mono" style="font-weight:600">${a.folio}</td><td>${a.cli||'—'}</td><td>${a.suc||'—'}</td><td><span class="badge ${a.tipo==='Liquidacion'?'bg':'by'}">${a.tipo==='Liquidacion'?'Liquidación':'Abono'}</span></td><td>${a.met||'—'}</td><td class="mono" style="text-align:right;font-weight:700;color:var(--green)">${fmt(a.monto)}</td></tr>`).join('');
+    }else cobCard.style.display='none';
+  }
   const hoyD=new Date();
   const body=document.getElementById('dia-body');
   if(!list.length){body.innerHTML=`<tr><td colspan="8" class="tbl-empty">Sin pedidos hoy · Crea uno desde el cotizador</td></tr>`;return;}
@@ -1392,6 +1445,7 @@ function tabA(p,el){document.querySelectorAll('#page-dash .tab').forEach(t=>t.cl
 
 // ─── ÓRDENES ──────────────────────────────────────────────────────────────────
 let ORDENES=[];
+let ABONOS=[];
 const DIAS_PEDIDO=[1,3,5]; // lunes, miércoles, viernes
 function proxDiaPedido(){
   const d=new Date();
@@ -2186,13 +2240,15 @@ function loadData(){
     fetch('/api/movimientos',{credentials:'include'}).then(r=>r.json()),
     fetch('/api/facturas',{credentials:'include'}).then(r=>r.json()),
     fetch('/api/vendedores',{credentials:'include'}).then(r=>r.json()).catch(()=>[]),
-    fetch('/api/ordenes',{credentials:'include'}).then(r=>r.json()).catch(()=>[])
-  ]).then(([peds,movs_data,facs,vends,ords])=>{
+    fetch('/api/ordenes',{credentials:'include'}).then(r=>r.json()).catch(()=>[]),
+    fetch('/api/abonos',{credentials:'include'}).then(r=>r.json()).catch(()=>[])
+  ]).then(([peds,movs_data,facs,vends,ords,abns])=>{
     pedidos=peds;
     movs=movs_data;
     FACTURAS=facs;
     if(vends&&vends.length) VENDEDORES=vends;
     ORDENES=ords||[];
+    ABONOS=abns||[];
     const uAct=USERS.find(x=>x.key===CU);
     if(uAct&&uAct.role==='taller'){go('ord');switchOrdTab('seguimiento',document.getElementById('chip-ord-seg'));}
     else go('cot');
@@ -2209,6 +2265,7 @@ setInterval(function(){
   fetch('/api/pedidos',{credentials:'include'}).then(r=>r.json()).then(peds=>{pedidos=peds;});
   fetch('/api/movimientos',{credentials:'include'}).then(r=>r.json()).then(m=>{movs=m;});
   fetch('/api/ordenes',{credentials:'include'}).then(r=>r.json()).then(o=>{ORDENES=o||[];}).catch(()=>{});
+  fetch('/api/abonos',{credentials:'include'}).then(r=>r.json()).then(a=>{ABONOS=a||[];}).catch(()=>{});
 },60000);
 
 // Override guardarPed to save to API
