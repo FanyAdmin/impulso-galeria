@@ -458,6 +458,43 @@ def import_pedidos():
 
 
 
+
+# ── ABONOS (cobros con fecha: liquidaciones y pagos parciales) ────────────────
+
+class Abono(db.Model):
+    __tablename__ = 'abonos'
+    id        = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(db.Integer)
+    folio     = db.Column(db.String(30))
+    cli       = db.Column(db.String(100))
+    suc       = db.Column(db.String(50))
+    monto     = db.Column(db.Float, default=0)
+    met       = db.Column(db.String(30))
+    fecha     = db.Column(db.String(20))
+    tipo      = db.Column(db.String(20), default='Abono')  # Abono | Liquidacion
+
+def ab_dict(a):
+    return {'id':a.id,'pedido_id':a.pedido_id,'folio':a.folio,'cli':a.cli,'suc':a.suc,
+            'monto':a.monto,'met':a.met,'fecha':a.fecha,'tipo':a.tipo}
+
+@app.route('/api/abonos', methods=['GET'])
+@requiere_login
+def get_abonos():
+    abonos = Abono.query.order_by(Abono.id.desc()).limit(1000).all()
+    return jsonify([ab_dict(a) for a in abonos])
+
+@app.route('/api/abonos', methods=['POST'])
+@requiere_login
+def crear_abono():
+    d = request.json or {}
+    a = Abono(pedido_id=d.get('pedido_id'), folio=d.get('folio',''), cli=d.get('cli',''),
+              suc=d.get('suc',''), monto=d.get('monto',0), met=d.get('met',''),
+              fecha=d.get('fecha',''), tipo=d.get('tipo','Abono'))
+    db.session.add(a)
+    db.session.commit()
+    return jsonify(ab_dict(a)), 201
+
+
 # ── ÓRDENES DE COMPRA (lotes pedidos a proveedores) ───────────────────────────
 
 class OrdenCompra(db.Model):
