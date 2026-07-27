@@ -519,13 +519,14 @@ def borrar_abono(aid):
 class OrdenCompra(db.Model):
     __tablename__ = 'ordenes_compra'
     id          = db.Column(db.Integer, primary_key=True)
+    oc          = db.Column(db.String(20))  # folio: OC-0001
     prov        = db.Column(db.String(50))
     prov_nombre = db.Column(db.String(100))
     fecha       = db.Column(db.String(30))
     items       = db.Column(db.Text)  # JSON: [{mol,pzas,meds,fols}]
 
 def ord_dict(o):
-    return {'id':o.id,'prov':o.prov,'prov_nombre':o.prov_nombre,'fecha':o.fecha,
+    return {'id':o.id,'oc':o.oc,'prov':o.prov,'prov_nombre':o.prov_nombre,'fecha':o.fecha,
             'items':json.loads(o.items) if o.items else []}
 
 @app.route('/api/ordenes', methods=['GET'])
@@ -540,6 +541,8 @@ def crear_orden():
     o = OrdenCompra(prov=d.get('prov',''), prov_nombre=d.get('prov_nombre',''),
                     fecha=d.get('fecha',''), items=json.dumps(d.get('items',[])))
     db.session.add(o)
+    db.session.commit()
+    o.oc = 'OC-%04d' % o.id  # folio consecutivo de orden de compra
     db.session.commit()
     return jsonify(ord_dict(o)), 201
 
@@ -709,6 +712,7 @@ def migrar_columnas():
     for stmt in [
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS taller_est VARCHAR(30)",
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS casillero VARCHAR(30)",
+        "ALTER TABLE ordenes_compra ADD COLUMN IF NOT EXISTS oc VARCHAR(20)",
     ]:
         try:
             db.session.execute(text(stmt)); db.session.commit()
