@@ -1610,21 +1610,76 @@ function rOrd(){
   const yaPedidos=itemsPedidos();
   const byP={};
   pend.forEach(p=>(p.items||[]).forEach(it=>{if(!it.mol||yaPedidos.has(claveItem(p.folio,it.mol)))return;const pv=it.prov||'PROPIO';if(!byP[pv])byP[pv]=[];const ex=byP[pv].find(x=>x.mol===it.mol);if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);if(p.fecha&&(!ex.fecha||p.fecha<ex.fecha))ex.fecha=p.fecha;}else byP[pv].push({mol:it.mol,pzas:it.q,fols:[p.folio],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[],fecha:p.fecha||''});}));
-  const provs=Object.keys(byP);
+  const provs=Object.keys(byP).sort((a,b)=>byP[b].reduce((s,x)=>s+x.pzas,0)-byP[a].reduce((s,x)=>s+x.pzas,0));
   const px=proxDiaPedido();
   const ultOrd=ORDENES.length?ORDENES[0]:null;
-  const banner=`<div style="background:${px.hoy?'var(--green-l)':'var(--surface2)'};border:1px solid ${px.hoy?'#A7D7BC':'var(--border)'};border-radius:var(--rad);padding:10px 14px;margin-bottom:14px;font-size:13px">${px.hoy?'🟢 <strong>Hoy es día de pedido</strong>':'📅 Próximo día de pedido: <strong>'+px.f.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})+'</strong>'} <span style="color:var(--text3)">· Se pide lunes, miércoles y viernes</span>${ultOrd?`<div style="margin-top:4px;font-size:12px;color:var(--text2)">Última orden: <strong>${ultOrd.oc||'—'}</strong> · ${ultOrd.prov_nombre||ultOrd.prov} · ${ultOrd.fecha}. Abajo se muestra únicamente <strong>lo ingresado que aún no se pide</strong>.</div>`:''}</div>`;
-  if(!provs.length){document.getElementById('ord-c').innerHTML=banner+'<div style="text-align:center;color:var(--text3);padding:3rem">Todo pedido ✓ — sin molduras pendientes de surtir</div>';return;}
-  document.getElementById('ord-c').innerHTML=banner+provs.map(pv=>`
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
-        <div><div style="font-size:13px;font-weight:600">${PROVS[pv]||pv}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:1px">${byP[pv].length} molduras · ${byP[pv].reduce((a,b)=>a+b.pzas,0)} piezas</div></div>
-        <button class="btn btn-p btn-sm" onclick="pedirOrd('${pv}')">🖨️ Pedir</button>
+  const hoyMx=new Date().toLocaleDateString('es-MX');
+  const pedidasHoy=ORDENES.filter(o=>o.fecha===hoyMx);
+  const totPzas=provs.reduce((s,pv)=>s+byP[pv].reduce((a,b)=>a+b.pzas,0),0);
+  const totMols=provs.reduce((s,pv)=>s+byP[pv].length,0);
+  const notas=[...new Set(provs.flatMap(pv=>byP[pv].flatMap(it=>it.fols)))];
+
+  // 1) Estado del día
+  const banner=`<div style="background:${px.hoy?'var(--green-l)':'var(--surface2)'};border:1px solid ${px.hoy?'#A7D7BC':'var(--border)'};border-radius:var(--rad);padding:10px 14px;margin-bottom:12px;font-size:13px">${px.hoy?'🟢 <strong>Hoy es día de pedido</strong>':'📅 Próximo día de pedido: <strong>'+px.f.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})+'</strong>'} <span style="color:var(--text3)">· Se pide lunes, miércoles y viernes</span>${ultOrd?`<span style="color:var(--text3)"> · Última orden: <strong>${ultOrd.oc||'—'}</strong> (${ultOrd.fecha})</span>`:''}</div>`;
+
+  // 2) Pedidas hoy (progreso del día)
+  const hechasHoy=pedidasHoy.length?`<div style="background:var(--green-l);border:1px solid #A7D7BC;border-radius:var(--rad);padding:8px 14px;margin-bottom:12px;font-size:12px">✅ <strong>Pedidas hoy:</strong> ${pedidasHoy.map(o=>`<span class="mono" style="font-weight:700">${o.oc||''}</span> ${o.prov_nombre||o.prov}`).join(' · ')}</div>`:'';
+
+  if(!provs.length){
+    document.getElementById('ord-c').innerHTML=banner+hechasHoy+`
+      <div style="text-align:center;padding:3.5rem 1rem">
+        <div style="font-size:42px">🎉</div>
+        <div style="font-size:16px;font-weight:700;margin-top:8px">Todo pedido</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:4px">No hay molduras pendientes. Lo que entre nuevo aparecerá aquí para el próximo día de pedido.</div>
+      </div>`;
+    return;
+  }
+
+  // 3) Resumen de lo acumulado
+  const resumen=`<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+    <div style="flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--green);border-radius:10px;padding:12px 14px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">📦 Piezas por pedir</div><div class="mono" style="font-size:26px;font-weight:800">${totPzas}</div></div>
+    <div style="flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border);border-left:4px solid #1D4ED8;border-radius:10px;padding:12px 14px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">🖼 Molduras distintas</div><div class="mono" style="font-size:26px;font-weight:800">${totMols}</div></div>
+    <div style="flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border);border-left:4px solid #B45309;border-radius:10px;padding:12px 14px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">🧾 Notas de clientes</div><div class="mono" style="font-size:26px;font-weight:800">${notas.length}</div></div>
+  </div>`;
+
+  // 4) Guía de pasos
+  const guia=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--text2)">
+    <span style="background:var(--surface2);border-radius:99px;padding:5px 12px"><strong>1️⃣ Revisa</strong> lo acumulado</span>
+    <span style="background:var(--surface2);border-radius:99px;padding:5px 12px"><strong>2️⃣ Pide e imprime</strong> por proveedor</span>
+    <span style="background:var(--surface2);border-radius:99px;padding:5px 12px"><strong>3️⃣ Entrega la hoja</strong> · queda copia en Historial</span>
+  </div>`;
+
+  // 5) Tarjetas por proveedor (detalle plegado)
+  document.getElementById('ord-c').innerHTML=banner+hechasHoy+resumen+guia+provs.map((pv,i)=>{
+    const pzas=byP[pv].reduce((a,b)=>a+b.pzas,0);
+    const fechaVieja=byP[pv].map(it=>it.fecha).filter(Boolean).sort()[0];
+    return `
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:14px;padding:14px 16px">
+        <div style="width:52px;height:52px;border-radius:12px;background:var(--green-l);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">
+          <div class="mono" style="font-size:20px;font-weight:800;color:var(--green);line-height:1">${pzas}</div>
+          <div style="font-size:8px;font-weight:700;color:var(--green);text-transform:uppercase">piezas</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700">${PROVS[pv]||pv}</div>
+          <div style="font-size:11px;color:var(--text3)">${byP[pv].length} molduras${fechaVieja?' · acumulando desde el '+fechaVieja:''}</div>
+        </div>
+        <button class="btn btn-s btn-sm" onclick="toggleOrdDet(${i})"><span id="ord-arrow-${i}">▸</span> Ver molduras</button>
+        <button class="btn btn-p btn-sm" onclick="pedirOrd('${pv}','wa')">📱 Pedir x WhatsApp</button>
+        <button class="btn btn-s btn-sm" onclick="pedirOrd('${pv}','print')">🖨️ Pedir e imprimir</button>
       </div>
-      <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Moldura</th><th style="text-align:center">Piezas</th><th>Medidas</th><th>Pedidos</th><th>Ingresó</th></tr></thead>
-      <tbody>${byP[pv].map(it=>`<tr><td>${it.mol}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.fols)].join(', ')}</td><td style="color:var(--text3);font-size:11px;white-space:nowrap">${it.fecha||'—'}</td></tr>`).join('')}</tbody></table></div>
-    </div>`).join('');
+      <div id="ord-det-${i}" style="display:none;border-top:1px solid var(--border);padding:0 16px 14px">
+        <div class="tw" style="margin:10px 0 0"><table class="tbl"><thead><tr><th>Moldura</th><th style="text-align:center">Piezas</th><th>Medidas</th><th>Pedidos</th><th>Ingresó</th></tr></thead>
+        <tbody>${byP[pv].map(it=>`<tr><td>${it.mol}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.fols)].join(', ')}</td><td style="color:var(--text3);font-size:11px;white-space:nowrap">${it.fecha||'—'}</td></tr>`).join('')}</tbody></table></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function toggleOrdDet(i){
+  const d=document.getElementById('ord-det-'+i),a=document.getElementById('ord-arrow-'+i);
+  const abierto=d.style.display!=='none';
+  d.style.display=abierto?'none':'';
+  if(a)a.textContent=abierto?'▸':'▾';
 }
 
 function switchOrdTab(tab, el){
@@ -1640,19 +1695,54 @@ function rOrdHist(){
   const h=document.getElementById('ord-hist');if(!h)return;
   if(!ORDENES.length){h.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Sin historial de órdenes pedidas</div>';return;}
   const u=USERS.find(x=>x.key===CU);const esAdm=u&&(u.role==='admin'||u.role==='owner');
-  h.innerHTML=ORDENES.map(e=>`
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
+  h.innerHTML='<div style="font-size:12px;color:var(--text2);background:var(--surface2);border-radius:var(--rad);padding:8px 14px;margin-bottom:12px">📦 <strong>Cuando llegue el material:</strong> palomea cada moldura conforme la saques de la caja. Lo que el proveedor no surtió, mándalo de vuelta a Pendientes con un clic.</div>'+ORDENES.map(e=>{
+    const its=e.items||[];
+    const rec=its.filter(it=>it.rec).length;
+    const completa=its.length&&rec===its.length;
+    const faltan=its.length-rec;
+    return `
+    <div class="card" style="${completa?'border-left:4px solid var(--green)':rec>0?'border-left:4px solid #B45309':''}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:8px">
         <div><div style="font-size:13px;font-weight:700"><span class="mono" style="color:var(--green)">${e.oc||''}</span> · ${e.prov_nombre||e.prov}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:1px">Pedida el ${e.fecha} · ${(e.items||[]).reduce((a,b)=>a+b.pzas,0)} piezas</div></div>
-        <div style="display:flex;gap:6px">
+        <div style="font-size:11px;color:var(--text3);margin-top:1px">Pedida el ${e.fecha} · ${its.reduce((a,b)=>a+b.pzas,0)} piezas · ${completa?'<span style="color:var(--green);font-weight:700">✓ Todo llegó</span>':rec>0?'<span style="color:#B45309;font-weight:700">'+rec+'/'+its.length+' molduras llegaron</span>':'<span>Esperando entrega</span>'}</div></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-s btn-sm" onclick="copiarOrdenWA(${e.id})">📱 Copiar WA</button>
           <button class="btn btn-s btn-sm" onclick="reimprimirOrd(${e.id})">🖨️ Reimprimir</button>
+          ${faltan>0&&rec>0?`<button class="btn btn-s btn-sm" style="color:#B45309;border-color:#B45309" onclick="faltantesAPendientes(${e.id})">↩ Faltantes (${faltan}) a Pendientes</button>`:''}
           ${esAdm?`<button class="btn btn-d btn-sm" onclick="delOrdHist(${e.id})">🗑</button>`:''}
         </div>
       </div>
-      <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Moldura</th><th style="text-align:center">Piezas</th><th>Medidas</th><th>Pedidos</th></tr></thead>
-      <tbody>${(e.items||[]).map(it=>`<tr><td>${it.mol}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td><td style="color:var(--text3);font-size:11px">${(it.fols||[]).join(', ')}</td></tr>`).join('')}</tbody></table></div>
-    </div>`).join('');
+      <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th style="width:60px;text-align:center">Llegó</th><th>Moldura</th><th style="text-align:center">Piezas</th><th>Medidas</th><th>Pedidos</th></tr></thead>
+      <tbody>${its.map((it,ix)=>`<tr style="${it.rec?'background:var(--green-l)':''}">
+        <td style="text-align:center"><input type="checkbox" ${it.rec?'checked':''} onchange="marcarRec(${e.id},${ix},this.checked)" style="width:18px;height:18px;cursor:pointer"></td>
+        <td style="${it.rec?'':'font-weight:600'}">${it.mol}</td>
+        <td style="text-align:center;font-weight:600">${it.pzas}</td>
+        <td style="color:var(--text3);font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td>
+        <td style="color:var(--text3);font-size:11px">${(it.fols||[]).join(', ')}</td>
+      </tr>`).join('')}</tbody></table></div>
+    </div>`;
+  }).join('');
+}
+function marcarRec(id,ix,val){
+  const o=ORDENES.find(x=>x.id===id);if(!o||!o.items||!o.items[ix])return;
+  o.items[ix].rec=!!val;
+  fetch('/api/ordenes/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:o.items})})
+  .then(r=>r.json()).then(()=>{
+    if(val)logActivity('Recepción de material',(o.oc||'')+' — llegó '+o.items[ix].mol);
+    rOrdHist();
+  }).catch(()=>{alert('Error de conexión al guardar');o.items[ix].rec=!val;rOrdHist();});
+}
+function faltantesAPendientes(id){
+  const o=ORDENES.find(x=>x.id===id);if(!o)return;
+  const faltantes=(o.items||[]).filter(it=>!it.rec);
+  if(!faltantes.length)return;
+  if(!confirm('Regresar '+faltantes.length+' moldura(s) no surtida(s) a Pendientes de pedir?\nSe volverán a acumular para el próximo día de pedido.'))return;
+  o.items=(o.items||[]).filter(it=>it.rec);
+  fetch('/api/ordenes/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:o.items})})
+  .then(r=>r.json()).then(()=>{
+    logActivity('Faltantes a pendientes',(o.oc||'')+' — '+faltantes.map(f=>f.mol).join(', '));
+    rOrdHist();rOrd();
+  }).catch(()=>alert('Error de conexión'));
 }
 function reimprimirOrd(id){
   const o=ORDENES.find(x=>x.id===id);
@@ -1806,9 +1896,10 @@ function registrarOrdManual(){
     if(!p||!it)return;
     const pv=it.prov||'PROPIO';
     if(!byProv[pv])byProv[pv]=[];
+    const mlIt=(it.l1&&it.l2)?((((+it.l1)+(+it.l2))*2/100)+despDe(it.mol))*(it.q||1):0;
     const ex=byProv[pv].find(x=>x.mol===it.mol);
-    if(ex){ex.pzas+=it.q||1;ex.fols.push(p.folio);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}
-    else byProv[pv].push({mol:it.mol,pzas:it.q||1,fols:[p.folio],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});
+    if(ex){ex.pzas+=it.q||1;ex.fols.push(p.folio);ex.ml=(ex.ml||0)+mlIt;if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}
+    else byProv[pv].push({mol:it.mol,pzas:it.q||1,fols:[p.folio],ml:mlIt,meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});
   });
   const provs=Object.keys(byProv);
   if(!provs.length){alert('No hay molduras seleccionadas');return;}
@@ -1824,28 +1915,66 @@ function registrarOrdManual(){
     fetch('/api/ordenes',{credentials:'include'}).then(r=>r.json()).then(o=>{ORDENES=o||ORDENES;rOrd();rOrdHist&&rOrdHist();}).catch(()=>rOrd());
   }).catch(()=>alert('Error de conexión al registrar la orden'));
 }
-function pedirOrd(pv){
+
+// ─── PEDIDOS POR WHATSAPP Y TIRAS (Marcos y Marcos) ──────────────────────────
+function despDe(mol){const m=MOLS.find(x=>x.nombre.trim().toUpperCase()===String(mol).trim().toUpperCase());return m?(m.desp_cm||0):0;}
+function textoOrdenWA(o){
+  const esMM=o.prov==='MM';
+  let t='*ORDEN DE COMPRA '+(o.oc||'')+'*\nImpulso Galería · '+o.fecha+'\nProveedor: '+(o.prov_nombre||o.prov)+'\n\n';
+  (o.items||[]).forEach(it=>{
+    const meds=[...new Set(it.meds||[])].join(', ');
+    if(esMM&&it.ml){
+      t+='▪️ '+it.mol+' — *'+Math.ceil(it.ml/2)+' tira(s)* ('+it.ml.toFixed(2)+' ml · '+it.pzas+' pzas'+(meds?' · '+meds+' cm':'')+')\n';
+    }else{
+      t+='▪️ '+it.mol+' — '+it.pzas+' pza(s)'+(meds?' · '+meds+' cm':'')+'\n';
+    }
+  });
+  t+='\nTotal: '+(o.items||[]).reduce((a,b)=>a+b.pzas,0)+' piezas';
+  if(esMM)t+='\n(Tiras calculadas con perímetro + desperdicio; tira de 2 m)';
+  return t;
+}
+function copiarTexto(txt,ok){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(ok).catch(()=>{copiarTextoFallback(txt);ok();});
+  }else{copiarTextoFallback(txt);ok();}
+}
+function copiarTextoFallback(txt){
+  const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');}catch(e){}
+  document.body.removeChild(ta);
+}
+function copiarOrdenWA(id){
+  const o=ORDENES.find(x=>x.id===id);if(!o)return;
+  copiarTexto(textoOrdenWA(o),()=>alert('📱 Texto de la orden '+(o.oc||'')+' copiado.\nPégalo en el chat de '+(o.prov_nombre||o.prov)+'.'));
+}
+function pedirOrd(pv,modo){
+  modo=modo||'print';
   const px=proxDiaPedido();
   if(!px.hoy&&!confirm('Hoy no es día de pedido (lunes, miércoles o viernes).\n¿Pedir de todas formas?'))return;
   const yaPedidos=itemsPedidos();
   const items=[];
   pedidos.filter(p=>p.est==='Pendiente'&&p.items).forEach(p=>
     (p.items||[]).filter(it=>it.mol&&(it.prov||'PROPIO')===pv&&!yaPedidos.has(claveItem(p.folio,it.mol))).forEach(it=>{
+      const mlIt=(it.l1&&it.l2)?((((+it.l1)+(+it.l2))*2/100)+despDe(it.mol))*(it.q||1):0;
       const ex=items.find(x=>x.mol===it.mol);
-      if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}
-      else items.push({mol:it.mol,pzas:it.q,fols:[p.folio],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});
+      if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);ex.ml=(ex.ml||0)+mlIt;if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}
+      else items.push({mol:it.mol,pzas:it.q,fols:[p.folio],ml:mlIt,meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});
     }));
   if(!items.length){alert('No hay molduras pendientes de este proveedor');return;}
   // Abrir la ventana ANTES del guardado (si se abre después, el navegador la bloquea)
-  const w=window.open('','_blank');
+  const w=modo==='print'?window.open('','_blank'):null;
   const orden={prov:pv,prov_nombre:PROVS[pv]||pv,fecha:new Date().toLocaleDateString('es-MX'),items:items.map(i=>({...i,fols:[...new Set(i.fols)]}))};
   fetch('/api/ordenes',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(orden)})
   .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
   .then(d=>{
     if(d.error)throw new Error(d.error);
     ORDENES.unshift(d);
-    logActivity('Pidió orden de compra',(d.oc||'')+' '+(PROVS[pv]||pv)+' — '+items.reduce((a,b)=>a+b.pzas,0)+' piezas');
-    printOrd(pv,items,w,d.oc,d.fecha);
+    logActivity('Pidió orden de compra',(d.oc||'')+' '+(PROVS[pv]||pv)+' — '+items.reduce((a,b)=>a+b.pzas,0)+' piezas'+(modo==='wa'?' (WhatsApp)':''));
+    if(modo==='wa'){
+      copiarTexto(textoOrdenWA(d),()=>alert('✅ Orden '+(d.oc||'')+' registrada y texto copiado.\nPégalo en el chat de '+(PROVS[pv]||pv)+'.'));
+    }else{
+      printOrd(pv,items,w,d.oc,d.fecha);
+    }
     // Sincronizar con el servidor para que el resto de dispositivos coincidan
     fetch('/api/ordenes',{credentials:'include'}).then(r=>r.json()).then(o=>{ORDENES=o||ORDENES;rOrd();}).catch(()=>rOrd());
     rOrd();
