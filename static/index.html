@@ -280,6 +280,25 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 </div>
 </div>
 
+<div class="modal-bg" id="mod-ordman" style="display:none">
+<div class="modal" style="width:560px;max-width:94vw">
+  <div class="modal-hdr"><div class="modal-ttl">➕ Orden manual por nota</div><button class="modal-x" onclick="CM('mod-ordman')">✕</button></div>
+  <div class="modal-body">
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px">
+      <div class="field" style="flex:1;margin:0"><label>No. de nota / folio</label><input id="om-folio" placeholder="ej. 2489" onkeydown="if(event.key==='Enter')buscarFolioOM()"></div>
+      <button class="btn btn-p" style="white-space:nowrap" onclick="buscarFolioOM()">🔍 Buscar</button>
+    </div>
+    <div id="om-info" style="font-size:12px;color:var(--text3);margin-bottom:8px">Escribe la nota y la plataforma te muestra sus molduras y medidas</div>
+    <div id="om-items"></div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-top:10px;cursor:pointer">
+      <input type="checkbox" id="om-imprimir" style="width:auto">
+      <span>🖨️ Imprimir la hoja de orden también (déjalo apagado si la moldura ya se pidió por fuera y solo estás regularizando)</span>
+    </label>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-ordman')">Cancelar</button><button class="btn btn-p" onclick="registrarOrdManual()">✓ Registrar como pedida</button></div>
+</div>
+</div>
+
 <div class="modal-bg" id="mod-ent" style="display:none">
 <div class="modal">
   <div class="modal-hdr"><div class="modal-ttl">Registrar Entrega</div><button class="modal-x" onclick="CM('mod-ent')">✕</button></div>
@@ -615,7 +634,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 
 <!-- ÓRDENES -->
 <div class="page" id="page-ord">
-  <div class="ph"><div><div class="ph-title">Órdenes de Compra</div><div class="ph-sub">Molduras pendientes de surtir por proveedor</div></div></div>
+  <div class="ph"><div><div class="ph-title">Órdenes de Compra</div><div class="ph-sub">Molduras pendientes de surtir por proveedor</div><button class="btn btn-s" onclick="openOrdManual()">➕ Orden manual</button></div></div>
   <div class="chips">
     <div class="chip active" id="chip-ord-pend" onclick="switchOrdTab('activas',this)">Pendientes de pedir</div>
     <div class="chip" id="chip-ord-seg" onclick="switchOrdTab('seguimiento',this)">Seguimiento</div>
@@ -1731,6 +1750,79 @@ function verDetallesPed(pi){
     ${p.obs?`<div style="background:var(--surface2);border-radius:8px;padding:9px 12px;font-size:12px;margin-bottom:12px"><strong>Observaciones:</strong> ${p.obs}</div>`:''}
     <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Moldura / Concepto</th><th style="text-align:center">Medidas</th><th style="text-align:center">Cant.</th><th>Extras</th></tr></thead><tbody>${filas}</tbody></table></div>`;
   OM('mod-detped');
+}
+
+// ─── ORDEN MANUAL POR NOTA (regularizar o pedir una nota suelta) ─────────────
+let _omPedidos=[];
+function openOrdManual(){
+  _omPedidos=[];
+  document.getElementById('om-folio').value='';
+  document.getElementById('om-items').innerHTML='';
+  document.getElementById('om-imprimir').checked=false;
+  document.getElementById('om-info').textContent='Escribe la nota y la plataforma te muestra sus molduras y medidas';
+  OM('mod-ordman');
+}
+function buscarFolioOM(){
+  const f=document.getElementById('om-folio').value.trim();
+  const info=document.getElementById('om-info');
+  const cont=document.getElementById('om-items');
+  _omPedidos=[];cont.innerHTML='';
+  if(!f){info.textContent='Escribe la nota y la plataforma te muestra sus molduras y medidas';return;}
+  const matches=pedidos.filter(p=>String(p.folio)===f&&p.est==='Pendiente');
+  if(!matches.length){info.innerHTML='<span style="color:var(--red)">No se encontró ninguna nota pendiente con ese folio</span>';return;}
+  _omPedidos=matches;
+  const yaPedidos=itemsPedidos();
+  let html='';let hayDisponibles=false;
+  matches.forEach((p,mi)=>{
+    const its=(p.items||[]).filter(it=>it.mol);
+    html+=`<div style="font-size:12px;font-weight:600;margin:8px 0 4px">Nota ${p.folio} — ${p.cli} · ${p.suc}</div>`;
+    if(!its.length){html+='<div style="font-size:12px;color:var(--text3)">Esta nota no tiene molduras (solo extras/servicio)</div>';return;}
+    html+='<div class="tw" style="margin:0"><table class="tbl"><thead><tr><th></th><th>Moldura</th><th>Prov.</th><th style="text-align:center">Pzas</th><th>Medidas</th></tr></thead><tbody>';
+    its.forEach((it,ii)=>{
+      const pedida=yaPedidos.has(claveItem(p.folio,it.mol));
+      if(!pedida)hayDisponibles=true;
+      html+=`<tr style="${pedida?'opacity:.45':''}">
+        <td>${pedida?'✓':`<input type="checkbox" class="om-chk" data-mi="${mi}" data-ii="${ii}" checked style="width:auto">`}</td>
+        <td>${it.mol}${pedida?' <span style="font-size:10px;color:var(--green)">(ya pedida)</span>':''}</td>
+        <td style="font-size:11px;color:var(--text3)">${PROVS[it.prov||'PROPIO']||it.prov||'Propio'}</td>
+        <td style="text-align:center;font-weight:600">${it.q||1}</td>
+        <td style="font-size:11px;color:var(--text3)">${it.l1&&it.l2?it.l1+'×'+it.l2+' cm':'—'}</td>
+      </tr>`;
+    });
+    html+='</tbody></table></div>';
+  });
+  cont.innerHTML=html;
+  info.innerHTML=hayDisponibles?'✓ Marca las molduras a registrar y confirma abajo':'<span style="color:var(--green)">Todas las molduras de esta nota ya están pedidas ✓</span>';
+}
+function registrarOrdManual(){
+  const chks=[...document.querySelectorAll('.om-chk:checked')];
+  if(!chks.length){alert('No hay molduras seleccionadas');return;}
+  const imprimir=document.getElementById('om-imprimir').checked;
+  // Agrupar por proveedor
+  const byProv={};
+  chks.forEach(c=>{
+    const p=_omPedidos[parseInt(c.dataset.mi)];
+    const it=(p.items||[]).filter(x=>x.mol)[parseInt(c.dataset.ii)];
+    if(!p||!it)return;
+    const pv=it.prov||'PROPIO';
+    if(!byProv[pv])byProv[pv]=[];
+    const ex=byProv[pv].find(x=>x.mol===it.mol);
+    if(ex){ex.pzas+=it.q||1;ex.fols.push(p.folio);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}
+    else byProv[pv].push({mol:it.mol,pzas:it.q||1,fols:[p.folio],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});
+  });
+  const provs=Object.keys(byProv);
+  if(!provs.length){alert('No hay molduras seleccionadas');return;}
+  Promise.all(provs.map(pv=>{
+    const orden={prov:pv,prov_nombre:PROVS[pv]||pv,fecha:new Date().toLocaleDateString('es-MX'),items:byProv[pv].map(i=>({...i,fols:[...new Set(i.fols)]}))};
+    return fetch('/api/ordenes',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(orden)}).then(r=>r.json());
+  })).then(res=>{
+    const ok=res.filter(d=>d&&d.id);
+    ok.forEach(d=>ORDENES.unshift(d));
+    logActivity('Orden manual registrada',ok.map(d=>(d.oc||'')+' '+(d.prov_nombre||'')).join(', '));
+    if(imprimir)ok.forEach(d=>printOrd(d.prov,d.items,null,d.oc,d.fecha));
+    CM('mod-ordman');
+    fetch('/api/ordenes',{credentials:'include'}).then(r=>r.json()).then(o=>{ORDENES=o||ORDENES;rOrd();rOrdHist&&rOrdHist();}).catch(()=>rOrd());
+  }).catch(()=>alert('Error de conexión al registrar la orden'));
 }
 function pedirOrd(pv){
   const px=proxDiaPedido();
