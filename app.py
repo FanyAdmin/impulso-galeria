@@ -546,6 +546,16 @@ def crear_orden():
     db.session.commit()
     return jsonify(ord_dict(o)), 201
 
+@app.route('/api/ordenes/<int:oid>', methods=['PUT'])
+@requiere_login
+def actualizar_orden(oid):
+    o = OrdenCompra.query.get_or_404(oid)
+    d = request.json or {}
+    if 'items' in d:
+        o.items = json.dumps(d['items'])
+    db.session.commit()
+    return jsonify(ord_dict(o))
+
 @app.route('/api/ordenes/<int:oid>', methods=['DELETE'])
 @requiere_admin
 def borrar_orden(oid):
