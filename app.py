@@ -305,11 +305,10 @@ def borrar_empleado(eid):
 @app.route('/api/pedidos', methods=['GET'])
 @requiere_login
 def get_pedidos():
-    rol = session.get('rol')
-    suc = session.get('suc')
+    # Todos los roles reciben el concentrado completo: las vistas por sucursal
+    # (Pedidos, CxC, Mi Dia) filtran en el frontend, y Ordenes de Compra
+    # necesita ambas sucursales para que quien pida, pida todo.
     q = Pedido.query
-    if rol not in ('admin','owner','taller'):
-        q = q.filter_by(suc=suc)
     return jsonify([p_dict(p) for p in q.order_by(Pedido.id.desc()).all()])
 
 @app.route('/api/pedidos', methods=['POST'])
@@ -457,6 +456,66 @@ def import_pedidos():
     return jsonify({'ok': True, 'imported': count})
 
 
+
+
+
+# ── CATÁLOGO DE MOLDURAS EN BD ────────────────────────────────────────────────
+
+class Moldura(db.Model):
+    __tablename__ = 'molduras'
+    id           = db.Column(db.Integer, primary_key=True)
+    nombre       = db.Column(db.String(150), nullable=False)
+    precio_lista = db.Column(db.Float, default=0)
+    desp_cm      = db.Column(db.Float, default=0)
+    proveedor    = db.Column(db.String(50), default='PROPIO')
+    estatus      = db.Column(db.String(20), default='activa')
+
+def mol_dict(m):
+    return {'id':m.id,'nombre':m.nombre,'precio_lista':m.precio_lista,
+            'desp_cm':m.desp_cm,'proveedor':m.proveedor,'estatus':m.estatus}
+
+@app.route('/api/molduras', methods=['GET'])
+@requiere_login
+def get_molduras():
+    return jsonify([mol_dict(m) for m in Moldura.query.order_by(Moldura.id).all()])
+
+@app.route('/api/molduras/bulk', methods=['POST'])
+@requiere_admin
+def seed_molduras():
+    """Siembra inicial del catálogo (solo si la tabla está vacía)."""
+    if Moldura.query.first():
+        return jsonify({'error': 'El catálogo ya está sembrado'}), 400
+    items = (request.json or {}).get('items', [])
+    for it in items:
+        db.session.add(Moldura(nombre=it.get('nombre',''), precio_lista=it.get('precio_lista',0),
+                               desp_cm=it.get('desp_cm',0), proveedor=it.get('proveedor','PROPIO'),
+                               estatus=it.get('estatus','activa')))
+    db.session.commit()
+    return jsonify({'ok': True, 'sembradas': len(items)}), 201
+
+@app.route('/api/molduras', methods=['POST'])
+@requiere_admin
+def crear_moldura():
+    d = request.json or {}
+    if not d.get('nombre'):
+        return jsonify({'error': 'Nombre requerido'}), 400
+    m = Moldura(nombre=d.get('nombre'), precio_lista=d.get('precio_lista',0),
+                desp_cm=d.get('desp_cm',0), proveedor=d.get('proveedor','PROPIO'),
+                estatus=d.get('estatus','activa'))
+    db.session.add(m)
+    db.session.commit()
+    return jsonify(mol_dict(m)), 201
+
+@app.route('/api/molduras/<int:mid>', methods=['PUT'])
+@requiere_admin
+def actualizar_moldura(mid):
+    m = Moldura.query.get_or_404(mid)
+    d = request.json or {}
+    for campo in ['nombre','precio_lista','desp_cm','proveedor','estatus']:
+        if campo in d:
+            setattr(m, campo, d[campo])
+    db.session.commit()
+    return jsonify(mol_dict(m))
 
 
 # ── ABONOS (cobros con fecha: liquidaciones y pagos parciales) ────────────────
