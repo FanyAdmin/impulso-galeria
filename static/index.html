@@ -316,7 +316,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 </div>
 
 <div class="modal-bg" id="mod-edit-ped" style="display:none">
-<div class="modal" style="width:560px">
+<div class="modal" style="width:720px;max-width:95vw">
   <div class="modal-hdr"><div class="modal-ttl" id="edit-ped-ttl">Editar Pedido</div><button class="modal-x" onclick="CM('mod-edit-ped')">✕</button></div>
   <div class="modal-body">
     <div class="g2">
@@ -329,6 +329,20 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div class="field"><label>Anticipo ($)</label><input type="number" id="ep-a" placeholder="0.00"></div>
       <div class="field"><label>Entrega prometida</label><input type="date" id="ep-ent"></div>
       <div class="field gc2"><label>Observaciones</label><input id="ep-o" placeholder="Notas del pedido..."></div>
+    </div>
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em">🖼 Artículos del pedido</div>
+        <button class="btn btn-s btn-sm" onclick="addItemEP()">＋ Agregar artículo</button>
+      </div>
+      <div id="ep-items" style="font-size:12px"></div>
+      <div style="display:flex;justify-content:flex-end;gap:16px;align-items:center;margin-top:10px;font-size:12px;flex-wrap:wrap">
+        <span>Suma artículos c/IVA: <strong class="mono" id="ep-sub-lbl">$0.00</strong></span>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:600">Total del pedido ($)
+          <input type="number" id="ep-total" step="0.01" style="width:130px" oninput="epTotalManual=true">
+        </label>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;text-align:right">Al cambiar un importe, el total se recalcula solo. Si el pedido tiene descuento, ajusta el total a mano al final.</div>
     </div>
     <div style="margin-top:12px">
       <div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">💵 Cobros registrados de este pedido</div>
@@ -1234,7 +1248,7 @@ function rPed(f){
     return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
-      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
   document.getElementById('p-pag').innerHTML=total>1?
     `<span style="margin-right:4px;color:var(--text2)">Pág ${pedPage+1} de ${total} · ${list.length} pedidos</span>
@@ -1300,7 +1314,7 @@ function rCxC(){
     return `<tr><td class="mono" style="font-weight:600">${c.folio}</td><td>${c.cli}</td><td>${c.suc}</td><td>${c.fechaE||c.fecha||'—'}</td>
       <td class="mono">${fmt(c.total)}</td><td class="mono">${fmt(c.abon)}</td>
       <td class="mono" style="${!c.liq?'color:var(--red);font-weight:600':''}">${fmt(c.saldo)}</td>
-      <td>${badge}${c.casillero?'<div style="font-size:11px;font-weight:700;margin-top:3px">📦 '+c.casillero+'</div>':''}</td><td>${btn}</td><td><button onclick="editPed(${pedIdx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${pedIdx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td>${badge}${c.casillero?'<div style="font-size:11px;font-weight:700;margin-top:3px">📦 '+c.casillero+'</div>':''}</td><td>${btn}</td><td>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${pedIdx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${pedIdx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 let _cxcList=[];
@@ -1497,7 +1511,7 @@ function rDia(){
     const btn=p.est==='Pendiente'?`<button class="btn btn-s btn-xs" onclick="openEnt(${idx})">📦 Entregar</button>`:'';
     const tvB=p.tipo_venta==='factura'?'<span class="badge bb" style="font-size:10px">📄 Factura</span>':'<span class="badge bgr" style="font-size:10px">Gral</span>';
     const tvBtn=`<button class="btn btn-s btn-xs" onclick="toggleTV(${idx})" style="padding:1px 5px;font-size:10px" title="Cambiar tipo">&#8644;</button>`;
-    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td><td><button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td><td>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 
@@ -2818,6 +2832,50 @@ function delPed(idx){
   else{pedidos.splice(idx,1);rPed();}
 }
 let editPedIdx=null;
+let epItems=[];let epTotalManual=false;
+function pintarItemsEP(){
+  const cont=document.getElementById('ep-items');if(!cont)return;
+  if(!epItems.length){cont.innerHTML='<div style="color:var(--text3);padding:6px 0">Sin artículos. Usa "＋ Agregar artículo".</div>';}
+  else{
+    cont.innerHTML=`<div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Moldura / Concepto</th><th style="width:64px">L1 (cm)</th><th style="width:64px">L2 (cm)</th><th style="width:52px">Cant.</th><th style="width:100px">Importe c/IVA</th><th>Extras</th><th style="width:34px"></th></tr></thead><tbody>`+
+    epItems.map((it,i)=>`<tr>
+      <td><input value="${(it.mol||'').replace(/"/g,'&quot;')}" oninput="updItemEP(${i},'mol',this.value)" style="width:100%;min-width:110px"></td>
+      <td><input type="number" step="0.1" value="${it.l1||''}" oninput="updItemEP(${i},'l1',this.value)" style="width:100%"></td>
+      <td><input type="number" step="0.1" value="${it.l2||''}" oninput="updItemEP(${i},'l2',this.value)" style="width:100%"></td>
+      <td><input type="number" min="1" value="${it.q||1}" oninput="updItemEP(${i},'q',this.value)" style="width:100%"></td>
+      <td><input type="number" step="0.01" value="${it.subIva!=null?(+it.subIva).toFixed(2):((it.sub||0)*1.16).toFixed(2)}" oninput="updItemEP(${i},'imp',this.value)" style="width:100%"></td>
+      <td><input value="${(it.en||[]).join(', ').replace(/"/g,'&quot;')}" oninput="updItemEP(${i},'en',this.value)" placeholder="—" style="width:100%;min-width:90px;font-size:11px"></td>
+      <td><button onclick="delItemEP(${i})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button></td>
+    </tr>`).join('')+'</tbody></table></div>';
+  }
+  recalcTotalesEP();
+}
+function updItemEP(i,campo,val){
+  const it=epItems[i];if(!it)return;
+  if(campo==='mol')it.mol=val.trim().toUpperCase();
+  else if(campo==='l1'||campo==='l2')it[campo]=parseFloat(val)||0;
+  else if(campo==='q')it.q=Math.max(1,parseInt(val)||1);
+  else if(campo==='en')it.en=val.split(',').map(s=>s.trim()).filter(Boolean);
+  else if(campo==='imp'){const v=parseFloat(val)||0;it.subIva=v;it.sub=v/1.16;epTotalManual=false;}
+  if(campo==='imp')recalcTotalesEP();
+}
+function recalcTotalesEP(){
+  const sumIva=epItems.reduce((a,b)=>a+(b.subIva!=null?+b.subIva:(b.sub||0)*1.16),0);
+  const lbl=document.getElementById('ep-sub-lbl');if(lbl)lbl.textContent=fmt(sumIva);
+  const tot=document.getElementById('ep-total');
+  if(tot&&!epTotalManual)tot.value=sumIva.toFixed(2);
+}
+function addItemEP(){
+  epItems.push({mid:0,mol:'',prov:'',l1:0,l2:0,q:1,pm:0,ev:0,en:[],sub:0,subIva:0});
+  epTotalManual=false;
+  pintarItemsEP();
+}
+function delItemEP(i){
+  if(!confirm('¿Quitar este artículo del pedido?'))return;
+  epItems.splice(i,1);
+  epTotalManual=false;
+  pintarItemsEP();
+}
 function pintarCobrosPed(){
   const cont=document.getElementById('ep-cobros');if(cont===null)return;
   const p=pedidos[editPedIdx];if(!p){cont.innerHTML='';return;}
@@ -2835,6 +2893,8 @@ function pintarCobrosPed(){
     </div>`).join('');
 }
 function editPed(idx){
+  const _u=USERS.find(x=>x.key===CU);
+  if(!_u||_u.role!=='owner'){alert('Solo Estefania (owner) puede editar pedidos.');return;}
   const p=pedidos[idx];if(!p)return;
   editPedIdx=idx;
   document.getElementById('edit-ped-ttl').textContent='Editar Pedido — '+p.folio;
@@ -2850,13 +2910,25 @@ function editPed(idx){
   const vs=document.getElementById('ep-vend');
   vs.innerHTML='<option value="">- Vendedor -</option>'+VENDEDORES.map(v=>`<option value="${v.nombre}">${v.nombre}</option>`).join('');
   vs.value=p.vend||'';
+  // Artículos editables (copia; solo se aplica al guardar)
+  epItems=JSON.parse(JSON.stringify(p.items||[]));
+  epTotalManual=true;
+  const totEl=document.getElementById('ep-total');if(totEl)totEl.value=(p.total!=null?+p.total:0).toFixed(2);
+  pintarItemsEP();
   pintarCobrosPed();
   OM('mod-edit-ped');
 }
 function guardarEditPed(){
+  const _u=USERS.find(x=>x.key===CU);
+  if(!_u||_u.role!=='owner'){alert('Solo Estefania (owner) puede editar pedidos.');return;}
   if(editPedIdx===null)return;
   const p=pedidos[editPedIdx];if(!p)return;
   const ant=parseFloat(document.getElementById('ep-a').value)||0;
+  // Validar artículos: sin moldura/concepto vacío
+  if(epItems.some(it=>!String(it.mol||'').trim())){alert('Hay un artículo sin moldura o concepto. Complétalo o quítalo.');return;}
+  const items=epItems.map(it=>({...it,sub:+(it.sub||0),subIva:+(it.subIva!=null?it.subIva:(it.sub||0)*1.16)}));
+  const sub=items.reduce((a,b)=>a+b.sub,0);
+  const total=parseFloat(document.getElementById('ep-total').value)||0;
   const updates={
     est:document.getElementById('ep-est').value,
     cli:document.getElementById('ep-c').value.trim()||p.cli,
@@ -2864,14 +2936,17 @@ function guardarEditPed(){
     vend:document.getElementById('ep-vend').value,
     met:document.getElementById('ep-m').value,
     ant:ant,
-    rest:Math.max(0,(p.total||0)-ant),
+    items:items,
+    sub:sub,
+    total:total,
+    rest:Math.max(0,total-ant),
     obs:document.getElementById('ep-o').value.trim(),
     entrega:document.getElementById('ep-ent').value
   };
   Object.assign(p,updates);
   if(p.id){
     fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)})
-    .then(r=>r.json()).then(()=>{logActivity('Editó pedido','Folio '+p.folio+' — '+updates.cli);CM('mod-edit-ped');rPed();});
+    .then(r=>r.json()).then(()=>{logActivity('Editó pedido','Folio '+p.folio+' — '+updates.cli+' — '+fmt(total));CM('mod-edit-ped');rPed();if(document.querySelector('#page-ord.active'))rOrd();});
   } else {CM('mod-edit-ped');rPed();}
 }
 function misC(){
