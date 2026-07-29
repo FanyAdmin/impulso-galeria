@@ -2084,7 +2084,7 @@ function printOrd(pv,itemsPre,wPre,oc,fechaOrden){
 // ─── MOVIMIENTOS ──────────────────────────────────────────────────────────────
 function rMvCat(){
   const tipo=document.getElementById('mv-t').value;
-  const retiros=ER_CATS.retiros||[];
+  const retiros=esOwnerCU()?(ER_CATS.retiros||[]):[];
   const all=tipo==='Entrada'?[...ER_CATS.ingresos]:tipo==='Salida'?[...ER_CATS.costos,...ER_CATS.gastos_venta,...ER_CATS.gastos_admin,...retiros]:tipo==='Retiro'?[...retiros]:tipo==='Traspaso'?['Traspaso entre cuentas']:[...ER_CATS.ingresos,...ER_CATS.costos,...ER_CATS.gastos_venta,...ER_CATS.gastos_admin,...retiros];
   document.getElementById('mv-c').innerHTML=all.map(c=>`<option>${c}</option>`).join('');
   const wrap=document.getElementById('mv-cta2-wrap');
@@ -2096,6 +2096,7 @@ let editMovIdx=null;
 function editMov(idx){
   editMovIdx=idx;
   const m=movs[idx];if(!m)return;
+  if(!esOwnerCU()&&esRetiroMov(m))return;
   document.getElementById('em-t').value=m.tipo||'Entrada';
   document.getElementById('em-cat').value=m.concepto||'';
   document.getElementById('em-cta').value=m.cuenta||'Efectivo';
@@ -2115,15 +2116,27 @@ function guardarEditMov(){
   else{CM('mod-edit-mov');rMovs();}
 }
 function borrarMov(idx){
-  if(!confirm('¿Eliminar este movimiento?'))return;
   const m=movs[idx];
+  if(m&&!esOwnerCU()&&esRetiroMov(m))return;
+  if(!confirm('¿Eliminar este movimiento?'))return;
   if(m)logActivity('Borró movimiento',(m.concepto||'')+' — '+fmt(m.monto));
   if(m&&m.id){fetch('/api/movimientos/'+m.id,{method:'DELETE',credentials:'include'}).then(()=>{movs.splice(idx,1);rMovs();});}
   else{movs.splice(idx,1);rMovs();}
 }
+function esOwnerCU(){const u=USERS.find(x=>x.key===CU);return !!u&&u.role==='owner';}
+function esRetiroMov(m){
+  const t=(m.tipo||'').toLowerCase(),c=(m.concepto||'').toLowerCase();
+  if(t.includes('retiro'))return true;
+  return (ER_CATS.retiros||[]).some(r=>r.toLowerCase()===c);
+}
 function rMovs(f=''){
+  const soloOwner=esOwnerCU();
+  // Retiros de utilidades: visibles SOLO para la dueña (lista, totales y filtros)
+  const visibles=soloOwner?movs:movs.filter(m=>!esRetiroMov(m));
+  const cardR=document.getElementById('mv-r');if(cardR&&cardR.parentElement)cardR.parentElement.style.display=soloOwner?'':'none';
+  ['mv-t','em-t'].forEach(id=>{const s=document.getElementById(id);if(!s)return;[...s.options].forEach(o=>{if(o.value==='Retiro'){o.hidden=!soloOwner;o.disabled=!soloOwner;if(!soloOwner&&s.value==='Retiro')s.value='Salida';}});});
   const ctaFil=(document.getElementById('mv-cta-fil')?.value||'').toLowerCase();
-  let list=f?movs.filter(m=>m.tipo.toLowerCase()===f.toLowerCase()):movs;
+  let list=f?visibles.filter(m=>m.tipo.toLowerCase()===f.toLowerCase()):visibles;
   if(ctaFil)list=list.filter(m=>(m.cuenta||'').toLowerCase()===ctaFil||(m.cta_destino||'').toLowerCase()===ctaFil);
   const body=document.getElementById('mv-body');
   body.innerHTML=list.slice(0,100).length?list.slice(0,100).map(m=>{
@@ -2131,9 +2144,9 @@ function rMovs(f=''){
     const midx=movs.indexOf(m);const canE=canEdit();
     return `<tr><td style="color:var(--text2)">${m.fecha}</td><td><span class="badge ${bc}" style="font-size:10px">${m.tipo}</span></td><td style="color:var(--text2)">${m.concepto}</td><td>${m.desc}</td><td style="color:var(--text2)">${m.cuenta}${m.cta_destino?" → "+m.cta_destino:""}</td><td class="mono" style="font-weight:600">${fmt(m.monto)}</td><td style="white-space:nowrap">${canE?`<button onclick="editMov(${midx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button><button onclick="borrarMov(${midx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:'—'}</td></tr>`;
   }).join(''):`<tr><td colspan="6" class="tbl-empty">Sin movimientos</td></tr>`;
-  const e=movs.filter(m=>m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);
-  const s=movs.filter(m=>m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);
-  const r=movs.filter(m=>m.tipo.toLowerCase().includes('retiro')).reduce((a,b)=>a+b.monto,0);
+  const e=visibles.filter(m=>m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);
+  const s=visibles.filter(m=>m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);
+  const r=visibles.filter(m=>m.tipo.toLowerCase().includes('retiro')).reduce((a,b)=>a+b.monto,0);
   document.getElementById('mv-e').textContent=fmt(e);
   document.getElementById('mv-s').textContent=fmt(s);
   const mvR=document.getElementById('mv-r');if(mvR)mvR.textContent=fmt(r);
