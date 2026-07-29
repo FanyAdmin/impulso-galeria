@@ -362,7 +362,9 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="g2">
       <div class="field"><label>Método</label><select id="ab-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field"><label>Monto ($)</label><input type="number" id="ab-monto" placeholder="0.00"></div>
+      <div class="field"><label>Fecha del cobro</label><input type="date" id="ab-fecha" onchange="aviFechaAb()"></div>
     </div>
+    <div id="ab-fecha-avi" style="display:none;background:#FEF3C7;border:1px solid #FCD34D;border-radius:var(--rad);padding:7px 12px;font-size:11px;color:#92400E;margin-bottom:10px">📅 Fecha pasada: este cobro NO se contará en Mi Día de hoy, sino en el día que indicaste.</div>
     <div><div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Historial de pagos</div>
     <div id="ab-hist" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rad);padding:.5rem .875rem;min-height:32px"></div></div>
   </div>
@@ -1318,6 +1320,10 @@ function rCxC(){
   }).join('');
 }
 let _cxcList=[];
+function aviFechaAb(){
+  const f=document.getElementById('ab-fecha');const avi=document.getElementById('ab-fecha-avi');
+  if(f&&avi)avi.style.display=(f.value&&f.value!==todayStr())?'block':'none';
+}
 function openAbCxC(listIdx){
   _cxcList=misC();
   const c=_cxcList[listIdx];
@@ -1325,6 +1331,8 @@ function openAbCxC(listIdx){
   // También guardar referencia al pedido real
   abIdx._c=c;
   document.getElementById('ab-monto').value='';
+  const abF=document.getElementById('ab-fecha');if(abF)abF.value=todayStr();
+  aviFechaAb();
   document.getElementById('ma-res').innerHTML=`
     <div class="srow"><span>Folio</span><span><strong>${c.folio}</strong></span></div>
     <div class="srow tot"><span>Saldo pendiente</span><span style="color:var(--red)" class="mono">${fmt(c.saldo)}</span></div>`;
@@ -1334,6 +1342,8 @@ function openAbCxC(listIdx){
 function openAb(idx){
   abIdx=idx;const c=cuentas[idx];
   document.getElementById('ab-monto').value='';
+  const abF2=document.getElementById('ab-fecha');if(abF2)abF2.value=todayStr();
+  aviFechaAb();
   document.getElementById('ma-res').innerHTML=`
     <div class="srow"><span>Folio</span><span><strong>${c.folio}</strong></span></div>
     <div class="srow tot"><span>Saldo pendiente</span><span style="color:var(--red)" class="mono">${fmt(c.saldo)}</span></div>`;
@@ -1344,6 +1354,7 @@ function guardarAb(){
   if(abIdx===null)return;
   const m=parseFloat(document.getElementById('ab-monto').value)||0;
   if(!m){alert('Ingresa el monto');return;}
+  const fechaAb=(document.getElementById('ab-fecha')&&document.getElementById('ab-fecha').value)||todayStr();
   // Si viene de CxC (openAbCxC), trabajar sobre pedido real
   if(_cxcList&&_cxcList.length&&typeof abIdx==='number'&&_cxcList[abIdx]){
     const c=_cxcList[abIdx];
@@ -1353,10 +1364,10 @@ function guardarAb(){
       p.rest=Math.max(0,(p.rest||0)-m);
       if(p.rest<=0)p.rest=0;
       const metAb=document.getElementById('ab-m')?document.getElementById('ab-m').value:'Efectivo';
-      const abReg={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:m,met:metAb,fecha:todayStr(),tipo:p.rest<=0?'Liquidacion':'Abono'};
+      const abReg={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:m,met:metAb,fecha:fechaAb,tipo:p.rest<=0?'Liquidacion':'Abono'};
       fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(abReg)})
       .then(r=>r.json()).then(d=>{if(d&&d.id)ABONOS.unshift(d);}).catch(()=>{ABONOS.unshift(abReg);});
-      logActivity('Abonó a cuenta','Folio '+p.folio+' — '+fmt(m)+' ('+metAb+')');
+      logActivity('Abonó a cuenta','Folio '+p.folio+' — '+fmt(m)+' ('+metAb+', '+fechaAb+')');
       if(p.id){
         fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',
           headers:{'Content-Type':'application/json'},
@@ -1368,7 +1379,7 @@ function guardarAb(){
   }
   // Fallback: lógica original con cuentas[]
   const c=cuentas[abIdx];
-  if(c){c.abonos.push({fecha:todayStr(),monto:m,met:document.getElementById('ab-m').value});
+  if(c){c.abonos.push({fecha:fechaAb,monto:m,met:document.getElementById('ab-m').value});
   c.abon+=m;c.saldo=Math.max(0,c.saldo-m);if(c.saldo<=0){c.saldo=0;c.liq=true;}}
   CM('mod-ab');rCxC();
 }
