@@ -1006,9 +1006,10 @@ document.addEventListener('click',function(e){
 const fmt=(n)=>'$'+Number(n).toLocaleString('es-MX',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtC=(n)=>n>=1000000?'$'+(n/1000000).toFixed(1)+'M':n>=1000?'$'+(n/1000).toFixed(0)+'K':'$'+Math.round(n);
 const fmtK=(n)=>fmt(n); // tarjetas siempre en MXN exacto
-function addBiz(d,n=12){let r=new Date(d),c=0;r.setDate(r.getDate()+1);while(c<n){r.setDate(r.getDate()+1);if(r.getDay()!==0&&r.getDay()!==6)c++;}return r.toISOString().slice(0,10);}
+function dateStrLocal(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function addBiz(d,n=12){let r=new Date(d),c=0;r.setDate(r.getDate()+1);while(c<n){r.setDate(r.getDate()+1);if(r.getDay()!==0&&r.getDay()!==6)c++;}return dateStrLocal(r);}
 function diffDays(a,b){return Math.floor((new Date(a)-new Date(b))/864e5);}
-function todayStr(){return new Date().toISOString().slice(0,10);}
+function todayStr(){return dateStrLocal(new Date());}
 function CM(id){document.getElementById(id).style.display='none';}
 function OM(id){document.getElementById(id).style.display='flex';}
 
@@ -2630,7 +2631,7 @@ function genRecibo(){
 
 // === FACTURACION ===
 var FACTURAS=[];
-function initFacMes(){var s=document.getElementById('fac-mes');if(!s)return;var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var h='';for(var i=0;i<12;i++)h+='<option value="'+i+'">'+M[i]+' 2026</option>';s.innerHTML=h;s.value=new Date().getMonth();var fd=document.getElementById('fac-fecha');if(fd)fd.value=new Date().toISOString().slice(0,10);}
+function initFacMes(){var s=document.getElementById('fac-mes');if(!s)return;var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var h='';for(var i=0;i<12;i++)h+='<option value="'+i+'">'+M[i]+' 2026</option>';s.innerHTML=h;s.value=new Date().getMonth();var fd=document.getElementById('fac-fecha');if(fd)fd.value=todayStr();}
 function rFac(){
   var mes=parseInt(document.getElementById('fac-mes').value);
   var u=null;for(var i=0;i<USERS.length;i++){if(USERS[i].key===CU){u=USERS[i];break;}}
