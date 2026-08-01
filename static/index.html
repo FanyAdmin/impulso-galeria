@@ -2427,23 +2427,50 @@ function delVend(i){if(!confirm('Eliminar?'))return;
 
 // === COMISIONES ===
 function initComMes(){var s=document.getElementById('com-mes');if(!s)return;var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var h='';for(var i=0;i<12;i++)h+='<option value="'+i+'">'+M[i]+' 2026</option>';s.innerHTML=h;s.value=new Date().getMonth();}
+function comPagadas(){return JSON.parse(localStorage.getItem('impulso_com_pagadas')||'{}');}
+function comCobradoDe(v,mes){
+  // Cobrado del mes = anticipos originales de pedidos del mes + abonos cobrados en el mes (BD)
+  var abDelPed=function(p){return ABONOS.filter(function(a){return (a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc);}).reduce(function(s,a){return s+(a.monto||0);},0);};
+  var cob=0;
+  for(var j=0;j<pedidos.length;j++){var p=pedidos[j];if(parseInt(p.mes)===mes&&p.vend===v.nombre)cob+=Math.max(0,(p.ant||0)-abDelPed(p));}
+  for(var j=0;j<ABONOS.length;j++){
+    var a=ABONOS[j];if(!a.fecha)continue;
+    if(parseInt(String(a.fecha).split('-')[1])-1!==mes)continue;
+    var ped=null;
+    for(var k=0;k<pedidos.length;k++){if((a.pedido_id&&pedidos[k].id===a.pedido_id)||(pedidos[k].folio===a.folio&&pedidos[k].suc===a.suc)){ped=pedidos[k];break;}}
+    if(ped&&ped.vend===v.nombre)cob+=(a.monto||0);
+  }
+  return cob;
+}
 function rCom(){
   var mes=parseInt(document.getElementById('com-mes').value);
   var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var pag=comPagadas();
   var totCob=0,totCom=0,nv=0,h='';
   for(var i=0;i<VENDEDORES.length;i++){
     var v=VENDEDORES[i];if(v.estatus!=='activo')continue;
-    var cob=0;
-    for(var j=0;j<pedidos.length;j++){if(pedidos[j].mes===mes&&pedidos[j].vend===v.nombre)cob+=pedidos[j].ant;}
-    for(var j=0;j<cuentas.length;j++){var c=cuentas[j],ped=null;for(var k=0;k<pedidos.length;k++){if(pedidos[k].folio===c.folio){ped=pedidos[k];break;}}if(!ped||ped.vend!==v.nombre)continue;for(var k=0;k<c.abonos.length;k++){if(new Date(c.abonos[k].fecha).getMonth()===mes)cob+=c.abonos[k].monto;}}
+    var cob=comCobradoDe(v,mes);
     var com=cob*(v.comision/100);totCob+=cob;totCom+=com;if(cob>0)nv++;
+    var pInfo=pag[v.nombre+'_'+mes];
     h+='<tr><td style="font-weight:500">'+v.nombre+'</td><td>'+v.suc+'</td>';
     h+='<td><span class="badge" style="background:#EDE9FE;color:#5B21B6">'+v.comision+'%</span></td>';
     h+='<td class="mono">'+fmt(cob)+'</td><td class="mono" style="font-weight:700;color:var(--green)">'+fmt(com)+'</td>';
-    h+='<td><button class="btn btn-s btn-xs" onclick="genReciboCom('+i+','+v.comision+','+cob.toFixed(2)+','+com.toFixed(2)+','+mes+')">Recibo</button></td></tr>';
+    h+='<td style="white-space:nowrap"><button class="btn btn-s btn-xs" onclick="genReciboCom('+i+','+v.comision+','+cob.toFixed(2)+','+com.toFixed(2)+','+mes+')">Recibo</button> '+(pInfo?'<span class="badge bg">✓ Pagada '+pInfo.fecha+'</span>':(com>0?'<button class="btn btn-xs" style="background:var(--green);color:#fff;border:none" onclick="pagarCom('+i+','+mes+','+com.toFixed(2)+')">💸 Pagar</button>':''))+'</td></tr>';
   }
   document.getElementById('com-tot').textContent=fmtK(totCob);document.getElementById('com-sum').textContent=fmtK(totCom);document.getElementById('com-nv').textContent=nv;
   document.getElementById('com-body').innerHTML=h||'<tr><td colspan="6" class="tbl-empty">Sin datos</td></tr>';
+}
+function pagarCom(vidx,mes,com){
+  var v=VENDEDORES[vidx];com=parseFloat(com)||0;
+  if(!v||com<=0){alert('No hay comisión que pagar');return;}
+  var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  if(!confirm('¿Registrar el pago de comisión?\n\n'+v.nombre+' — '+M[mes]+' 2026 — '+fmt(com)+'\n\nSe registrará como Salida (Comisiones) en Movimientos.'))return;
+  var mv={tipo:'Salida',concepto:'Comisiones',desc:'COMISION '+v.nombre+' — '+M[mes].toUpperCase()+' 2026',monto:com,fecha:todayStr(),mes:new Date().getMonth(),cuenta:'Efectivo',cta_destino:'',socio:''};
+  fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+  .then(function(r){return r.json();}).then(function(d){movs.unshift(d&&d.id?d:mv);}).catch(function(){movs.unshift(mv);});
+  var pag=comPagadas();pag[v.nombre+'_'+mes]={fecha:todayStr(),monto:com};localStorage.setItem('impulso_com_pagadas',JSON.stringify(pag));
+  logActivity('Pagó comisión',v.nombre+' — '+M[mes]+' 2026 — '+fmt(com));
+  rCom();
 }
 function genReciboCom(vidx,pct,cobrado,com,mes){
   var v=VENDEDORES[vidx];if(!v)return;
@@ -2457,8 +2484,8 @@ function genReciboCom(vidx,pct,cobrado,com,mes){
   h+='<scr'+'ipt>window.onload=function(){window.print();}<'+'/scr'+'ipt></body></html>';
   var blob=new Blob([h],{type:'text/html'});var url=URL.createObjectURL(blob);var w=window.open(url,'_blank');if(!w)alert('Permite ventanas emergentes para imprimir');
 }
-function expComXlsx(){var mes=parseInt(document.getElementById('com-mes').value);var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var rows=[['COMISIONES '+M[mes].toUpperCase()+' 2026'],['Vendedor','Sucursal','% Comision','Cobrado','Comision']];for(var i=0;i<VENDEDORES.length;i++){var v=VENDEDORES[i],c=0;for(var j=0;j<pedidos.length;j++){if(pedidos[j].mes===mes&&pedidos[j].vend===v.nombre)c+=pedidos[j].ant;}rows.push([v.nombre,v.suc,v.comision+'%',c,c*(v.comision/100)]);}xlsxExp(rows,'Comisiones');}
-function expComPDF(){var mes=parseInt(document.getElementById('com-mes').value);var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var rows=[];for(var i=0;i<VENDEDORES.length;i++){var v=VENDEDORES[i],c=0;for(var j=0;j<pedidos.length;j++){if(pedidos[j].mes===mes&&pedidos[j].vend===v.nombre)c+=pedidos[j].ant;}rows.push([v.nombre,v.suc,v.comision+'%',fmt(c),fmt(c*(v.comision/100))]);}printTbl('COMISIONES '+M[mes].toUpperCase(),['Vendedor','Sucursal','%','Cobrado','Comision'],rows);}
+function expComXlsx(){var mes=parseInt(document.getElementById('com-mes').value);var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var rows=[['COMISIONES '+M[mes].toUpperCase()+' 2026'],['Vendedor','Sucursal','% Comision','Cobrado','Comision']];for(var i=0;i<VENDEDORES.length;i++){var v=VENDEDORES[i];if(v.estatus!=='activo')continue;var c=comCobradoDe(v,mes);rows.push([v.nombre,v.suc,v.comision+'%',c,c*(v.comision/100)]);}xlsxExp(rows,'Comisiones');}
+function expComPDF(){var mes=parseInt(document.getElementById('com-mes').value);var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var rows=[];for(var i=0;i<VENDEDORES.length;i++){var v=VENDEDORES[i];if(v.estatus!=='activo')continue;var c=comCobradoDe(v,mes);rows.push([v.nombre,v.suc,v.comision+'%',fmt(c),fmt(c*(v.comision/100))]);}printTbl('COMISIONES '+M[mes].toUpperCase(),['Vendedor','Sucursal','%','Cobrado','Comision'],rows);}
 
 // === EMPLEADOS + RH ===
 const EMPLEADOS_DEFAULT=[
@@ -2473,7 +2500,13 @@ var EMPLEADOS=[];
 function loadEmpleados(){
   return fetch('/api/empleados',{credentials:'include'})
   .then(r=>r.json()).then(list=>{
-    if(Array.isArray(list)&&list.length){EMPLEADOS=list;refreshEmpUI();return;}
+    if(Array.isArray(list)&&list.length){
+      EMPLEADOS=list;
+      // Aplicar bajas guardadas localmente (por si la BD aún no guarda estatus/fecha_baja)
+      var _ov=empStatusOv();
+      EMPLEADOS.forEach(function(e){if(_ov[e.id]&&!e.estatus){e.estatus=_ov[e.id].estatus;e.fecha_baja=_ov[e.id].fecha_baja;}});
+      refreshEmpUI();return;
+    }
     var local=JSON.parse(localStorage.getItem('impulso_empleados')||'null')||EMPLEADOS_DEFAULT.map(e=>({...e}));
     Promise.all(local.map(e=>fetch('/api/empleados',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(e)}).then(r=>r.json()).catch(()=>null)))
     .then(res=>{EMPLEADOS=res.filter(x=>x&&x.id);refreshEmpUI();});
@@ -2487,6 +2520,8 @@ function diasVac(a){if(a<1)return 0;if(a<2)return 12;if(a<3)return 14;if(a<4)ret
 
 function empActivos(){return EMPLEADOS.filter(function(e){return (e.estatus||'activo')!=='baja';});}
 function rEmps(){var h='';for(var i=0;i<EMPLEADOS.length;i++){var e=EMPLEADOS[i],a=antig(e.ingreso);var esBaja=(e.estatus||'activo')==='baja';var badge=esBaja?'<span class="badge bgr">Baja'+(e.fecha_baja?' '+e.fecha_baja:'')+'</span>':'<span class="badge bg">Activo</span>';h+='<tr style="'+(esBaja?'opacity:.55':'')+'"><td style="font-weight:500">'+e.nombre+' '+badge+'</td><td>'+e.puesto+'</td><td>'+e.suc+'</td><td>'+e.ingreso+'</td><td class="mono">'+fmt(e.salario)+'</td><td>'+a.txt+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-s btn-xs" onclick="editEmp('+i+')">Editar</button>'+(esBaja?'<button class="btn btn-s btn-xs" onclick="reactivarEmp('+i+')">↩️ Reactivar</button>':'<button class="btn btn-xs" style="border:1px solid #FCD34D;background:#FEF3C7;color:#92400E" onclick="bajaEmp('+i+')">📤 Dar de baja</button>')+'<button class="btn btn-d btn-xs" onclick="delEmp('+i+')">Eliminar</button></td></tr>';}document.getElementById('emp-body').innerHTML=h||'<tr><td colspan="7" class="tbl-empty">Sin empleados</td></tr>';}
+function empStatusOv(){return JSON.parse(localStorage.getItem('impulso_emp_status')||'{}');}
+function saveEmpStatus(id,st,f){var o=empStatusOv();if(st==='activo')delete o[id];else o[id]={estatus:st,fecha_baja:f};localStorage.setItem('impulso_emp_status',JSON.stringify(o));}
 function bajaEmp(i){
   var e=EMPLEADOS[i];if(!e)return;
   var f=prompt('Último día trabajado de '+e.nombre+' (AAAA-MM-DD):',todayStr());
@@ -2496,7 +2531,9 @@ function bajaEmp(i){
   fetch('/api/empleados/'+e.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)})
   .then(function(r){return r.json();}).then(function(d){
     if(d.error){alert(d.error);return;}
-    EMPLEADOS[i]=d.id?d:upd;
+    // El backend puede devolver el registro sin estatus/fecha_baja: forzarlos siempre
+    EMPLEADOS[i]=Object.assign({},(d&&d.id)?d:e,{estatus:'baja',fecha_baja:f});
+    saveEmpStatus(e.id,'baja',f);
     logActivity('Dio de baja a empleado',e.nombre+' — último día '+f);
     refreshEmpUI();
     alert(e.nombre+' quedó dado de baja.\n\nYa no aparecerá en Nómina ni Asistencias, pero sigue en la Calculadora LFT para su finiquito (usa esa fecha como último día).');
@@ -2509,7 +2546,8 @@ function reactivarEmp(i){
   fetch('/api/empleados/'+e.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)})
   .then(function(r){return r.json();}).then(function(d){
     if(d.error){alert(d.error);return;}
-    EMPLEADOS[i]=d.id?d:upd;
+    EMPLEADOS[i]=Object.assign({},(d&&d.id)?d:e,{estatus:'activo',fecha_baja:''});
+    saveEmpStatus(e.id,'activo','');
     logActivity('Reactivó empleado',e.nombre);
     refreshEmpUI();
   }).catch(function(){alert('Error de conexión');});
