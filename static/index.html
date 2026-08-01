@@ -590,7 +590,19 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 
 <!-- MI DÍA -->
 <div class="page" id="page-dia">
-  <div class="ph"><div><div class="ph-title">Mi Día</div><div class="ph-sub" id="dia-f">—</div></div><button class="btn btn-p admin-only" style="display:none" onclick="openCobroManual()">➕ Registrar cobro</button></div>
+  <div class="ph"><div><div class="ph-title">Mi Día</div><div class="ph-sub" id="dia-f">—</div></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <input type="date" id="dia-fecha" onchange="rDia()" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px">
+      <button class="btn btn-s btn-sm" onclick="diaHoy()">📅 Hoy</button>
+      <button class="btn btn-p admin-only" style="display:none" onclick="openCobroManual()">➕ Registrar cobro</button>
+    </div>
+  </div>
+  <div id="dia-suc-chips" style="display:none;margin-bottom:12px">
+    <button class="chip active" onclick="setDiaSuc('Ambas',this)">🏠 Ambas sucursales</button>
+    <button class="chip" onclick="setDiaSuc('Jardines',this)">🌳 Jardines</button>
+    <button class="chip" onclick="setDiaSuc('Zibata',this)">🏔️ Zibata</button>
+  </div>
+  <div id="dia-sucs" style="display:none;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px"></div>
   <div class="metrics m4">
     <div class="metric" style="border-left:4px solid var(--text3)"><div class="m-label">🧾 Pedidos nuevos</div><div class="m-val" id="d-n" style="font-size:26px">0</div></div>
     <div class="metric" style="border-left:4px solid #1D4ED8"><div class="m-label">🛒 Ventas hoy</div><div class="m-val" id="d-v">$0</div></div>
@@ -601,7 +613,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="card-title">💰 Dinero cobrado hoy por cuenta</div>
     <div id="d-cuentas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px"></div>
   </div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Método</th><th>Total</th><th>Anticipo</th><th>Días restantes</th><th>Estatus</th><th></th></tr></thead><tbody id="dia-body"></tbody></table></div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Método</th><th>Total</th><th>Anticipo</th><th>Días restantes</th><th>Estatus</th><th></th><th></th></tr></thead><tbody id="dia-body"></tbody></table></div>
   <div class="card" id="dia-cobros-card" style="display:none;margin-top:.875rem">
     <div class="card-title">💵 Liquidaciones y abonos de hoy (pedidos anteriores)</div>
     <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th><th></th></tr></thead><tbody id="dia-cobros"></tbody></table></div>
@@ -1471,13 +1483,26 @@ function guardarCobroManual(){
     CM('mod-cobro');rDia();if(document.querySelector('#page-cxc.active'))rCxC();
   }).catch(()=>alert('Error de conexión'));
 }
+let diaSuc='Ambas';
+function setDiaSuc(s,el){diaSuc=s;document.querySelectorAll('#dia-suc-chips .chip').forEach(c=>c.classList.remove('active'));if(el)el.classList.add('active');rDia();}
+function diaHoy(){const f=document.getElementById('dia-fecha');if(f)f.value=todayStr();rDia();}
 function rDia(){
-  const hoy=todayStr();
+  const fEl=document.getElementById('dia-fecha');
+  if(fEl&&!fEl.value)fEl.value=todayStr();
+  const dia=(fEl&&fEl.value)||todayStr();
+  const esHoy=dia===todayStr();
   const u=USERS.find(x=>x.key===CU);
-  const list=misP().filter(p=>p.fecha===hoy);
-  // Abonos/liquidaciones registrados HOY (visibles según rol)
-  const abHoy=ABONOS.filter(a=>a.fecha===hoy&&(u.role==='admin'||u.role==='owner'||u.role==='taller'||a.suc===u.suc));
-  // Anticipo original de los pedidos de hoy = ant actual menos los abonos posteriores de ese pedido
+  const esAdm=u&&(u.role==='admin'||u.role==='owner');
+  // Chips de sucursal solo para admin/owner
+  const chips=document.getElementById('dia-suc-chips');if(chips)chips.style.display=esAdm?'block':'none';
+  const sucF=esAdm?diaSuc:'Ambas'; // venta ya viene filtrada por misP()
+  // Subtítulo con la fecha consultada
+  const dObj=new Date(dia+'T12:00:00');
+  document.getElementById('dia-f').textContent=dObj.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+(esHoy?'':' · consultando otro día 📅');
+  const list=misP().filter(p=>p.fecha===dia&&(sucF==='Ambas'||p.suc===sucF));
+  // Abonos/liquidaciones registrados ese día (visibles según rol)
+  const abHoy=ABONOS.filter(a=>a.fecha===dia&&(esAdm||u.role==='taller'||a.suc===u.suc)&&(sucF==='Ambas'||a.suc===sucF));
+  // Anticipo original de los pedidos del día = ant actual menos los abonos posteriores de ese pedido
   const abDelPed=p=>ABONOS.filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc)).reduce((s,a)=>s+a.monto,0);
   const antOrig=p=>Math.max(0,(p.ant||0)-abDelPed(p));
   const cobradoHoy=list.reduce((s,p)=>s+antOrig(p),0)+abHoy.reduce((s,a)=>s+a.monto,0);
@@ -1485,7 +1510,26 @@ function rDia(){
   document.getElementById('d-v').textContent=fmt(list.reduce((a,b)=>a+b.total,0));
   document.getElementById('d-c').textContent=fmt(cobradoHoy);
   document.getElementById('d-pc').textContent=fmt(list.reduce((a,b)=>a+b.rest,0));
-  // Desglose por método: lo realmente cobrado hoy (anticipos de hoy + abonos de hoy)
+  // Resumen por sucursal (solo admin/owner viendo Ambas)
+  const sucsDiv=document.getElementById('dia-sucs');
+  if(sucsDiv){
+    if(esAdm&&sucF==='Ambas'){
+      sucsDiv.style.display='grid';
+      sucsDiv.innerHTML=['Jardines','Zibata'].map(s=>{
+        const lp=list.filter(p=>p.suc===s),la=abHoy.filter(a=>a.suc===s);
+        const cob=lp.reduce((x,p)=>x+antOrig(p),0)+la.reduce((x,a)=>x+a.monto,0);
+        const col=s==='Jardines'?'#1A5C3A':'#1D4ED8',ico=s==='Jardines'?'🌳':'🏔️';
+        return `<div style="border:1.5px solid ${col}30;border-left:5px solid ${col};border-radius:10px;padding:12px 14px;background:${col}08">
+          <div style="font-size:12px;font-weight:700;color:${col};text-transform:uppercase;letter-spacing:.05em">${ico} ${s}</div>
+          <div style="display:flex;gap:18px;margin-top:6px;flex-wrap:wrap">
+            <div><div style="font-size:10px;color:var(--text3)">PEDIDOS</div><div class="mono" style="font-size:18px;font-weight:800">${lp.length}</div></div>
+            <div><div style="font-size:10px;color:var(--text3)">VENTAS</div><div class="mono" style="font-size:18px;font-weight:800">${fmt(lp.reduce((x,p)=>x+p.total,0))}</div></div>
+            <div><div style="font-size:10px;color:var(--text3)">COBRADO</div><div class="mono" style="font-size:18px;font-weight:800;color:var(--green)">${fmt(cob)}</div></div>
+          </div></div>`;
+      }).join('');
+    } else sucsDiv.style.display='none';
+  }
+  // Desglose por método: lo realmente cobrado ese día (anticipos + abonos)
   const mets={};
   list.forEach(p=>{const k=p.met||'Efectivo';const v=antOrig(p);if(v>0)mets[k]=(mets[k]||0)+v;});
   abHoy.forEach(a=>{const k=a.met||'Efectivo';mets[k]=(mets[k]||0)+a.monto;});
@@ -1515,7 +1559,7 @@ function rDia(){
   }
   const hoyD=new Date();
   const body=document.getElementById('dia-body');
-  if(!list.length){body.innerHTML=`<tr><td colspan="8" class="tbl-empty">Sin pedidos hoy · Crea uno desde el cotizador</td></tr>`;return;}
+  if(!list.length){body.innerHTML=`<tr><td colspan="9" class="tbl-empty">${esHoy?'Sin pedidos hoy · Crea uno desde el cotizador':'Sin pedidos ese día'}</td></tr>`;return;}
   body.innerHTML=list.map(p=>{
     const idx=pedidos.indexOf(p);
     const entD=new Date(p.entrega);
@@ -1525,7 +1569,7 @@ function rDia(){
     const btn=p.est==='Pendiente'?`<button class="btn btn-s btn-xs" onclick="openEnt(${idx})">📦 Entregar</button>`:'';
     const tvB=p.tipo_venta==='factura'?'<span class="badge bb" style="font-size:10px">📄 Factura</span>':'<span class="badge bgr" style="font-size:10px">Gral</span>';
     const tvBtn=`<button class="btn btn-s btn-xs" onclick="toggleTV(${idx})" style="padding:1px 5px;font-size:10px" title="Cambiar tipo">&#8644;</button>`;
-    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td><td>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${sucBadge(p.suc||'—')}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td><td>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 
