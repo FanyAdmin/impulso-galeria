@@ -327,6 +327,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div class="field"><label>Vendedor</label><select id="ep-vend"></select></div>
       <div class="field"><label>Método de pago</label><select id="ep-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field"><label>Anticipo ($)</label><input type="number" id="ep-a" placeholder="0.00"></div>
+      <div class="field"><label>Fecha del pedido</label><input type="date" id="ep-fecha"></div>
       <div class="field"><label>Entrega prometida</label><input type="date" id="ep-ent"></div>
       <div class="field gc2"><label>Observaciones</label><input id="ep-o" placeholder="Notas del pedido..."></div>
     </div>
@@ -2987,6 +2988,7 @@ function editPed(idx){
   document.getElementById('ep-a').value=p.ant||'';
   document.getElementById('ep-o').value=p.obs||'';
   document.getElementById('ep-ent').value=p.entrega||'';
+  const epF=document.getElementById('ep-fecha');if(epF)epF.value=p.fecha||'';
   // Poblar vendedores
   const vs=document.getElementById('ep-vend');
   vs.innerHTML='<option value="">- Vendedor -</option>'+VENDEDORES.map(v=>`<option value="${v.nombre}">${v.nombre}</option>`).join('');
@@ -3024,6 +3026,8 @@ function guardarEditPed(){
     obs:document.getElementById('ep-o').value.trim(),
     entrega:document.getElementById('ep-ent').value
   };
+  const epFv=document.getElementById('ep-fecha')?document.getElementById('ep-fecha').value:'';
+  if(epFv){updates.fecha=epFv;updates.mes=parseInt(epFv.split('-')[1])-1;}
   Object.assign(p,updates);
   if(p.id){
     fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)})
