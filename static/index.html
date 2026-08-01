@@ -1646,7 +1646,7 @@ function rOrd(){
   const pend=pedidos.filter(p=>p.est==='Pendiente'&&p.items); // concentrado de AMBAS sucursales para todos: quien pida, pide todo
   const yaPedidos=itemsPedidos();
   const byP={};
-  pend.forEach(p=>(p.items||[]).forEach(it=>{if(!it.mol||yaPedidos.has(claveItem(p.folio,it.mol)))return;const pv=provDe(it);if(!byP[pv])byP[pv]=[];const ex=byP[pv].find(x=>x.mol===it.mol);if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(p.suc&&!ex.sucs.includes(p.suc))ex.sucs.push(p.suc);if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);if(p.fecha&&(!ex.fecha||p.fecha<ex.fecha))ex.fecha=p.fecha;}else byP[pv].push({mol:it.mol,pzas:it.q,fols:[p.folio],sucs:p.suc?[p.suc]:[],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[],fecha:p.fecha||''});}));
+  pend.forEach(p=>(p.items||[]).forEach(it=>{if(!it.mol||yaPedidos.has(claveItem(p.folio,it.mol)))return;const pv=provDe(it);if(!byP[pv])byP[pv]=[];const ex=byP[pv].find(x=>x.mol===it.mol);if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(p.suc&&!ex.sucs.includes(p.suc))ex.sucs.push(p.suc);if(it.l1&&it.l2){ex.meds.push(`${it.l1}×${it.l2}`);ex.medsQ=medsQAdd(ex.medsQ,it.l1,it.l2,it.q);}if(p.fecha&&(!ex.fecha||p.fecha<ex.fecha))ex.fecha=p.fecha;}else byP[pv].push({mol:it.mol,pzas:it.q,fols:[p.folio],sucs:p.suc?[p.suc]:[],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[],medsQ:medsQAdd([],it.l1,it.l2,it.q),fecha:p.fecha||''});}));
   const provs=Object.keys(byP).sort((a,b)=>byP[b].reduce((s,x)=>s+x.pzas,0)-byP[a].reduce((s,x)=>s+x.pzas,0));
   const px=proxDiaPedido();
   const ultOrd=ORDENES.length?ORDENES[0]:null;
@@ -1707,7 +1707,7 @@ function rOrd(){
       </div>
       <div id="ord-det-${i}" style="display:none;border-top:1px solid var(--border);padding:0 16px 14px">
         <div class="tw" style="margin:10px 0 0"><table class="tbl"><thead><tr><th>Moldura</th><th>Sucursal</th><th style="text-align:center">Piezas</th><th>Medidas</th><th>Pedidos</th><th>Ingresó</th></tr></thead>
-        <tbody>${byP[pv].map(it=>`<tr><td>${it.mol}</td><td>${sucsHTML(it)}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.fols)].join(', ')}</td><td style="color:var(--text3);font-size:11px;white-space:nowrap">${it.fecha||'—'}</td></tr>`).join('')}</tbody></table></div>
+        <tbody>${byP[pv].map(it=>`<tr><td>${it.mol}</td><td>${sucsHTML(it)}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">${medsHTML(it)}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.fols)].join(', ')}</td><td style="color:var(--text3);font-size:11px;white-space:nowrap">${it.fecha||'—'}</td></tr>`).join('')}</tbody></table></div>
       </div>
     </div>`;
   }).join('');
@@ -1755,7 +1755,7 @@ function rOrdHist(){
         <td style="${it.rec?'':'font-weight:600'}">${it.mol}</td>
         <td>${sucsHTML(it)}</td>
         <td style="text-align:center;font-weight:600">${it.pzas}</td>
-        <td style="color:var(--text3);font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td>
+        <td style="color:var(--text3);font-size:11px">${medsHTML(it)}</td>
         <td style="color:var(--text3);font-size:11px">${(it.fols||[]).join(', ')}</td>
       </tr>`).join('')}</tbody></table></div>
     </div>`;
@@ -1936,8 +1936,8 @@ function registrarOrdManual(){
     if(!byProv[pv])byProv[pv]=[];
     const mlIt=(it.l1&&it.l2)?((((+it.l1)+(+it.l2))*2/100)+despDe(it.mol))*(it.q||1):0;
     const ex=byProv[pv].find(x=>x.mol===it.mol);
-    if(ex){ex.pzas+=it.q||1;ex.fols.push(p.folio);if(p.suc&&!ex.sucs.includes(p.suc))ex.sucs.push(p.suc);ex.ml=(ex.ml||0)+mlIt;if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}
-    else byProv[pv].push({mol:it.mol,pzas:it.q||1,fols:[p.folio],sucs:p.suc?[p.suc]:[],ml:mlIt,meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});
+    if(ex){ex.pzas+=it.q||1;ex.fols.push(p.folio);if(p.suc&&!ex.sucs.includes(p.suc))ex.sucs.push(p.suc);ex.ml=(ex.ml||0)+mlIt;if(it.l1&&it.l2){ex.meds.push(`${it.l1}×${it.l2}`);ex.medsQ=medsQAdd(ex.medsQ,it.l1,it.l2,it.q||1);}}
+    else byProv[pv].push({mol:it.mol,pzas:it.q||1,fols:[p.folio],sucs:p.suc?[p.suc]:[],ml:mlIt,meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[],medsQ:medsQAdd([],it.l1,it.l2,it.q||1)});
   });
   const provs=Object.keys(byProv);
   if(!provs.length){alert('No hay molduras seleccionadas');return;}
@@ -1978,11 +1978,28 @@ function sucBadge(s){
 }
 function sucsHTML(it){const s=sucsDe(it);return s.length?s.map(sucBadge).join(' '):'<span style="color:var(--text3)">—</span>';}
 function sucsTxt(it){return sucsDe(it).join(' / ');}
+function medsList(it){
+  // Nuevo formato: medsQ = [{m:'60×40', q:3}]. Viejo: meds = ['60×40','60×40',...]
+  if(it.medsQ&&it.medsQ.length)return it.medsQ.map(x=>({m:x.m,q:x.q||1}));
+  const cnt={};(it.meds||[]).forEach(m=>{cnt[m]=(cnt[m]||0)+1;});
+  const ks=Object.keys(cnt);
+  if(ks.length===1&&(it.pzas||0)>1)return [{m:ks[0],q:it.pzas}]; // una sola medida: todas las pzas son de esa
+  return ks.map(m=>({m:m,q:cnt[m]}));
+}
+function medsTxt(it){const l=medsList(it);return l.length?l.map(x=>x.q>1?x.m+' ('+x.q+' pzas)':x.m).join(', '):'—';}
+function medsHTML(it){const l=medsList(it);return l.length?l.map(x=>x.q>1?x.m+' <b style="color:var(--text)">('+x.q+' pzas)</b>':x.m).join(', '):'—';}
+function medsQAdd(arr,l1,l2,q){
+  if(!l1||!l2)return arr;
+  const m=l1+'×'+l2,ex=(arr=arr||[]).find(x=>x.m===m);
+  if(ex)ex.q+=(q||1);else arr.push({m:m,q:q||1});
+  return arr;
+}
 function textoOrdenWA(o){
   const esMM=o.prov==='MM';
   let t='*ORDEN DE COMPRA '+(o.oc||'')+'*\nImpulso Galería · '+o.fecha+'\nProveedor: '+(o.prov_nombre||o.prov)+'\n\n';
   (o.items||[]).forEach(it=>{
-    const meds=[...new Set(it.meds||[])].join(', ');
+    const medsT=medsTxt(it);
+    const meds=medsT==='—'?'':medsT;
     const suc=sucsTxt(it);
     if(esMM&&it.ml){
       t+='▪️ '+it.mol+' — *'+Math.ceil(it.ml/2)+' tira(s)* ('+it.ml.toFixed(2)+' ml · '+it.pzas+' pzas'+(meds?' · '+meds+' cm':'')+')'+(suc?' — '+suc:'')+'\n';
@@ -2018,8 +2035,8 @@ function pedirOrd(pv,modo){
     (p.items||[]).filter(it=>it.mol&&provDe(it)===pv&&!yaPedidos.has(claveItem(p.folio,it.mol))).forEach(it=>{
       const mlIt=(it.l1&&it.l2)?((((+it.l1)+(+it.l2))*2/100)+despDe(it.mol))*(it.q||1):0;
       const ex=items.find(x=>x.mol===it.mol);
-      if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(p.suc&&!ex.sucs.includes(p.suc))ex.sucs.push(p.suc);ex.ml=(ex.ml||0)+mlIt;if(it.l1&&it.l2)ex.meds.push(`${it.l1}×${it.l2}`);}
-      else items.push({mol:it.mol,pzas:it.q,fols:[p.folio],sucs:p.suc?[p.suc]:[],ml:mlIt,meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[]});
+      if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(p.suc&&!ex.sucs.includes(p.suc))ex.sucs.push(p.suc);ex.ml=(ex.ml||0)+mlIt;if(it.l1&&it.l2){ex.meds.push(`${it.l1}×${it.l2}`);ex.medsQ=medsQAdd(ex.medsQ,it.l1,it.l2,it.q);}}
+      else items.push({mol:it.mol,pzas:it.q,fols:[p.folio],sucs:p.suc?[p.suc]:[],ml:mlIt,meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[],medsQ:medsQAdd([],it.l1,it.l2,it.q)});
     }));
   if(!items.length){alert('No hay molduras pendientes de este proveedor');return;}
   // Abrir la ventana ANTES del guardado (si se abre después, el navegador la bloquea)
@@ -2074,7 +2091,7 @@ function printOrd(pv,itemsPre,wPre,oc,fechaOrden){
     <div style="font-size:11px;color:#888;margin-top:2px">Fecha: ${fechaOrden||fecha}</div>
   </div></div>
   <table><thead><tr><th>Moldura</th><th>Sucursal</th><th style="text-align:center">Piezas</th><th>Medidas (cm)</th><th>Folios de pedido</th></tr></thead>
-  <tbody>${items.map(it=>`<tr><td>${it.mol}</td><td style="font-size:11px;font-weight:600">${sucsTxt(it)||'—'}</td><td style="text-align:center;font-weight:700">${it.pzas}</td><td style="color:#888;font-size:11px">${[...new Set(it.meds||[])].join(', ')||'—'}</td><td style="color:#888;font-size:11px">${[...new Set(it.fols)].join(', ')}</td></tr>`).join('')}</tbody></table>
+  <tbody>${items.map(it=>`<tr><td>${it.mol}</td><td style="font-size:11px;font-weight:600">${sucsTxt(it)||'—'}</td><td style="text-align:center;font-weight:700">${it.pzas}</td><td style="color:#888;font-size:11px">${medsTxt(it)}</td><td style="color:#888;font-size:11px">${[...new Set(it.fols)].join(', ')}</td></tr>`).join('')}</tbody></table>
   <div class="ftr"><div class="sign">Firma autorizada</div><div class="sign">Fecha de recepción</div></div>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
   const w=wPre||window.open('','_blank');
