@@ -763,12 +763,26 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <button class="btn btn-s btn-sm" onclick="expComPDF()">PDF</button>
     </div>
   </div>
+  <div style="margin-bottom:12px">
+    <button class="chip active" onclick="setComSuc('Todas',this)">Todas</button>
+    <button class="chip" onclick="setComSuc('Jardines',this)">🌳 Jardines</button>
+    <button class="chip" onclick="setComSuc('Zibata',this)">🏔️ Zibata</button>
+    <button class="chip" onclick="setComSuc('Galeria',this)">🖼 Galería</button>
+  </div>
   <div class="metrics m3">
     <div class="metric"><div class="m-label">Total cobrado</div><div class="m-val" id="com-tot">$0</div></div>
     <div class="metric"><div class="m-label">Total comisiones</div><div class="m-val" id="com-sum">$0</div></div>
     <div class="metric"><div class="m-label">Vendedores activos</div><div class="m-val" id="com-nv">0</div></div>
   </div>
   <div class="tw"><table class="tbl"><thead><tr><th>Vendedor</th><th>Sucursal</th><th>% Com.</th><th>Cobrado en el mes</th><th>Comision a pagar</th><th></th></tr></thead><tbody id="com-body"></tbody></table></div>
+</div>
+<!-- MODAL DETALLE COMISION -->
+<div class="modal-bg" id="mod-comdet" style="display:none">
+<div class="modal" style="width:760px;max-width:95vw">
+  <div class="modal-hdr"><div class="modal-ttl" id="comdet-ttl">Detalle de comisión</div><button class="modal-x" onclick="CM('mod-comdet')">✕</button></div>
+  <div class="modal-body" id="comdet-body" style="font-size:13px"></div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-comdet')">Cerrar</button></div>
+</div>
 </div>
 <!-- VENDEDORES -->
 <div class="page" id="page-vends">
@@ -2429,19 +2443,57 @@ function delVend(i){if(!confirm('Eliminar?'))return;
 // === COMISIONES ===
 function initComMes(){var s=document.getElementById('com-mes');if(!s)return;var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var h='';for(var i=0;i<12;i++)h+='<option value="'+i+'">'+M[i]+' 2026</option>';s.innerHTML=h;s.value=new Date().getMonth();}
 function comPagadas(){return JSON.parse(localStorage.getItem('impulso_com_pagadas')||'{}');}
-function comCobradoDe(v,mes){
-  // Cobrado del mes = anticipos originales de pedidos del mes + abonos cobrados en el mes (BD)
+var comSucFil='Todas';
+function setComSuc(s,el){comSucFil=s;document.querySelectorAll('#page-com .chip').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');rCom();}
+function comDesglose(v,mes){
+  // Regla de negocio: vendedoras de sucursal (Jardines/Zibata) comisionan por TODO lo cobrado
+  // en su sucursal, sin importar el campo Vendedor de la nota. Vendedores de Galería
+  // comisionan solo por sus propias notas (campo Vendedor).
+  var porSuc=(v.suc==='Jardines'||v.suc==='Zibata');
   var abDelPed=function(p){return ABONOS.filter(function(a){return (a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc);}).reduce(function(s,a){return s+(a.monto||0);},0);};
-  var cob=0;
-  for(var j=0;j<pedidos.length;j++){var p=pedidos[j];if(parseInt(p.mes)===mes&&p.vend===v.nombre)cob+=Math.max(0,(p.ant||0)-abDelPed(p));}
+  var nuevos=[],abonos=[];
+  for(var j=0;j<pedidos.length;j++){
+    var p=pedidos[j];
+    if(parseInt(p.mes)!==mes)continue;
+    if(porSuc?(p.suc!==v.suc):(p.vend!==v.nombre))continue;
+    var antOrig=Math.max(0,(p.ant||0)-abDelPed(p));
+    if(antOrig>0)nuevos.push({folio:p.folio,cli:p.cli,suc:p.suc,vend:p.vend||'—',fecha:p.fecha,monto:antOrig});
+  }
   for(var j=0;j<ABONOS.length;j++){
     var a=ABONOS[j];if(!a.fecha)continue;
     if(parseInt(String(a.fecha).split('-')[1])-1!==mes)continue;
     var ped=null;
     for(var k=0;k<pedidos.length;k++){if((a.pedido_id&&pedidos[k].id===a.pedido_id)||(pedidos[k].folio===a.folio&&pedidos[k].suc===a.suc)){ped=pedidos[k];break;}}
-    if(ped&&ped.vend===v.nombre)cob+=(a.monto||0);
+    var ok=porSuc?(a.suc===v.suc||(ped&&ped.suc===v.suc)):(ped&&ped.vend===v.nombre);
+    if(ok)abonos.push({folio:a.folio,cli:a.cli||(ped?ped.cli:'—'),suc:a.suc||(ped?ped.suc:'—'),vend:(ped?ped.vend:'')||'—',fecha:a.fecha,fechaPed:ped?ped.fecha:'—',monto:a.monto||0,tipo:a.tipo||'Abono'});
   }
-  return cob;
+  var tN=nuevos.reduce(function(s,x){return s+x.monto;},0),tA=abonos.reduce(function(s,x){return s+x.monto;},0);
+  return {nuevos:nuevos,abonos:abonos,totNuevos:tN,totAbonos:tA,cobrado:tN+tA,porSuc:porSuc};
+}
+function comCobradoDe(v,mes){return comDesglose(v,mes).cobrado;}
+function detalleCom(vidx,mes){
+  var v=VENDEDORES[vidx];if(!v)return;
+  var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var d=comDesglose(v,mes),com=d.cobrado*(v.comision/100);
+  document.getElementById('comdet-ttl').textContent='Detalle: '+v.nombre+' — '+M[mes]+' 2026';
+  var h='';
+  h+='<div style="background:'+(d.porSuc?'#DBEAFE':'#F3F4F6')+';border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px">'+(d.porSuc?'📍 Comisiona por sucursal: TODO lo cobrado en <b>'+v.suc+'</b>, sin importar el vendedor capturado en la nota.':'👤 Comisiona solo por sus propias notas (campo Vendedor).')+'</div>';
+  h+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">🧾 Pedidos nuevos del mes (comisiona el anticipo)</div>';
+  h+=d.nuevos.length?'<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Vend. capturado</th><th>Fecha</th><th style="text-align:right">Anticipo</th></tr></thead><tbody>'+
+    d.nuevos.map(function(x){return '<tr><td class="mono" style="font-weight:600">'+x.folio+'</td><td>'+x.cli+'</td><td>'+(x.suc||'—')+'</td><td style="color:var(--text3)">'+x.vend+'</td><td style="color:var(--text3)">'+(x.fecha||'—')+'</td><td class="mono" style="text-align:right">'+fmt(x.monto)+'</td></tr>';}).join('')+
+    '<tr style="font-weight:700;background:var(--green-l)"><td colspan="5">Subtotal pedidos nuevos</td><td class="mono" style="text-align:right">'+fmt(d.totNuevos)+'</td></tr></tbody></table></div>'
+    :'<div style="color:var(--text3);padding:4px 0 10px">Sin pedidos nuevos este mes.</div>';
+  h+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 5px">💵 Saldos cobrados de notas pasadas (abonos/liquidaciones del mes)</div>';
+  h+=d.abonos.length?'<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Vend. capturado</th><th>Nota del</th><th>Cobrado el</th><th>Tipo</th><th style="text-align:right">Monto</th></tr></thead><tbody>'+
+    d.abonos.map(function(x){return '<tr><td class="mono" style="font-weight:600">'+x.folio+'</td><td>'+x.cli+'</td><td>'+(x.suc||'—')+'</td><td style="color:var(--text3)">'+x.vend+'</td><td style="color:var(--text3)">'+(x.fechaPed||'—')+'</td><td style="color:var(--text3)">'+x.fecha+'</td><td><span class="badge '+(x.tipo==='Liquidacion'?'bg':'by')+'">'+(x.tipo==='Liquidacion'?'Liquidación':'Abono')+'</span></td><td class="mono" style="text-align:right">'+fmt(x.monto)+'</td></tr>';}).join('')+
+    '<tr style="font-weight:700;background:var(--green-l)"><td colspan="7">Subtotal abonos del mes</td><td class="mono" style="text-align:right">'+fmt(d.totAbonos)+'</td></tr></tbody></table></div>'
+    :'<div style="color:var(--text3);padding:4px 0 10px">Sin abonos de notas pasadas este mes.</div>';
+  h+='<div style="margin-top:14px;background:var(--green-l);border:1.5px solid var(--green);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-weight:700">'+
+     '<span>Total cobrado: <span class="mono">'+fmt(d.cobrado)+'</span></span>'+
+     '<span>× '+v.comision+'% = Comisión: <span class="mono" style="color:var(--green)">'+fmt(com)+'</span></span></div>';
+  h+='<div style="font-size:11px;color:var(--text3);margin-top:8px">Anti-duplicado: el anticipo de un pedido nuevo se cuenta sin los abonos ya registrados de esa nota, y cada abono comisiona una sola vez, en el mes en que se cobró.</div>';
+  document.getElementById('comdet-body').innerHTML=h;
+  OM('mod-comdet');
 }
 function rCom(){
   var mes=parseInt(document.getElementById('com-mes').value);
@@ -2450,13 +2502,14 @@ function rCom(){
   var totCob=0,totCom=0,nv=0,h='';
   for(var i=0;i<VENDEDORES.length;i++){
     var v=VENDEDORES[i];if(v.estatus!=='activo')continue;
+    if(comSucFil!=='Todas'&&v.suc!==comSucFil)continue;
     var cob=comCobradoDe(v,mes);
     var com=cob*(v.comision/100);totCob+=cob;totCom+=com;if(cob>0)nv++;
     var pInfo=pag[v.nombre+'_'+mes];
     h+='<tr><td style="font-weight:500">'+v.nombre+'</td><td>'+v.suc+'</td>';
     h+='<td><span class="badge" style="background:#EDE9FE;color:#5B21B6">'+v.comision+'%</span></td>';
     h+='<td class="mono">'+fmt(cob)+'</td><td class="mono" style="font-weight:700;color:var(--green)">'+fmt(com)+'</td>';
-    h+='<td style="white-space:nowrap"><button class="btn btn-s btn-xs" onclick="genReciboCom('+i+','+v.comision+','+cob.toFixed(2)+','+com.toFixed(2)+','+mes+')">Recibo</button> '+(pInfo?'<span class="badge bg">✓ Pagada '+pInfo.fecha+'</span>':(com>0?'<button class="btn btn-xs" style="background:var(--green);color:#fff;border:none" onclick="pagarCom('+i+','+mes+','+com.toFixed(2)+')">💸 Pagar</button>':''))+'</td></tr>';
+    h+='<td style="white-space:nowrap"><button class="btn btn-s btn-xs" onclick="detalleCom('+i+','+mes+')">🔍 Detalle</button> <button class="btn btn-s btn-xs" onclick="genReciboCom('+i+','+v.comision+','+cob.toFixed(2)+','+com.toFixed(2)+','+mes+')">Recibo</button> '+(pInfo?'<span class="badge bg">✓ Pagada '+pInfo.fecha+'</span>':(com>0?'<button class="btn btn-xs" style="background:var(--green);color:#fff;border:none" onclick="pagarCom('+i+','+mes+','+com.toFixed(2)+')">💸 Pagar</button>':''))+'</td></tr>';
   }
   document.getElementById('com-tot').textContent=fmtK(totCob);document.getElementById('com-sum').textContent=fmtK(totCom);document.getElementById('com-nv').textContent=nv;
   document.getElementById('com-body').innerHTML=h||'<tr><td colspan="6" class="tbl-empty">Sin datos</td></tr>';
