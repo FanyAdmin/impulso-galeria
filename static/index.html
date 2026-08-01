@@ -1593,7 +1593,7 @@ function rCat(){
   body.innerHTML=pg.map(m=>{
     const idx=MOLS.indexOf(m);
     const badge=m.estatus==='activa'?'<span class="badge bg">Activa</span>':m.estatus==='agotada'?'<span class="badge by">Agotada</span>':'<span class="badge bgr">Descontinuada</span>';
-    return `<tr><td style="font-weight:500">${m.nombre}</td><td style="color:var(--text2)">${PROVS[m.proveedor]||m.proveedor}</td><td class="mono">$${m.precio_lista.toFixed(4)}</td><td class="mono">${m.desp_cm}</td><td>${badge}</td><td><button class="btn btn-s btn-xs" onclick="eMol(${idx})">✏️</button></td></tr>`;
+    return `<tr><td style="font-weight:500">${m.nombre}</td><td style="color:var(--text2)">${PROVS[m.proveedor]||m.proveedor}</td><td class="mono">$${m.precio_lista.toFixed(4)}</td><td class="mono">${m.desp_cm}</td><td>${badge}</td><td style="white-space:nowrap"><button class="btn btn-s btn-xs" onclick="eMol(${idx})">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?` <button class="btn btn-xs" onclick="delMol(${idx})" style="border:1px solid #fca5a5;color:#991B1B;background:#fff">🗑</button>`:''}</td></tr>`;
   }).join('');
   document.getElementById('cat-pag').innerHTML=tot>1?
     `<span style="margin-right:4px">Pág ${catPage+1} de ${tot}</span>
@@ -1611,6 +1611,30 @@ function eMol(idx){
   document.getElementById('mm-e').value=m.estatus;
   document.getElementById('mm-ttl').textContent='Editar: '+m.nombre.substring(0,30);
   OM('mod-mol');
+}
+function delMol(idx){
+  const u=USERS.find(x=>x.key===CU);
+  if(!u||(u.role!=='admin'&&u.role!=='owner')){alert('Solo administración puede eliminar molduras.');return;}
+  const m=MOLS[idx];if(!m)return;
+  if(!confirm('¿Eliminar la moldura "'+m.nombre+'" ('+(PROVS[m.proveedor]||m.proveedor)+')?\n\nÚsalo solo para duplicados. Esta acción no se puede deshacer.'))return;
+  if(m.id){
+    fetch('/api/molduras/'+m.id,{method:'DELETE',credentials:'include'})
+    .then(r=>{
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      return r.json().catch(()=>({}));
+    })
+    .then(()=>{
+      MOLS.splice(idx,1);
+      logActivity('Eliminó moldura',m.nombre+' ('+(m.proveedor||'')+')');
+      rCat();
+    })
+    .catch(()=>alert('No se pudo eliminar en el servidor.\nSi el error persiste, falta el endpoint DELETE /api/molduras/<id> en app.py — avísale a Estefania.'));
+  }else{
+    // Moldura solo local (del _MD embebido, sin id de BD): quitar de la vista actual
+    MOLS.splice(idx,1);
+    logActivity('Eliminó moldura (local)',m.nombre);
+    rCat();
+  }
 }
 function saveMol(){
   const nombre=document.getElementById('mm-n').value.trim();
