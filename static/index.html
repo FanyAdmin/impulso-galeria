@@ -462,9 +462,9 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-item admin-only" onclick="go('vip');rVIP()" id="nav-vip">⭐ Clientes VIP</div>
   <div class="sb-sec admin-only" style="display:none">Config</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('vends')" id="nav-vends">🏷 Vendedores</div>
-  <div class="sb-item admin-only" style="display:none" onclick="go('com')" id="nav-com">💸 Comisiones</div>
+  <div class="sb-item owner-only" style="display:none" onclick="go('com')" id="nav-com">💸 Comisiones</div>
   <div class="sb-item" onclick="go('fac')" id="nav-fac">📄 Facturacion</div>
-  <div class="sb-item admin-only" style="display:none" onclick="go('usr')" id="nav-usr">👤 Usuarios</div>
+  <div class="sb-item owner-only" style="display:none" onclick="go('usr')" id="nav-usr">👤 Usuarios</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('activity');clearActivityBadge()" id="nav-activity">🔔 Actividad <span id="activity-badge" style="background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
   <div class="sb-foot">
     <div class="sb-user" id="sb-user">—</div>
@@ -1075,6 +1075,7 @@ function logout(){CU=null;cart=[];molSel=null;document.getElementById('app').sty
 
 // ─── NAV ──────────────────────────────────────────────────────────────────────
 function go(id){
+  if((id==='com'||id==='usr')&&!esOwnerCU())return; // páginas exclusivas de la dueña
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
