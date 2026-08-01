@@ -2485,13 +2485,42 @@ var ASISTENCIAS=JSON.parse(localStorage.getItem('impulso_asist')||'{}');
 function antig(fi){var d=new Date(fi),h=new Date();var a=Math.floor((h-d)/(365.25*864e5)),m=Math.floor(((h-d)%(365.25*864e5))/(30.44*864e5));return{anos:a,meses:m,txt:a+' ano'+(a!==1?'s':'')+', '+m+' mes'+(m!==1?'es':'')};}
 function diasVac(a){if(a<1)return 0;if(a<2)return 12;if(a<3)return 14;if(a<4)return 16;if(a<5)return 18;if(a<10)return 20;if(a<15)return 22;return 24;}
 
-function rEmps(){var h='';for(var i=0;i<EMPLEADOS.length;i++){var e=EMPLEADOS[i],a=antig(e.ingreso);h+='<tr><td style="font-weight:500">'+e.nombre+'</td><td>'+e.puesto+'</td><td>'+e.suc+'</td><td>'+e.ingreso+'</td><td class="mono">'+fmt(e.salario)+'</td><td>'+a.txt+'</td><td style="display:flex;gap:4px"><button class="btn btn-s btn-xs" onclick="editEmp('+i+')">Editar</button><button class="btn btn-d btn-xs" onclick="delEmp('+i+')">Eliminar</button></td></tr>';}document.getElementById('emp-body').innerHTML=h||'<tr><td colspan="7" class="tbl-empty">Sin empleados</td></tr>';}
+function empActivos(){return EMPLEADOS.filter(function(e){return (e.estatus||'activo')!=='baja';});}
+function rEmps(){var h='';for(var i=0;i<EMPLEADOS.length;i++){var e=EMPLEADOS[i],a=antig(e.ingreso);var esBaja=(e.estatus||'activo')==='baja';var badge=esBaja?'<span class="badge bgr">Baja'+(e.fecha_baja?' '+e.fecha_baja:'')+'</span>':'<span class="badge bg">Activo</span>';h+='<tr style="'+(esBaja?'opacity:.55':'')+'"><td style="font-weight:500">'+e.nombre+' '+badge+'</td><td>'+e.puesto+'</td><td>'+e.suc+'</td><td>'+e.ingreso+'</td><td class="mono">'+fmt(e.salario)+'</td><td>'+a.txt+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-s btn-xs" onclick="editEmp('+i+')">Editar</button>'+(esBaja?'<button class="btn btn-s btn-xs" onclick="reactivarEmp('+i+')">↩️ Reactivar</button>':'<button class="btn btn-xs" style="border:1px solid #FCD34D;background:#FEF3C7;color:#92400E" onclick="bajaEmp('+i+')">📤 Dar de baja</button>')+'<button class="btn btn-d btn-xs" onclick="delEmp('+i+')">Eliminar</button></td></tr>';}document.getElementById('emp-body').innerHTML=h||'<tr><td colspan="7" class="tbl-empty">Sin empleados</td></tr>';}
+function bajaEmp(i){
+  var e=EMPLEADOS[i];if(!e)return;
+  var f=prompt('Último día trabajado de '+e.nombre+' (AAAA-MM-DD):',todayStr());
+  if(f===null)return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(f)){alert('Fecha inválida. Usa el formato AAAA-MM-DD, ej. 2026-07-25');return;}
+  var upd={...e,estatus:'baja',fecha_baja:f};
+  fetch('/api/empleados/'+e.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)})
+  .then(function(r){return r.json();}).then(function(d){
+    if(d.error){alert(d.error);return;}
+    EMPLEADOS[i]=d.id?d:upd;
+    logActivity('Dio de baja a empleado',e.nombre+' — último día '+f);
+    refreshEmpUI();
+    alert(e.nombre+' quedó dado de baja.\n\nYa no aparecerá en Nómina ni Asistencias, pero sigue en la Calculadora LFT para su finiquito (usa esa fecha como último día).');
+  }).catch(function(){alert('Error de conexión — no se guardó la baja');});
+}
+function reactivarEmp(i){
+  var e=EMPLEADOS[i];if(!e)return;
+  if(!confirm('¿Reactivar a '+e.nombre+'?'))return;
+  var upd={...e,estatus:'activo',fecha_baja:''};
+  fetch('/api/empleados/'+e.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)})
+  .then(function(r){return r.json();}).then(function(d){
+    if(d.error){alert(d.error);return;}
+    EMPLEADOS[i]=d.id?d:upd;
+    logActivity('Reactivó empleado',e.nombre);
+    refreshEmpUI();
+  }).catch(function(){alert('Error de conexión');});
+}
 function openAddEmp(){editEmpIdx=null;document.getElementById('emp-form-ttl').textContent='+ Nuevo';['em-n','em-pu','em-fi','em-sal','em-banco','em-curp','em-rfc','em-tel','em-dir'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});document.getElementById('emp-form').style.display='block';}
 function editEmp(i){editEmpIdx=i;var e=EMPLEADOS[i];document.getElementById('emp-form-ttl').textContent='Editar: '+e.nombre;document.getElementById('em-n').value=e.nombre;document.getElementById('em-pu').value=e.puesto;document.getElementById('em-s').value=e.suc;document.getElementById('em-fi').value=e.ingreso;document.getElementById('em-sal').value=e.salario;document.getElementById('em-mp').value=e.metpago;document.getElementById('em-banco').value=e.banco||'';document.getElementById('em-curp').value=e.curp||'';document.getElementById('em-rfc').value=e.rfc||'';document.getElementById('em-tel').value=e.tel||'';document.getElementById('em-dir').value=e.dir||'';document.getElementById('emp-form').style.display='block';}
 function saveEmp(){
   var nom=document.getElementById('em-n').value.trim(),fi=document.getElementById('em-fi').value,sal=parseFloat(document.getElementById('em-sal').value)||0;
   if(!nom||!fi||!sal){alert('Nombre, fecha y salario son requeridos');return;}
   var e={nombre:nom,puesto:document.getElementById('em-pu').value,suc:document.getElementById('em-s').value,ingreso:fi,salario:sal,metpago:document.getElementById('em-mp').value,banco:document.getElementById('em-banco').value,curp:document.getElementById('em-curp').value,rfc:document.getElementById('em-rfc').value,tel:document.getElementById('em-tel').value,dir:document.getElementById('em-dir').value};
+  if(editEmpIdx!==null){e.estatus=EMPLEADOS[editEmpIdx].estatus||'activo';e.fecha_baja=EMPLEADOS[editEmpIdx].fecha_baja||'';}else{e.estatus='activo';e.fecha_baja='';}
   var req=editEmpIdx!==null
     ?fetch('/api/empleados/'+EMPLEADOS[editEmpIdx].id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(e)})
     :fetch('/api/empleados',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(e)});
@@ -2514,7 +2543,7 @@ function delEmp(i){
 }
 
 // === ASISTENCIAS ===
-function initAsistSels(){var es=document.getElementById('asist-emp'),ms=document.getElementById('asist-mes');if(!es||!ms)return;var h='';for(var i=0;i<EMPLEADOS.length;i++)h+='<option value="'+EMPLEADOS[i].id+'">'+EMPLEADOS[i].nombre+'</option>';es.innerHTML=h;var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];h='';for(var i=0;i<12;i++)h+='<option value="'+i+'">'+M[i]+' 2026</option>';ms.innerHTML=h;ms.value=new Date().getMonth();}
+function initAsistSels(){var es=document.getElementById('asist-emp'),ms=document.getElementById('asist-mes');if(!es||!ms)return;var h='',ACT=empActivos();for(var i=0;i<ACT.length;i++)h+='<option value="'+ACT[i].id+'">'+ACT[i].nombre+'</option>';es.innerHTML=h;var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];h='';for(var i=0;i<12;i++)h+='<option value="'+i+'">'+M[i]+' 2026</option>';ms.innerHTML=h;ms.value=new Date().getMonth();}
 // Semana actual de asistencias (fecha lunes de la semana)
 var asistSemana = (function(){
   var hoy = new Date();
@@ -2592,10 +2621,11 @@ function initNomSems(){var sel=document.getElementById('nom-sem');if(!sel)return
 function rNom(){
   var sv=document.getElementById('nom-sem').value,si=new Date(sv),mes=si.getMonth();
   var body=document.getElementById('nom-body');
-  if(!EMPLEADOS.length){body.innerHTML='<tr><td colspan="8" class="tbl-empty">Sin empleados</td></tr>';document.getElementById('nom-tot').textContent='$0';document.getElementById('nom-desc').textContent='$0';document.getElementById('nom-nem').textContent='0';return;}
+  var EMPS=empActivos();
+  if(!EMPS.length){body.innerHTML='<tr><td colspan="8" class="tbl-empty">Sin empleados</td></tr>';document.getElementById('nom-tot').textContent='$0';document.getElementById('nom-desc').textContent='$0';document.getElementById('nom-nem').textContent='0';return;}
   var tp=0,td=0,h='';
-  for(var i=0;i<EMPLEADOS.length;i++){
-    var e=EMPLEADOS[i],t=0,f=0,d=new Date(si);
+  for(var i=0;i<EMPS.length;i++){
+    var e=EMPS[i],t=0,f=0,d=new Date(si);
     for(var j=0;j<7;j++,d.setDate(d.getDate()+1)){var dow=d.getDay();if(dow===0)continue;var dk=e.id+'_'+d.getFullYear()+'_'+d.getMonth();var da=ASISTENCIAS[dk]||{};if(da[d.getDate()]===false)f++;else t++;}
     var desc=f*(e.salario/6),ap=e.salario-desc;tp+=ap;td+=desc;
     h+='<tr><td style="font-weight:500">'+e.nombre+'</td><td>'+e.suc+'</td><td>'+t+'</td>';
@@ -2604,9 +2634,9 @@ function rNom(){
     h+='<td class="mono" style="font-weight:700">'+fmt(ap)+'</td>';
     h+='<td><button class="btn btn-s btn-xs" onclick="genReciboNom('+e.id+',\''+sv+'\','+ap.toFixed(2)+','+f+','+desc.toFixed(2)+')">Recibo</button></td></tr>';
   }
-  document.getElementById('nom-body').innerHTML=h;document.getElementById('nom-tot').textContent=fmtK(tp);document.getElementById('nom-desc').textContent=fmtK(td);document.getElementById('nom-nem').textContent=EMPLEADOS.length;
+  document.getElementById('nom-body').innerHTML=h;document.getElementById('nom-tot').textContent=fmtK(tp);document.getElementById('nom-desc').textContent=fmtK(td);document.getElementById('nom-nem').textContent=EMPS.length;
 }
-function pagarNom(){var sel=document.getElementById('nom-sem'),txt=sel.options[sel.selectedIndex].text;var tp=0;for(var i=0;i<EMPLEADOS.length;i++)tp+=EMPLEADOS[i].salario;movs.unshift({tipo:'Salida',concepto:'Nomina',desc:'NOMINA SEM '+txt,monto:tp,fecha:todayStr(),mes:new Date().getMonth(),cuenta:'Efectivo',cta_destino:'',socio:''});alert('Nomina registrada en movimientos');}
+function pagarNom(){var sel=document.getElementById('nom-sem'),txt=sel.options[sel.selectedIndex].text;var tp=0,EMPS=empActivos();for(var i=0;i<EMPS.length;i++)tp+=EMPS[i].salario;movs.unshift({tipo:'Salida',concepto:'Nomina',desc:'NOMINA SEM '+txt,monto:tp,fecha:todayStr(),mes:new Date().getMonth(),cuenta:'Efectivo',cta_destino:'',socio:''});alert('Nomina registrada en movimientos');}
 function genReciboNom(empId,sv,ap,faltas,desc){
   var emp=null;for(var i=0;i<EMPLEADOS.length;i++){if(EMPLEADOS[i].id===empId){emp=EMPLEADOS[i];break;}}if(!emp)return;
   var si=new Date(sv),sf=new Date(sv);sf.setDate(si.getDate()+6);var f=new Date().toLocaleDateString('es-MX');
@@ -2624,7 +2654,7 @@ function genReciboNom(empId,sv,ap,faltas,desc){
 }
 
 // === LFT ===
-function populateLFT(){var h='<option value="">- Selecciona -</option>';for(var i=0;i<EMPLEADOS.length;i++)h+='<option value="'+EMPLEADOS[i].id+'">'+EMPLEADOS[i].nombre+'</option>';var el=document.getElementById('lft-emp');if(el)el.innerHTML=h;}
+function populateLFT(){var h='<option value="">- Selecciona -</option>';for(var i=0;i<EMPLEADOS.length;i++){var e=EMPLEADOS[i];h+='<option value="'+e.id+'">'+e.nombre+((e.estatus||'activo')==='baja'?' (baja'+(e.fecha_baja?' '+e.fecha_baja:'')+')':'')+'</option>';}var el=document.getElementById('lft-emp');if(el)el.innerHTML=h;}
 function lftFecha(s){var p=String(s).split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]),12);}
 function lftDiasEntre(f1,f2){return Math.round((f2-f1)/864e5)+1;} // inclusive de ambos días
 function lftVals(emp){
