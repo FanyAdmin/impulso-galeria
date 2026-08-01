@@ -1218,6 +1218,7 @@ function openModPed(){
   document.getElementById('mp-res').innerHTML=
     cart.map(x=>`<div class="srow"><span>${x.mol} (${x.l1}×${x.l2}cm ×${x.q})</span><span class="mono">${fmt(x.sub)}</span></div>`).join('')+
     `<div class="srow tot"><span>Total con IVA</span><span class="mono">${fmt(total)}</span></div>`;
+  populateVendSel(); // siempre con la lista actual de la BD
   OM('mod-ped');
 }
 function calcMR(){
@@ -2799,7 +2800,7 @@ function loadData(){
     pedidos=peds;
     movs=movs_data;
     FACTURAS=facs;
-    if(vends&&vends.length) VENDEDORES=vends;
+    if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
     ORDENES=ords||[];
     ABONOS=abns||[];
     const uAct=USERS.find(x=>x.key===CU);
