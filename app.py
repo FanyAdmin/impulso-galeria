@@ -107,11 +107,14 @@ class Empleado(db.Model):
     rfc     = db.Column(db.String(20))
     tel     = db.Column(db.String(30))
     dir     = db.Column(db.String(300))
+    estatus    = db.Column(db.String(20), default='activo')   # activo | baja
+    fecha_baja = db.Column(db.String(20), default='')
 
 def emp_dict(e):
     return {'id':e.id,'nombre':e.nombre,'puesto':e.puesto,'suc':e.suc,
             'ingreso':e.ingreso,'salario':e.salario,'metpago':e.metpago,
-            'banco':e.banco,'curp':e.curp,'rfc':e.rfc,'tel':e.tel,'dir':e.dir}
+            'banco':e.banco,'curp':e.curp,'rfc':e.rfc,'tel':e.tel,'dir':e.dir,
+            'estatus':e.estatus or 'activo','fecha_baja':e.fecha_baja or ''}
 
 # ── HELPERS DE AUTORIZACIÓN ───────────────────────────────────────────────────
 
@@ -276,7 +279,8 @@ def crear_empleado():
                  suc=d.get('suc',''), ingreso=d.get('ingreso',''),
                  salario=d.get('salario',0), metpago=d.get('metpago',''),
                  banco=d.get('banco',''), curp=d.get('curp',''),
-                 rfc=d.get('rfc',''), tel=d.get('tel',''), dir=d.get('dir',''))
+                 rfc=d.get('rfc',''), tel=d.get('tel',''), dir=d.get('dir',''),
+                 estatus=d.get('estatus','activo'), fecha_baja=d.get('fecha_baja',''))
     db.session.add(e)
     db.session.commit()
     return jsonify(emp_dict(e)), 201
@@ -286,7 +290,7 @@ def crear_empleado():
 def actualizar_empleado(eid):
     e = Empleado.query.get_or_404(eid)
     d = request.json or {}
-    for campo in ['nombre','puesto','suc','ingreso','salario','metpago','banco','curp','rfc','tel','dir']:
+    for campo in ['nombre','puesto','suc','ingreso','salario','metpago','banco','curp','rfc','tel','dir','estatus','fecha_baja']:
         if campo in d:
             setattr(e, campo, d[campo])
     db.session.commit()
@@ -494,8 +498,9 @@ def seed_molduras():
     return jsonify({'ok': True, 'sembradas': len(items)}), 201
 
 @app.route('/api/molduras', methods=['POST'])
-@requiere_admin
+@requiere_login
 def crear_moldura():
+    """Todos los roles logueados (incluye venta) pueden dar de alta molduras."""
     d = request.json or {}
     if not d.get('nombre'):
         return jsonify({'error': 'Nombre requerido'}), 400
@@ -507,8 +512,9 @@ def crear_moldura():
     return jsonify(mol_dict(m)), 201
 
 @app.route('/api/molduras/<int:mid>', methods=['PUT'])
-@requiere_admin
+@requiere_login
 def actualizar_moldura(mid):
+    """Todos los roles logueados (incluye venta) pueden editar molduras."""
     m = Moldura.query.get_or_404(mid)
     d = request.json or {}
     for campo in ['nombre','precio_lista','desp_cm','proveedor','estatus']:
@@ -516,6 +522,15 @@ def actualizar_moldura(mid):
             setattr(m, campo, d[campo])
     db.session.commit()
     return jsonify(mol_dict(m))
+
+@app.route('/api/molduras/<int:mid>', methods=['DELETE'])
+@requiere_admin
+def borrar_moldura(mid):
+    """Eliminar moldura (solo admin/owner) — para duplicados."""
+    m = Moldura.query.get_or_404(mid)
+    db.session.delete(m)
+    db.session.commit()
+    return jsonify({'ok': True})
 
 
 # ── ABONOS (cobros con fecha: liquidaciones y pagos parciales) ────────────────
@@ -782,6 +797,8 @@ def migrar_columnas():
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS taller_est VARCHAR(30)",
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS casillero VARCHAR(30)",
         "ALTER TABLE ordenes_compra ADD COLUMN IF NOT EXISTS oc VARCHAR(20)",
+        "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS estatus VARCHAR(20) DEFAULT 'activo'",
+        "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS fecha_baja VARCHAR(20) DEFAULT ''",
     ]:
         try:
             db.session.execute(text(stmt)); db.session.commit()
