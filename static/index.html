@@ -583,7 +583,9 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 
 <!-- CXC -->
 <div class="page" id="page-cxc">
-  <div class="ph"><div><div class="ph-title">Cuentas por Cobrar</div></div></div>
+  <div class="ph"><div><div class="ph-title">Cuentas por Cobrar</div></div>
+    <input id="cxc-q" placeholder="🔍 Buscar folio o cliente..." style="width:220px" oninput="rCxC()">
+  </div>
   <div class="metrics m3">
     <div class="metric"><div class="m-label">Cuentas abiertas</div><div class="m-val" id="cxc-n">0</div></div>
     <div class="metric"><div class="m-label">Total pendiente</div><div class="m-val" id="cxc-p">$0</div></div>
@@ -1346,9 +1348,14 @@ function rCxC(){
   document.getElementById('cxc-n').textContent=ab.length;
   document.getElementById('cxc-p').textContent=fmtK(ab.reduce((a,b)=>a+b.saldo,0));
   document.getElementById('cxc-a').textContent=fmtK(list.reduce((a,b)=>a+b.abon,0));
+  const q=(document.getElementById('cxc-q')?.value||'').trim().toLowerCase();
   const body=document.getElementById('cxc-body');
   if(!list.length){body.innerHTML=`<tr><td colspan="9" class="tbl-empty">Sin cuentas por cobrar</td></tr>`;return;}
+  let visibles=0;
+  // OJO: idx debe ser el índice de la lista COMPLETA (openAbCxC lo usa), por eso se filtra ocultando, no recortando
   body.innerHTML=list.map((c,idx)=>{
+    if(q&&!(String(c.folio).toLowerCase().includes(q)||String(c.cli||'').toLowerCase().includes(q)))return '';
+    visibles++;
     const badge=c.liq?'<span class="badge bg">Liquidado</span>':'<span class="badge br">Pendiente</span>';
     const pedIdx=c._pedIdx!==undefined?c._pedIdx:pedidos.findIndex(p=>p.folio===c.folio&&p.suc===c.suc);
     const btn=!c.liq?`<button class="btn btn-s btn-xs" onclick="openAbCxC(${idx})">+ Abonar</button>`:'';
@@ -1357,6 +1364,7 @@ function rCxC(){
       <td class="mono" style="${!c.liq?'color:var(--red);font-weight:600':''}">${fmt(c.saldo)}</td>
       <td>${badge}${c.casillero?'<div style="font-size:11px;font-weight:700;margin-top:3px">📦 '+c.casillero+'</div>':''}</td><td>${btn}</td><td>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${pedIdx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${pedIdx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
+  if(q&&!visibles)body.innerHTML=`<tr><td colspan="9" class="tbl-empty">Sin resultados para "${q}"</td></tr>`;
 }
 let _cxcList=[];
 function aviFechaAb(){
