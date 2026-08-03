@@ -42,6 +42,7 @@ class Pedido(db.Model):
     entrega    = db.Column(db.String(20))
     taller_est = db.Column(db.String(30))
     casillero  = db.Column(db.String(30))
+    factura_num = db.Column(db.String(30))
 
 class Movimiento(db.Model):
     __tablename__ = 'movimientos_v3'
@@ -339,7 +340,7 @@ def crear_pedido():
 def actualizar_pedido(pid):
     p = Pedido.query.get_or_404(pid)
     d = request.json or {}
-    for campo in ['folio','tipo_venta','cli','tel','suc','vend','fecha','mes','sub','total','met','ant','rest','obs','est','entrega','taller_est','casillero']:
+    for campo in ['folio','tipo_venta','cli','tel','suc','vend','fecha','mes','sub','total','met','ant','rest','obs','est','entrega','taller_est','casillero','factura_num']:
         if campo in d:
             setattr(p, campo, d[campo])
     if 'items' in d:
@@ -364,6 +365,7 @@ def p_dict(p):
         'sub':p.sub,'total':p.total,'met':p.met,
         'ant':p.ant,'rest':p.rest,'obs':p.obs,
         'est':p.est,'entrega':p.entrega,
+        'factura_num':p.factura_num or '',
         'taller_est':p.taller_est,'casillero':p.casillero
     }
 
@@ -419,10 +421,45 @@ def m_dict(m):
         'cuenta':m.cuenta,'cta_destino':m.cta_destino,'socio':m.socio
     }
 
+# ── FACTURAS EN BD ────────────────────────────────────────────────────────────
+
+class Factura(db.Model):
+    __tablename__ = 'facturas'
+    id     = db.Column(db.Integer, primary_key=True)
+    num    = db.Column(db.String(40), nullable=False)
+    rfc    = db.Column(db.String(20))
+    fecha  = db.Column(db.String(20))
+    folios = db.Column(db.Text)          # JSON: lista de folios
+    total  = db.Column(db.Float, default=0)
+
+def fac_dict(f):
+    return {'id':f.id,'num':f.num,'rfc':f.rfc,'fecha':f.fecha,
+            'folios':json.loads(f.folios) if f.folios else [],'total':f.total}
+
 @app.route('/api/facturas', methods=['GET'])
 @requiere_login
 def get_facturas():
-    return jsonify([])
+    return jsonify([fac_dict(f) for f in Factura.query.order_by(Factura.id.desc()).all()])
+
+@app.route('/api/facturas', methods=['POST'])
+@requiere_login
+def crear_factura():
+    d = request.json or {}
+    if not d.get('num'):
+        return jsonify({'error': 'No. de factura requerido'}), 400
+    f = Factura(num=d.get('num'), rfc=d.get('rfc',''), fecha=d.get('fecha',''),
+                folios=json.dumps(d.get('folios',[])), total=d.get('total',0))
+    db.session.add(f)
+    db.session.commit()
+    return jsonify(fac_dict(f)), 201
+
+@app.route('/api/facturas/<int:fid>', methods=['DELETE'])
+@requiere_login
+def borrar_factura(fid):
+    f = Factura.query.get_or_404(fid)
+    db.session.delete(f)
+    db.session.commit()
+    return jsonify({'ok': True})
 
 @app.route('/debug')
 def debug():
@@ -797,6 +834,7 @@ def migrar_columnas():
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS taller_est VARCHAR(30)",
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS casillero VARCHAR(30)",
         "ALTER TABLE ordenes_compra ADD COLUMN IF NOT EXISTS oc VARCHAR(20)",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS factura_num VARCHAR(30)",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS estatus VARCHAR(20) DEFAULT 'activo'",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS fecha_baja VARCHAR(20) DEFAULT ''",
     ]:
