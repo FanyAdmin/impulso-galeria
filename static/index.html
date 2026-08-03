@@ -2303,6 +2303,8 @@ function rMovs(f=''){
   const ctaFil=(document.getElementById('mv-cta-fil')?.value||'').toLowerCase();
   let list=f?visibles.filter(m=>m.tipo.toLowerCase()===f.toLowerCase()):visibles;
   if(ctaFil)list=list.filter(m=>(m.cuenta||'').toLowerCase()===ctaFil||(m.cta_destino||'').toLowerCase()===ctaFil);
+  // Ordenar SIEMPRE por fecha (más reciente arriba); si editas la fecha, el movimiento se reacomoda solo
+  list=[...list].sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||''))||((b.id||0)-(a.id||0)));
   const body=document.getElementById('mv-body');
   body.innerHTML=list.slice(0,100).length?list.slice(0,100).map(m=>{
     const bc=m.tipo.toLowerCase().includes('entrada')?'bg':m.tipo.toLowerCase().includes('salida')?'br':'bb';
