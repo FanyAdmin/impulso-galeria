@@ -1793,7 +1793,12 @@ function rOrd(){
       </div>
       <div id="ord-det-${i}" style="display:none;border-top:1px solid var(--border);padding:0 16px 14px">
         <div class="tw" style="margin:10px 0 0"><table class="tbl"><thead><tr><th>Moldura</th><th>Sucursal</th><th style="text-align:center">Piezas</th><th>Medidas</th><th>Pedidos</th><th>Ingresó</th></tr></thead>
-        <tbody>${byP[pv].map(it=>`<tr><td>${it.mol}</td><td>${sucsHTML(it)}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">${medsHTML(it)}</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.fols)].join(', ')}</td><td style="color:var(--text3);font-size:11px;white-space:nowrap">${it.fecha||'—'}</td></tr>`).join('')}</tbody></table></div>
+        <tbody>${byP[pv].map(it=>{
+          const ml=medsList(it);
+          if(!ml.length)return `<tr><td>${it.mol}</td><td>${sucsHTML(it)}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">—</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.fols)].join(', ')}</td><td style="color:var(--text3);font-size:11px;white-space:nowrap">${it.fecha||'—'}</td></tr>`;
+          const n=ml.length;
+          return ml.map((x,r)=>`<tr><td style="${r>0?'color:var(--text2)':'font-weight:500'}">${it.mol}</td><td>${sucsHTML(it)}</td><td style="text-align:center;font-weight:600">${x.q}</td><td style="color:var(--text3);font-size:11px">${x.m}</td>${r===0?`<td rowspan="${n}" style="color:var(--text3);font-size:11px;vertical-align:middle">${[...new Set(it.fols)].join(', ')}</td><td rowspan="${n}" style="color:var(--text3);font-size:11px;white-space:nowrap;vertical-align:middle">${it.fecha||'—'}</td>`:''}</tr>`).join('');
+        }).join('')}</tbody></table></div>
       </div>
     </div>`;
   }).join('');
@@ -1836,14 +1841,20 @@ function rOrdHist(){
         </div>
       </div>
       <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th style="width:60px;text-align:center">Llegó</th><th>Moldura</th><th>Sucursal</th><th style="text-align:center">Piezas</th><th>Medidas</th><th>Pedidos</th></tr></thead>
-      <tbody>${its.map((it,ix)=>`<tr style="${it.rec?'background:var(--green-l)':''}">
-        <td style="text-align:center"><input type="checkbox" ${it.rec?'checked':''} onchange="marcarRec(${e.id},${ix},this.checked)" style="width:18px;height:18px;cursor:pointer"></td>
+      <tbody>${its.map((it,ix)=>{
+        const ml=medsList(it);const n=Math.max(1,ml.length);
+        const bg=it.rec?'background:var(--green-l)':'';
+        return Array.from({length:n},(_,r)=>{
+          const x=ml[r];
+          return `<tr style="${bg}">${r===0?`<td rowspan="${n}" style="text-align:center;vertical-align:middle"><input type="checkbox" ${it.rec?'checked':''} onchange="marcarRec(${e.id},${ix},this.checked)" style="width:18px;height:18px;cursor:pointer"></td>`:''}
         <td style="${it.rec?'':'font-weight:600'}">${it.mol}</td>
         <td>${sucsHTML(it)}</td>
-        <td style="text-align:center;font-weight:600">${it.pzas}</td>
-        <td style="color:var(--text3);font-size:11px">${medsHTML(it)}</td>
-        <td style="color:var(--text3);font-size:11px">${(it.fols||[]).join(', ')}</td>
-      </tr>`).join('')}</tbody></table></div>
+        <td style="text-align:center;font-weight:600">${x?x.q:it.pzas}</td>
+        <td style="color:var(--text3);font-size:11px">${x?x.m:'—'}</td>
+        ${r===0?`<td rowspan="${n}" style="color:var(--text3);font-size:11px;vertical-align:middle">${(it.fols||[]).join(', ')}</td>`:''}
+      </tr>`;
+        }).join('');
+      }).join('')}</tbody></table></div>
     </div>`;
   }).join('');
 }
@@ -2084,14 +2095,14 @@ function textoOrdenWA(o){
   const esMM=o.prov==='MM';
   let t='*ORDEN DE COMPRA '+(o.oc||'')+'*\nImpulso Galería · '+o.fecha+'\nProveedor: '+(o.prov_nombre||o.prov)+'\n\n';
   (o.items||[]).forEach(it=>{
-    const medsT=medsTxt(it);
-    const meds=medsT==='—'?'':medsT;
+    const ml=medsList(it);
     const suc=sucsTxt(it);
     if(esMM&&it.ml){
-      t+='▪️ '+it.mol+' — *'+Math.ceil(it.ml/2)+' tira(s)* ('+it.ml.toFixed(2)+' ml · '+it.pzas+' pzas'+(meds?' · '+meds+' cm':'')+')'+(suc?' — '+suc:'')+'\n';
+      t+='▪️ '+it.mol+' — *'+Math.ceil(it.ml/2)+' tira(s)* ('+it.ml.toFixed(2)+' ml · '+it.pzas+' pzas)'+(suc?' — '+suc:'')+'\n';
     }else{
-      t+='▪️ '+it.mol+' — '+it.pzas+' pza(s)'+(meds?' · '+meds+' cm':'')+(suc?' — '+suc:'')+'\n';
+      t+='▪️ '+it.mol+' — '+it.pzas+' pza(s)'+(suc?' — '+suc:'')+'\n';
     }
+    ml.forEach(function(x){t+='    · '+x.q+' pza'+(x.q>1?'s':'')+' de '+x.m+' cm\n';});
   });
   t+='\nTotal: '+(o.items||[]).reduce((a,b)=>a+b.pzas,0)+' piezas';
   if(esMM)t+='\n(Tiras calculadas con perímetro + desperdicio; tira de 2 m)';
@@ -2177,7 +2188,12 @@ function printOrd(pv,itemsPre,wPre,oc,fechaOrden){
     <div style="font-size:11px;color:#888;margin-top:2px">Fecha: ${fechaOrden||fecha}</div>
   </div></div>
   <table><thead><tr><th>Moldura</th><th>Sucursal</th><th style="text-align:center">Piezas</th><th>Medidas (cm)</th><th>Folios de pedido</th></tr></thead>
-  <tbody>${items.map(it=>`<tr><td>${it.mol}</td><td style="font-size:11px;font-weight:600">${sucsTxt(it)||'—'}</td><td style="text-align:center;font-weight:700">${it.pzas}</td><td style="color:#888;font-size:11px">${medsTxt(it)}</td><td style="color:#888;font-size:11px">${[...new Set(it.fols)].join(', ')}</td></tr>`).join('')}</tbody></table>
+  <tbody>${items.map(it=>{
+    const ml=medsList(it);
+    if(!ml.length)return `<tr><td>${it.mol}</td><td style="font-size:11px;font-weight:600">${sucsTxt(it)||'—'}</td><td style="text-align:center;font-weight:700">${it.pzas}</td><td style="color:#888;font-size:11px">—</td><td style="color:#888;font-size:11px">${[...new Set(it.fols)].join(', ')}</td></tr>`;
+    const n=ml.length;
+    return ml.map((x,r)=>`<tr><td>${it.mol}</td><td style="font-size:11px;font-weight:600">${sucsTxt(it)||'—'}</td><td style="text-align:center;font-weight:700">${x.q}</td><td style="color:#888;font-size:11px">${x.m}</td>${r===0?`<td rowspan="${n}" style="color:#888;font-size:11px;vertical-align:middle">${[...new Set(it.fols)].join(', ')}</td>`:''}</tr>`).join('');
+  }).join('')}</tbody></table>
   <div class="ftr"><div class="sign">Firma autorizada</div><div class="sign">Fecha de recepción</div></div>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
   const w=wPre||window.open('','_blank');
