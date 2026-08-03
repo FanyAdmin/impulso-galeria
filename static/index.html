@@ -490,6 +490,10 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
           <div class="search-drop" id="mol-drop"></div>
         </div>
         <div id="mol-sel" style="font-size:12px;color:var(--text3);min-height:16px;margin-bottom:.75rem"></div>
+        <div style="margin-bottom:.75rem">
+          <label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">🎨 Color / variante (opcional)</label>
+          <input id="mol-var" placeholder="ej. 109 → se pedirá como 1015-109" style="width:100%;max-width:280px">
+        </div>
         <div class="g3" style="margin-bottom:.75rem">
           <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Cantidad</label><input type="number" id="qty" value="1" min="1" oninput="calcP()"></div>
           <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Lado 1 (cm)</label><input type="number" id="l1" placeholder="ej. 30" oninput="calcP()"></div>
@@ -1144,13 +1148,17 @@ function addCart(){
   if(!molSel&&ev===0){alert('Selecciona una moldura o al menos un extra');return;}
   const pm=molSel?(mc+molSel.desp_cm)*molSel.precio_lista*q:0;
   const sub=pm+ev;
-  const nombreMol=molSel?molSel.nombre:'Solo extras';
+  let nombreMol=molSel?molSel.nombre:'Solo extras';
+  const varEl=document.getElementById('mol-var');
+  const varTxt=(varEl?varEl.value:'').trim().replace(/^-+/,'').toUpperCase();
+  if(molSel&&varTxt)nombreMol=molSel.nombre+'-'+varTxt; // ej. 1015 + 109 → 1015-109
   const provMol=molSel?molSel.proveedor:'SERVICIO';
   const midMol=molSel?molSel.id:0;
   cart.push({mid:midMol,mol:nombreMol,prov:provMol,l1,l2,q,pm,ev,en,sub,subIva:sub*1.16});
   rCart();
   molSel=null;
   document.getElementById('mol-q').value='';document.getElementById('mol-sel').innerHTML='';
+  if(varEl)varEl.value='';
   ['l1','l2'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('qty').value='1';
   document.getElementById('p-sin').textContent='$0.00';document.getElementById('p-con').textContent='$0.00';
@@ -2064,11 +2072,28 @@ function registrarOrdManual(){
 }
 
 // ─── PEDIDOS POR WHATSAPP Y TIRAS (Marcos y Marcos) ──────────────────────────
-function provDe(it){
-  const m=MOLS.find(x=>x.nombre.trim().toUpperCase()===String(it.mol||'').trim().toUpperCase());
-  return (m&&m.proveedor)||it.prov||'PROPIO';
+function molBase(nombre){
+  // Busca la moldura: primero nombre exacto; si no existe, va quitando el último
+  // sufijo -XXX (variante de color) hasta encontrar la base. "P-003-003" existe
+  // exacto y se encuentra a la primera; "1015-109" cae a "1015".
+  let n=String(nombre||'').trim().toUpperCase();
+  while(n){
+    const m=MOLS.find(x=>x.nombre.trim().toUpperCase()===n);
+    if(m)return m;
+    const i=n.lastIndexOf('-');
+    if(i<=0)return null;
+    n=n.slice(0,i);
+  }
+  return null;
 }
-function despDe(mol){const m=MOLS.find(x=>x.nombre.trim().toUpperCase()===String(mol).trim().toUpperCase());return m?(m.desp_cm||0):0;}
+function provDe(it){
+  const ex=MOLS.find(x=>x.nombre.trim().toUpperCase()===String(it.mol||'').trim().toUpperCase());
+  if(ex&&ex.proveedor)return ex.proveedor;
+  if(it.prov)return it.prov;
+  const m=molBase(it.mol);
+  return (m&&m.proveedor)||'PROPIO';
+}
+function despDe(mol){const m=molBase(mol);return m?(m.desp_cm||0):0;}
 function sucsDe(it){
   // Sucursales de un item de OC: usa it.sucs si existe; si no (órdenes viejas), deduce por los folios
   let s=[...new Set(it.sucs||[])].filter(Boolean);
