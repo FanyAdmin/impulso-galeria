@@ -2905,13 +2905,34 @@ function emitirFactura(){
   if(!num||!rfc||!fecha){alert('Ingresa No. de factura, RFC y fecha');return;}
   var cbs=document.querySelectorAll('.fac-cb:checked');if(!cbs.length){alert('Selecciona al menos un pedido');return;}
   var folios=[],total=0;
-  for(var i=0;i<cbs.length;i++){var folio=cbs[i].value;folios.push(folio);for(var j=0;j<pedidos.length;j++){if(pedidos[j].folio===folio){pedidos[j].factura_num=num;total+=pedidos[j].total;break;}}}
-  FACTURAS.push({num:num,rfc:rfc,fecha:fecha,folios:folios,total:total});
+  for(var i=0;i<cbs.length;i++){var folio=cbs[i].value;folios.push(folio);for(var j=0;j<pedidos.length;j++){if(pedidos[j].folio===folio){pedidos[j].factura_num=num;total+=pedidos[j].total;
+    if(pedidos[j].id)fetch('/api/pedidos/'+pedidos[j].id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({factura_num:num})});
+    break;}}}
+  var reg={num:num,rfc:rfc,fecha:fecha,folios:folios,total:total};
+  fetch('/api/facturas',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(reg)})
+  .then(function(r){return r.json();}).then(function(d){
+    FACTURAS.unshift(d&&d.id?d:reg);
+    logActivity('Emitió factura',num+' — '+folios.length+' pedido(s) — '+fmt(total));
+    rFac();
+    alert('Factura '+num+' registrada con '+folios.length+' pedido(s) por '+fmt(total));
+  }).catch(function(){FACTURAS.unshift(reg);rFac();alert('Factura registrada LOCALMENTE — sin conexión al servidor, se perderá al recargar');});
   document.getElementById('fac-num').value='';document.getElementById('fac-rfc').value='';
   var faa=document.getElementById('fac-all');if(faa)faa.checked=false;
-  rFac();alert('Factura '+num+' registrada con '+folios.length+' pedido(s) por '+fmt(total));
 }
-function delFac(idx){if(!confirm('Eliminar factura?'))return;var f=FACTURAS[idx];for(var i=0;i<f.folios.length;i++){for(var j=0;j<pedidos.length;j++){if(pedidos[j].folio===f.folios[i]){delete pedidos[j].factura_num;break;}}}FACTURAS.splice(idx,1);rFac();}
+function delFac(idx){
+  if(!confirm('¿Eliminar esta factura? Sus pedidos volverán a Pendientes de facturar.'))return;
+  var f=FACTURAS[idx];if(!f)return;
+  var quitar=function(){
+    for(var i=0;i<f.folios.length;i++){for(var j=0;j<pedidos.length;j++){if(pedidos[j].folio===f.folios[i]){delete pedidos[j].factura_num;
+      if(pedidos[j].id)fetch('/api/pedidos/'+pedidos[j].id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({factura_num:''})});
+      break;}}}
+    FACTURAS.splice(idx,1);
+    logActivity('Eliminó factura',f.num||'');
+    rFac();
+  };
+  if(f.id){fetch('/api/facturas/'+f.id,{method:'DELETE',credentials:'include'}).then(function(){quitar();}).catch(function(){alert('Error de conexión — no se eliminó');});}
+  else quitar();
+}
 function expFacXlsx(){var mes=parseInt(document.getElementById('fac-mes').value);var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var rows=[['FACTURAS '+M[mes].toUpperCase()+' 2026'],['No. Factura','RFC','Fecha','Folios','Total']];var facsMes=FACTURAS.filter(function(f){return new Date(f.fecha).getMonth()===mes;});for(var i=0;i<facsMes.length;i++){var f=facsMes[i];rows.push([f.num,f.rfc,f.fecha,f.folios.join(', '),f.total]);}xlsxExp(rows,'Facturas_'+M[mes]);}
 
 // === TIPO VENTA TOGGLE ===
