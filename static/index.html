@@ -316,7 +316,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 </div>
 
 <div class="modal-bg" id="mod-edit-ped" style="display:none">
-<div class="modal" style="width:720px;max-width:95vw">
+<div class="modal" style="width:860px;max-width:96vw">
   <div class="modal-hdr"><div class="modal-ttl" id="edit-ped-ttl">Editar Pedido</div><button class="modal-x" onclick="CM('mod-edit-ped')">✕</button></div>
   <div class="modal-body">
     <div class="g2">
@@ -3194,7 +3194,7 @@ function pintarItemsEP(){
   const cont=document.getElementById('ep-items');if(!cont)return;
   if(!epItems.length){cont.innerHTML='<div style="color:var(--text3);padding:6px 0">Sin artículos. Usa "＋ Agregar artículo".</div>';}
   else{
-    cont.innerHTML=`<div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Moldura / Concepto</th><th style="width:64px">L1 (cm)</th><th style="width:64px">L2 (cm)</th><th style="width:52px">Cant.</th><th style="width:100px">Importe c/IVA</th><th>Extras</th><th style="width:34px"></th></tr></thead><tbody>`+
+    cont.innerHTML=`<style>#ep-items input[type=number]::-webkit-outer-spin-button,#ep-items input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}#ep-items input[type=number]{-moz-appearance:textfield;text-align:center;font-size:14px}</style><div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Moldura / Concepto</th><th style="width:86px">L1 (cm)</th><th style="width:86px">L2 (cm)</th><th style="width:64px">Cant.</th><th style="width:120px">Importe c/IVA</th><th>Extras</th><th style="width:34px"></th></tr></thead><tbody>`+
     epItems.map((it,i)=>`<tr>
       <td><input value="${(it.mol||'').replace(/"/g,'&quot;')}" oninput="updItemEP(${i},'mol',this.value)" style="width:100%;min-width:110px"></td>
       <td><input type="number" step="0.1" value="${it.l1||''}" oninput="updItemEP(${i},'l1',this.value)" style="width:100%"></td>
