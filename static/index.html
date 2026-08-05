@@ -2095,11 +2095,13 @@ function molBase(nombre){
   return null;
 }
 function provDe(it){
-  const ex=MOLS.find(x=>x.nombre.trim().toUpperCase()===String(it.mol||'').trim().toUpperCase());
-  if(ex&&ex.proveedor)return ex.proveedor;
-  if(it.prov)return it.prov;
+  if(it.esServicio)return 'SERVICIO';
+  // El catálogo manda: nombre exacto o su base sin sufijo de color (1008-04 → 1008).
+  // Así, corregir el proveedor en Molduras reacomoda la OC automáticamente.
   const m=molBase(it.mol);
-  return (m&&m.proveedor)||'PROPIO';
+  if(m&&m.proveedor)return m.proveedor;
+  if(it.prov)return it.prov;
+  return 'PROPIO';
 }
 function despDe(mol){const m=molBase(mol);return m?(m.desp_cm||0):0;}
 function sucsDe(it){
