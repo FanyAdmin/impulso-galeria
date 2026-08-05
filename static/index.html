@@ -735,6 +735,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="ph">
     <div><div class="ph-title">Estado de Resultados 2026</div></div>
     <div style="display:flex;gap:7px">
+      <button class="btn btn-s btn-sm" onclick="abrirEditorER()">⚙️ Conceptos</button>
       <button class="btn btn-s btn-sm" onclick="OM('mod-conc')">+ Agregar concepto</button>
       <select id="er-yr" onchange="rER()" style="width:85px"><option>2026</option><option>2025</option></select>
     </div>
@@ -781,6 +782,23 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="metric"><div class="m-label">Vendedores activos</div><div class="m-val" id="com-nv">0</div></div>
   </div>
   <div class="tw"><table class="tbl"><thead><tr><th>Vendedor</th><th>Sucursal</th><th>% Com.</th><th>Cobrado en el mes</th><th>Comision a pagar</th><th></th></tr></thead><tbody id="com-body"></tbody></table></div>
+</div>
+<!-- MODAL EDITOR DE CONCEPTOS DEL ER -->
+<div class="modal-bg" id="mod-ercats" style="display:none">
+<div class="modal" style="width:820px;max-width:96vw">
+  <div class="modal-hdr"><div class="modal-ttl">⚙️ Conceptos del Estado de Resultados</div><button class="modal-x" onclick="CM('mod-ercats')">✕</button></div>
+  <div class="modal-body">
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Un concepto por renglón. Agrega, renombra o borra líneas. ⚠️ Si quitas un concepto, sus movimientos históricos NO se pierden: pasan al renglón "Otros" de su sección.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="field"><label>(+) Ingresos & Ventas</label><textarea id="ec-ing" rows="8" style="width:100%;font-size:12px;font-family:monospace"></textarea></div>
+      <div class="field"><label>(−) Costos</label><textarea id="ec-cos" rows="8" style="width:100%;font-size:12px;font-family:monospace"></textarea></div>
+      <div class="field"><label>(−) Gastos de Venta</label><textarea id="ec-gv" rows="8" style="width:100%;font-size:12px;font-family:monospace"></textarea></div>
+      <div class="field"><label>(−) Gastos Administrativos</label><textarea id="ec-ga" rows="8" style="width:100%;font-size:12px;font-family:monospace"></textarea></div>
+      <div class="field"><label>(−) Retiros (solo dueña)</label><textarea id="ec-ret" rows="4" style="width:100%;font-size:12px;font-family:monospace"></textarea></div>
+    </div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-ercats')">Cancelar</button><button class="btn btn-p" onclick="guardarERCats()">✓ Guardar conceptos</button></div>
+</div>
 </div>
 <!-- MODAL DETALLE COMISION -->
 <div class="modal-bg" id="mod-comdet" style="display:none">
@@ -951,12 +969,22 @@ const BANCOS_INIT={'Efectivo':0,'HSBC':0,'INBURSA':0,'Bzipay':0,'El Patio':0,'Zi
 
 // ER Categories
 let ER_CATS={
-  ingresos:['EFECTIVO','HSBC','INBURSA','BZIPAY','EL PATIO','ZIBATA'],
+  ingresos:['EFECTIVO','HSBC','INBURSA','BZIPAY','EL PATIO','ZIBATA','INGRESO POR TERMINAL'],
   costos:['MOLDURAS','MADERA','Plataformas','MATERIALES','VIDRIO ANTI','VIDRIO NORMAL','TDC','VIDRIO DE MUSEO'],
   gastos_venta:['Comisión','Marketing','Transporte y fletes','Comision Agentes','Comision Artistas','RESTAURACIONES','COMISION ALEX CHAVEZ','COMISION ALONRA TREJO','COMISION RAUL CHAVEZ'],
   retiros:['Retiro Estefania','Retiro socios','Distribucion utilidades'],
   gastos_admin:['Nómina','Compras','Servicios','Gastos Financieros','Seguro Social','VIATICOS','PAGO MENSUAL CARMEN Y RAUL','PAGO MENSUAL ALEX Y FANY','GALERIA','REEMBOLSO','FINIQUITOS','VACACIONES']
 };
+// Cuenta puente: dinero de terceros que pasa por nuestras cuentas.
+// SÍ afecta Bancos (el dinero sí entra/sale) pero NO cuenta en el Estado de Resultados.
+const PUENTE_IN='Cobro por terceros (puente)';
+const PUENTE_OUT='Devolución a terceros (puente)';
+function esPuenteC(c){return String(c||'').toLowerCase().includes('(puente)');}
+function loadERCats(){
+  return fetch('/api/config/er_cats',{credentials:'include'}).then(r=>r.json()).then(d=>{
+    if(d&&d.valor&&Array.isArray(d.valor.ingresos)){ER_CATS=d.valor;}
+  }).catch(()=>{});
+}
 
 // ─── REAL DATA ────────────────────────────────────────────────────────────────
 
@@ -2268,7 +2296,7 @@ function printOrd(pv,itemsPre,wPre,oc,fechaOrden){
 function rMvCat(){
   const tipo=document.getElementById('mv-t').value;
   const retiros=esOwnerCU()?(ER_CATS.retiros||[]):[];
-  const all=tipo==='Entrada'?[...ER_CATS.ingresos]:tipo==='Salida'?[...ER_CATS.costos,...ER_CATS.gastos_venta,...ER_CATS.gastos_admin,...retiros]:tipo==='Retiro'?[...retiros]:tipo==='Traspaso'?['Traspaso entre cuentas']:[...ER_CATS.ingresos,...ER_CATS.costos,...ER_CATS.gastos_venta,...ER_CATS.gastos_admin,...retiros];
+  const all=tipo==='Entrada'?[...ER_CATS.ingresos,PUENTE_IN]:tipo==='Salida'?[...ER_CATS.costos,...ER_CATS.gastos_venta,...ER_CATS.gastos_admin,...retiros,PUENTE_OUT]:tipo==='Retiro'?[...retiros]:tipo==='Traspaso'?['Traspaso entre cuentas']:[...ER_CATS.ingresos,PUENTE_IN,...ER_CATS.costos,...ER_CATS.gastos_venta,...ER_CATS.gastos_admin,...retiros,PUENTE_OUT];
   document.getElementById('mv-c').innerHTML=all.map(c=>`<option>${c}</option>`).join('');
   const wrap=document.getElementById('mv-cta2-wrap');
   if(wrap) wrap.style.display=(tipo==='Traspaso'||tipo==='Retiro')?'block':'none';
@@ -2345,6 +2373,43 @@ function getIngreso(concepto,mes){const c=concepto.toLowerCase();return movs.fil
 function getGasto(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes&&m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);}
 function getRetiro(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes&&(m.tipo.toLowerCase().includes('retiro')||m.tipo.toLowerCase().includes('salida'))).reduce((a,b)=>a+b.monto,0);}
 
+const OTROS_ING='Otros ingresos (conceptos no listados)';
+const OTROS_GAS='Otros gastos (conceptos no listados)';
+function otrosIng(mes){
+  const set=new Set(ER_CATS.ingresos.map(x=>x.toLowerCase()));
+  return movs.filter(m=>m.tipo.toLowerCase().includes('entrada')&&parseInt(m.mes)===mes&&!set.has((m.concepto||'').toLowerCase())&&!esPuenteC(m.concepto)).reduce((a,b)=>a+b.monto,0);
+}
+function otrosGas(mes){
+  const set=new Set([...ER_CATS.costos,...ER_CATS.gastos_venta,...ER_CATS.gastos_admin,...(ER_CATS.retiros||[])].map(x=>x.toLowerCase()));
+  return movs.filter(m=>m.tipo.toLowerCase().includes('salida')&&parseInt(m.mes)===mes&&!set.has((m.concepto||'').toLowerCase())&&!esPuenteC(m.concepto)&&(m.concepto||'').toLowerCase()!=='traspaso entre cuentas').reduce((a,b)=>a+b.monto,0);
+}
+function getIngresoER(concepto,mes){return concepto===OTROS_ING?otrosIng(mes):getIngreso(concepto,mes);}
+function getGastoER(concepto,mes){return concepto===OTROS_GAS?otrosGas(mes):getGasto(concepto,mes);}
+
+function abrirEditorER(){
+  if(!esOwnerCU()){alert('Solo Estefania (owner) puede editar los conceptos.');return;}
+  document.getElementById('ec-ing').value=ER_CATS.ingresos.join('\n');
+  document.getElementById('ec-cos').value=ER_CATS.costos.join('\n');
+  document.getElementById('ec-gv').value=ER_CATS.gastos_venta.join('\n');
+  document.getElementById('ec-ga').value=ER_CATS.gastos_admin.join('\n');
+  document.getElementById('ec-ret').value=(ER_CATS.retiros||[]).join('\n');
+  OM('mod-ercats');
+}
+function guardarERCats(){
+  if(!esOwnerCU())return;
+  const lineas=id=>document.getElementById(id).value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const nuevo={ingresos:lineas('ec-ing'),costos:lineas('ec-cos'),gastos_venta:lineas('ec-gv'),gastos_admin:lineas('ec-ga'),retiros:lineas('ec-ret')};
+  if(!nuevo.ingresos.length||!nuevo.gastos_admin.length){alert('Ingresos y Gastos Administrativos no pueden quedar vacíos');return;}
+  ER_CATS=nuevo;
+  fetch('/api/config/er_cats',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:nuevo})})
+  .then(r=>r.json()).then(d=>{
+    if(d.error){alert(d.error+' — el cambio quedó solo en esta sesión');}
+    logActivity('Editó conceptos del ER','Ingresos:'+nuevo.ingresos.length+' · Costos:'+nuevo.costos.length+' · GV:'+nuevo.gastos_venta.length+' · GA:'+nuevo.gastos_admin.length);
+  }).catch(()=>alert('Sin conexión — el cambio quedó solo en esta sesión'));
+  CM('mod-ercats');
+  try{rMvCat();}catch(e){}
+  try{rER();}catch(e){}
+}
 function rER(){
   const mesAct=new Date().getMonth();
   const mesesIdx=Array.from({length:6},(_,i)=>(mesAct-5+i+12)%12);
@@ -2353,11 +2418,11 @@ function rER(){
   const head=`<thead><tr><th style="min-width:200px;position:sticky;left:0;z-index:2;background:var(--surface2)">Concepto</th>${mesesVis.map(m=>`<th style="text-align:right;min-width:95px">${m}</th>`).join('')}<th style="text-align:right;min-width:95px;background:#F0EFE9">Total</th></tr></thead>`;
 
   const sections=[
-    {label:'(+) Ingresos & Ventas',cls:'er-ing',key:'ing',items:ER_CATS.ingresos,fn:getIngreso},
+    {label:'(+) Ingresos & Ventas',cls:'er-ing',key:'ing',items:[...ER_CATS.ingresos,OTROS_ING],fn:getIngresoER},
     {label:'(−) Costos',cls:'er-cos',key:'cos',items:ER_CATS.costos,fn:getGasto},
     {label:'(=) Utilidad Bruta',cls:'er-ub',key:'ub',total:true},
     {label:'(−) Gastos de Venta',cls:'er-gv',key:'gv',items:ER_CATS.gastos_venta,fn:getGasto},
-    {label:'(−) Gastos Administrativos',cls:'er-ga',key:'ga',items:ER_CATS.gastos_admin,fn:getGasto},
+    {label:'(−) Gastos Administrativos',cls:'er-ga',key:'ga',items:[...ER_CATS.gastos_admin,OTROS_GAS],fn:getGastoER},
     {label:'(=) Utilidad Neta',cls:'er-un',key:'un',total:true},
     {label:'(−) Retiros / Distribucion de utilidades',cls:'er-cos',key:'ret',items:ER_CATS.retiros||[],fn:getRetiro},
     {label:'(=) Utilidad Retenida',cls:'er-ub',key:'urt',total:true},
@@ -3024,6 +3089,7 @@ function loadData(){
     pedidos=peds;
     movs=movs_data;
     FACTURAS=facs;
+    loadERCats().then(()=>{try{rMvCat();}catch(e){}try{if(document.querySelector('#page-er.active'))rER();}catch(e){}});
     if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
     ORDENES=ords||[];
     ABONOS=abns||[];
