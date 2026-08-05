@@ -1172,13 +1172,15 @@ function rCart(){
   if(!cart.length){e.style.display='block';it.style.display='none';document.getElementById('cc-btn').style.display='none';return;}
   e.style.display='none';it.style.display='block';document.getElementById('cc-btn').style.display='inline-flex';
   document.getElementById('c-list').innerHTML=cart.map((x,i)=>`
-    <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+    <div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:12px${x.regalo?';background:#FFFBEB;border-radius:6px;padding-left:6px;padding-right:6px':''}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:7px">
-        <div style="flex:1"><div style="font-weight:500">${x.mol}</div>
+        <div style="flex:1"><div style="font-weight:500">${x.mol}${x.regalo?' <span style="background:#FCD34D;color:#92400E;border-radius:99px;padding:1px 8px;font-size:10px;font-weight:700">🎁 REGALO</span>':''}</div>
         <div style="color:var(--text3);font-size:11px;margin-top:1px">${x.l1}×${x.l2}cm · ×${x.q}${x.en.length?' · '+x.en.join(', '):''}</div></div>
+        <button onclick="giftCart(${i})" title="${x.regalo?'Quitar regalo (recupera su precio)':'Marcar como regalo ($0)'}" style="padding:3px 7px;border:1px solid ${x.regalo?'#FCD34D':'#ddd'};background:${x.regalo?'#FEF3C7':'#fff'};border-radius:4px;cursor:pointer;font-size:12px">🎁</button>
         <button class="btn btn-d btn-xs" onclick="rmCart(${i})">✕</button>
       </div>
-      <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:4px">
+      <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:4px;align-items:flex-end">
+        ${x.regalo?'<div class="mono" style="font-size:11px;color:var(--text3);text-decoration:line-through">'+fmt(x.subIvaOrig||0)+'</div>':''}
         <div style="text-align:right"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">Sin IVA</div><div class="mono" style="font-size:12px;font-weight:600">${fmt(x.sub)}</div></div>
         <div style="text-align:right"><div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.04em">Con IVA</div><div class="mono" style="font-size:12px;font-weight:600;color:var(--green)">${fmt(x.subIva)}</div></div>
       </div>
@@ -1188,6 +1190,20 @@ function rCart(){
   document.getElementById('cs-sub').textContent=fmt(subRaw)+(cotDesc>0?' → '+fmt(subFinal)+' (−'+cotDesc+'%)':'');
   document.getElementById('cs-iva').textContent=fmt(iva);
   document.getElementById('cs-tot').textContent=fmt(subFinal+iva);
+}
+function giftCart(i){
+  const x=cart[i];if(!x)return;
+  if(x.regalo){
+    // Quitar regalo: recuperar el precio original
+    x.sub=x.subOrig||0;x.subIva=x.subIvaOrig||0;
+    delete x.regalo;delete x.subOrig;delete x.subIvaOrig;
+  }else{
+    x.subOrig=x.sub;x.subIvaOrig=x.subIva;
+    x.sub=0;x.subIva=0;x.regalo=true;
+    if(!(x.en||[]).includes('Regalo'))x.en=[...(x.en||[]),'Regalo'];
+  }
+  if(!x.regalo)x.en=(x.en||[]).filter(s=>s!=='Regalo');
+  rCart();
 }
 function rmCart(i){cart.splice(i,1);rCart();}
 function clrCart(){cart=[];rCart();}
