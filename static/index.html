@@ -210,6 +210,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div class="field"><label>Cliente (opcional)</label><input id="mp-c" placeholder="Nombre del cliente" oninput="checkVIP(this.value)"></div><div id="mp-vip-badge" style="display:none;grid-column:span 2;background:#FEF3C7;border:1px solid #F59E0B;border-radius:6px;padding:6px 10px;font-size:12px;color:#92400E;font-weight:600">⭐ Cliente VIP — 10% aplicado</div>
       <div class="field"><label>Teléfono</label><input id="mp-t" placeholder="(442)..."></div>
       <div class="field"><label>Vendedor</label><select id="mp-vend"></select></div>
+      <div class="field" id="mp-suc-wrap" style="display:none"><label>Sucursal del pedido</label><select id="mp-suc" onchange="mpSucChange()"><option>Jardines</option><option>Zibata</option></select></div>
       <div class="field"><label>Método de pago</label><select id="mp-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field gc2"><label>Descuento</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px"><button type="button" onclick="applyDesc(0)" id="desc-0" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">Sin desc</button><button type="button" onclick="applyDesc(5)" id="desc-5" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">5%</button><button type="button" onclick="applyDesc(10)" id="desc-10" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">10%</button><button type="button" onclick="applyDesc(15)" id="desc-15" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">15%</button><button type="button" onclick="applyDesc(16)" id="desc-16" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">16%</button><button type="button" onclick="applyDesc(50)" id="desc-50" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">50%</button></div></div>
       <div class="field"><label>Anticipo ($)</label><input type="number" id="mp-a" placeholder="0.00" oninput="calcMR()"></div>
@@ -320,8 +321,9 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="modal-hdr"><div class="modal-ttl" id="edit-ped-ttl">Editar Pedido</div><button class="modal-x" onclick="CM('mod-edit-ped')">✕</button></div>
   <div class="modal-body">
     <div class="g2">
-      <div class="field"><label>Folio</label><input id="ep-f" class="ro" readonly></div>
+      <div class="field"><label>Folio / No. de nota</label><input id="ep-f"></div>
       <div class="field"><label>Estatus</label><select id="ep-est"><option>Pendiente</option><option>Entregado</option><option>Cancelado</option></select></div>
+      <div class="field"><label>Sucursal</label><select id="ep-suc"><option>Jardines</option><option>Zibata</option></select></div>
       <div class="field"><label>Cliente</label><input id="ep-c" placeholder="Nombre del cliente"></div>
       <div class="field"><label>Teléfono</label><input id="ep-t" placeholder="(442)..."></div>
       <div class="field"><label>Vendedor</label><select id="ep-vend"></select></div>
@@ -1282,6 +1284,13 @@ function openModPed(){
   if(!cart.length){alert('El carrito está vacío');return;}
   const sub=cart.reduce((a,b)=>a+b.sub,0),total=sub*1.16;
   const u_cur=USERS.find(x=>x.key===CU);['mp-f','mp-c','mp-t','mp-a','mp-o'].forEach(id=>document.getElementById(id).value='');if(u_cur){document.getElementById('mp-f').value=getNextFolio(u_cur.suc);}
+  // Admin/owner eligen a qué sucursal va el pedido (su usuario no tiene sucursal de venta)
+  const sucWrap=document.getElementById('mp-suc-wrap');
+  if(u_cur&&(u_cur.role==='admin'||u_cur.role==='owner')){
+    if(sucWrap)sucWrap.style.display='';
+    const ms=document.getElementById('mp-suc');
+    if(ms){if(ms.value!=='Jardines'&&ms.value!=='Zibata')ms.value='Jardines';document.getElementById('mp-f').value=getNextFolio(ms.value);}
+  }else if(sucWrap)sucWrap.style.display='none';
   const _totEl=document.getElementById('mp-tot');if(_totEl){_totEl.value=fmt(total);_totEl._raw=total;_totEl._manual=false;}
   document.getElementById('mp-r').value=fmt(total);
   document.getElementById('mp-res').innerHTML=
@@ -3114,6 +3123,7 @@ setInterval(function(){
 
 // Override guardarPed to save to API
 const _origGuardarPed=guardarPed;
+function mpSucChange(){const ms=document.getElementById('mp-suc');if(ms)document.getElementById('mp-f').value=getNextFolio(ms.value);}
 function guardarPed(){
   const u=USERS.find(x=>x.key===CU);
   if(!u){alert('Sesion expirada');return;}
@@ -3134,7 +3144,7 @@ function guardarPed(){
   const newPed={folio,tipo_venta:tvEl?tvEl.value:'general',
     cli:(cliEl?cliEl.value.trim():'')||'—',
     tel:telEl?telEl.value.trim():'',
-    suc:u.suc,vend:vendEl?vendEl.value:'',
+    suc:(function(){const w=document.getElementById('mp-suc-wrap'),ms=document.getElementById('mp-suc');return (w&&w.style.display!=='none'&&ms)?ms.value:u.suc;})(),vend:vendEl?vendEl.value:'',
     fecha:hoy,mes:new Date().getMonth(),
     items:[...cart],sub:sub,total:totalFinal,
     met:metEl?metEl.value:'Efectivo',
@@ -3348,6 +3358,12 @@ function editPed(idx){
   document.getElementById('ep-o').value=p.obs||'';
   document.getElementById('ep-ent').value=p.entrega||'';
   const epF=document.getElementById('ep-fecha');if(epF)epF.value=p.fecha||'';
+  const epS=document.getElementById('ep-suc');
+  if(epS){
+    // Si el pedido trae una sucursal no estándar (ej. "Admin"), agregarla para poder corregirla
+    if(p.suc&&![...epS.options].some(o=>o.value===p.suc)){const o=document.createElement('option');o.value=o.textContent=p.suc;epS.appendChild(o);}
+    epS.value=p.suc||'Jardines';
+  }
   // Poblar vendedores
   const vs=document.getElementById('ep-vend');
   vs.innerHTML='<option value="">- Vendedor -</option>'+VENDEDORES.map(v=>`<option value="${v.nombre}">${v.nombre}</option>`).join('');
@@ -3372,6 +3388,8 @@ function guardarEditPed(){
   const sub=items.reduce((a,b)=>a+b.sub,0);
   const total=parseFloat(document.getElementById('ep-total').value)||0;
   const updates={
+    folio:(document.getElementById('ep-f').value||'').trim()||p.folio,
+    suc:document.getElementById('ep-suc')?document.getElementById('ep-suc').value:p.suc,
     est:document.getElementById('ep-est').value,
     cli:document.getElementById('ep-c').value.trim()||p.cli,
     tel:document.getElementById('ep-t').value.trim(),
