@@ -461,6 +461,31 @@ def borrar_factura(fid):
     db.session.commit()
     return jsonify({'ok': True})
 
+# ── CONFIG (clave-valor JSON, p.ej. conceptos del Estado de Resultados) ──────
+
+class Config(db.Model):
+    __tablename__ = 'config'
+    clave = db.Column(db.String(50), primary_key=True)
+    valor = db.Column(db.Text)
+
+@app.route('/api/config/<clave>', methods=['GET'])
+@requiere_login
+def get_config(clave):
+    c = Config.query.get(clave)
+    return jsonify({'clave': clave, 'valor': json.loads(c.valor) if c and c.valor else None})
+
+@app.route('/api/config/<clave>', methods=['PUT'])
+@requiere_admin
+def set_config(clave):
+    d = request.json or {}
+    c = Config.query.get(clave)
+    if not c:
+        c = Config(clave=clave)
+        db.session.add(c)
+    c.valor = json.dumps(d.get('valor'))
+    db.session.commit()
+    return jsonify({'ok': True})
+
 @app.route('/debug')
 def debug():
     folders = os.listdir(BASE_DIR)
