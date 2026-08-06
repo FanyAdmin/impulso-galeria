@@ -747,9 +747,21 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 
 <!-- BANCOS -->
 <div class="page" id="page-ban">
-  <div class="ph"><div><div class="ph-title">Bancos y Cuentas</div></div></div>
+  <div class="ph"><div><div class="ph-title">Bancos y Cuentas</div></div><button class="btn btn-s btn-sm" onclick="abrirEditorBancos()">⚙️ Cuentas</button></div>
   <div class="metrics m3" id="ban-m"></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Cuenta</th><th>Saldo inicial</th><th>Entradas</th><th>Salidas</th><th>Saldo actual</th></tr></thead><tbody id="ban-body"></tbody></table></div>
+</div>
+<!-- MODAL EDITOR DE CUENTAS DE BANCOS -->
+<div class="modal-bg" id="mod-bancos" style="display:none">
+<div class="modal" style="width:560px;max-width:96vw">
+  <div class="modal-hdr"><div class="modal-ttl">⚙️ Cuentas de Bancos</div><button class="modal-x" onclick="CM('mod-bancos')">✕</button></div>
+  <div class="modal-body">
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px">Agrega cuentas (ej. "Galería INBURSA") o ajusta su saldo inicial. ⚠️ Si RENOMBRAS una cuenta, los movimientos viejos se quedan con el nombre anterior — para renombrar, mejor agrega la nueva y deja de usar la vieja.</div>
+    <div id="bc-rows" style="display:grid;gap:8px"></div>
+    <button class="btn btn-s btn-sm" style="margin-top:10px" onclick="addCuentaB()">＋ Agregar cuenta</button>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-bancos')">Cancelar</button><button class="btn btn-p" onclick="guardarBancos()">✓ Guardar cuentas</button></div>
+</div>
 </div>
 
 <!-- USUARIOS -->
@@ -967,7 +979,25 @@ const XL={va:'Vid Anti',vn:'V Normal',v2:'/2Vid',ml:'ML','2m':'2ML',cj:'Cama Jus
 const PROVS={PROPIO:'Propio',SM:'Servimarco',MM:'Marcos y Marcos',MX:'Mexicana de Marcos','MARCOS LEON':'Marcos León'};
 const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const MESES_C=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-const BANCOS_INIT={'Efectivo':0,'HSBC':0,'INBURSA':0,'Bzipay':0,'El Patio':0,'Zibata':0,'Efectivo Zibata':0};
+let BANCOS_INIT={'Efectivo':0,'HSBC':0,'INBURSA':0,'Bzipay':0,'El Patio':0,'Zibata':0,'Efectivo Zibata':0};
+function loadBancosCfg(){
+  return fetch('/api/config/bancos',{credentials:'include'}).then(r=>r.json()).then(d=>{
+    if(d&&d.valor&&typeof d.valor==='object'&&Object.keys(d.valor).length){BANCOS_INIT=d.valor;}
+  }).catch(()=>{});
+}
+function pintarCuentasSelects(){
+  const ctas=Object.keys(BANCOS_INIT);
+  ['mv-cta','mv-cta2','em-cta','em-cta2','mv-cta-fil'].forEach(id=>{
+    const s=document.getElementById(id);if(!s)return;
+    const prev=s.value;
+    let h='';
+    if(id==='em-cta2')h+='<option value="">— Sin destino —</option>';
+    if(id==='mv-cta-fil')h+='<option value="">Todas</option>';
+    h+=ctas.map(c=>'<option>'+c+'</option>').join('');
+    s.innerHTML=h;
+    if([...s.options].some(o=>o.value===prev))s.value=prev;
+  });
+}
 
 // ER Categories
 let ER_CATS={
@@ -2475,6 +2505,43 @@ function saldoCta(c){
   const tEnt=movs.filter(m=>m.cta_destino===c&&m.tipo==='Traspaso').reduce((a,b)=>a+b.monto,0);
   return {e:e+tEnt, s:s+tSal};
 }
+let bcTemp=[];
+function abrirEditorBancos(){
+  if(!esOwnerCU()){alert('Solo Estefania (owner) puede editar las cuentas.');return;}
+  bcTemp=Object.keys(BANCOS_INIT).map(c=>({nombre:c,saldo:BANCOS_INIT[c]||0}));
+  pintarBC();
+  OM('mod-bancos');
+}
+function pintarBC(){
+  document.getElementById('bc-rows').innerHTML=bcTemp.map((r,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 130px 34px;gap:8px;align-items:center">
+      <input value="${String(r.nombre).replace(/"/g,'&quot;')}" placeholder="Nombre de la cuenta" oninput="bcTemp[${i}].nombre=this.value">
+      <input type="number" step="0.01" value="${r.saldo}" placeholder="Saldo inicial" oninput="bcTemp[${i}].saldo=parseFloat(this.value)||0" style="text-align:right">
+      <button onclick="bcTemp.splice(${i},1);pintarBC()" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>
+    </div>`).join('');
+}
+function addCuentaB(){bcTemp.push({nombre:'',saldo:0});pintarBC();}
+function guardarBancos(){
+  if(!esOwnerCU())return;
+  const limpio={};
+  for(const r of bcTemp){
+    const n=String(r.nombre||'').trim();
+    if(!n)continue;
+    if(limpio[n]!==undefined){alert('Cuenta duplicada: '+n);return;}
+    limpio[n]=parseFloat(r.saldo)||0;
+  }
+  if(!Object.keys(limpio).length){alert('Debe quedar al menos una cuenta');return;}
+  // Aviso si se elimina una cuenta que tiene movimientos
+  const eliminadas=Object.keys(BANCOS_INIT).filter(c=>!(c in limpio)&&movs.some(m=>m.cuenta===c||m.cta_destino===c));
+  if(eliminadas.length&&!confirm('Estas cuentas tienen movimientos y dejarán de verse en Bancos (los movimientos NO se borran):\n\n'+eliminadas.join(', ')+'\n\n¿Continuar?'))return;
+  BANCOS_INIT=limpio;
+  fetch('/api/config/bancos',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:limpio})})
+  .then(r=>r.json()).then(d=>{if(d.error)alert(d.error+' — el cambio quedó solo en esta sesión');logActivity('Editó cuentas de Bancos',Object.keys(limpio).join(', '));})
+  .catch(()=>alert('Sin conexión — el cambio quedó solo en esta sesión'));
+  CM('mod-bancos');
+  pintarCuentasSelects();
+  try{rBancos();}catch(e){}
+}
 function rBancos(){
   const ctas=Object.keys(BANCOS_INIT);
   let total=0;
@@ -3099,6 +3166,7 @@ function loadData(){
     movs=movs_data;
     FACTURAS=facs;
     loadERCats().then(()=>{try{rMvCat();}catch(e){}try{if(document.querySelector('#page-er.active'))rER();}catch(e){}});
+    loadBancosCfg().then(()=>{pintarCuentasSelects();try{if(document.querySelector('#page-ban.active'))rBancos();}catch(e){}});
     if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
     ORDENES=ords||[];
     ABONOS=abns||[];
