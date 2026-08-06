@@ -465,6 +465,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-sec admin-only" style="display:none">Config</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('vends')" id="nav-vends">🏷 Vendedores</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('com')" id="nav-com">💸 Comisiones</div>
+  <div class="sb-item owner-only" style="display:none" onclick="go('audit')" id="nav-audit">🔍 Auditoría Efectivo</div>
   <div class="sb-item" onclick="go('fac')" id="nav-fac">📄 Facturacion</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('usr')" id="nav-usr">👤 Usuarios</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('activity');clearActivityBadge()" id="nav-activity">🔔 Actividad <span id="activity-badge" style="background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
@@ -750,6 +751,19 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="ph"><div><div class="ph-title">Bancos y Cuentas</div></div><button class="btn btn-s btn-sm" onclick="abrirEditorBancos()">⚙️ Cuentas</button></div>
   <div class="metrics m3" id="ban-m"></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Cuenta</th><th>Saldo inicial</th><th>Entradas</th><th>Salidas</th><th>Saldo actual</th></tr></thead><tbody id="ban-body"></tbody></table></div>
+</div>
+<div class="page" id="page-audit">
+  <div class="ph"><div><div class="ph-title">🔍 Auditoría de Efectivo</div><div class="ph-sub">Lo cobrado en efectivo por las sucursales vs lo registrado en Movimientos</div></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:11px;color:var(--text3)">Del</label><input type="date" id="au-d1" onchange="rAudit()" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px">
+      <label style="font-size:11px;color:var(--text3)">al</label><input type="date" id="au-d2" onchange="rAudit()" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px">
+    </div>
+  </div>
+  <div class="metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px" id="au-metrics"></div>
+  <div id="au-saldo" style="margin-bottom:14px"></div>
+  <div class="app-title" style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Comparación día por día (solo efectivo)</div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Fecha</th><th style="text-align:right">🌳 Jardines cobró</th><th style="text-align:right">🏔️ Zibata cobró</th><th style="text-align:right">Total sucursales</th><th style="text-align:right">Registrado en Movimientos</th><th style="text-align:right">Diferencia</th><th>Estado</th></tr></thead><tbody id="au-body"></tbody></table></div>
+  <div style="font-size:11px;color:var(--text3);margin-top:8px">"Cobró" = anticipos de pedidos en efectivo + abonos en efectivo de ese día (según lo capturado por las sucursales). "Registrado" = entradas en Movimientos a las cuentas Efectivo / Efectivo Zibata. Diferencia positiva = las sucursales cobraron más de lo que se registró en Movimientos.</div>
 </div>
 <!-- MODAL EDITOR DE CUENTAS DE BANCOS -->
 <div class="modal-bg" id="mod-bancos" style="display:none">
@@ -1155,14 +1169,14 @@ function logout(){CU=null;cart=[];molSel=null;document.getElementById('app').sty
 
 // ─── NAV ──────────────────────────────────────────────────────────────────────
 function go(id){
-  if((id==='com'||id==='usr')&&!esOwnerCU())return; // páginas exclusivas de la dueña
+  if((id==='com'||id==='usr'||id==='audit')&&!esOwnerCU())return; // páginas exclusivas de la dueña
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:rDia,cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();rNom();},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();}
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit
   })[id]?.();
 }
 
@@ -2507,6 +2521,71 @@ function saldoCta(c){
   // Traspasos: llega a cuenta destino
   const tEnt=movs.filter(m=>m.cta_destino===c&&m.tipo==='Traspaso').reduce((a,b)=>a+b.monto,0);
   return {e:e+tEnt, s:s+tSal};
+}
+// ─── AUDITORÍA DE EFECTIVO ────────────────────────────────────────────────────
+function esEfectivoMet(m){return String(m||'').trim().toLowerCase()==='efectivo';}
+function rAudit(){
+  const d1El=document.getElementById('au-d1'),d2El=document.getElementById('au-d2');
+  if(d1El&&!d1El.value){const h=new Date();d1El.value=dateStrLocal(new Date(h.getFullYear(),h.getMonth(),1));}
+  if(d2El&&!d2El.value)d2El.value=todayStr();
+  const d1=d1El.value,d2=d2El.value;
+  const enRango=f=>f&&f>=d1&&f<=d2;
+  const abDelPed=p=>ABONOS.filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc)).reduce((s,a)=>s+(a.monto||0),0);
+  // Cobros en EFECTIVO por día y sucursal (lo que capturaron las sucursales)
+  const dias={}; // fecha -> {J:0,Z:0,mov:0}
+  const reg=f=>{if(!dias[f])dias[f]={J:0,Z:0,mov:0};return dias[f];};
+  pedidos.forEach(p=>{
+    if(!enRango(p.fecha)||!esEfectivoMet(p.met))return;
+    const v=Math.max(0,(p.ant||0)-abDelPed(p));
+    if(v<=0)return;
+    const r=reg(p.fecha);
+    if(p.suc==='Zibata')r.Z+=v;else r.J+=v;
+  });
+  ABONOS.forEach(a=>{
+    if(!enRango(a.fecha)||!esEfectivoMet(a.met))return;
+    const r=reg(a.fecha);
+    if(a.suc==='Zibata')r.Z+=(a.monto||0);else r.J+=(a.monto||0);
+  });
+  // Entradas de efectivo registradas en Movimientos (por Ana Karen)
+  const ctasEf=Object.keys(BANCOS_INIT).filter(c=>c.toLowerCase().includes('efectivo'));
+  movs.forEach(m=>{
+    if(m.tipo!=='Entrada'||!enRango(m.fecha))return;
+    if(!ctasEf.includes(m.cuenta))return;
+    reg(m.fecha).mov+=(m.monto||0);
+  });
+  // Salidas y traspasos de efectivo del rango (para el resumen)
+  const salEf=movs.filter(m=>enRango(m.fecha)&&(m.tipo==='Salida'||m.tipo==='Retiro')&&ctasEf.includes(m.cuenta)).reduce((s,m)=>s+m.monto,0);
+  const traSalEf=movs.filter(m=>enRango(m.fecha)&&m.tipo==='Traspaso'&&ctasEf.includes(m.cuenta)).reduce((s,m)=>s+m.monto,0);
+  const traEntEf=movs.filter(m=>enRango(m.fecha)&&m.tipo==='Traspaso'&&ctasEf.includes(m.cta_destino)).reduce((s,m)=>s+m.monto,0);
+  // Totales
+  const fechas=Object.keys(dias).sort().reverse();
+  let tJ=0,tZ=0,tMov=0;
+  fechas.forEach(f=>{tJ+=dias[f].J;tZ+=dias[f].Z;tMov+=dias[f].mov;});
+  const tCob=tJ+tZ,dif=tCob-tMov;
+  // Métricas
+  document.getElementById('au-metrics').innerHTML=
+    `<div class="metric"><div class="m-label">🌳 Jardines cobró (efectivo)</div><div class="m-val">${fmtK(tJ)}</div></div>`+
+    `<div class="metric"><div class="m-label">🏔️ Zibata cobró (efectivo)</div><div class="m-val">${fmtK(tZ)}</div></div>`+
+    `<div class="metric"><div class="m-label">Total sucursales</div><div class="m-val">${fmtK(tCob)}</div></div>`+
+    `<div class="metric"><div class="m-label">Registrado en Movimientos</div><div class="m-val">${fmtK(tMov)}</div></div>`+
+    `<div class="metric" style="background:${Math.abs(dif)<1?'var(--green-l)':'#FBE9E9'}"><div class="m-label">Diferencia del periodo</div><div class="m-val" style="color:${Math.abs(dif)<1?'var(--green)':'var(--red)'}">${fmtK(dif)}</div></div>`;
+  // Saldo de efectivo
+  let saldoLibros=0;
+  ctasEf.forEach(c=>{const {e,s}=saldoCta(c);saldoLibros+=(BANCOS_INIT[c]||0)+e-s;});
+  const saldoEsperado=saldoLibros+dif;
+  document.getElementById('au-saldo').innerHTML=
+    `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
+      <div style="border:1.5px solid var(--border);border-radius:10px;padding:12px 14px"><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">💼 Saldo de efectivo según Movimientos</div><div class="mono" style="font-size:22px;font-weight:800">${fmt(saldoLibros)}</div><div style="font-size:11px;color:var(--text3)">Cuentas: ${ctasEf.join(' + ')} (todo el historial)</div></div>
+      <div style="border:1.5px solid ${Math.abs(dif)<1?'var(--green)':'#FCD34D'};border-radius:10px;padding:12px 14px;background:${Math.abs(dif)<1?'var(--green-l)':'#FFFBEB'}"><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">🧮 Saldo que DEBERÍA haber</div><div class="mono" style="font-size:22px;font-weight:800;color:${Math.abs(dif)<1?'var(--green)':'#92400E'}">${fmt(saldoEsperado)}</div><div style="font-size:11px;color:var(--text3)">${Math.abs(dif)<1?'✓ Todo cuadra: lo cobrado del periodo ya está registrado.':'Libros + '+fmt(dif)+' cobrados por sucursales y aún no registrados en Movimientos en este periodo.'}</div></div>
+      <div style="border:1.5px solid var(--border);border-radius:10px;padding:12px 14px"><div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase">📤 Efectivo que salió en el periodo</div><div class="mono" style="font-size:16px;font-weight:700">${fmt(salEf)} <span style="font-size:11px;color:var(--text3);font-weight:400">salidas/retiros</span></div><div class="mono" style="font-size:13px;color:var(--text3)">Traspasos: −${fmt(traSalEf)} / +${fmt(traEntEf)}</div></div>
+    </div>`;
+  // Tabla por día
+  const body=document.getElementById('au-body');
+  if(!fechas.length){body.innerHTML='<tr><td colspan="7" class="tbl-empty">Sin cobros ni registros de efectivo en este rango</td></tr>';return;}
+  body.innerHTML=fechas.map(f=>{
+    const d=dias[f],cob=d.J+d.Z,df=cob-d.mov,ok=Math.abs(df)<1;
+    return `<tr style="${ok?'':'background:#FFF7ED'}"><td style="white-space:nowrap">${f}</td><td class="mono" style="text-align:right">${d.J?fmt(d.J):'—'}</td><td class="mono" style="text-align:right">${d.Z?fmt(d.Z):'—'}</td><td class="mono" style="text-align:right;font-weight:600">${cob?fmt(cob):'—'}</td><td class="mono" style="text-align:right">${d.mov?fmt(d.mov):'—'}</td><td class="mono" style="text-align:right;font-weight:700;color:${ok?'var(--green)':'var(--red)'}">${fmt(df)}</td><td>${ok?'<span class="badge bg">✓ Cuadra</span>':df>0?'<span class="badge br">Falta registrar</span>':'<span class="badge by">Registrado de más</span>'}</td></tr>`;
+  }).join('');
 }
 let bcTemp=[];
 function abrirEditorBancos(){
