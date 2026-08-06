@@ -1894,9 +1894,9 @@ function rOrd(){
         <div class="tw" style="margin:10px 0 0"><table class="tbl"><thead><tr><th>Moldura</th><th>Sucursal</th><th style="text-align:center">Piezas</th><th>Medidas</th><th>Pedidos</th><th>Ingresó</th></tr></thead>
         <tbody>${byP[pv].map(it=>{
           const ml=medsList(it);
-          if(!ml.length)return `<tr style="border-top:2px solid var(--border)"><td style="font-weight:600">${it.mol}</td><td>${sucsHTML(it)}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">—</td><td style="color:var(--text3);font-size:11px">${[...new Set(it.fols)].join(', ')}</td><td style="color:var(--text3);font-size:11px;white-space:nowrap">${it.fecha||'—'}</td></tr>`;
-          const n=ml.length;
-          return ml.map((x,r)=>`<tr style="${r===0?'border-top:2px solid var(--border)':''}">${r===0?`<td rowspan="${n}" style="font-weight:600;vertical-align:middle">${it.mol}</td><td rowspan="${n}" style="vertical-align:middle">${sucsHTML(it)}</td>`:''}<td style="text-align:center;font-weight:600">${x.q}</td><td style="color:var(--text3);font-size:11px">${x.m}</td>${r===0?`<td rowspan="${n}" style="color:var(--text3);font-size:11px;vertical-align:middle">${[...new Set(it.fols)].join(', ')}</td><td rowspan="${n}" style="color:var(--text3);font-size:11px;white-space:nowrap;vertical-align:middle">${it.fecha||'—'}</td>`:''}</tr>`).join('');
+          const fols=[...new Set(it.fols)].join(', ');
+          if(!ml.length)return `<tr style="border-top:2px solid var(--border)"><td style="font-weight:600">${it.mol}</td><td>${sucsHTML(it)}</td><td style="text-align:center;font-weight:600">${it.pzas}</td><td style="color:var(--text3);font-size:11px">—</td><td style="color:var(--text3);font-size:11px">${fols}</td><td style="color:var(--text3);font-size:11px;white-space:nowrap">${it.fecha||'—'}</td></tr>`;
+          return ml.map((x,r)=>`<tr style="${r===0?'border-top:2px solid var(--border)':''}"><td style="font-weight:600">${it.mol}</td><td>${sucsHTML(it)}</td><td style="text-align:center;font-weight:600">${x.q}</td><td style="color:var(--text3);font-size:11px">${x.m}</td><td style="color:var(--text3);font-size:11px">${fols}</td><td style="color:var(--text3);font-size:11px;white-space:nowrap">${it.fecha||'—'}</td></tr>`).join('');
         }).join('')}</tbody></table></div>
       </div>
     </div>`;
@@ -1944,12 +1944,15 @@ function rOrdHist(){
       <tbody>${its.map((it,ix)=>{
         const ml=medsList(it);const n=Math.max(1,ml.length);
         const bg=it.rec?'background:var(--green-l)':'';
+        const fols=(it.fols||[]).join(', ');
         return Array.from({length:n},(_,r)=>{
           const x=ml[r];
-          return `<tr style="${bg}${r===0?';border-top:2px solid var(--border)':''}">${r===0?`<td rowspan="${n}" style="text-align:center;vertical-align:middle"><input type="checkbox" ${it.rec?'checked':''} onchange="marcarRec(${e.id},${ix},this.checked)" style="width:18px;height:18px;cursor:pointer"></td><td rowspan="${n}" style="vertical-align:middle;${it.rec?'':'font-weight:600'}">${it.mol}</td><td rowspan="${n}" style="vertical-align:middle">${sucsHTML(it)}</td>`:''}
+          return `<tr style="${bg}${r===0?';border-top:2px solid var(--border)':''}">${r===0?`<td rowspan="${n}" style="text-align:center;vertical-align:middle"><input type="checkbox" ${it.rec?'checked':''} onchange="marcarRec(${e.id},${ix},this.checked)" style="width:18px;height:18px;cursor:pointer"></td>`:''}
+        <td style="${it.rec?'':'font-weight:600'}">${it.mol}</td>
+        <td>${sucsHTML(it)}</td>
         <td style="text-align:center;font-weight:600">${x?x.q:it.pzas}</td>
         <td style="color:var(--text3);font-size:11px">${x?x.m:'—'}</td>
-        ${r===0?`<td rowspan="${n}" style="color:var(--text3);font-size:11px;vertical-align:middle">${(it.fols||[]).join(', ')}</td>`:''}
+        <td style="color:var(--text3);font-size:11px">${fols}</td>
       </tr>`;
         }).join('');
       }).join('')}</tbody></table></div>
@@ -2320,9 +2323,9 @@ function printOrd(pv,itemsPre,wPre,oc,fechaOrden){
   <table><thead><tr><th>Moldura</th><th>Sucursal</th><th style="text-align:center">Piezas</th><th>Medidas (cm)</th><th>Folios de pedido</th></tr></thead>
   <tbody>${items.map(it=>{
     const ml=medsList(it);
-    if(!ml.length)return `<tr style="border-top:2px solid #999"><td style="font-weight:600">${it.mol}</td><td style="font-size:11px;font-weight:600">${sucsTxt(it)||'—'}</td><td style="text-align:center;font-weight:700">${it.pzas}</td><td style="color:#888;font-size:11px">—</td><td style="color:#888;font-size:11px">${[...new Set(it.fols)].join(', ')}</td></tr>`;
-    const n=ml.length;
-    return ml.map((x,r)=>`<tr style="${r===0?'border-top:2px solid #999':''}">${r===0?`<td rowspan="${n}" style="font-weight:600;vertical-align:middle">${it.mol}</td><td rowspan="${n}" style="font-size:11px;font-weight:600;vertical-align:middle">${sucsTxt(it)||'—'}</td>`:''}<td style="text-align:center;font-weight:700">${x.q}</td><td style="color:#555;font-size:12px">${x.m}</td>${r===0?`<td rowspan="${n}" style="color:#888;font-size:11px;vertical-align:middle">${[...new Set(it.fols)].join(', ')}</td>`:''}</tr>`).join('');
+    const fols=[...new Set(it.fols)].join(', ');
+    if(!ml.length)return `<tr style="border-top:2px solid #999"><td style="font-weight:600">${it.mol}</td><td style="font-size:11px;font-weight:600">${sucsTxt(it)||'—'}</td><td style="text-align:center;font-weight:700">${it.pzas}</td><td style="color:#888;font-size:11px">—</td><td style="color:#888;font-size:11px">${fols}</td></tr>`;
+    return ml.map((x,r)=>`<tr style="${r===0?'border-top:2px solid #999':''}"><td style="font-weight:600">${it.mol}</td><td style="font-size:11px;font-weight:600">${sucsTxt(it)||'—'}</td><td style="text-align:center;font-weight:700">${x.q}</td><td style="color:#555;font-size:12px">${x.m}</td><td style="color:#888;font-size:11px">${fols}</td></tr>`).join('');
   }).join('')}</tbody></table>
   <div class="ftr"><div class="sign">Firma autorizada</div><div class="sign">Fecha de recepción</div></div>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
