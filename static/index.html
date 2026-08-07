@@ -1701,7 +1701,9 @@ function rDia(){
     const btn=p.est==='Pendiente'?`<button class="btn btn-s btn-xs" onclick="openEnt(${idx})">📦 Entregar</button>`:'';
     const tvB=p.tipo_venta==='factura'?'<span class="badge bb" style="font-size:10px">📄 Factura</span>':'<span class="badge bgr" style="font-size:10px">Gral</span>';
     const tvBtn=`<button class="btn btn-s btn-xs" onclick="toggleTV(${idx})" style="padding:1px 5px;font-size:10px" title="Cambiar tipo">&#8644;</button>`;
-    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${sucBadge(p.suc||'—')}</td><td>${p.met||'—'}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(antOrig(p))}${((p.ant||0)-antOrig(p))>0.5?'<div style="font-size:10px;color:var(--text3)">pagado a la fecha: '+fmt(p.ant)+'</div>':''}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td><td>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+    const dejoHoy=antOrig(p);
+    const metCell=(p.met||'—')+(dejoHoy<=0?((p.ant||0)>0?'<div style="font-size:10px;color:var(--text3)">💤 pagó otro día</div>':'<div style="font-size:10px;color:var(--text3)">sin pago aún</div>'):'');
+    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${sucBadge(p.suc||'—')}</td><td>${metCell}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(dejoHoy)}${((p.ant||0)-dejoHoy)>0.5?'<div style="font-size:10px;color:var(--text3)">pagado a la fecha: '+fmt(p.ant)+'</div>':''}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td><td>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
 }
 
@@ -3486,7 +3488,15 @@ function pintarCobrosPed(){
   const u=USERS.find(x=>x.key===CU);const esAdm=u&&(u.role==='admin'||u.role==='owner');
   const abs=ABONOS.filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc));
   if(!abs.length){cont.innerHTML='<div style="color:var(--text3)">Sin cobros registrados con fecha. El anticipo inicial vive en el campo de arriba.</div>';return;}
-  cont.innerHTML=abs.map(a=>`
+  const sumAbs=abs.reduce((s,a)=>s+(a.monto||0),0);
+  const inicial=Math.max(0,(p.ant||0)-sumAbs);
+  cont.innerHTML=
+    `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+      <div><span class="badge bgr" style="font-size:10px">Anticipo inicial</span>
+      <span style="margin-left:6px;color:var(--text2)">${p.fecha||'—'} · al abrir la nota · ${p.met||'—'} <span style="opacity:.6">(calculado: pagado total − abonos)</span></span></div>
+      <span class="mono" style="font-weight:700">${fmt(inicial)}</span>
+    </div>`+
+    abs.map(a=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
       <div><span class="badge ${a.tipo==='Liquidacion'?'bg':'by'}" style="font-size:10px">${a.tipo==='Liquidacion'?'Liquidación':'Abono'}</span>
       <span style="margin-left:6px;color:var(--text2)">${a.fecha||'—'} · ${a.met||'—'}</span></div>
@@ -3494,7 +3504,11 @@ function pintarCobrosPed(){
         <span class="mono" style="font-weight:700">${fmt(a.monto)}</span>
         ${esAdm&&a.id?`<button onclick="openEditAbono(${a.id})" style="padding:2px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px">✏️</button>`:''}
       </div>
-    </div>`).join('');
+    </div>`).join('')+
+    `<div style="display:flex;justify-content:space-between;padding:7px 0;font-weight:700">
+      <span>= Total pagado (el campo "Anticipo" de arriba)</span>
+      <span class="mono" style="color:var(--green)">${fmt(p.ant||0)}</span>
+    </div>`;
 }
 function editPed(idx){
   const _u=USERS.find(x=>x.key===CU);
