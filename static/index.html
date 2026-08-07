@@ -1659,22 +1659,25 @@ function rDia(){
     } else sucsDiv.style.display='none';
   }
   // Desglose por método: lo realmente cobrado ese día (anticipos + abonos)
-  const mets={};
-  list.forEach(p=>{const k=p.met||'Efectivo';const v=antOrig(p);if(v>0)mets[k]=(mets[k]||0)+v;});
-  abHoy.forEach(a=>{const k=a.met||'Efectivo';mets[k]=(mets[k]||0)+a.monto;});
+  const mets={};const metsDet={};
+  const addDetDia=(k,folio,cli,v,tipo)=>{if(!metsDet[k])metsDet[k]=[];metsDet[k].push({folio:folio,cli:cli,v:v,tipo:tipo});};
+  list.forEach(p=>{const k=p.met||'Efectivo';const v=antOrig(p);if(v>0){mets[k]=(mets[k]||0)+v;addDetDia(k,p.folio,p.cli,v,'anticipo');}});
+  abHoy.forEach(a=>{const k=a.met||'Efectivo';mets[k]=(mets[k]||0)+a.monto;addDetDia(k,a.folio,a.cli||'',a.monto,a.tipo==='Liquidacion'?'liquidación':'abono');});
   // Agrupar por cuenta: Efectivo / HSBC / INBURSA / Otros
   const ctaDeMet=m=>{m=(m||'').toLowerCase();if(m.includes('inbursa'))return 'INBURSA';if(m.includes('hsbc'))return 'HSBC';if(m.includes('efectivo'))return 'Efectivo';return 'Otros';};
   const CTA_ICON={Efectivo:'💵',HSBC:'🏦',INBURSA:'🏛️',Otros:'🔖'};
   const CTA_COLOR={Efectivo:'#15803D',HSBC:'#B91C1C',INBURSA:'#1D4ED8',Otros:'#6B7280'};
   const cuentasDia={};
-  Object.entries(mets).forEach(([m,v])=>{const c=ctaDeMet(m);if(!cuentasDia[c])cuentasDia[c]={total:0,dets:[]};cuentasDia[c].total+=v;cuentasDia[c].dets.push([m,v]);});
+  Object.entries(mets).forEach(([m,v])=>{const c=ctaDeMet(m);if(!cuentasDia[c])cuentasDia[c]={total:0,dets:[],fol:[]};cuentasDia[c].total+=v;cuentasDia[c].dets.push([m,v]);cuentasDia[c].fol.push(...(metsDet[m]||[]));});
   const ordenCtas=['Efectivo','HSBC','INBURSA','Otros'].filter(c=>cuentasDia[c]);
   document.getElementById('d-cuentas').innerHTML=ordenCtas.length?ordenCtas.map(c=>{
     const d=cuentasDia[c];
+    const folLines=d.fol.slice(0,6).map(x=>`<div style="display:flex;justify-content:space-between;gap:6px"><span>F.${x.folio} · ${x.cli||'—'} <span style="opacity:.65">(${x.tipo})</span></span><span class="mono" style="font-weight:600">${fmt(x.v)}</span></div>`).join('')+(d.fol.length>6?`<div style="opacity:.65">+${d.fol.length-6} más…</div>`:'');
     return `<div style="border:1.5px solid ${CTA_COLOR[c]}30;border-left:5px solid ${CTA_COLOR[c]};border-radius:10px;padding:14px;background:${CTA_COLOR[c]}08">
       <div style="font-size:12px;font-weight:700;color:${CTA_COLOR[c]};text-transform:uppercase;letter-spacing:.05em">${CTA_ICON[c]} ${c}</div>
       <div class="mono" style="font-size:24px;font-weight:800;margin-top:4px">${fmt(d.total)}</div>
-      ${d.dets.length>1||d.dets[0][0]!==c?`<div style="margin-top:6px;font-size:11px;color:var(--text3)">${d.dets.map(([m,v])=>m+': '+fmt(v)).join('<br>')}</div>`:''}
+      ${d.dets.length>1||d.dets[0][0]!==c?`<div style="margin-top:4px;font-size:11px;color:var(--text3)">${d.dets.map(([m,v])=>m+': '+fmt(v)).join('<br>')}</div>`:''}
+      ${d.fol.length?`<div style="margin-top:8px;padding-top:7px;border-top:1px dashed ${CTA_COLOR[c]}40;font-size:11px;color:var(--text2)">${folLines}</div>`:''}
     </div>`;
   }).join(''):'<div style="color:var(--text3);font-size:13px;padding:8px 0">Sin cobros registrados hoy · aquí verás Efectivo, HSBC e INBURSA conforme entre dinero 💤</div>';
   // Tabla de liquidaciones/abonos de hoy
