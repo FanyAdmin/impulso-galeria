@@ -487,22 +487,33 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div style="display:grid;grid-template-columns:1fr 380px;gap:1rem">
     <div>
       <div class="card">
-        <div class="card-title">Buscar moldura</div>
+        <div class="card-title" style="display:flex;align-items:center;gap:6px">🖼️ Producto</div>
         <div class="search-wrap">
           <input id="mol-q" placeholder="Escribe el nombre de la moldura..." oninput="searchMol(this.value)" autocomplete="off">
           <div class="search-drop" id="mol-drop"></div>
         </div>
         <div id="mol-sel" style="font-size:12px;color:var(--text3);min-height:16px;margin-bottom:.75rem"></div>
-        <div style="margin-bottom:.75rem">
+        <div style="margin-bottom:.25rem">
           <label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">🎨 Color / variante (opcional)</label>
           <input id="mol-var" placeholder="ej. 109 → se pedirá como 1015-109" style="width:100%;max-width:280px">
         </div>
-        <div class="g3" style="margin-bottom:.75rem">
-          <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Cantidad</label><input type="number" id="qty" value="1" min="1" oninput="calcP()"></div>
-          <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Lado 1 (cm)</label><input type="number" id="l1" placeholder="ej. 30" oninput="calcP()"></div>
-          <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Lado 2 (cm)</label><input type="number" id="l2" placeholder="ej. 40" oninput="calcP()"></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>📐 Medidas del marco</span>
+          <span style="display:inline-flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;font-size:12px">
+            <button id="u-cm" onclick="setUnit('cm')" style="padding:5px 16px;border:none;cursor:pointer;font-weight:700;background:var(--green);color:#fff">cm</button>
+            <button id="u-in" onclick="setUnit('pulg')" style="padding:5px 12px;border:none;cursor:pointer;font-weight:700;background:transparent;color:var(--text2)">pulg</button>
+          </span>
         </div>
-        <div class="card-title">Extras</div>
+        <div class="g3" style="margin-bottom:.25rem">
+          <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">↔️ Ancho <span class="u-lab">(cm)</span></label><input type="number" id="l1" placeholder="ej. 30" oninput="calcP()"></div>
+          <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">↕️ Alto <span class="u-lab">(cm)</span></label><input type="number" id="l2" placeholder="ej. 40" oninput="calcP()"></div>
+          <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase;letter-spacing:.05em">Cantidad</label><input type="number" id="qty" value="1" min="1" oninput="calcP()"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">✨ Extras</div>
         <div class="xgrid">
           <label class="xbtn" id="xb-va"><input type="checkbox" id="x-va" onchange="tX('va');calcP()"> Vid. Antireflex</label>
           <label class="xbtn" id="xb-vn"><input type="checkbox" id="x-vn" onchange="tX('vn');calcP()"> Vidrio Normal</label>
@@ -516,7 +527,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
           <div><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Vista previa</div><div id="p-det" style="font-size:11px;color:var(--text3);margin-top:2px">Selecciona moldura y medidas</div></div>
           <div><div id="p-sin" style="font-size:12px;color:var(--text3);text-align:right;font-weight:500">$0.00</div><div style="font-size:9px;color:var(--text3);text-align:right;margin-top:1px">sin IVA</div><div class="pval" id="p-con" style="color:var(--green)">$0.00</div><div style="font-size:9px;color:var(--green);text-align:right;margin-top:1px;font-weight:600">con IVA</div></div>
         </div>
-        <div style="margin-top:.75rem;display:flex;justify-content:flex-end"><button class="btn btn-p" onclick="addCart()">+ Agregar a cotización</button></div>
+        <div style="margin-top:.9rem"><button class="btn btn-p" onclick="addCart()" style="width:100%;padding:13px;font-size:15px;border-radius:10px;justify-content:center">🛒 Agregar a cotización</button></div>
       </div>
       <!-- SERVICIO LIBRE -->
       <div class="card">
@@ -1197,9 +1208,23 @@ function pickMol(id){
   calcP();
 }
 function tX(k){document.getElementById('xb-'+k).classList.toggle('on',document.getElementById('x-'+k).checked);}
+let cotUnit='cm';
+function medCm(id){const v=parseFloat(document.getElementById(id).value)||0;return cotUnit==='pulg'?+(v*2.54).toFixed(1):v;}
+function setUnit(u){
+  if(u===cotUnit)return;
+  // Convertir lo ya escrito para que la medida física no cambie
+  ['l1','l2'].forEach(id=>{const el=document.getElementById(id);const v=parseFloat(el.value);if(v)el.value=u==='pulg'?+(v/2.54).toFixed(2):+(v*2.54).toFixed(1);});
+  cotUnit=u;
+  document.getElementById('u-cm').style.background=u==='cm'?'var(--green)':'transparent';
+  document.getElementById('u-cm').style.color=u==='cm'?'#fff':'var(--text2)';
+  document.getElementById('u-in').style.background=u==='pulg'?'var(--green)':'transparent';
+  document.getElementById('u-in').style.color=u==='pulg'?'#fff':'var(--text2)';
+  document.querySelectorAll('.u-lab').forEach(s=>s.textContent=u==='pulg'?'(pulg)':'(cm)');
+  calcP();
+}
 function calcP(){
-  const l1=parseFloat(document.getElementById('l1').value)||0;
-  const l2=parseFloat(document.getElementById('l2').value)||0;
+  const l1=medCm('l1');
+  const l2=medCm('l2');
   const q=parseInt(document.getElementById('qty').value)||1;
   if(!l1||!l2){document.getElementById('p-sin').textContent='$0.00';document.getElementById('p-con').textContent='$0.00';return;}
   const mc=((l1/100)+(l2/100))*2;
@@ -1212,8 +1237,8 @@ function calcP(){
   document.getElementById('p-det').textContent=molSel?`Marco: ${mc.toFixed(3)} m · Vidrio: ${vm.toFixed(4)} m²`:`Solo extras · Vidrio: ${vm.toFixed(4)} m²`;
 }
 function addCart(){
-  const l1=parseFloat(document.getElementById('l1').value)||0;
-  const l2=parseFloat(document.getElementById('l2').value)||0;
+  const l1=medCm('l1'); // siempre se guarda en cm (pedidos, OC y taller trabajan en cm)
+  const l2=medCm('l2');
   const q=parseInt(document.getElementById('qty').value)||1;
   if(!l1||!l2){alert('Ingresa las medidas');return;}
   const mc=((l1/100)+(l2/100))*2;
@@ -1388,7 +1413,7 @@ function rPed(f){
     return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
-      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td><button onclick="ticketPedido(pedidos[${idx}])" title="Imprimir nota (3 copias)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🧾</button>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
   document.getElementById('p-pag').innerHTML=total>1?
     `<span style="margin-right:4px;color:var(--text2)">Pág ${pedPage+1} de ${total} · ${list.length} pedidos</span>
@@ -1954,6 +1979,7 @@ function rOrdHist(){
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn btn-s btn-sm" onclick="copiarOrdenWA(${e.id})">📱 Copiar WA</button>
           <button class="btn btn-s btn-sm" onclick="reimprimirOrd(${e.id})">🖨️ Reimprimir</button>
+          <button class="btn btn-s btn-sm" onclick="ticketOrd(${e.id})">🧾 Ticket (3 copias)</button>
           <button class="btn btn-s btn-sm" style="color:#991B1B;border-color:#fca5a5" onclick="cancelarOrd(${e.id})">❌ Cancelar orden</button>
           ${faltan>0&&rec>0?`<button class="btn btn-s btn-sm" style="color:#B45309;border-color:#B45309" onclick="faltantesAPendientes(${e.id})">↩ Faltantes (${faltan}) a Pendientes</button>`:''}
           ${esAdm?`<button class="btn btn-d btn-sm" onclick="delOrdHist(${e.id})">🗑</button>`:''}
@@ -1998,6 +2024,90 @@ function faltantesAPendientes(id){
     logActivity('Faltantes a pendientes',(o.oc||'')+' — '+faltantes.map(f=>f.mol).join(', '));
     rOrdHist();rOrd();
   }).catch(()=>alert('Error de conexión'));
+}
+function ticketPedido(p){
+  if(!p)return;
+  const items=p.items||[];
+  const fmtT=n=>'$'+(+n||0).toLocaleString('es-MX',{minimumFractionDigits:2});
+  const fila=(l,r)=>`<div style="display:flex;justify-content:space-between;gap:4px"><span>${l}</span><span style="text-align:right;white-space:nowrap">${r}</span></div>`;
+  const arts=items.map(it=>{
+    const imp=it.regalo?0:(it.subIva!=null?+it.subIva:(+it.sub||0)*1.16);
+    let t=`<div style="margin-top:4px">${fila('<b>'+(it.mol||'')+'</b>'+(it.regalo?' 🎁':''),'<b>'+fmtT(imp)+'</b>')}`;
+    const med=(it.l1&&it.l2)?(it.l1+'×'+it.l2+' cm'):'';
+    const det=[med,(it.q>1?'×'+it.q:''),(it.en&&it.en.length?it.en.join(', '):'')].filter(Boolean).join(' · ');
+    if(det)t+=`<div style="font-size:10px;color:#333">${det}</div>`;
+    return t+'</div>';
+  }).join('');
+  const totalIva=+p.total||0;
+  const subSin=totalIva/1.16, iva=totalIva-subSin;
+  const copia=et=>`<div style="page-break-after:always;padding:2mm 0">
+    <div style="text-align:center;font-weight:800;font-size:14px">IMPULSO GALERIA</div>
+    <div style="text-align:center;font-size:9px">Hacienda Escolásticas 107, Jardines de la Hacienda<br>Tel: 4422165203 · pedidos@impulsogaleria.com</div>
+    <div style="border-top:2px solid #000;margin:5px 0"></div>
+    <div style="text-align:center;font-weight:800;font-size:15px">NOTA DE PEDIDO</div>
+    ${fila('<b>Folio: '+(p.folio||'')+'</b>','<b>'+(p.fecha||'')+'</b>')}
+    ${fila('Sucursal: '+(p.suc||''),'')}
+    ${fila('Cliente:','<b>'+((p.cli||'').replace(/</g,'&lt;'))+'</b>')}
+    ${p.tel?fila('Teléfono:',p.tel):''}
+    ${p.vend?fila('Le atendió:',p.vend):''}
+    <div style="border-top:1px dashed #999;margin:5px 0"></div>
+    ${arts}
+    <div style="border-top:2px solid #000;margin:6px 0 3px"></div>
+    ${fila('Subtotal',fmtT(subSin))}
+    ${fila('IVA 16%',fmtT(iva))}
+    ${fila('<b style="font-size:13px">TOTAL</b>','<b style="font-size:13px">'+fmtT(totalIva)+'</b>')}
+    <div style="border-top:1px dashed #999;margin:5px 0"></div>
+    ${fila('Anticipo ('+(p.met||'—')+')',fmtT(p.ant||0))}
+    ${fila('<b>RESTA POR PAGAR</b>','<b>'+fmtT(p.rest||0)+'</b>')}
+    ${p.entrega?fila('<b>Entrega estimada:</b>','<b>'+p.entrega+'</b>'):''}
+    ${p.obs?`<div style="margin-top:4px;font-size:10px"><b>Obs:</b> ${String(p.obs).replace(/</g,'&lt;')}</div>`:''}
+    <div style="text-align:center;margin-top:6px;font-size:10px">Su pedido se entrega contra este ticket.<br>¡Gracias por su preferencia! 🖼️</div>
+    <div style="text-align:center;margin-top:5px;font-size:10px;font-weight:800;border:1.5px solid #000;padding:2px">COPIA: ${et}</div>
+  </div>`;
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Nota ${p.folio||''}</title>
+  <style>@page{size:80mm auto;margin:2mm}body{width:72mm;margin:0 auto;font-family:Calibri,'Segoe UI',monospace;font-size:11.5px;color:#000}</style>
+  </head><body>${copia('CLIENTE')}${copia('TALLER')}${copia('MOSTRADOR')}
+  <script>window.onload=()=>window.print();<\/script></body></html>`;
+  const w=window.open('','_blank');
+  w.document.write(html);w.document.close();
+}
+function ticketOrd(id){
+  const o=ORDENES.find(x=>x.id===id);
+  if(!o)return;
+  const coment=prompt('📝 Comentarios (se imprimen en las 3 copias, opcional):','')||'';
+  const items=o.items||[];
+  const totPz=items.reduce((a,b)=>a+(b.pzas||0),0);
+  const fila=(l,r)=>`<div style="display:flex;justify-content:space-between;gap:4px"><span>${l}</span><span style="text-align:right">${r}</span></div>`;
+  const cuerpo=items.map(it=>{
+    const ml=medsList(it);
+    const suc=(sucsTxt(it)||'').toUpperCase();
+    const fols=[...new Set(it.fols||[])].join(',');
+    let t=`<div style="margin-top:4px"><b>${it.mol}</b>${suc?' · <b>'+suc+'</b>':''}</div>`;
+    if(ml.length)ml.forEach(x=>{t+=fila((x.q||1)+' pza'+((x.q||1)>1?'s':'')+' de '+x.m+' cm','');});
+    else t+=fila((it.pzas||0)+' pza(s)','');
+    if(fols)t+=`<div style="font-size:9px;color:#333">Notas: ${fols}</div>`;
+    return t;
+  }).join('<div style="border-top:1px dashed #999;margin:4px 0"></div>');
+  const copia=et=>`<div style="page-break-after:always;padding:2mm 0">
+    <div style="text-align:center;font-weight:800;font-size:13px">IMPULSO GALERIA</div>
+    <div style="text-align:center;font-size:9px">Tel: 4422165203 · pedidos@impulsogaleria.com</div>
+    <div style="border-top:2px solid #000;margin:4px 0"></div>
+    <div style="text-align:center;font-weight:800;font-size:12px">ORDEN DE COMPRA</div>
+    ${fila('<b>No:</b> '+(o.oc||''),'<b>'+(o.fecha||'')+'</b>')}
+    ${fila('<b>Proveedor:</b>',(o.prov_nombre||PROVS[o.prov]||o.prov||''))}
+    <div style="border-top:1px dashed #999;margin:4px 0"></div>
+    ${cuerpo}
+    <div style="border-top:2px solid #000;margin:5px 0 3px"></div>
+    ${fila('<b>TOTAL PIEZAS</b>','<b>'+totPz+'</b>')}
+    ${coment?`<div style="margin-top:4px;font-size:10px"><b>📝 </b>${coment.replace(/</g,'&lt;')}</div>`:''}
+    <div style="text-align:center;margin-top:6px;font-size:10px;font-weight:800;border:1.5px solid #000;padding:2px">COPIA: ${et}</div>
+  </div>`;
+  const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Ticket ${o.oc||''}</title>
+  <style>@page{size:80mm auto;margin:2mm}body{width:72mm;margin:0 auto;font-family:Calibri,'Segoe UI',monospace;font-size:11px;color:#000}</style>
+  </head><body>${copia('PROVEEDOR')}${copia('RECEPCIÓN')}${copia('ARCHIVO')}
+  <script>window.onload=()=>window.print();<\/script></body></html>`;
+  const w=window.open('','_blank');
+  w.document.write(html);w.document.close();
 }
 function reimprimirOrd(id){
   const o=ORDENES.find(x=>x.id===id);
@@ -3235,7 +3345,17 @@ function delFac(idx){
 function expFacXlsx(){var mes=parseInt(document.getElementById('fac-mes').value);var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var rows=[['FACTURAS '+M[mes].toUpperCase()+' 2026'],['No. Factura','RFC','Fecha','Folios','Total']];var facsMes=FACTURAS.filter(function(f){return new Date(f.fecha).getMonth()===mes;});for(var i=0;i<facsMes.length;i++){var f=facsMes[i];rows.push([f.num,f.rfc,f.fecha,f.folios.join(', '),f.total]);}xlsxExp(rows,'Facturas_'+M[mes]);}
 
 // === TIPO VENTA TOGGLE ===
-function toggleTV(idx){var p=pedidos[idx];p.tipo_venta=p.tipo_venta==='factura'?'general':'factura';rPed();}
+function toggleTV(idx){
+  var p=pedidos[idx];if(!p)return;
+  var previo=p.tipo_venta;
+  p.tipo_venta=p.tipo_venta==='factura'?'general':'factura';
+  rPed();
+  if(p.id){
+    fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo_venta:p.tipo_venta})})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);})
+    .catch(function(){p.tipo_venta=previo;rPed();alert('Sin conexión — el cambio de Factura/Gral NO se guardó');});
+  }
+}
 
 // === HELPERS ===
 function xlsxExp(rows,filename){if(typeof XLSX==='undefined'){alert('La libreria Excel esta cargando, espera un momento e intenta de nuevo');return;}var wb=XLSX.utils.book_new();var ws=XLSX.utils.aoa_to_sheet(rows);XLSX.utils.book_append_sheet(wb,ws,'Datos');XLSX.writeFile(wb,filename+'.xlsx');}
@@ -3360,9 +3480,11 @@ function guardarPed(){
   fetch('/api/pedidos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(newPed)})
   .then(r=>r.json()).then(data=>{
-    pedidos.unshift({...newPed,id:data.id});
+    const pedGuardado={...newPed,id:data.id};
+    pedidos.unshift(pedGuardado);
     cart=[];molSel=null;
     CM('mod-ped');rPed();rCart();
+    if(confirm('✅ Pedido '+(pedGuardado.folio||'')+' registrado.\n\n🧾 ¿Imprimir la nota para el cliente? (3 copias)'))ticketPedido(pedGuardado);
   }).catch(e=>console.error('Error:',e));
 }
 
