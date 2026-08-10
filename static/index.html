@@ -2001,7 +2001,9 @@ function faltantesAPendientes(id){
 }
 function reimprimirOrd(id){
   const o=ORDENES.find(x=>x.id===id);
-  if(o)printOrd(o.prov,o.items,null,o.oc,o.fecha);
+  if(!o)return;
+  const coment=prompt('📝 Comentarios e instrucciones de envío (opcional):','')||'';
+  printOrd(o.prov,o.items,null,o.oc,o.fecha,coment);
 }
 function cancelarOrd(id){
   const o=ORDENES.find(x=>x.id===id);
@@ -2178,7 +2180,7 @@ function registrarOrdManual(){
     const ok=res.filter(d=>d&&d.id);
     ok.forEach(d=>ORDENES.unshift(d));
     logActivity('Orden manual registrada',ok.map(d=>(d.oc||'')+' '+(d.prov_nombre||'')).join(', '));
-    if(imprimir)ok.forEach(d=>printOrd(d.prov,d.items,null,d.oc,d.fecha));
+    if(imprimir){const comentM=prompt('📝 Comentarios e instrucciones de envío (se imprimen en todas las órdenes de esta tanda, opcional):','')||'';ok.forEach(d=>printOrd(d.prov,d.items,null,d.oc,d.fecha,comentM));}
     CM('mod-ordman');
     fetch('/api/ordenes',{credentials:'include'}).then(r=>r.json()).then(o=>{ORDENES=o||ORDENES;rOrd();rOrdHist&&rOrdHist();}).catch(()=>rOrd());
   }).catch(()=>alert('Error de conexión al registrar la orden'));
@@ -2288,6 +2290,8 @@ function pedirOrd(pv,modo){
       else items.push({mol:it.mol,pzas:it.q,fols:[p.folio],sucs:p.suc?[p.suc]:[],ml:mlIt,meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[],medsQ:medsQAdd([],it.l1,it.l2,it.q)});
     }));
   if(!items.length){alert('No hay molduras pendientes de este proveedor');return;}
+  // Preguntar comentarios ANTES de abrir la ventana (si se pregunta después, el navegador suprime el aviso)
+  const coment=modo==='print'?(prompt('📝 Comentarios e instrucciones de envío (opcional):','')||''):'';
   // Abrir la ventana ANTES del guardado (si se abre después, el navegador la bloquea)
   const w=modo==='print'?window.open('','_blank'):null;
   const orden={prov:pv,prov_nombre:PROVS[pv]||pv,fecha:new Date().toLocaleDateString('es-MX'),items:items.map(i=>({...i,fols:[...new Set(i.fols)]}))};
@@ -2300,7 +2304,7 @@ function pedirOrd(pv,modo){
     if(modo==='wa'){
       copiarTexto(textoOrdenWA(d),()=>alert('✅ Orden '+(d.oc||'')+' registrada y texto copiado.\nPégalo en el chat de '+(PROVS[pv]||pv)+'.'));
     }else{
-      printOrd(pv,items,w,d.oc,d.fecha);
+      printOrd(pv,items,w,d.oc,d.fecha,coment);
     }
     // Sincronizar con el servidor para que el resto de dispositivos coincidan
     fetch('/api/ordenes',{credentials:'include'}).then(r=>r.json()).then(o=>{ORDENES=o||ORDENES;rOrd();}).catch(()=>rOrd());
