@@ -540,8 +540,9 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
         <div class="card-title">Concepto libre (servicio sin moldura)</div>
         <div class="g3" style="margin-bottom:.75rem">
           <div style="grid-column:1/3"><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Descripcion del servicio</label><input id="svc-desc" placeholder="ej. Colgadera, Desmontaje de marco..."></div>
-          <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Precio ($) sin IVA</label><input type="number" id="svc-precio" placeholder="0.00" oninput="calcSvc()"></div>
+          <div><label id="svc-precio-lab" style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Precio ($) sin IVA</label><input type="number" id="svc-precio" placeholder="0.00" oninput="calcSvc()"></div>
         </div>
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin-bottom:.6rem"><input type="checkbox" id="svc-final" onchange="calcSvc()"> El precio ya es <b>final (IVA incluido)</b> — típico en obras de arte / Tranquilo</label>
         <div style="background:var(--surface2);border-radius:var(--rad);padding:.75rem .875rem;display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
           <div style="font-size:11px;color:var(--text3)" id="svc-det">Ingresa descripcion y precio</div>
           <div style="text-align:right">
@@ -3433,11 +3434,18 @@ function printTbl(title,headers,rows){var h='<!DOCTYPE html><html><head><meta ch
 
 
 // === SERVICIO LIBRE ===
-function calcSvc(){
+function svcMontos(){
   var precio=parseFloat(document.getElementById('svc-precio').value)||0;
+  var esFinal=document.getElementById('svc-final')&&document.getElementById('svc-final').checked;
+  return esFinal?{sin:precio/1.16,con:precio}:{sin:precio,con:precio*1.16};
+}
+function calcSvc(){
+  var m=svcMontos();
   var desc=document.getElementById('svc-desc').value.trim();
-  document.getElementById('svc-sin').textContent=fmt(precio);
-  document.getElementById('svc-con').textContent=fmt(precio*1.16);
+  var esFinal=document.getElementById('svc-final')&&document.getElementById('svc-final').checked;
+  var lab=document.getElementById('svc-precio-lab');if(lab)lab.textContent=esFinal?'Precio final ($) con IVA':'Precio ($) sin IVA';
+  document.getElementById('svc-sin').textContent=fmt(m.sin);
+  document.getElementById('svc-con').textContent=fmt(m.con);
   document.getElementById('svc-det').textContent=desc||'Ingresa descripcion y precio';
 }
 function addSvc(){
@@ -3445,7 +3453,8 @@ function addSvc(){
   var precio=parseFloat(document.getElementById('svc-precio').value)||0;
   if(!desc){alert('Ingresa la descripcion del servicio');return;}
   if(!precio){alert('Ingresa el precio');return;}
-  cart.push({mid:0,mol:desc,prov:'SERVICIO',l1:0,l2:0,q:1,pm:precio,ev:0,en:[],sub:precio,subIva:precio*1.16,esServicio:true});
+  var m=svcMontos();
+  cart.push({mid:0,mol:desc,prov:'SERVICIO',l1:0,l2:0,q:1,pm:m.sin,ev:0,en:[],sub:m.sin,subIva:m.con,esServicio:true});
   rCart();
   document.getElementById('svc-desc').value='';
   document.getElementById('svc-precio').value='';
