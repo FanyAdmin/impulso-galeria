@@ -194,6 +194,18 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 <div id="app" class="shell" style="display:none">
 
 <!-- MODALS -->
+<div class="modal-bg" id="mod-insumos" style="display:none">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-hdr"><div class="modal-ttl">🧰 Insumos de taller — consejo del periodo</div><button class="modal-x" onclick="CM('mod-insumos')">✕</button></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-size:12px">
+      <label style="color:var(--text3)">Pedidos del</label><input type="date" id="ins-d1" onchange="rInsumosSem()" style="width:135px;flex:0 0 auto;padding:4px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px">
+      <label style="color:var(--text3)">al</label><input type="date" id="ins-d2" onchange="rInsumosSem()" style="width:135px;flex:0 0 auto;padding:4px 7px;border:1px solid var(--border);border-radius:7px;font-size:12px">
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;flex:0 0 auto"><input type="checkbox" id="ins-pend" checked onchange="rInsumosSem()"> Solo pendientes de entregar</label>
+      <button class="btn btn-s btn-sm" onclick="printInsumosSem()">🖨️ Imprimir</button>
+    </div>
+    <div id="ins-body" style="max-height:60vh;overflow:auto"></div>
+  </div>
+</div>
 <div class="modal-bg" id="mod-ped" style="display:none">
 <div class="modal">
   <div class="modal-hdr"><div class="modal-ttl">Registrar Pedido</div><button class="modal-x" onclick="CM('mod-ped')">✕</button></div>
@@ -701,7 +713,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 
 <!-- ÓRDENES -->
 <div class="page" id="page-ord">
-  <div class="ph"><div><div class="ph-title">Órdenes de Compra</div><div class="ph-sub">Molduras pendientes de surtir por proveedor</div><button class="btn btn-s" onclick="openOrdManual()">➕ Orden manual</button></div></div>
+  <div class="ph"><div><div class="ph-title">Órdenes de Compra</div><div class="ph-sub">Molduras pendientes de surtir por proveedor</div><button class="btn btn-s" onclick="openOrdManual()">➕ Orden manual</button> <button class="btn btn-s" onclick="openInsumosSem()">🧰 Insumos de taller (consejo)</button></div></div>
   <div class="chips">
     <div class="chip active" id="chip-ord-pend" onclick="switchOrdTab('activas',this)">Pendientes de pedir</div>
     <div class="chip" id="chip-ord-seg" onclick="switchOrdTab('seguimiento',this)">Seguimiento</div>
@@ -2083,6 +2095,68 @@ function faltantesAPendientes(id){
     logActivity('Faltantes a pendientes',(o.oc||'')+' — '+faltantes.map(f=>f.mol).join(', '));
     rOrdHist();rOrd();
   }).catch(()=>alert('Error de conexión'));
+}
+function lunesDe(d){const x=new Date(d);const day=(x.getDay()+6)%7;x.setDate(x.getDate()-day);return x;}
+function openInsumosSem(){
+  const hoy=new Date();
+  const lun=lunesDe(hoy),dom=new Date(lun);dom.setDate(lun.getDate()+6);
+  const el1=document.getElementById('ins-d1'),el2=document.getElementById('ins-d2');
+  if(!el1.value)el1.value=dateStrLocal(lun);
+  if(!el2.value)el2.value=dateStrLocal(dom);
+  OM('mod-insumos');rInsumosSem();
+}
+function insumosAcumula(lista){
+  const acc={mold:{},vid:{},ml:{},otros:{}};
+  const add=(b,k,det)=>{if(!acc[b][k])acc[b][k]=[];acc[b][k].push(det);};
+  const med=it=>it.l1&&it.l2?(it.l1+'×'+it.l2+' cm'):'';
+  let nArt=0;
+  lista.forEach(p=>{(p.items||[]).forEach(it=>{
+    const q=it.q||1;const F='F.'+(p.folio||'');
+    if(it.mol&&!it.esServicio&&it.l1&&it.l2){
+      const per=((+it.l1/100)+(+it.l2/100))*2;
+      const base=typeof molBase==='function'?molBase(it.mol):it.mol;
+      const m=_MD.find(x=>x.n===base||x.n===it.mol);
+      const lin=(per+(m?(+m.d||0):0))*q;
+      add('mold',it.mol,{med:med(it),q:q,lin:lin,f:F});
+      nArt++;
+    }
+    (it.en||[]).forEach(ex=>{
+      if(ex==='Regalo')return;
+      const exL=ex.toLowerCase();
+      if(exL.startsWith('vid')||exL.startsWith('v normal')||exL.startsWith('/2'))add('vid',ex.split(' ').slice(0,2).join(' '),{med:med(it),q:q,f:F});
+      else if(exL.startsWith('ml')||exL.startsWith('2ml'))add('ml',ex,{med:med(it),q:q,f:F});
+      else add('otros',ex,{med:med(it),q:q,f:F});
+    });
+    if(!it.esServicio)add('otros','Emplaye / empaque',{med:med(it),q:q,f:F});
+  });});
+  return {acc,nArt};
+}
+function insumosHTML(acc){
+  const bloque=(tit,obj,fm)=>{
+    const ks=Object.keys(obj);if(!ks.length)return '';
+    return '<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 4px">'+tit+'</div>'+ks.sort().map(k=>'<div style="font-size:12.5px;padding:2px 0;border-bottom:1px dashed #eee">'+fm(k,obj[k])+'</div>').join('');
+  };
+  let h='';
+  h+=bloque('🪵 Moldura — metros lineales a ocupar',acc.mold,(k,v)=>{const tot=v.reduce((s,x)=>s+x.lin,0);const pz=v.reduce((s,x)=>s+x.q,0);return '<b>'+k+'</b> → <b>'+tot.toFixed(2)+' m</b> · '+pz+' pza(s): '+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')+' ('+x.f+')').join(', ');});
+  h+=bloque('🔲 Vidrios — cortes',acc.vid,(k,v)=>'<b>'+k+'</b> → '+v.length+' corte(s): '+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')+' ('+x.f+')').join(', '));
+  h+=bloque('🎨 María Luisa — por color',acc.ml,(k,v)=>'<b>'+k+'</b> → '+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')+' ('+x.f+')').join(', '));
+  h+=bloque('📦 Otros insumos',acc.otros,(k,v)=>'<b>'+k+'</b> → '+v.length+' pieza(s): '+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')+' ('+x.f+')').join(', '));
+  return h||'<div style="color:var(--text3)">Sin materiales calculables en el periodo.</div>';
+}
+function rInsumosSem(){
+  const d1=document.getElementById('ins-d1').value,d2=document.getElementById('ins-d2').value;
+  const soloPend=document.getElementById('ins-pend').checked;
+  let lista=pedidos.filter(p=>p.fecha>=d1&&p.fecha<=d2);
+  if(soloPend)lista=lista.filter(p=>p.est==='Pendiente');
+  const {acc,nArt}=insumosAcumula(lista);
+  document.getElementById('ins-body').innerHTML=
+    '<div style="font-size:12px;color:var(--text3);margin-bottom:4px">'+lista.length+' pedido(s) en el periodo · '+nArt+' artículo(s) con moldura'+(soloPend?' · solo pendientes de entregar':'')+'</div>'+insumosHTML(acc);
+}
+function printInsumosSem(){
+  const d1=document.getElementById('ins-d1').value,d2=document.getElementById('ins-d2').value;
+  const w=window.open('','_blank','width=640,height=760');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Insumos de taller</title><style>body{font-family:Calibri,sans-serif;padding:20px;font-size:13px;color:#1a1a1a}:root{--text2:#555;--text3:#888}</style></head><body><h2 style="color:#1A5C3A;margin:0">🧰 Insumos de taller</h2><div style="color:#777;font-size:12px;margin:2px 0 12px">Pedidos del '+d1+' al '+d2+'</div>'+document.getElementById('ins-body').innerHTML+'<script>window.onload=()=>window.print();<\/script></body></html>');
+  w.document.close();
 }
 function insumosPed(idx){
   const p=pedidos[idx];if(!p)return;
