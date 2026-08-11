@@ -593,11 +593,11 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="tabs"><div class="tab active" onclick="tabP('todos',this)">Todos</div><div class="tab" onclick="tabP('Pendiente',this)">Pendientes</div><div class="tab" onclick="tabP('Entregado',this)">Entregados</div></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:.5rem 0 .6rem;font-size:12px">
     <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Filtros:</span>
-    <select id="pf-vend" onchange="pedPage=0;rPed()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Vendedor: todos</option></select>
-    <select id="pf-met" onchange="pedPage=0;rPed()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Método: todos</option></select>
-    <select id="pf-suc" onchange="pedPage=0;rPed()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Sucursal: todas</option></select>
-    <label style="color:var(--text3)">Del</label><input type="date" id="pf-d1" onchange="pedPage=0;rPed()" style="font-size:12px;padding:3px 7px;border:1px solid var(--border);border-radius:7px">
-    <label style="color:var(--text3)">al</label><input type="date" id="pf-d2" onchange="pedPage=0;rPed()" style="font-size:12px;padding:3px 7px;border:1px solid var(--border);border-radius:7px">
+    <select id="pf-vend" onchange="pedPage=0;rPed()" style="width:170px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Vendedor: todos</option></select>
+    <select id="pf-met" onchange="pedPage=0;rPed()" style="width:160px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Método: todos</option></select>
+    <select id="pf-suc" onchange="pedPage=0;rPed()" style="width:150px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Sucursal: todas</option></select>
+    <label style="color:var(--text3);flex:0 0 auto">Del</label><input type="date" id="pf-d1" onchange="pedPage=0;rPed()" style="width:135px;flex:0 0 auto;font-size:12px;padding:3px 7px;border:1px solid var(--border);border-radius:7px">
+    <label style="color:var(--text3);flex:0 0 auto">al</label><input type="date" id="pf-d2" onchange="pedPage=0;rPed()" style="width:135px;flex:0 0 auto;font-size:12px;padding:3px 7px;border:1px solid var(--border);border-radius:7px">
     <button class="btn btn-s btn-xs" onclick="limpiarFiltrosPed()">✕ Limpiar</button>
     <span id="pf-res" style="color:var(--text3)"></span>
   </div>
@@ -2956,10 +2956,10 @@ function comPagadas(){return JSON.parse(localStorage.getItem('impulso_com_pagada
 var comSucFil='Todas';
 function setComSuc(s,el){comSucFil=s;document.querySelectorAll('#page-com .chip').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');rCom();}
 function comDesglose(v,mes){
-  // Regla de negocio: vendedoras de sucursal (Jardines/Zibata) comisionan por TODO lo cobrado
-  // en su sucursal, sin importar el campo Vendedor de la nota. Vendedores de Galería
-  // comisionan solo por sus propias notas (campo Vendedor).
-  var porSuc=(v.suc==='Jardines'||v.suc==='Zibata');
+  // Regla de negocio (actualizada ago 2026 por Estefania): TODOS los vendedores comisionan
+  // ÚNICAMENTE por las notas donde su nombre quedó capturado como Vendedor.
+  // (Yesica es la única de Zibata: debe poner su nombre en todos sus pedidos.)
+  var porSuc=false;
   var abDelPed=function(p){return ABONOS.filter(function(a){return (a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc);}).reduce(function(s,a){return s+(a.monto||0);},0);};
   var nuevos=[],abonos=[];
   for(var j=0;j<pedidos.length;j++){
