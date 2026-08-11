@@ -591,6 +591,16 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <input id="ped-q" placeholder="🔍 Buscar folio o cliente..." style="width:220px" oninput="rPed()">
   </div>
   <div class="tabs"><div class="tab active" onclick="tabP('todos',this)">Todos</div><div class="tab" onclick="tabP('Pendiente',this)">Pendientes</div><div class="tab" onclick="tabP('Entregado',this)">Entregados</div></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:.5rem 0 .6rem;font-size:12px">
+    <span style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Filtros:</span>
+    <select id="pf-vend" onchange="pedPage=0;rPed()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Vendedor: todos</option></select>
+    <select id="pf-met" onchange="pedPage=0;rPed()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Método: todos</option></select>
+    <select id="pf-suc" onchange="pedPage=0;rPed()" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Sucursal: todas</option></select>
+    <label style="color:var(--text3)">Del</label><input type="date" id="pf-d1" onchange="pedPage=0;rPed()" style="font-size:12px;padding:3px 7px;border:1px solid var(--border);border-radius:7px">
+    <label style="color:var(--text3)">al</label><input type="date" id="pf-d2" onchange="pedPage=0;rPed()" style="font-size:12px;padding:3px 7px;border:1px solid var(--border);border-radius:7px">
+    <button class="btn btn-s btn-xs" onclick="limpiarFiltrosPed()">✕ Limpiar</button>
+    <span id="pf-res" style="color:var(--text3)"></span>
+  </div>
   <div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Factura</th><th>Sucursal</th><th>Método</th><th>Total</th><th>Anticipo</th><th>Restante</th><th>Entrega prometida</th><th>Estatus</th><th></th></tr></thead><tbody id="p-body"></tbody></table></div>
   <div id="p-pag" style="display:flex;gap:5px;align-items:center;justify-content:flex-end;font-size:12px;color:var(--text2);margin-top:.5rem"></div>
 </div>
@@ -1390,14 +1400,44 @@ function onTotEdit(el){
 // ─── PEDIDOS ──────────────────────────────────────────────────────────────────
 const PPP=25;
 function misP(){const u=USERS.find(x=>x.key===CU);return (u.role==='admin'||u.role==='owner')?pedidos:pedidos.filter(p=>p.suc===u.suc);}
-function rPed(f){
-  if(f!==undefined){pedFilter=f;pedPage=0;}
+function pfVal(id){const el=document.getElementById(id);return el?el.value:'';}
+function pintarFiltrosPed(){
+  const base=misP();
+  const llenar=(id,vals,pref)=>{
+    const s=document.getElementById(id);if(!s)return;
+    const prev=s.value;
+    s.innerHTML='<option value="">'+pref+'</option>'+[...new Set(vals.filter(Boolean))].sort().map(v=>'<option>'+String(v).replace(/</g,'&lt;')+'</option>').join('');
+    if([...s.options].some(o=>o.value===prev))s.value=prev;
+  };
+  llenar('pf-vend',base.map(p=>p.vend||'—'),'Vendedor: todos');
+  llenar('pf-met',base.map(p=>p.met||'—'),'Método: todos');
+  llenar('pf-suc',base.map(p=>p.suc),'Sucursal: todas');
+}
+function pedListFiltrada(){
   const q=(document.getElementById('ped-q').value||'').toLowerCase();
   pedQ=q;
   let list=misP();
   if(pedFilter!=='todos')list=list.filter(p=>p.est===pedFilter);
   if(q)list=list.filter(p=>p.folio.toLowerCase().includes(q)||p.cli.toLowerCase().includes(q));
-  list=list.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  const fv=pfVal('pf-vend'),fm=pfVal('pf-met'),fs=pfVal('pf-suc'),d1=pfVal('pf-d1'),d2=pfVal('pf-d2');
+  if(fv)list=list.filter(p=>(p.vend||'—')===fv);
+  if(fm)list=list.filter(p=>(p.met||'—')===fm);
+  if(fs)list=list.filter(p=>p.suc===fs);
+  if(d1)list=list.filter(p=>(p.fecha||'')>=d1);
+  if(d2)list=list.filter(p=>(p.fecha||'')<=d2);
+  return list.slice().sort((a,b)=>b.fecha.localeCompare(a.fecha));
+}
+function limpiarFiltrosPed(){
+  ['pf-vend','pf-met','pf-suc','pf-d1','pf-d2'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('ped-q').value='';
+  pedPage=0;rPed();
+}
+function rPed(f){
+  if(f!==undefined){pedFilter=f;pedPage=0;}
+  pintarFiltrosPed();
+  let list=pedListFiltrada();
+  const resEl=document.getElementById('pf-res');
+  if(resEl){const hayF=pfVal('pf-vend')||pfVal('pf-met')||pfVal('pf-suc')||pfVal('pf-d1')||pfVal('pf-d2')||pedQ;resEl.textContent=hayF?('→ '+list.length+' resultado'+(list.length===1?'':'s')+' · '+fmt(list.reduce((a,b)=>a+(+b.total||0),0))):'';}
   const total=Math.ceil(list.length/PPP);
   const pg=list.slice(pedPage*PPP,(pedPage+1)*PPP);
   const hoy=new Date(),body=document.getElementById('p-body');
@@ -3535,7 +3575,7 @@ function expMovPDF(){
 
 // === EXPORTAR PEDIDOS ===
 function expPedXlsx(){
-  var list=misP().slice().sort(function(a,b){return b.fecha.localeCompare(a.fecha);});
+  var list=pedListFiltrada(); // exporta exactamente lo que se ve filtrado
   var rows=[['PEDIDOS IMPULSO GALERIA'],['Folio','Fecha','Cliente','Vendedor','Sucursal','Metodo','Total','Anticipo','Restante','Estatus','Tipo Venta']];
   for(var i=0;i<list.length;i++){
     var p=list[i];
@@ -3544,7 +3584,7 @@ function expPedXlsx(){
   xlsxExp(rows,'Pedidos_Impulso');
 }
 function expPedPDF(){
-  var list=misP().slice().sort(function(a,b){return b.fecha.localeCompare(a.fecha);}).slice(0,100);
+  var list=pedListFiltrada().slice(0,100); // exporta lo filtrado (máx 100 por página PDF)
   var rows=[];
   for(var i=0;i<list.length;i++){
     var p=list[i];
