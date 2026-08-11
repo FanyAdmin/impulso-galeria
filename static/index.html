@@ -528,6 +528,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
           <label class="xbtn" id="xb-2m"><input type="checkbox" id="x-2m" onchange="tX('2m');calcP()"> 2ML</label>
           <label class="xbtn" id="xb-cj"><input type="checkbox" id="x-cj" onchange="tX('cj');calcP()"> Cama Justa</label>
           <label class="xbtn" id="xb-vm"><input type="checkbox" id="x-vm" onchange="tX('vm');calcP()"> Vid. Museo</label>
+          <input id="x-mlcolor" placeholder="🎨 Color de la ML (ej. blanco, nogal, lino...)" style="grid-column:1/-1;font-size:12px" oninput="calcP()">
         </div>
         <div class="pbar">
           <div><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Vista previa</div><div id="p-det" style="font-size:11px;color:var(--text3);margin-top:2px">Selecciona moldura y medidas</div></div>
@@ -785,8 +786,10 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <label style="font-size:11px;color:var(--text3)">Del</label><input type="date" id="au-d1" onchange="rAudit()" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px">
       <label style="font-size:11px;color:var(--text3)">al</label><input type="date" id="au-d2" onchange="rAudit()" style="padding:5px 8px;border:1px solid var(--border);border-radius:8px;font-size:12px">
+      <button class="btn btn-s btn-sm" onclick="openAuditExcl()">⚙️ Conceptos excluidos</button>
     </div>
   </div>
+  <div id="au-excl" style="font-size:11.5px;color:var(--text3);margin:-4px 0 10px"></div>
   <div class="metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:14px" id="au-metrics"></div>
   <div id="au-saldo" style="margin-bottom:14px"></div>
   <div class="app-title" style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Comparación día por día (solo efectivo)</div>
@@ -1055,6 +1058,12 @@ let ER_CATS={
 const PUENTE_IN='Cobro por terceros (puente)';
 const PUENTE_OUT='Devolución a terceros (puente)';
 function esPuenteC(c){return String(c||'').toLowerCase().includes('(puente)');}
+var AUDIT_EXCL=[]; // conceptos de entrada de efectivo que NO son ventas de sucursal (ej. reembolsos)
+function loadAuditExcl(){
+  return fetch('/api/config/audit_excl',{credentials:'include'}).then(r=>r.json()).then(d=>{
+    if(d&&Array.isArray(d.valor))AUDIT_EXCL=d.valor;
+  }).catch(()=>{});
+}
 function loadERCats(){
   return fetch('/api/config/er_cats',{credentials:'include'}).then(r=>r.json()).then(d=>{
     if(d&&d.valor&&Array.isArray(d.valor.ingresos)){ER_CATS=d.valor;}
@@ -1263,7 +1272,7 @@ function addCart(){
   const vm=(l1/100)*(l2/100);
   // Si no hay moldura, verificar que al menos haya un extra seleccionado
   let en=[],ev=0;
-  Object.keys(XP).forEach(k=>{if(document.getElementById('x-'+k)&&document.getElementById('x-'+k).checked){ev+=vm*XP[k]*q;en.push(XL[k]);}});
+  Object.keys(XP).forEach(k=>{if(document.getElementById('x-'+k)&&document.getElementById('x-'+k).checked){ev+=vm*XP[k]*q;var _lab=XL[k];if(k==='ml'||k==='2m'){var _c=document.getElementById('x-mlcolor');if(_c&&_c.value.trim())_lab+=' '+_c.value.trim();}en.push(_lab);}});
   if(!molSel&&ev===0){alert('Selecciona una moldura o al menos un extra');return;}
   const pm=molSel?(mc+molSel.desp_cm)*molSel.precio_lista*q:0;
   const sub=pm+ev;
@@ -1463,7 +1472,7 @@ function rPed(f){
     return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}<br>${tpB} ${tpBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
-      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td><button onclick="ticketPedido(pedidos[${idx}])" title="Imprimir nota (3 copias)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🧾</button>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td><button onclick="ticketPedido(pedidos[${idx}])" title="Imprimir nota (3 copias)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🧾</button><button onclick="insumosPed(${idx})" title="Insumos que ocupa este pedido" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">📋</button>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
   document.getElementById('p-pag').innerHTML=total>1?
     `<span style="margin-right:4px;color:var(--text2)">Pág ${pedPage+1} de ${total} · ${list.length} pedidos</span>
@@ -2074,6 +2083,73 @@ function faltantesAPendientes(id){
     logActivity('Faltantes a pendientes',(o.oc||'')+' — '+faltantes.map(f=>f.mol).join(', '));
     rOrdHist();rOrd();
   }).catch(()=>alert('Error de conexión'));
+}
+function insumosPed(idx){
+  const p=pedidos[idx];if(!p)return;
+  const items=p.items||[];
+  if(!items.length){alert('Este pedido no tiene artículos detallados (pedido histórico o concepto libre sin medidas).');return;}
+  const mlLin=it=>{ // metros lineales de moldura: perímetro + desperdicio del catálogo
+    if(!it.l1||!it.l2)return 0;
+    const per=((+it.l1/100)+(+it.l2/100))*2;
+    const base=typeof molBase==='function'?molBase(it.mol):it.mol;
+    const m=_MD.find(x=>x.n===base||x.n===it.mol);
+    const desp=m?(+m.d||0):0;
+    return (per+desp)*(it.q||1);
+  };
+  const med=it=>it.l1&&it.l2?(it.l1+'×'+it.l2+' cm'):'';
+  // Por artículo + acumulados
+  const acc={mold:{},vid:{},ml:{},otros:{}};
+  const add=(bucket,clave,det)=>{if(!acc[bucket][clave])acc[bucket][clave]=[];acc[bucket][clave].push(det);};
+  let porArt='';
+  items.forEach(it=>{
+    const q=it.q||1;
+    const lineas=[];
+    if(it.mol&&!it.esServicio&&it.l1&&it.l2){
+      const lin=mlLin(it);
+      lineas.push('Moldura <b>'+it.mol+'</b>: <b>'+lin.toFixed(2)+' m lineales</b> (incluye desperdicio)');
+      add('mold',it.mol,{med:med(it),q:q,lin:lin});
+    }else if(it.esServicio){
+      lineas.push('<span style="color:var(--text3)">Concepto libre / obra — sin materiales de taller</span>');
+    }
+    (it.en||[]).forEach(ex=>{
+      if(ex==='Regalo')return;
+      const exL=ex.toLowerCase();
+      if(exL.startsWith('vid')||exL.startsWith('v normal')||exL.startsWith('/2')){
+        lineas.push(ex+': corte de <b>'+med(it)+'</b>'+(q>1?' ×'+q:''));
+        add('vid',ex.split(' ').slice(0,2).join(' '),{med:med(it),q:q});
+      }else if(exL.startsWith('ml')||exL.startsWith('2ml')){
+        lineas.push('María Luisa <b>'+ex.replace(/^2?ml\s*/i,'')+'</b>'+(exL.startsWith('2ml')?' (doble)':'')+': para <b>'+med(it)+'</b>'+(q>1?' ×'+q:''));
+        add('ml',ex,{med:med(it),q:q});
+      }else{
+        lineas.push(ex+': <b>'+med(it)+'</b>'+(q>1?' ×'+q:''));
+        add('otros',ex,{med:med(it),q:q});
+      }
+    });
+    if(!it.esServicio){
+      // Siempre: emplaye por pieza terminada
+      add('otros','Emplaye / empaque',{med:med(it),q:q});
+    }
+    porArt+='<div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="font-weight:700;margin-bottom:3px">'+(it.mol||'—')+' '+(med(it)?'· '+med(it):'')+(q>1?' · ×'+q:'')+'</div>'+(lineas.length?lineas.map(l=>'<div style="font-size:12px;padding:1px 0">• '+l+'</div>').join(''):'<div style="font-size:12px;color:var(--text3)">Sin extras</div>')+'</div>';
+  });
+  // Resumen acumulado
+  const bloque=(tit,obj,fm)=>{
+    const ks=Object.keys(obj);if(!ks.length)return '';
+    return '<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">'+tit+'</div>'+ks.map(k=>'<div style="font-size:12.5px;padding:2px 0">'+fm(k,obj[k])+'</div>').join('');
+  };
+  let resumen='';
+  resumen+=bloque('🪵 Moldura (pedir/cortar)',acc.mold,(k,v)=>{const tot=v.reduce((s,x)=>s+x.lin,0);return '<b>'+k+'</b> → <b>'+tot.toFixed(2)+' m lineales</b> ('+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')).join(', ')+')';});
+  resumen+=bloque('🔲 Vidrios (cortes)',acc.vid,(k,v)=>'<b>'+k+'</b> → '+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')).join(', '));
+  resumen+=bloque('🎨 María Luisa',acc.ml,(k,v)=>'<b>'+k+'</b> → '+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')).join(', '));
+  resumen+=bloque('📦 Otros insumos',acc.otros,(k,v)=>'<b>'+k+'</b> → '+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')).join(', '));
+  const w=window.open('','_blank','width=560,height=720');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Insumos '+(p.folio||'')+'</title><style>body{font-family:Calibri,\'Segoe UI\',sans-serif;padding:18px;color:#1a1a1a;font-size:13px}:root{--border:#ddd;--text2:#555;--text3:#888}@media print{button{display:none}}</style></head><body>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0;color:#1A5C3A">📋 Insumos · Nota '+(p.folio||'')+'</h2><button onclick="window.print()" style="padding:6px 12px;cursor:pointer">🖨️ Imprimir</button></div>'+
+    '<div style="color:#777;font-size:12px;margin:2px 0 12px">'+(p.cli||'')+' · '+(p.suc||'')+' · '+(p.fecha||'')+(p.entrega?' · entrega: '+p.entrega:'')+'</div>'+
+    '<div style="background:#F0FDF4;border:1px solid #1A5C3A;border-radius:8px;padding:8px 12px;margin-bottom:12px"><b>RESUMEN — lo que vas a ocupar:</b>'+(resumen||'<div style="color:#888">Sin materiales calculables</div>')+'</div>'+
+    '<div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Detalle por artículo</div>'+porArt+
+    '<div style="font-size:11px;color:#999;margin-top:8px">Consejo generado de la nota: metros lineales = perímetro + desperdicio del catálogo. Verifica contra la pieza física antes de cortar.</div>'+
+    '</body></html>');
+  w.document.close();
 }
 function ticketPedido(p){
   if(!p)return;
@@ -2740,6 +2816,20 @@ function saldoCta(c){
 }
 // ─── AUDITORÍA DE EFECTIVO ────────────────────────────────────────────────────
 function esEfectivoMet(m){return String(m||'').trim().toLowerCase()==='efectivo';}
+function openAuditExcl(){
+  // Conceptos usados en entradas a cuentas de efectivo (candidatos a excluir)
+  const ctasEf=Object.keys(BANCOS_INIT).filter(c=>c.toLowerCase().includes('efectivo'));
+  const usados=[...new Set(movs.filter(m=>m.tipo==='Entrada'&&ctasEf.includes(m.cuenta)).map(m=>m.concepto).filter(Boolean))].sort();
+  if(!usados.length){alert('No hay entradas de efectivo registradas todavía.');return;}
+  const lineas=usados.map((c,i)=>(AUDIT_EXCL.includes(c)?'🚫 ':'✅ ')+(i+1)+'. '+c).join('\n');
+  const resp=prompt('CONCEPTOS EN ENTRADAS DE EFECTIVO\n✅ = cuenta como venta · 🚫 = excluido de la auditoría\n\n'+lineas+'\n\nEscribe los NÚMEROS a EXCLUIR separados por coma (ej. 2,5).\nDeja vacío para que todos cuenten como venta:',AUDIT_EXCL.map(c=>usados.indexOf(c)+1).filter(n=>n>0).join(','));
+  if(resp===null)return;
+  const nums=resp.split(',').map(s=>parseInt(s.trim())).filter(n=>n>=1&&n<=usados.length);
+  AUDIT_EXCL=nums.map(n=>usados[n-1]);
+  fetch('/api/config/audit_excl',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:AUDIT_EXCL})})
+    .then(()=>{rAudit();})
+    .catch(()=>{alert('No se pudo guardar la configuración');});
+}
 function rAudit(){
   const d1El=document.getElementById('au-d1'),d2El=document.getElementById('au-d2');
   if(d1El&&!d1El.value){const h=new Date();d1El.value=dateStrLocal(new Date(h.getFullYear(),h.getMonth(),1));}
@@ -2764,11 +2854,15 @@ function rAudit(){
   });
   // Entradas de efectivo registradas en Movimientos (por Ana Karen)
   const ctasEf=Object.keys(BANCOS_INIT).filter(c=>c.toLowerCase().includes('efectivo'));
+  let exclTot=0;
   movs.forEach(m=>{
     if(m.tipo!=='Entrada'||!enRango(m.fecha))return;
     if(!ctasEf.includes(m.cuenta))return;
+    if(AUDIT_EXCL.includes(m.concepto)){exclTot+=(m.monto||0);return;} // ingreso ajeno a ventas: no entra a la comparación
     reg(m.fecha).mov+=(m.monto||0);
   });
+  const exclEl=document.getElementById('au-excl');
+  if(exclEl)exclEl.innerHTML=AUDIT_EXCL.length?('🏷️ Excluidos de la comparación (no son ventas): <b>'+fmt(exclTot)+'</b> en conceptos: '+AUDIT_EXCL.map(c=>'«'+c+'»').join(', ')):'';
   // Salidas y traspasos de efectivo del rango (para el resumen)
   const salEf=movs.filter(m=>enRango(m.fecha)&&(m.tipo==='Salida'||m.tipo==='Retiro')&&ctasEf.includes(m.cuenta)).reduce((s,m)=>s+m.monto,0);
   const traSalEf=movs.filter(m=>enRango(m.fecha)&&m.tipo==='Traspaso'&&ctasEf.includes(m.cuenta)).reduce((s,m)=>s+m.monto,0);
@@ -3499,6 +3593,7 @@ function loadData(){
     movs=movs_data;
     FACTURAS=facs;
     loadERCats().then(()=>{try{rMvCat();}catch(e){}try{if(document.querySelector('#page-er.active'))rER();}catch(e){}});
+    loadAuditExcl();
     loadBancosCfg().then(()=>{pintarCuentasSelects();try{if(document.querySelector('#page-ban.active'))rBancos();}catch(e){}});
     if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
     ORDENES=ords||[];
