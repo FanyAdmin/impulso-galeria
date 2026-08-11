@@ -3396,49 +3396,57 @@ function asistNavSem(delta){
   rAsist();
 }
 
-function asistMesChange(){
-  var mes=parseInt(document.getElementById('asist-mes').value);
-  var d1=new Date(2026,mes,1);
-  var day=(d1.getDay()+6)%7;d1.setDate(d1.getDate()-day); // lunes de la semana que contiene el día 1
-  asistSemana=d1;
-  rAsist();
+function asistMesChange(){rAsist();}
+function asistNavMes(delta){
+  var s=document.getElementById('asist-mes');
+  var m=parseInt(s.value)+delta;
+  if(m<0)m=0;if(m>11)m=11;
+  s.value=m;rAsist();
 }
 function rAsist(){
   var empId=parseInt(document.getElementById('asist-emp').value);
   var emp=null;for(var i=0;i<EMPLEADOS.length;i++){if(EMPLEADOS[i].id===empId){emp=EMPLEADOS[i];break;}}if(!emp)return;
   // Header: nombre + semana + nav
-  document.getElementById('asist-ttl').textContent=emp.nombre+' — '+asistSemLabel(asistSemana);
   var msSel=document.getElementById('asist-mes');
-  if(msSel){var jue=new Date(asistSemana);jue.setDate(jue.getDate()+3);msSel.value=jue.getMonth();}
+  var _M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  document.getElementById('asist-ttl').textContent=emp.nombre+' — '+_M[parseInt(msSel?msSel.value:new Date().getMonth())]+' 2026';
   // Días de la semana Lun-Dom
   var dias=['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
   var hh='';for(var i=0;i<7;i++)hh+='<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text3)">'+dias[i]+'</div>';
   document.getElementById('asist-hdr').innerHTML=hh;
-  // Render 7 días
+  // Render MES COMPLETO (todas las semanas en filas)
+  var mesSel=parseInt(msSel?msSel.value:new Date().getMonth());
+  var anioSel=2026;
+  var ini=new Date(anioSel,mesSel,1);var day0=(ini.getDay()+6)%7;ini.setDate(ini.getDate()-day0); // lunes de la 1a semana
+  var finMes=new Date(anioSel,mesSel+1,0);var dayF=(finMes.getDay()+6)%7;
+  var fin=new Date(finMes);fin.setDate(finMes.getDate()+(6-dayF)); // domingo de la última
   var ch='';
   var pr=0,au=0,lb=0;
-  for(var i=0;i<7;i++){
-    var fecha=new Date(asistSemana);fecha.setDate(asistSemana.getDate()+i);
+  for(var f=new Date(ini);f<=fin;f.setDate(f.getDate()+1)){
+    var fecha=new Date(f);
     var mes=fecha.getMonth(),d=fecha.getDate(),anio=fecha.getFullYear();
     var dow=fecha.getDay(); // 0=dom
-    var fin=dow===0; // solo domingo bloqueado
+    var esDom=dow===0;
+    var fueraMes=mes!==mesSel;
     var key=empId+'_'+anio+'_'+mes;
     if(!ASISTENCIAS[key])ASISTENCIAS[key]={};
     var est=ASISTENCIAS[key][d];
     var st='padding:8px 4px;text-align:center;border:1px solid var(--border);border-radius:6px;font-size:12px;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;';
     var label='<span style="font-size:10px;color:var(--text3)">'+fecha.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+'</span>';
-    if(fin){st+='background:var(--surface2);color:var(--text3);';}
-    else if(est===true){st+='background:var(--green-l);border-color:var(--green);color:var(--green);font-weight:600;cursor:pointer;';lb++;pr++;}
-    else if(est===false){st+='background:var(--red-l);border-color:var(--red);color:var(--red);font-weight:600;cursor:pointer;';lb++;au++;}
-    else{st+='cursor:pointer;';lb++;}
-    ch+='<div style="'+st+'"'+(fin?'':' onclick="togAsistFecha('+empId+','+anio+','+mes+','+d+')"')+'>'+label+'<span>'+(fin?'—':est===true?'✓':est===false?'✗':'·')+'</span></div>';
+    if(esDom){st+='background:var(--surface2);color:var(--text3);';}
+    else if(est===true){st+='background:var(--green-l);border-color:var(--green);color:var(--green);font-weight:600;cursor:pointer;';if(!fueraMes){lb++;pr++;}}
+    else if(est===false){st+='background:var(--red-l);border-color:var(--red);color:var(--red);font-weight:600;cursor:pointer;';if(!fueraMes){lb++;au++;}}
+    else{st+='cursor:pointer;';if(!fueraMes)lb++;}
+    if(fueraMes)st+='opacity:.35;';
+    ch+='<div style="'+st+'"'+(esDom?'':' onclick="togAsistFecha('+empId+','+anio+','+mes+','+d+')"')+'>'+label+'<span>'+(esDom?'—':est===true?'✓':est===false?'✗':'·')+'</span></div>';
   }
   document.getElementById('asist-cal').innerHTML=ch;
   var desc=au*(emp.salario/6);
+  var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   var semNav='<div style="display:flex;align-items:center;gap:8px;margin-bottom:.75rem">'
-    +'<button class="btn btn-s" onclick="asistNavSem(-1)">‹ Ant</button>'
-    +'<span style="font-size:12px;color:var(--text3)">'+asistSemLabel(asistSemana)+'</span>'
-    +'<button class="btn btn-s" onclick="asistNavSem(1)">Sig ›</button>'
+    +'<button class="btn btn-s" onclick="asistNavMes(-1)">‹ Mes ant</button>'
+    +'<span style="font-size:12px;font-weight:600">'+M[mesSel]+' '+anioSel+' — mes completo</span>'
+    +'<button class="btn btn-s" onclick="asistNavMes(1)">Mes sig ›</button>'
     +'</div>';
   document.getElementById('asist-nav').innerHTML=semNav;
   document.getElementById('asist-met').innerHTML='<div class="metric"><div class="m-label">Dias laborables</div><div class="m-val">'+lb+'</div></div><div class="metric"><div class="m-label">Presentes</div><div class="m-val" style="color:var(--green)">'+pr+'</div></div><div class="metric"><div class="m-label">Ausentes</div><div class="m-val" style="color:var(--red)">'+au+'</div><div class="m-sub">Descuento: '+fmt(desc)+'</div></div>';
