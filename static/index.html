@@ -194,6 +194,17 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 <div id="app" class="shell" style="display:none">
 
 <!-- MODALS -->
+<div class="modal-bg" id="mod-audexcl" style="display:none">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-hdr"><div class="modal-ttl">⚙️ ¿Qué cuenta como venta en la auditoría?</div><button class="modal-x" onclick="CM('mod-audexcl')">✕</button></div>
+    <div style="font-size:12.5px;color:var(--text2);margin-bottom:10px">Estos son los conceptos que has usado en <b>entradas de efectivo</b>.<br>✅ Deja marcados los que <b>SÍ son ventas</b> de las sucursales.<br>⬜ Desmarca los que <b>NO son ventas</b> (reembolsos, dinero de terceros...) — esos se sacan de la comparación y ya no pintan días en amarillo.</div>
+    <div id="aex-body" style="max-height:45vh;overflow:auto;display:flex;flex-direction:column;gap:6px"></div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px">
+      <button class="btn btn-s" onclick="CM('mod-audexcl')">Cancelar</button>
+      <button class="btn btn-p" onclick="saveAuditExcl()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
 <div class="modal-bg" id="mod-insumos" style="display:none">
   <div class="modal" style="max-width:680px">
     <div class="modal-hdr"><div class="modal-ttl">🧰 Insumos de taller — consejo del periodo</div><button class="modal-x" onclick="CM('mod-insumos')">✕</button></div>
@@ -2891,17 +2902,20 @@ function saldoCta(c){
 // ─── AUDITORÍA DE EFECTIVO ────────────────────────────────────────────────────
 function esEfectivoMet(m){return String(m||'').trim().toLowerCase()==='efectivo';}
 function openAuditExcl(){
-  // Conceptos usados en entradas a cuentas de efectivo (candidatos a excluir)
   const ctasEf=Object.keys(BANCOS_INIT).filter(c=>c.toLowerCase().includes('efectivo'));
   const usados=[...new Set(movs.filter(m=>m.tipo==='Entrada'&&ctasEf.includes(m.cuenta)).map(m=>m.concepto).filter(Boolean))].sort();
   if(!usados.length){alert('No hay entradas de efectivo registradas todavía.');return;}
-  const lineas=usados.map((c,i)=>(AUDIT_EXCL.includes(c)?'🚫 ':'✅ ')+(i+1)+'. '+c).join('\n');
-  const resp=prompt('CONCEPTOS EN ENTRADAS DE EFECTIVO\n✅ = cuenta como venta · 🚫 = excluido de la auditoría\n\n'+lineas+'\n\nEscribe los NÚMEROS a EXCLUIR separados por coma (ej. 2,5).\nDeja vacío para que todos cuenten como venta:',AUDIT_EXCL.map(c=>usados.indexOf(c)+1).filter(n=>n>0).join(','));
-  if(resp===null)return;
-  const nums=resp.split(',').map(s=>parseInt(s.trim())).filter(n=>n>=1&&n<=usados.length);
-  AUDIT_EXCL=nums.map(n=>usados[n-1]);
+  document.getElementById('aex-body').innerHTML=usados.map((c,i)=>{
+    const esVenta=!AUDIT_EXCL.includes(c);
+    return '<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px"><input type="checkbox" class="aex-chk" data-c="'+c.replace(/"/g,'&quot;')+'" '+(esVenta?'checked':'')+'> <b>'+c+'</b><span style="margin-left:auto;font-size:11px;color:var(--text3)">'+(esVenta?'cuenta como venta':'excluido')+'</span></label>';
+  }).join('');
+  OM('mod-audexcl');
+}
+function saveAuditExcl(){
+  // Lo DESMARCADO = no es venta = se excluye
+  AUDIT_EXCL=[...document.querySelectorAll('.aex-chk')].filter(ch=>!ch.checked).map(ch=>ch.dataset.c);
   fetch('/api/config/audit_excl',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:AUDIT_EXCL})})
-    .then(()=>{rAudit();})
+    .then(()=>{CM('mod-audexcl');rAudit();})
     .catch(()=>{alert('No se pudo guardar la configuración');});
 }
 function rAudit(){
