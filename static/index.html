@@ -946,7 +946,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="ph"><div><div class="ph-title">Asistencias</div></div>
     <div style="display:flex;gap:7px;align-items:center">
       <select id="asist-emp" onchange="rAsist()" style="width:160px"></select>
-      <select id="asist-mes" onchange="rAsist()" style="width:130px"></select>
+      <select id="asist-mes" onchange="asistMesChange()" style="width:130px"></select>
     </div>
   </div>
   <div class="card">
@@ -3396,11 +3396,20 @@ function asistNavSem(delta){
   rAsist();
 }
 
+function asistMesChange(){
+  var mes=parseInt(document.getElementById('asist-mes').value);
+  var d1=new Date(2026,mes,1);
+  var day=(d1.getDay()+6)%7;d1.setDate(d1.getDate()-day); // lunes de la semana que contiene el día 1
+  asistSemana=d1;
+  rAsist();
+}
 function rAsist(){
   var empId=parseInt(document.getElementById('asist-emp').value);
   var emp=null;for(var i=0;i<EMPLEADOS.length;i++){if(EMPLEADOS[i].id===empId){emp=EMPLEADOS[i];break;}}if(!emp)return;
   // Header: nombre + semana + nav
   document.getElementById('asist-ttl').textContent=emp.nombre+' — '+asistSemLabel(asistSemana);
+  var msSel=document.getElementById('asist-mes');
+  if(msSel){var jue=new Date(asistSemana);jue.setDate(jue.getDate()+3);msSel.value=jue.getMonth();}
   // Días de la semana Lun-Dom
   var dias=['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
   var hh='';for(var i=0;i<7;i++)hh+='<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text3)">'+dias[i]+'</div>';
