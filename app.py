@@ -25,6 +25,7 @@ class Pedido(db.Model):
     id         = db.Column(db.Integer, primary_key=True)
     folio      = db.Column(db.String(30))
     tipo_venta = db.Column(db.String(30))
+    tipo_prod  = db.Column(db.String(20), default='marcos')  # marcos | arte
     cli        = db.Column(db.String(100))
     tel        = db.Column(db.String(20))
     suc        = db.Column(db.String(50))
@@ -321,7 +322,7 @@ def get_pedidos():
 def crear_pedido():
     d = request.json or {}
     p = Pedido(
-        folio=d.get('folio'), tipo_venta=d.get('tipo_venta','general'),
+        folio=d.get('folio'), tipo_venta=d.get('tipo_venta','general'), tipo_prod=d.get('tipo_prod','marcos'),
         cli=d.get('cli'), tel=d.get('tel'),
         suc=d.get('suc', session.get('suc')), vend=d.get('vend'),
         fecha=d.get('fecha'), mes=d.get('mes'),
@@ -340,7 +341,7 @@ def crear_pedido():
 def actualizar_pedido(pid):
     p = Pedido.query.get_or_404(pid)
     d = request.json or {}
-    for campo in ['folio','tipo_venta','cli','tel','suc','vend','fecha','mes','sub','total','met','ant','rest','obs','est','entrega','taller_est','casillero','factura_num']:
+    for campo in ['folio','tipo_venta','tipo_prod','cli','tel','suc','vend','fecha','mes','sub','total','met','ant','rest','obs','est','entrega','taller_est','casillero','factura_num']:
         if campo in d:
             setattr(p, campo, d[campo])
     if 'items' in d:
@@ -358,7 +359,7 @@ def borrar_pedido(pid):
 
 def p_dict(p):
     return {
-        'id':p.id,'folio':p.folio,'tipo_venta':p.tipo_venta,
+        'id':p.id,'folio':p.folio,'tipo_venta':p.tipo_venta,'tipo_prod':p.tipo_prod or 'marcos',
         'cli':p.cli,'tel':p.tel,'suc':p.suc,'vend':p.vend,
         'fecha':p.fecha,'mes':p.mes,
         'items':json.loads(p.items) if p.items else [],
@@ -504,7 +505,7 @@ def import_pedidos():
         try:
             import json as _json
             p = Pedido(
-                folio=d.get('folio'), tipo_venta=d.get('tipo_venta','general'),
+                folio=d.get('folio'), tipo_venta=d.get('tipo_venta','general'), tipo_prod=d.get('tipo_prod','marcos'),
                 cli=d.get('cli'), tel=d.get('tel'),
                 suc=d.get('suc','Jardines'), vend=d.get('vend'),
                 fecha=d.get('fecha'), mes=d.get('mes'),
@@ -769,11 +770,12 @@ class Vendedor(db.Model):
     id        = db.Column(db.Integer, primary_key=True)
     nombre    = db.Column(db.String(100))
     suc       = db.Column(db.String(50))
-    comision  = db.Column(db.Float, default=0)
+    comision  = db.Column(db.Float, default=0)        # % sobre marcos
+    comision_arte = db.Column(db.Float, default=10)   # % sobre arte
     estatus   = db.Column(db.String(20), default='activo')
 
 def vend_dict(v):
-    return {'id':v.id,'nombre':v.nombre,'suc':v.suc,'comision':v.comision,'estatus':v.estatus}
+    return {'id':v.id,'nombre':v.nombre,'suc':v.suc,'comision':v.comision,'comision_arte':(v.comision_arte if v.comision_arte is not None else 10),'estatus':v.estatus}
 
 @app.route('/api/vendedores', methods=['GET'])
 @requiere_login
@@ -784,7 +786,7 @@ def get_vendedores():
 @requiere_login
 def crear_vendedor():
     d = request.json or {}
-    v = Vendedor(nombre=d.get('nombre'), suc=d.get('suc',''), comision=d.get('comision',0), estatus=d.get('estatus','activo'))
+    v = Vendedor(nombre=d.get('nombre'), suc=d.get('suc',''), comision=d.get('comision',0), comision_arte=d.get('comision_arte',10), estatus=d.get('estatus','activo'))
     db.session.add(v)
     db.session.commit()
     return jsonify(vend_dict(v)), 201
@@ -794,7 +796,7 @@ def crear_vendedor():
 def actualizar_vendedor(vid):
     v = Vendedor.query.get_or_404(vid)
     d = request.json or {}
-    for campo in ['nombre','suc','comision','estatus']:
+    for campo in ['nombre','suc','comision','comision_arte','estatus']:
         if campo in d:
             setattr(v, campo, d[campo])
     db.session.commit()
@@ -862,6 +864,8 @@ def migrar_columnas():
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS factura_num VARCHAR(30)",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS estatus VARCHAR(20) DEFAULT 'activo'",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS fecha_baja VARCHAR(20) DEFAULT ''",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS tipo_prod VARCHAR(20) DEFAULT 'marcos'",
+        "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_arte FLOAT DEFAULT 10",
     ]:
         try:
             db.session.execute(text(stmt)); db.session.commit()
