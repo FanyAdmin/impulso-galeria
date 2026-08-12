@@ -2760,11 +2760,35 @@ function editMov(idx){
 function guardarEditMov(){
   if(editMovIdx===null)return;
   const m=movs[editMovIdx];if(!m)return;
+  const prev={...m};
   const updates={tipo:document.getElementById('em-t').value,concepto:document.getElementById('em-cat').value.trim(),cuenta:document.getElementById('em-cta').value,cta_destino:document.getElementById('em-cta2').value,desc:document.getElementById('em-desc').value.trim(),monto:parseFloat(document.getElementById('em-monto').value)||0,fecha:document.getElementById('em-fecha').value,mes:parseInt(document.getElementById('em-fecha').value.split('-')[1],10)-1};
   Object.assign(m,updates);
   logActivity('Editó movimiento',(updates.concepto||'')+' — '+fmt(updates.monto));
-  if(m.id){fetch('/api/movimientos/'+m.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)}).then(r=>r.json()).then(()=>{CM('mod-edit-mov');rMovs();});}
-  else{CM('mod-edit-mov');rMovs();}
+  CM('mod-edit-mov');rMovsRe();
+  if(m.id){
+    fetch('/api/movimientos/'+m.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)})
+    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(srv=>{
+      if(srv&&srv.id){
+        // La respuesta del servidor es la verdad: sincronizar
+        Object.assign(m,srv);
+        if(String(srv.fecha)!==String(updates.fecha)){
+          alert('⚠️ El servidor NO guardó la fecha nueva (mandé '+updates.fecha+', respondió '+srv.fecha+').\n\nEsto indica que el app.py de Railway está desactualizado — avísale a Estefania/Claude con este mensaje.');
+        }
+        rMovsRe();
+      }
+    })
+    .catch(e=>{
+      Object.assign(m,prev);rMovsRe();
+      alert('⚠️ No se pudo guardar el cambio en el servidor ('+e.message+') — el movimiento se regresó como estaba. Revisa la conexión e inténtalo de nuevo.');
+    });
+  }else{
+    // Movimiento histórico sin id: se crea en BD para que el cambio persista
+    fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({...m})})
+    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(srv=>{if(srv&&srv.id)m.id=srv.id;rMovsRe();})
+    .catch(()=>{alert('⚠️ Este movimiento era histórico (sin registro en el servidor) y no se pudo anclar — su cambio solo se verá en esta computadora.');});
+  }
 }
 function borrarMov(idx){
   const m=movs[idx];
