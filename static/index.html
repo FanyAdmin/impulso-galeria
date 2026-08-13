@@ -427,8 +427,8 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="g2">
       <div class="field"><label>Nombre</label><input id="mu-n" placeholder="ej. Alondra"></div>
       <div class="field"><label>Login</label><input id="mu-k" placeholder="ej. jardines2"></div>
-      <div class="field"><label>Sucursal</label><select id="mu-s"><option>Jardines</option><option>Zibata</option><option>Admin</option></select></div>
-      <div class="field"><label>Rol</label><select id="mu-r"><option value="venta">Punto de venta</option><option value="admin">Administrador</option></select></div>
+      <div class="field"><label>Sucursal</label><select id="mu-s"><option>Jardines</option><option>Zibata</option><option>Admin</option><option>Taller</option></select></div>
+      <div class="field"><label>Rol</label><select id="mu-r"><option value="venta">Punto de venta</option><option value="admin">Administrador</option><option value="taller">Taller</option><option value="owner">👑 Dueña (owner)</option></select></div>
       <div class="field gc2"><label>Contraseña</label><input type="password" id="mu-p" placeholder="Mínimo 4 caracteres"></div>
     </div>
   </div>
@@ -3104,7 +3104,19 @@ function rUsuarios(){
     </td></tr>`).join('');
 }
 function openAddUsr(){editUsrIdx=null;document.getElementById('mu-ttl').textContent='+ Nuevo usuario';['mu-n','mu-k','mu-p'].forEach(id=>document.getElementById(id).value='');document.getElementById('mu-s').value='Jardines';document.getElementById('mu-r').value='venta';OM('mod-usr');}
-function openEditUsr(i){editUsrIdx=i;const u=USERS[i];document.getElementById('mu-ttl').textContent='Editar: '+u.name;document.getElementById('mu-n').value=u.name;document.getElementById('mu-k').value=u.key;document.getElementById('mu-s').value=u.suc;document.getElementById('mu-r').value=u.role;document.getElementById('mu-p').value=u.pwd;OM('mod-usr');}
+function openEditUsr(i){
+  editUsrIdx=i;const u=USERS[i];
+  document.getElementById('mu-ttl').textContent='Editar: '+u.name;
+  document.getElementById('mu-n').value=u.name;
+  document.getElementById('mu-k').value=u.key;
+  // Nunca degradar en silencio: si el rol o sucursal del usuario no está en el select, se agrega al vuelo
+  const sSel=document.getElementById('mu-s');if(u.suc&&![...sSel.options].some(o=>o.value===u.suc)){const o=document.createElement('option');o.value=o.textContent=u.suc;sSel.appendChild(o);}
+  sSel.value=u.suc;
+  const rSel=document.getElementById('mu-r');if(u.role&&![...rSel.options].some(o=>o.value===u.role)){const o=document.createElement('option');o.value=u.role;o.textContent=u.role;rSel.appendChild(o);}
+  rSel.value=u.role;
+  document.getElementById('mu-p').value=u.pwd;
+  OM('mod-usr');
+}
 function saveUsr(){
   const nom=document.getElementById('mu-n').value.trim(),key=document.getElementById('mu-k').value.trim().toLowerCase(),pwd=document.getElementById('mu-p').value.trim(),suc=document.getElementById('mu-s').value,rol=document.getElementById('mu-r').value;
   if(!nom||!key||!pwd){alert('Completa todos los campos');return;}
