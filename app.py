@@ -459,6 +459,83 @@ def cxp_dict(c):
             'estatus':c.estatus or 'pendiente','fecha_pago':c.fecha_pago or '','cuenta_pago':c.cuenta_pago or '',
             'ref_pago':c.ref_pago or '','mov_id':c.mov_id,'oc':c.oc or ''}
 
+# ── LECTOR DE ESTADO DE CUENTA INBURSA (PDF) ─────────────────────────────────
+MESES_EDO = {'ENE':1,'FEB':2,'MAR':3,'ABR':4,'MAY':5,'JUN':6,'JUL':7,'AGO':8,'SEP':9,'OCT':10,'NOV':11,'DIC':12}
+
+@app.route('/api/edocta', methods=['POST'])
+@requiere_admin
+def leer_edocta():
+    try:
+        from pypdf import PdfReader
+    except Exception:
+        return jsonify({'error': 'Falta la librería pypdf en el servidor: agrega la línea "pypdf" a requirements.txt y vuelve a desplegar.'}), 500
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'No llegó ningún archivo'}), 400
+    import re as _re, io
+    try:
+        reader = PdfReader(io.BytesIO(f.read()))
+        texto = '\n'.join((p.extract_text() or '') for p in reader.pages)
+    except Exception as e:
+        return jsonify({'error': 'No pude leer el PDF: ' + str(e)}), 400
+    m = _re.search(r'Del\s+\d{1,2}\s+\w+\.?\s+(\d{4})', texto)
+    anio = int(m.group(1)) if m else 2026
+    ini = _re.compile(r'^([A-Z]{3})\.?\s+(\d{1,2})\s+(\d{6,})\s+(.*)$')
+    lmonto = _re.compile(r'^\$?\s*([\d,]+\.\d{2})(?:\s+([\d,]+\.\d{2}))?\s*$')
+    tailm = _re.compile(r'^(.*?)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*$')
+    finre = _re.compile(r'RESUMEN GRAFICO|Tipo Comprobante|CONSULTAS Y RECLAMACIONES')
+    movs, cur = [], None
+    for lin in texto.split('\n'):
+        lin = lin.strip()
+        if not lin: continue
+        if finre.search(lin): break
+        mm = ini.match(lin)
+        if mm and mm.group(1) in MESES_EDO:
+            resto = mm.group(4).strip()
+            cur = {'mes': MESES_EDO[mm.group(1)], 'dia': int(mm.group(2)), 'concepto': resto, 'extra': ''}
+            tm = tailm.match(resto)  # caso: montos en la misma línea (ej. INTERESES GANADOS)
+            if tm:
+                cur['concepto'] = tm.group(1).strip()
+                cur['monto'] = float(tm.group(2).replace(',', ''))
+                cur['saldo'] = float(tm.group(3).replace(',', ''))
+                movs.append(cur); cur = None
+            continue
+        lm = lmonto.match(lin)
+        if lm and cur is not None:
+            cur['monto'] = float(lm.group(1).replace(',', ''))
+            cur['saldo'] = float(lm.group(2).replace(',', '')) if lm.group(2) else None
+            movs.append(cur); cur = None
+            continue
+        if cur is not None:
+            cur['extra'] += ' ' + lin
+    saldo_prev = None
+    m = _re.search(r'SALDO\s+ANTERIOR\s+([\d,]+\.\d{2})', texto)
+    if m: saldo_prev = float(m.group(1).replace(',', ''))
+    depositos, otros = [], []
+    for mv in movs:
+        monto, saldo = mv.get('monto'), mv.get('saldo')
+        if monto is None: continue
+        es = None
+        if saldo_prev is not None and saldo is not None:
+            if abs(saldo_prev + monto - saldo) < 0.02: es = True
+            elif abs(saldo_prev - monto - saldo) < 0.02: es = False
+        if es is None:
+            cu = mv['concepto'].upper()
+            es = cu.startswith('LIQUIDACION ADQUIRENTE') or cu.startswith('DEPOSITO') or cu.startswith('DEVOLUCION') or 'INTERESES' in cu
+        if saldo is not None: saldo_prev = saldo
+        if not es: continue
+        fecha = '%04d-%02d-%02d' % (anio, mv['mes'], mv['dia'])
+        cu = mv['concepto'].upper()
+        if cu.startswith('LIQUIDACION ADQUIRENTE'):
+            sub = 'AMEX' if 'AMEX' in cu else ('CREDITO' if 'CREDITO' in cu else 'DEBITO')
+            t = _re.search(r'-(\d{6,})', mv['extra'])
+            depositos.append({'fecha': fecha, 'monto': monto, 'tipo': 'terminal', 'det': sub, 'terminal': t.group(1) if t else ''})
+        elif cu.startswith('DEPOSITO'):
+            depositos.append({'fecha': fecha, 'monto': monto, 'tipo': 'spei', 'det': _re.sub(r'\s+', ' ', mv['extra']).strip()[:70] or 'DEPOSITO SPEI', 'terminal': ''})
+        else:
+            otros.append({'fecha': fecha, 'monto': monto, 'det': mv['concepto'][:50] or 'abono'})
+    return jsonify({'depositos': depositos, 'otros_abonos': otros, 'anio': anio, 'n_movs': len(movs)})
+
 @app.route('/api/cxp', methods=['GET'])
 @requiere_admin
 def get_cxp():
