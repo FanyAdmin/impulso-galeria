@@ -893,7 +893,16 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 <div class="modal-bg" id="mod-edocta" style="display:none">
   <div class="modal" style="max-width:760px">
     <div class="modal-hdr"><div class="modal-ttl">📥 Estado de cuenta — conciliación automática</div><button class="modal-x" onclick="CM('mod-edocta')">✕</button></div>
-    <div style="font-size:12.5px;color:var(--text2);margin-bottom:8px">Copia de tu estado de cuenta (Excel o portal INBURSA) las columnas de <b>fecha y monto</b> de los DEPÓSITOS y pégalas aquí — una línea por depósito, en cualquier formato razonable. El sistema los casará contra los cobros con tarjeta aún sin conciliar.</div>
+    <div style="background:var(--green-l);border:1.5px solid var(--green);border-radius:10px;padding:10px 12px;margin-bottom:10px">
+      <div style="font-size:12.5px;font-weight:700;color:var(--green);margin-bottom:6px">📎 Opción 1 (recomendada): sube el PDF tal cual lo descargas de INBURSA</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="file" id="edo-file" accept=".pdf" style="font-size:12px">
+        <button class="btn btn-p btn-sm" onclick="edoSubirPDF()">🔎 Leer y casar</button>
+        <span id="edo-file-msg" style="font-size:11px;color:var(--text3)"></span>
+      </div>
+      <label style="display:flex;align-items:center;gap:5px;font-size:11.5px;margin-top:6px;cursor:pointer"><input type="checkbox" id="edo-agrupa" checked> Agrupar liquidaciones de terminal por día (crédito+débito+AMEX = total de tarjetas del día)</label>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:6px"><b>Opción 2:</b> o pega abajo las columnas de fecha y monto de los depósitos, a mano:</div>
     <textarea id="edo-txt" placeholder="Ejemplos válidos:&#10;30/07/2026&#9;2,000.00&#10;2026-07-31  1,581.00&#10;01/08/26 $949.50 DEPOSITO VENTAS" style="width:100%;height:130px;font-size:12px;font-family:monospace;border:1px solid var(--border);border-radius:8px;padding:8px"></textarea>
     <div style="display:flex;gap:10px;align-items:center;margin:8px 0;font-size:12px;flex-wrap:wrap">
       <label style="color:var(--text3)">Tolerancia ± $</label><input type="number" id="edo-tol" value="0" step="0.01" style="width:90px;font-size:12px;padding:4px 7px;border:1px solid var(--border);border-radius:7px">
@@ -3325,18 +3334,48 @@ function edoParse(txt){
   });
   return deps;
 }
+function edoSubirPDF(){
+  const inp=document.getElementById('edo-file');
+  if(!inp.files||!inp.files[0]){alert('Elige primero el archivo PDF del estado de cuenta');return;}
+  const msg=document.getElementById('edo-file-msg');msg.textContent='Leyendo PDF…';
+  const fd=new FormData();fd.append('file',inp.files[0]);
+  fetch('/api/edocta',{method:'POST',credentials:'include',body:fd})
+  .then(r=>r.json())
+  .then(d=>{
+    if(d.error){msg.textContent='';alert('⚠️ '+d.error);return;}
+    let deps=d.depositos||[];
+    if(document.getElementById('edo-agrupa').checked){
+      // Terminal: crédito+débito+AMEX del mismo día = un depósito (el total de tarjetas)
+      const porDia={};const spei=[];
+      deps.forEach(x=>{
+        if(x.tipo==='terminal'){const k=x.fecha;(porDia[k]=porDia[k]||{fecha:k,monto:0,tipo:'terminal',subs:[]}).monto+=x.monto;porDia[k].subs.push(x.det+' '+fmt(x.monto));}
+        else spei.push(x);
+      });
+      deps=[...Object.values(porDia).map(g=>({fecha:g.fecha,monto:+g.monto.toFixed(2),tipo:'terminal',det:'Terminal: '+g.subs.join(' + ')})),...spei];
+    }
+    msg.textContent='✓ '+d.n_movs+' movimientos leídos';
+    edoProcesar(deps,d.otros_abonos||[]);
+  })
+  .catch(()=>{msg.textContent='';alert('⚠️ Error de conexión al leer el PDF');});
+}
 function edoAnalizar(){
   const txt=document.getElementById('edo-txt').value;
-  const tol=parseFloat(document.getElementById('edo-tol').value)||0;
-  const deps=edoParse(txt);
+  const deps=edoParse(txt).map(x=>({fecha:x.fecha,monto:x.monto,tipo:'terminal',det:x.lin?String(x.lin).slice(0,50):''}));
   const cont=document.getElementById('edo-res');
   if(!deps.length){cont.innerHTML='<div class="tbl-empty">No pude leer ningún depósito — revisa que cada línea traiga fecha y monto.</div>';return;}
-  // Pool: cobros de tarjeta, con dinero, sin conciliar
-  const pool=cobRows().filter(r=>r.monto>0&&metGrupoCob(r.met)==='Tarjeta'&&!concilDe(r.k));
+  edoProcesar(deps,[]);
+}
+function edoProcesar(deps,otrosAb){
+  const tol=parseFloat(document.getElementById('edo-tol').value)||0;
+  const cont=document.getElementById('edo-res');
+  // Pools: terminal casa contra cobros de tarjeta; SPEI contra cualquier método bancario (no efectivo)
+  const todos=cobRows().filter(r=>r.monto>0&&!concilDe(r.k));
+  const poolTar=todos.filter(r=>metGrupoCob(r.met)==='Tarjeta');
+  const poolBanco=todos.filter(r=>metGrupoCob(r.met)!=='Efectivo'&&metGrupoCob(r.met)!=='Sin anticipo');
   const usados={};
   const difDias=(f1,f2)=>Math.abs((new Date(f1+'T12:00')-new Date(f2+'T12:00'))/86400000);
   const buscar=(dep)=>{
-    // candidatos: cobros a ≤4 días del depósito (la terminal deposita 1-2 días después), aún libres
+    const pool=dep.tipo==='spei'?poolBanco:poolTar;
     const cand=pool.filter(r=>!usados[r.k]&&difDias(r.fecha,dep.fecha)<=4).sort((a,b)=>difDias(a.fecha,dep.fecha)-difDias(b.fecha,dep.fecha)).slice(0,28);
     const ok=(s)=>Math.abs(s-dep.monto)<=tol+0.005;
     for(const a of cand)if(ok(a.monto))return [a];
@@ -3351,15 +3390,16 @@ function edoAnalizar(){
     if(combo){
       combo.forEach(r=>usados[r.k]=true);
       EDO_PROPS.push({dep,keys:combo.map(r=>r.k),monto:combo.reduce((s,r)=>s+r.monto,0)});
-      h+='<tr style="background:#F0FDF4"><td>'+dep.fecha+'</td><td class="mono"><b>'+fmt(dep.monto)+'</b></td><td style="font-size:11.5px">✅ Casa con '+combo.length+' cobro(s): '+combo.map(r=>'F.'+r.folio+' '+fmt(r.monto)).join(' + ')+'</td><td><button class="btn btn-s btn-xs" onclick="edoAceptar('+(EDO_PROPS.length-1)+',this)">✓ Aceptar</button></td></tr>';
+      h+='<tr style="background:#F0FDF4"><td>'+dep.fecha+(dep.det?'<div style="font-size:9.5px;color:var(--text3)">'+dep.det+'</div>':'')+'</td><td class="mono"><b>'+fmt(dep.monto)+'</b></td><td style="font-size:11.5px">✅ Casa con '+combo.length+' cobro(s): '+combo.map(r=>'F.'+r.folio+' '+fmt(r.monto)).join(' + ')+'</td><td><button class="btn btn-s btn-xs" onclick="edoAceptar('+(EDO_PROPS.length-1)+',this)">✓ Aceptar</button></td></tr>';
     }else{
-      const cerca=pool.filter(r=>!usados[r.k]&&difDias(r.fecha,dep.fecha)<=4&&Math.abs(r.monto-dep.monto)<=Math.max(60,dep.monto*0.05)).slice(0,3);
-      h+='<tr style="background:#FEF2F2"><td>'+dep.fecha+'</td><td class="mono"><b>'+fmt(dep.monto)+'</b></td><td style="font-size:11.5px;color:#991B1B">🔴 <b>NO CUADRA</b> — ningún cobro (ni combinación de 2-3) suma esto.'+(cerca.length?' Cercanos: '+cerca.map(r=>'F.'+r.folio+' '+fmt(r.monto)).join(', '):'')+'</td><td></td></tr>';
+      const cerca=(dep.tipo==='spei'?poolBanco:poolTar).filter(r=>!usados[r.k]&&difDias(r.fecha,dep.fecha)<=4&&Math.abs(r.monto-dep.monto)<=Math.max(60,dep.monto*0.05)).slice(0,3);
+      h+='<tr style="background:#FEF2F2"><td>'+dep.fecha+(dep.det?'<div style="font-size:9.5px;color:var(--text3)">'+dep.det+'</div>':'')+'</td><td class="mono"><b>'+fmt(dep.monto)+'</b></td><td style="font-size:11.5px;color:#991B1B">🔴 <b>NO CUADRA</b> — ningún cobro (ni combinación de 2-3) suma esto.'+(cerca.length?' Cercanos: '+cerca.map(r=>'F.'+r.folio+' '+fmt(r.monto)).join(', '):'')+'</td><td></td></tr>';
     }
   });
   h+='</tbody></table>';
-  const libres=pool.filter(r=>!usados[r.k]);
+  const libres=poolTar.filter(r=>!usados[r.k]);
   if(libres.length)h+='<div style="margin-top:10px;font-size:12px"><b>⚪ Cobros con tarjeta que NINGÚN depósito reclamó ('+libres.length+' · '+fmt(libres.reduce((s,r)=>s+r.monto,0))+'):</b><div style="font-size:11.5px;color:var(--text2);margin-top:4px">'+libres.map(r=>r.fecha+' F.'+r.folio+' '+fmt(r.monto)).join(' · ')+'</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Posibles causas: el depósito llega en el siguiente corte del banco, el cobro se capturó con otro método, o falta en tu pegado.</div></div>';
+  if(otrosAb&&otrosAb.length)h+='<div style="margin-top:10px;font-size:11.5px;color:var(--text2)"><b>ℹ️ Otros abonos del banco (no son ventas — devoluciones, traspasos, intereses):</b> '+otrosAb.map(o=>o.fecha+' '+fmt(o.monto)+' '+o.det).join(' · ')+'</div>';
   const nOk=EDO_PROPS.length;
   h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px"><b>'+deps.length+' depósito(s) leídos · ✅ '+nOk+' casan · 🔴 '+(deps.length-nOk)+' no cuadran</b>'+(nOk?'<button class="btn btn-p btn-sm" style="margin-left:auto" onclick="edoAceptarTodos()">✓✓ Aceptar todos los que casan</button>':'')+'</div>'+h;
   cont.innerHTML=h;
