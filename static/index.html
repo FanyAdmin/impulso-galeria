@@ -477,12 +477,14 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-item" onclick="go('pend');rPend()" id="nav-pend">📌 Pendientes</div>
   <div class="sb-item" onclick="go('cxc')" id="nav-cxc">💰 Cuentas x cobrar</div>
   <div class="sb-item" onclick="go('dia')" id="nav-dia">📊 Mi día</div>
+  <div class="sb-item" onclick="go('cob')" id="nav-cob">💵 Cobranza</div>
   <div class="sb-section">Catálogo</div>
   <div class="sb-item" onclick="go('cat')" id="nav-cat">🗂 Molduras</div>
   <div class="sb-section admin-only" style="display:none">Admin</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('dash')" id="nav-dash">📈 Dashboard</div>
   <div class="sb-item" onclick="go('ord')" id="nav-ord">🛒 Órdenes de compra</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('mov')" id="nav-mov">🔄 Movimientos</div>
+  <div class="sb-item admin-only" style="display:none" onclick="go('cxp')" id="nav-cxp">📤 Cuentas x pagar</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('er')" id="nav-er">📉 Estado de resultados</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('ban')" id="nav-ban">🏦 Bancos</div>
   <div class="sb-sec admin-only" style="display:none">Recursos Humanos</div>
@@ -811,6 +813,96 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="metrics m3" id="ban-m"></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Cuenta</th><th>Saldo inicial</th><th>Entradas</th><th>Salidas</th><th>Saldo actual</th></tr></thead><tbody id="ban-body"></tbody></table></div>
 </div>
+<div class="page" id="page-cob">
+  <div class="ph"><div><div class="ph-title">💵 Cobranza</div><div class="ph-sub">Todos los cobros día por día — anticipos, abonos y liquidaciones (tu control de Excel, vivo)</div></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-p admin-only" style="display:none" id="cob-cierre-btn" onclick="openCierre()">🌙 Cierre del día</button><button class="btn btn-s admin-only" style="display:none" id="cob-edo-btn" onclick="OM('mod-edocta')">📥 Subir estado de cuenta</button><button class="btn btn-s admin-only" style="display:none" id="cob-concil-btn" onclick="toggleConcilMode()">🧮 Conciliar manual</button><button class="btn btn-s" onclick="expCobXlsx()">📊 Excel</button></div>
+  </div>
+  <div id="cob-barra" style="display:none;position:sticky;top:0;z-index:5;background:#1F3864;color:#fff;border-radius:10px;padding:10px 16px;margin-bottom:.6rem;align-items:center;gap:14px;flex-wrap:wrap">
+    <span id="cob-barra-info" style="font-size:13px"></span>
+    <button id="cob-barra-btn" class="btn" style="display:none;background:#fff;color:#1F3864;font-weight:700" onclick="concilGuardar()">✓ Casar con depósito</button>
+    <span style="margin-left:auto;font-size:11px;opacity:.8">Marca cobros hasta igualar el depósito · picas ✓ y quedan pintados del mismo color</span>
+    <button class="btn btn-xs" style="background:transparent;border:1px solid #ffffff66;color:#fff" onclick="toggleConcilMode()">Salir</button>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:.7rem;font-size:12px">
+    <label style="color:var(--text3);flex:0 0 auto">Del</label><input type="date" id="cob-d1" onchange="rCob()" style="width:135px;flex:0 0 auto;font-size:12px;padding:4px 7px;border:1px solid var(--border);border-radius:7px">
+    <label style="color:var(--text3);flex:0 0 auto">al</label><input type="date" id="cob-d2" onchange="rCob()" style="width:135px;flex:0 0 auto;font-size:12px;padding:4px 7px;border:1px solid var(--border);border-radius:7px">
+    <select id="cob-met" onchange="rCob()" style="width:170px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Método: todos</option></select>
+    <select id="cob-suc" onchange="rCob()" style="width:150px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Sucursal: todas</option></select>
+    <select id="cob-vend" onchange="rCob()" style="width:165px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Vendedor: todos</option></select>
+    <input id="cob-q" placeholder="🔍 Folio o cliente..." oninput="rCob()" style="width:170px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px">
+    <button class="btn btn-s btn-xs" onclick="limpiarCob()">✕ Limpiar</button>
+    <span id="cob-res" style="color:var(--text3);flex:0 0 auto"></span>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden"><div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th><th>Vendedor</th><th>Sucursal</th><th>Ref/Factura</th></tr></thead><tbody id="cob-body"></tbody></table></div></div>
+</div>
+<div class="page" id="page-cxp">
+  <div class="ph"><div><div class="ph-title">📤 Cuentas por Pagar</div><div class="ph-sub">Facturas de proveedores: pendientes hasta que registres su pago — y el movimiento de salida se crea solo</div></div></div>
+  <div class="metrics" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
+    <div class="metric" style="flex:1;min-width:170px;border-left:3px solid #B91C1C"><div class="m-label">⏳ Total pendiente</div><div class="m-val" id="cxp-pend">$0</div><div style="font-size:10px;color:var(--text3)" id="cxp-pend-n"></div></div>
+    <div class="metric" style="flex:1;min-width:170px;border-left:3px solid #F59E0B"><div class="m-label">🔥 Vencidas / vencen en 7 días</div><div class="m-val" id="cxp-urg">$0</div><div style="font-size:10px;color:var(--text3)" id="cxp-urg-n"></div></div>
+    <div class="metric" style="flex:1;min-width:170px;border-left:3px solid var(--green)"><div class="m-label">✔ Pagado este mes</div><div class="m-val" id="cxp-mes">$0</div></div>
+  </div>
+  <div class="card" style="margin-bottom:1rem">
+    <div class="card-title">➕ Registrar factura por pagar</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;font-size:12px">
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2);display:block">Proveedor</label><input id="cxp-prov" list="cxp-provs" placeholder="ej. Servimarco" style="width:160px"><datalist id="cxp-provs"></datalist></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2);display:block">No. factura</label><input id="cxp-fac" placeholder="ej. A-4521" style="width:110px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2);display:block">Concepto</label><input id="cxp-con" placeholder="ej. Molduras semana 32" style="width:210px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2);display:block">Monto $</label><input type="number" id="cxp-monto" placeholder="0.00" style="width:110px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2);display:block">Recibida</label><input type="date" id="cxp-rec" style="width:135px"></div>
+      <div><label style="font-size:10px;font-weight:700;color:var(--text2);display:block">Vence</label><input type="date" id="cxp-ven" style="width:135px"></div>
+      <button class="btn btn-p" onclick="addCxP()">Guardar</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:.6rem;flex-wrap:wrap">
+    <span class="chip on" data-f="pendiente" onclick="cxpTab(this)">⏳ Pendientes</span>
+    <span class="chip" data-f="pagada" onclick="cxpTab(this)">✔ Pagadas</span>
+    <span class="chip" data-f="" onclick="cxpTab(this)">Todas</span>
+    <input id="cxp-q" placeholder="🔍 Proveedor, factura o concepto..." oninput="rCxP()" style="width:230px;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px">
+    <span id="cxp-res" style="font-size:11px;color:var(--text3)"></span>
+  </div>
+  <div class="card" style="padding:0;overflow:hidden"><div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Proveedor</th><th>Factura</th><th>Concepto</th><th style="text-align:right">Monto</th><th>Vence</th><th>Estatus</th><th></th></tr></thead><tbody id="cxp-body"></tbody></table></div></div>
+</div>
+<div class="modal-bg" id="mod-cxp-pago" style="display:none">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-hdr"><div class="modal-ttl" id="cxpp-ttl">💸 Registrar pago</div><button class="modal-x" onclick="CM('mod-cxp-pago')">✕</button></div>
+    <div style="font-size:12.5px;margin-bottom:10px" id="cxpp-info"></div>
+    <div class="g2">
+      <div class="field"><label>Fecha de pago</label><input type="date" id="cxpp-fecha"></div>
+      <div class="field"><label>Cuenta de donde sale</label><select id="cxpp-cta"></select></div>
+      <div class="field gc2"><label>Referencia (opcional)</label><input id="cxpp-ref" placeholder="ej. transferencia 8842 / cheque"></div>
+    </div>
+    <div style="background:var(--green-l);border-radius:8px;padding:8px 10px;font-size:12px;margin-top:8px">🔗 Al confirmar, se registra <b>automáticamente</b> la salida en Movimientos — tu banco cuadra sin capturar dos veces.</div>
+    <div class="modal-foot" style="margin-top:12px;display:flex;justify-content:flex-end;gap:8px"><button class="btn btn-s" onclick="CM('mod-cxp-pago')">Cancelar</button><button class="btn btn-p" onclick="pagarCxP()">💸 Confirmar pago</button></div>
+  </div>
+</div>
+<div class="modal-bg" id="mod-cierre" style="display:none">
+  <div class="modal" style="max-width:720px">
+    <div class="modal-hdr"><div class="modal-ttl">🌙 Cierre del día — cobrado vs registrado</div><button class="modal-x" onclick="CM('mod-cierre')">✕</button></div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;font-size:12.5px">
+      <label style="color:var(--text3)">Día:</label><input type="date" id="cie-fecha" onchange="rCierre()" style="width:145px;font-size:12px;padding:4px 7px;border:1px solid var(--border);border-radius:7px">
+      <span style="font-size:11px;color:var(--text3)">Compara lo cobrado según las notas contra las entradas ya registradas en Movimientos, cuenta por cuenta.</span>
+    </div>
+    <div id="cie-body"></div>
+    <div class="modal-foot" style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span id="cie-msg" style="font-size:12px;color:var(--text3)"></span>
+      <button class="btn btn-p" id="cie-btn" onclick="cierreRegistrar()" style="display:none">✍️ Registrar lo faltante en Movimientos</button>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="mod-edocta" style="display:none">
+  <div class="modal" style="max-width:760px">
+    <div class="modal-hdr"><div class="modal-ttl">📥 Estado de cuenta — conciliación automática</div><button class="modal-x" onclick="CM('mod-edocta')">✕</button></div>
+    <div style="font-size:12.5px;color:var(--text2);margin-bottom:8px">Copia de tu estado de cuenta (Excel o portal INBURSA) las columnas de <b>fecha y monto</b> de los DEPÓSITOS y pégalas aquí — una línea por depósito, en cualquier formato razonable. El sistema los casará contra los cobros con tarjeta aún sin conciliar.</div>
+    <textarea id="edo-txt" placeholder="Ejemplos válidos:&#10;30/07/2026&#9;2,000.00&#10;2026-07-31  1,581.00&#10;01/08/26 $949.50 DEPOSITO VENTAS" style="width:100%;height:130px;font-size:12px;font-family:monospace;border:1px solid var(--border);border-radius:8px;padding:8px"></textarea>
+    <div style="display:flex;gap:10px;align-items:center;margin:8px 0;font-size:12px;flex-wrap:wrap">
+      <label style="color:var(--text3)">Tolerancia ± $</label><input type="number" id="edo-tol" value="0" step="0.01" style="width:90px;font-size:12px;padding:4px 7px;border:1px solid var(--border);border-radius:7px">
+      <span style="font-size:11px;color:var(--text3)">(si la terminal descuenta comisión y el depósito llega con centavos de menos)</span>
+      <button class="btn btn-p" style="margin-left:auto" onclick="edoAnalizar()">🔎 Analizar y casar</button>
+    </div>
+    <div id="edo-res" style="max-height:46vh;overflow:auto"></div>
+  </div>
+</div>
 <div class="page" id="page-audit">
   <div class="ph"><div><div class="ph-title">🔍 Auditoría de Efectivo</div><div class="ph-sub">Lo cobrado en efectivo por las sucursales vs lo registrado en Movimientos</div></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1023,6 +1115,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="metric"><div class="m-label">Pedidos a facturar</div><div class="m-val" id="fac-n">0</div></div>
     <div class="metric"><div class="m-label">Monto pendiente</div><div class="m-val" id="fac-monto">$0</div></div>
     <div class="metric"><div class="m-label">Facturas emitidas</div><div class="m-val" id="fac-emitidas">0</div></div>
+    <div class="metric" style="border-left:3px solid var(--amber,#F59E0B)"><div class="m-label">🕗 Facturas por cobrar</div><div class="m-val" id="fac-porcobrar">$0</div><div style="font-size:10px;color:var(--text3)" id="fac-porcobrar-n"></div></div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card">
@@ -1037,7 +1130,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     </div>
     <div class="card">
       <div class="card-title">Facturas emitidas</div>
-      <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>No. Factura</th><th>RFC</th><th>Fecha</th><th>Pedidos</th><th>Total</th><th></th></tr></thead><tbody id="fac-emit-body"></tbody></table></div>
+      <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>No. Factura</th><th>RFC</th><th>Fecha</th><th>Pedidos</th><th>Total</th><th>Cobro</th><th></th></tr></thead><tbody id="fac-emit-body"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -1244,7 +1337,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:rDia,cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();rNom();},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);}
   })[id]?.();
 }
 
@@ -2972,6 +3065,418 @@ function saveAuditExcl(){
     .then(()=>{CM('mod-audexcl');rAudit();})
     .catch(()=>{alert('No se pudo guardar la configuración');});
 }
+// ─── COBRANZA: la sábana de cobros día por día (el Excel, vivo) ──────────────
+// Conciliación: grupos de cobros "casados" contra depósitos del banco (persisten en BD)
+let CONCIL={grupos:[]},CONCIL_ON=false,CONCIL_SEL={};
+const CONCIL_COLORES=['#DCFCE7','#DBEAFE','#FEF3C7','#FCE7F3','#E0E7FF','#FFEDD5','#F3E8FF','#CCFBF1'];
+function loadConcil(){
+  return fetch('/api/config/concil_v1',{credentials:'include'}).then(r=>r.json()).then(d=>{
+    if(d&&d.valor&&Array.isArray(d.valor.grupos))CONCIL=d.valor;
+  }).catch(()=>{});
+}
+function saveConcil(){
+  return fetch('/api/config/concil_v1',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:CONCIL})})
+    .then(r=>{if(!r.ok)throw 0;})
+    .catch(()=>alert('⚠️ No se pudo guardar la conciliación en el servidor'));
+}
+function concilDe(k){
+  if(!k)return null;
+  for(let i=0;i<CONCIL.grupos.length;i++){if(CONCIL.grupos[i].keys.includes(k))return {g:CONCIL.grupos[i],color:CONCIL_COLORES[i%CONCIL_COLORES.length],idx:i};}
+  return null;
+}
+function toggleConcilMode(){CONCIL_ON=!CONCIL_ON;CONCIL_SEL={};rCob();}
+function concilSel(k,monto){if(CONCIL_SEL[k])delete CONCIL_SEL[k];else CONCIL_SEL[k]=monto;rCobBarra();}
+function rCobBarra(){
+  const n=Object.keys(CONCIL_SEL).length,suma=Object.values(CONCIL_SEL).reduce((s,x)=>s+x,0);
+  const el=document.getElementById('cob-barra');if(!el)return;
+  el.style.display=CONCIL_ON?'flex':'none';
+  document.getElementById('cob-barra-info').innerHTML=n?('Seleccionados: <b>'+n+'</b> · SUMA: <b style="font-size:16px">'+fmt(suma)+'</b>'):'Ve marcando cobros hasta que la suma iguale el depósito del banco…';
+  document.getElementById('cob-barra-btn').style.display=n?'':'none';
+}
+function concilGuardar(){
+  const keys=Object.keys(CONCIL_SEL);if(!keys.length)return;
+  const suma=Object.values(CONCIL_SEL).reduce((s,x)=>s+x,0);
+  const ref=prompt('✓ Casar estos '+keys.length+' cobro(s) que suman '+fmt(suma)+'\n\nReferencia del depósito del banco (ej. "Dep 30/07 $2,000" o el folio del estado de cuenta):','Dep '+new Date().toLocaleDateString('es-MX'));
+  if(ref===null)return;
+  CONCIL.grupos.push({ref:ref||('Dep '+fmt(suma)),monto:suma,keys:keys,fecha:dateStrLocal(new Date())});
+  CONCIL_SEL={};
+  saveConcil().then(()=>rCob());
+}
+function concilQuitar(idx){
+  const g=CONCIL.grupos[idx];if(!g)return;
+  if(!confirm('¿Deshacer la conciliación "'+g.ref+'" ('+fmt(g.monto)+')? Sus cobros vuelven a quedar pendientes de validar.'))return;
+  CONCIL.grupos.splice(idx,1);
+  saveConcil().then(()=>rCob());
+}
+// ── CIERRE DEL DÍA: cobrado según notas vs registrado en Movimientos ─────────
+function ctaDeMetodo(met,suc){
+  const m=(met||'').toLowerCase();if(!m||m.includes('no dej'))return null;
+  const ctas=Object.keys(BANCOS_INIT);
+  if(m.includes('efectivo')){
+    const porSuc=ctas.find(c=>c.toLowerCase().includes('efectivo')&&suc&&c.toLowerCase().includes(String(suc).toLowerCase()));
+    if(porSuc)return porSuc;
+    return ctas.find(c=>c.toLowerCase()==='efectivo')||ctas.find(c=>c.toLowerCase().includes('efectivo'))||null;
+  }
+  let best=null;
+  ctas.forEach(c=>{const cl=c.toLowerCase();if(cl!=='efectivo'&&m.includes(cl)){if(!best||c.length>best.length)best=c;}});
+  if(best)return best;
+  ctas.forEach(c=>{if(!best&&c.toLowerCase().includes(m))best=c;});
+  return best;
+}
+function cierreCalc(f){
+  const abDelPed=p=>(ABONOS||[]).filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc)).reduce((s,a)=>s+(a.monto||0),0);
+  const porCta={},sinCta=[];
+  const add=(cta,monto,det)=>{if(!cta){sinCta.push(det+' '+fmt(monto));return;}(porCta[cta]=porCta[cta]||{cob:0,dets:[]}).cob+=monto;porCta[cta].dets.push(det);};
+  pedidos.forEach(p=>{
+    if(p.fecha!==f)return;
+    const ao=Math.max(0,(p.ant||0)-abDelPed(p));
+    if(ao>0)add(ctaDeMetodo(p.met,p.suc),ao,'F.'+p.folio);
+  });
+  (ABONOS||[]).forEach(a=>{
+    if(a.fecha!==f)return;
+    add(ctaDeMetodo(a.met,a.suc),a.monto||0,'F.'+a.folio);
+  });
+  // Registrado: entradas de ese día por cuenta (sin puentes ni conceptos excluidos)
+  const esPuente=c=>String(c||'').toLowerCase().includes('puente');
+  movs.forEach(m=>{
+    if(m.tipo!=='Entrada'||m.fecha!==f)return;
+    if(esPuente(m.concepto)||AUDIT_EXCL.includes(m.concepto))return;
+    if(!porCta[m.cuenta])porCta[m.cuenta]={cob:0,dets:[]};
+    porCta[m.cuenta].reg=(porCta[m.cuenta].reg||0)+(m.monto||0);
+  });
+  Object.values(porCta).forEach(v=>{v.reg=v.reg||0;});
+  return {porCta,sinCta};
+}
+let CIE_FALTANTES=[];
+function openCierre(){
+  const el=document.getElementById('cie-fecha');
+  if(!el.value)el.value=dateStrLocal(new Date());
+  OM('mod-cierre');rCierre();
+}
+function rCierre(){
+  const f=document.getElementById('cie-fecha').value;
+  const {porCta,sinCta}=cierreCalc(f);
+  CIE_FALTANTES=[];
+  let h='<table class="tbl" style="font-size:12.5px"><thead><tr><th>Cuenta</th><th style="text-align:right">Cobrado (notas)</th><th style="text-align:right">Registrado (Movs)</th><th style="text-align:right">Diferencia</th><th>Estado</th></tr></thead><tbody>';
+  const ctas=Object.keys(porCta).sort();
+  if(!ctas.length)h+='<tr><td colspan="5" class="tbl-empty">Sin cobros ni registros ese día</td></tr>';
+  let totFalta=0;
+  ctas.forEach(c=>{
+    const v=porCta[c];const dif=v.cob-v.reg;
+    let est,fila='';
+    if(Math.abs(dif)<=0.5){est='<span class="badge bg">✓ Cuadra</span>';}
+    else if(dif>0){est='<span class="badge by">falta registrar '+fmt(dif)+'</span>';CIE_FALTANTES.push({cuenta:c,monto:+dif.toFixed(2)});totFalta+=dif;fila='background:#FFFBEB';}
+    else{est='<span class="badge br">registrado de más '+fmt(-dif)+'</span>';fila='background:#FEF2F2';}
+    h+='<tr style="'+fila+'"><td style="font-weight:600">'+c+'</td><td class="mono" style="text-align:right">'+fmt(v.cob)+'<div style="font-size:10px;color:var(--text3)">'+v.dets.slice(0,8).join(', ')+(v.dets.length>8?' +'+(v.dets.length-8):'')+'</div></td><td class="mono" style="text-align:right">'+fmt(v.reg)+'</td><td class="mono" style="text-align:right;font-weight:700">'+fmt(dif)+'</td><td>'+est+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  if(sinCta.length)h+='<div style="font-size:11.5px;color:#92400E;background:#FEF3C7;border-radius:8px;padding:7px 10px;margin-top:8px">⚠️ Cobros sin cuenta de banco clara (métodos como Tranquilo u otros): '+sinCta.join(' · ')+' — regístralos a mano si aplican.</div>';
+  document.getElementById('cie-body').innerHTML=h;
+  const btn=document.getElementById('cie-btn'),msg=document.getElementById('cie-msg');
+  if(CIE_FALTANTES.length){btn.style.display='';btn.textContent='✍️ Registrar lo faltante ('+CIE_FALTANTES.length+' entrada'+(CIE_FALTANTES.length===1?'':'s')+' · '+fmt(totFalta)+')';msg.textContent='Un clic y las entradas del día quedan en Movimientos — adiós captura manual.';}
+  else{btn.style.display='none';msg.textContent=ctas.length?'🌙 Día cuadrado: Movimientos ya refleja todo lo cobrado. Nada que hacer.':'';}
+}
+function cierreRegistrar(){
+  const f=document.getElementById('cie-fecha').value;
+  if(!CIE_FALTANTES.length)return;
+  const btn=document.getElementById('cie-btn');btn.disabled=true;btn.textContent='Registrando…';
+  const mes=parseInt(f.split('-')[1],10)-1;
+  const crear=CIE_FALTANTES.map(x=>{
+    const mv={tipo:'Entrada',concepto:x.cuenta.toUpperCase(),desc:'VENTAS '+f+' (cierre del día)',cuenta:x.cuenta,cta_destino:'',monto:x.monto,fecha:f,mes:mes};
+    return fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+      .then(r=>{if(!r.ok)throw 0;return r.json();})
+      .then(srv=>{if(srv&&srv.id)movs.unshift(srv);});
+  });
+  Promise.all(crear).then(()=>{
+    logActivity('Cierre del día',f+' — '+CIE_FALTANTES.length+' entrada(s) generadas');
+    btn.disabled=false;rCierre();
+    try{rMovsRe();}catch(e){}
+    alert('🌙 Cierre registrado: las entradas del '+f+' ya están en Movimientos.\nBancos, ER y Auditoría quedaron alimentados solos.');
+  }).catch(()=>{btn.disabled=false;rCierre();alert('⚠️ Alguna entrada no se pudo registrar — revisa la tabla (lo ya creado se conserva) e intenta de nuevo.');});
+}
+// ── CUENTAS POR PAGAR: facturas de proveedores enlazadas a Movimientos ──────
+let CXP=[],cxpFiltro='pendiente',cxpPagoId=null;
+function loadCxP(){
+  return fetch('/api/cxp',{credentials:'include'}).then(r=>r.json()).then(d=>{if(Array.isArray(d))CXP=d;}).catch(()=>{});
+}
+function addCxP(){
+  const prov=document.getElementById('cxp-prov').value.trim();
+  const monto=parseFloat(document.getElementById('cxp-monto').value)||0;
+  if(!prov||!monto){alert('Proveedor y monto son obligatorios');return;}
+  const reg={proveedor:prov,factura_num:document.getElementById('cxp-fac').value.trim(),concepto:document.getElementById('cxp-con').value.trim(),monto:monto,fecha_recibida:document.getElementById('cxp-rec').value||dateStrLocal(new Date()),fecha_vence:document.getElementById('cxp-ven').value};
+  fetch('/api/cxp',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(reg)})
+  .then(r=>{if(!r.ok)throw 0;return r.json();})
+  .then(d=>{CXP.unshift(d);logActivity('Registró cuenta por pagar',prov+' — '+fmt(monto));['cxp-prov','cxp-fac','cxp-con','cxp-monto','cxp-ven'].forEach(id=>document.getElementById(id).value='');rCxP();})
+  .catch(()=>alert('No se pudo guardar — revisa la conexión'));
+}
+function cxpTab(el){document.querySelectorAll('#page-cxp .chip').forEach(c=>c.classList.remove('on'));el.classList.add('on');cxpFiltro=el.dataset.f;rCxP();}
+function cxpDiasV(c){
+  if(!c.fecha_vence)return null;
+  return Math.round((new Date(c.fecha_vence+'T12:00')-new Date(dateStrLocal(new Date())+'T12:00'))/86400000);
+}
+function rCxP(){
+  // datalist de proveedores conocidos
+  const provs=[...new Set([...Object.values(typeof PROVS!=='undefined'?PROVS:{}),...CXP.map(c=>c.proveedor)].filter(Boolean))].sort();
+  document.getElementById('cxp-provs').innerHTML=provs.map(p=>'<option value="'+String(p).replace(/"/g,'&quot;')+'">').join('');
+  const q=(document.getElementById('cxp-q').value||'').toLowerCase();
+  let list=CXP.slice();
+  if(cxpFiltro)list=list.filter(c=>c.estatus===cxpFiltro);
+  if(q)list=list.filter(c=>((c.proveedor||'')+' '+(c.factura_num||'')+' '+(c.concepto||'')).toLowerCase().includes(q));
+  // Tarjetas
+  const pend=CXP.filter(c=>c.estatus==='pendiente');
+  const pendTot=pend.reduce((s,c)=>s+(+c.monto||0),0);
+  document.getElementById('cxp-pend').textContent=fmtK(pendTot);
+  document.getElementById('cxp-pend-n').textContent=pend.length+' factura'+(pend.length===1?'':'s');
+  const urg=pend.filter(c=>{const d=cxpDiasV(c);return d!==null&&d<=7;});
+  document.getElementById('cxp-urg').textContent=fmtK(urg.reduce((s,c)=>s+(+c.monto||0),0));
+  document.getElementById('cxp-urg-n').textContent=urg.length?urg.length+' por atender':'nada urgente ✓';
+  const mesAct=dateStrLocal(new Date()).slice(0,7);
+  document.getElementById('cxp-mes').textContent=fmtK(CXP.filter(c=>c.estatus==='pagada'&&(c.fecha_pago||'').startsWith(mesAct)).reduce((s,c)=>s+(+c.monto||0),0));
+  // Orden: pendientes por vencimiento asc (urgente arriba), pagadas por fecha_pago desc
+  list.sort((a,b)=>{
+    if(a.estatus!==b.estatus)return a.estatus==='pendiente'?-1:1;
+    if(a.estatus==='pendiente')return (a.fecha_vence||'9999').localeCompare(b.fecha_vence||'9999');
+    return (b.fecha_pago||'').localeCompare(a.fecha_pago||'');
+  });
+  let h='';
+  list.forEach(c=>{
+    const d=cxpDiasV(c);
+    let vence='—';
+    if(c.estatus==='pagada')vence='<span style="font-size:11px;color:var(--text3)">'+(c.fecha_vence||'—')+'</span>';
+    else if(d===null)vence='<span style="font-size:11px;color:var(--text3)">sin fecha</span>';
+    else if(d<0)vence='<span class="badge br">🔥 vencida hace '+(-d)+'d</span>';
+    else if(d<=7)vence='<span class="badge by">⚠️ vence en '+d+'d</span>';
+    else vence='<span style="font-size:11px">'+c.fecha_vence+' <span style="color:var(--text3)">('+d+'d)</span></span>';
+    const est=c.estatus==='pagada'
+      ?'<span class="badge bg">✔ Pagada '+(c.fecha_pago||'')+'</span><div style="font-size:10px;color:var(--text3)">'+(c.cuenta_pago||'')+(c.ref_pago?' · '+c.ref_pago:'')+(c.mov_id?' · 🔗 en Movimientos':'')+'</div>'
+      :'<span class="badge by">⏳ Pendiente</span>';
+    const btns=c.estatus==='pendiente'
+      ?'<button class="btn btn-p btn-xs" onclick="openPagoCxP('+c.id+')">💸 Pagar</button> <button class="btn btn-d btn-xs" onclick="delCxP('+c.id+')">🗑</button>'
+      :'<button class="btn btn-s btn-xs" onclick="deshacerPagoCxP('+c.id+')" title="Regresa a pendiente y borra su movimiento">↩️</button>';
+    h+='<tr><td style="font-weight:600">'+c.proveedor+'</td><td class="mono" style="font-size:11.5px">'+(c.factura_num||'—')+'</td><td style="font-size:12px;color:var(--text2)">'+(c.concepto||'—')+'</td><td class="mono" style="text-align:right;font-weight:700">'+fmt(c.monto)+'</td><td>'+vence+'</td><td>'+est+'</td><td style="white-space:nowrap">'+btns+'</td></tr>';
+  });
+  document.getElementById('cxp-body').innerHTML=h||'<tr><td colspan="7" class="tbl-empty">Sin cuentas '+(cxpFiltro==='pendiente'?'pendientes 🎉':'registradas')+'</td></tr>';
+  document.getElementById('cxp-res').textContent='→ '+list.length+' · '+fmt(list.reduce((s,c)=>s+(+c.monto||0),0));
+}
+function openPagoCxP(id){
+  const c=CXP.find(x=>x.id===id);if(!c)return;
+  cxpPagoId=id;
+  document.getElementById('cxpp-ttl').textContent='💸 Pagar a '+c.proveedor;
+  document.getElementById('cxpp-info').innerHTML='<b>'+fmt(c.monto)+'</b> · '+(c.factura_num?('Factura '+c.factura_num+' · '):'')+(c.concepto||'');
+  document.getElementById('cxpp-fecha').value=dateStrLocal(new Date());
+  const sel=document.getElementById('cxpp-cta');
+  sel.innerHTML=Object.keys(BANCOS_INIT).map(c2=>'<option>'+c2+'</option>').join('');
+  document.getElementById('cxpp-ref').value='';
+  OM('mod-cxp-pago');
+}
+function pagarCxP(){
+  const c=CXP.find(x=>x.id===cxpPagoId);if(!c)return;
+  const fecha=document.getElementById('cxpp-fecha').value,cta=document.getElementById('cxpp-cta').value,ref=document.getElementById('cxpp-ref').value.trim();
+  if(!fecha||!cta){alert('Fecha y cuenta son obligatorias');return;}
+  // 1) Crear el movimiento de SALIDA automático (el enlace vivo con el banco)
+  const mv={tipo:'Salida',concepto:'PAGO PROVEEDORES',desc:'Pago '+c.proveedor+(c.factura_num?' fact '+c.factura_num:'')+(ref?' · '+ref:''),cuenta:cta,cta_destino:'',monto:+c.monto||0,fecha:fecha,mes:parseInt(fecha.split('-')[1],10)-1};
+  fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+  .then(r=>{if(!r.ok)throw 0;return r.json();})
+  .then(mvSrv=>{
+    if(mvSrv&&mvSrv.id)movs.unshift(mvSrv);
+    // 2) Marcar la cuenta como pagada con el enlace al movimiento
+    return fetch('/api/cxp/'+c.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({estatus:'pagada',fecha_pago:fecha,cuenta_pago:cta,ref_pago:ref,mov_id:(mvSrv&&mvSrv.id)||null})});
+  })
+  .then(r=>{if(!r.ok)throw 0;return r.json();})
+  .then(d=>{
+    const i=CXP.findIndex(x=>x.id===c.id);if(i>=0)CXP[i]=d;
+    logActivity('Pagó cuenta por pagar',c.proveedor+' — '+fmt(c.monto)+' desde '+cta);
+    CM('mod-cxp-pago');rCxP();
+    alert('✔ Pago registrado.\n🔗 La salida de '+fmt(c.monto)+' desde '+cta+' ya quedó en Movimientos — tu banco cuadra solo.');
+  })
+  .catch(()=>alert('⚠️ No se pudo completar el pago en el servidor — nada se registró, inténtalo de nuevo.'));
+}
+function deshacerPagoCxP(id){
+  const c=CXP.find(x=>x.id===id);if(!c)return;
+  if(!confirm('¿Deshacer el pago a '+c.proveedor+' ('+fmt(c.monto)+')?\nRegresa a Pendiente y se BORRA su movimiento de salida.'))return;
+  const borrarMov=c.mov_id?fetch('/api/movimientos/'+c.mov_id,{method:'DELETE',credentials:'include'}):Promise.resolve();
+  borrarMov.then(()=>{
+    if(c.mov_id)movs=movs.filter(m=>m.id!==c.mov_id);
+    return fetch('/api/cxp/'+c.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({estatus:'pendiente',fecha_pago:'',cuenta_pago:'',ref_pago:'',mov_id:null})});
+  })
+  .then(r=>r.json()).then(d=>{const i=CXP.findIndex(x=>x.id===c.id);if(i>=0)CXP[i]=d;logActivity('Deshizo pago CxP',c.proveedor);rCxP();})
+  .catch(()=>alert('No se pudo deshacer — revisa la conexión'));
+}
+function delCxP(id){
+  const c=CXP.find(x=>x.id===id);if(!c)return;
+  if(!confirm('¿Eliminar la cuenta por pagar de '+c.proveedor+' ('+fmt(c.monto)+')?'))return;
+  fetch('/api/cxp/'+id,{method:'DELETE',credentials:'include'}).then(r=>r.json()).then(()=>{CXP=CXP.filter(x=>x.id!==id);rCxP();});
+}
+// ── Conciliación AUTOMÁTICA con estado de cuenta ─────────────────────────────
+function edoParse(txt){
+  // Parser tolerante: de cada línea extrae una fecha (dd/mm/aaaa, dd/mm/aa o aaaa-mm-dd) y el último monto
+  const deps=[];
+  txt.split(/\n+/).forEach(lin=>{
+    lin=lin.trim();if(!lin)return;
+    let fecha=null;
+    let m=lin.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if(m)fecha=m[1]+'-'+m[2]+'-'+m[3];
+    else{m=lin.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+      if(m){let a=m[3].length===2?('20'+m[3]):m[3];fecha=a+'-'+String(m[2]).padStart(2,'0')+'-'+String(m[1]).padStart(2,'0');}}
+    // montos: números con decimales opcionales y comas de miles; tomar el ÚLTIMO de la línea
+    const nums=[...lin.replace(/(\d)[\/\-](\d)/g,'$1_$2').matchAll(/\$?\s*([\d,]+\.\d{2}|[\d,]{4,}|\d+\.\d{2})/g)].map(x=>parseFloat(x[1].replace(/,/g,'')));
+    const monto=nums.length?nums[nums.length-1]:0;
+    if(fecha&&monto>0)deps.push({fecha,monto,lin});
+  });
+  return deps;
+}
+function edoAnalizar(){
+  const txt=document.getElementById('edo-txt').value;
+  const tol=parseFloat(document.getElementById('edo-tol').value)||0;
+  const deps=edoParse(txt);
+  const cont=document.getElementById('edo-res');
+  if(!deps.length){cont.innerHTML='<div class="tbl-empty">No pude leer ningún depósito — revisa que cada línea traiga fecha y monto.</div>';return;}
+  // Pool: cobros de tarjeta, con dinero, sin conciliar
+  const pool=cobRows().filter(r=>r.monto>0&&metGrupoCob(r.met)==='Tarjeta'&&!concilDe(r.k));
+  const usados={};
+  const difDias=(f1,f2)=>Math.abs((new Date(f1+'T12:00')-new Date(f2+'T12:00'))/86400000);
+  const buscar=(dep)=>{
+    // candidatos: cobros a ≤4 días del depósito (la terminal deposita 1-2 días después), aún libres
+    const cand=pool.filter(r=>!usados[r.k]&&difDias(r.fecha,dep.fecha)<=4).sort((a,b)=>difDias(a.fecha,dep.fecha)-difDias(b.fecha,dep.fecha)).slice(0,28);
+    const ok=(s)=>Math.abs(s-dep.monto)<=tol+0.005;
+    for(const a of cand)if(ok(a.monto))return [a];
+    for(let i=0;i<cand.length;i++)for(let j=i+1;j<cand.length;j++)if(ok(cand[i].monto+cand[j].monto))return [cand[i],cand[j]];
+    for(let i=0;i<cand.length;i++)for(let j=i+1;j<cand.length;j++)for(let l=j+1;l<cand.length;l++)if(ok(cand[i].monto+cand[j].monto+cand[l].monto))return [cand[i],cand[j],cand[l]];
+    return null;
+  };
+  EDO_PROPS=[];
+  let h='<table class="tbl" style="font-size:12px"><thead><tr><th>Depósito</th><th>Monto</th><th>Resultado</th><th></th></tr></thead><tbody>';
+  deps.forEach((dep,di)=>{
+    const combo=buscar(dep);
+    if(combo){
+      combo.forEach(r=>usados[r.k]=true);
+      EDO_PROPS.push({dep,keys:combo.map(r=>r.k),monto:combo.reduce((s,r)=>s+r.monto,0)});
+      h+='<tr style="background:#F0FDF4"><td>'+dep.fecha+'</td><td class="mono"><b>'+fmt(dep.monto)+'</b></td><td style="font-size:11.5px">✅ Casa con '+combo.length+' cobro(s): '+combo.map(r=>'F.'+r.folio+' '+fmt(r.monto)).join(' + ')+'</td><td><button class="btn btn-s btn-xs" onclick="edoAceptar('+(EDO_PROPS.length-1)+',this)">✓ Aceptar</button></td></tr>';
+    }else{
+      const cerca=pool.filter(r=>!usados[r.k]&&difDias(r.fecha,dep.fecha)<=4&&Math.abs(r.monto-dep.monto)<=Math.max(60,dep.monto*0.05)).slice(0,3);
+      h+='<tr style="background:#FEF2F2"><td>'+dep.fecha+'</td><td class="mono"><b>'+fmt(dep.monto)+'</b></td><td style="font-size:11.5px;color:#991B1B">🔴 <b>NO CUADRA</b> — ningún cobro (ni combinación de 2-3) suma esto.'+(cerca.length?' Cercanos: '+cerca.map(r=>'F.'+r.folio+' '+fmt(r.monto)).join(', '):'')+'</td><td></td></tr>';
+    }
+  });
+  h+='</tbody></table>';
+  const libres=pool.filter(r=>!usados[r.k]);
+  if(libres.length)h+='<div style="margin-top:10px;font-size:12px"><b>⚪ Cobros con tarjeta que NINGÚN depósito reclamó ('+libres.length+' · '+fmt(libres.reduce((s,r)=>s+r.monto,0))+'):</b><div style="font-size:11.5px;color:var(--text2);margin-top:4px">'+libres.map(r=>r.fecha+' F.'+r.folio+' '+fmt(r.monto)).join(' · ')+'</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Posibles causas: el depósito llega en el siguiente corte del banco, el cobro se capturó con otro método, o falta en tu pegado.</div></div>';
+  const nOk=EDO_PROPS.length;
+  h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px"><b>'+deps.length+' depósito(s) leídos · ✅ '+nOk+' casan · 🔴 '+(deps.length-nOk)+' no cuadran</b>'+(nOk?'<button class="btn btn-p btn-sm" style="margin-left:auto" onclick="edoAceptarTodos()">✓✓ Aceptar todos los que casan</button>':'')+'</div>'+h;
+  cont.innerHTML=h;
+}
+let EDO_PROPS=[];
+function edoAceptar(i,btn){
+  const p=EDO_PROPS[i];if(!p||p.hecho)return;
+  p.hecho=true;
+  CONCIL.grupos.push({ref:'Dep '+p.dep.fecha+' '+fmt(p.dep.monto),monto:p.monto,keys:p.keys,fecha:dateStrLocal(new Date()),auto:true});
+  if(btn){btn.textContent='✓ Conciliado';btn.disabled=true;}
+  saveConcil().then(()=>rCob());
+}
+function edoAceptarTodos(){
+  EDO_PROPS.forEach(p=>{if(!p.hecho){p.hecho=true;CONCIL.grupos.push({ref:'Dep '+p.dep.fecha+' '+fmt(p.dep.monto),monto:p.monto,keys:p.keys,fecha:dateStrLocal(new Date()),auto:true});}});
+  saveConcil().then(()=>{rCob();alert('✅ Conciliación guardada. Las filas quedaron pintadas por depósito; lo rojo de la lista es lo que debes revisar a mano.');CM('mod-edocta');});
+}
+function metGrupoCob(met){
+  const m=(met||'').toLowerCase();
+  if(m.includes('efectivo'))return 'Efectivo';
+  if(m.includes('tarjeta')||m.includes('inbursa'))return 'Tarjeta';
+  if(m.includes('hsbc')||m.includes('transfer'))return 'Transferencia';
+  if(m.includes('no dejó')||m.includes('no dejo'))return 'Sin anticipo';
+  return met||'Otro';
+}
+function metBadgeCob(met){
+  const g=metGrupoCob(met);
+  const est={'Efectivo':'background:#DCFCE7;color:#166534','Tarjeta':'background:#DBEAFE;color:#1D4ED8','Transferencia':'background:#E0E7FF;color:#3730A3','Sin anticipo':'background:#FCE7F3;color:#9D174D'}[g]||'background:#eee;color:#555';
+  return '<span class="badge" style="'+est+'">'+(met||'—')+'</span>';
+}
+function cobRows(){
+  const u=USERS.find(x=>x.key===CU)||{};
+  const esVenta=u.role!=='admin'&&u.role!=='owner';
+  const d1=document.getElementById('cob-d1').value,d2=document.getElementById('cob-d2').value;
+  const en=(f)=>f&&(!d1||f>=d1)&&(!d2||f<=d2);
+  const abDelPed=p=>(ABONOS||[]).filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc)).reduce((s,a)=>s+(a.monto||0),0);
+  const rows=[];
+  pedidos.forEach(p=>{
+    if(esVenta&&p.suc!==u.suc)return;
+    if(!en(p.fecha))return;
+    const ao=Math.max(0,(p.ant||0)-abDelPed(p));
+    if(ao>0)rows.push({k:'p'+(p.id||p.folio),fecha:p.fecha,folio:p.folio,cli:p.cli,tipo:'Anticipo',met:p.met||'—',monto:ao,vend:p.vend||'—',suc:p.suc,ref:p.factura_num?('F.'+p.factura_num):'',fac:!!p.factura_num});
+    else rows.push({k:'',fecha:p.fecha,folio:p.folio,cli:p.cli,tipo:'Nota sin anticipo',met:'No dejó anticipo',monto:0,vend:p.vend||'—',suc:p.suc,ref:p.factura_num?('F.'+p.factura_num):'',fac:!!p.factura_num});
+  });
+  (ABONOS||[]).forEach(a=>{
+    if(esVenta&&a.suc!==u.suc)return;
+    if(!en(a.fecha))return;
+    const ped=pedidos.find(p=>p.folio===a.folio);
+    rows.push({k:'a'+(a.id||a.folio+'_'+a.fecha+'_'+a.monto),fecha:a.fecha,folio:a.folio,cli:a.cli||(ped?ped.cli:'—'),tipo:a.tipo||'Abono',met:a.met||'—',monto:a.monto||0,vend:(ped&&ped.vend)||'—',suc:a.suc||(ped&&ped.suc)||'—',ref:(ped&&ped.factura_num)?('F.'+ped.factura_num):'',fac:!!(ped&&ped.factura_num)});
+  });
+  return rows;
+}
+function rCob(){
+  // Defaults: últimos 14 días
+  const d1El=document.getElementById('cob-d1'),d2El=document.getElementById('cob-d2');
+  if(!d1El.value){const h=new Date(),a=new Date();a.setDate(h.getDate()-13);d1El.value=dateStrLocal(a);d2El.value=dateStrLocal(h);}
+  const u=USERS.find(x=>x.key===CU)||{};
+  const esAdm=u.role==='admin'||u.role==='owner';
+  document.getElementById('cob-suc').style.display=esAdm?'':'none';
+  const cbBtn=document.getElementById('cob-concil-btn');if(cbBtn)cbBtn.style.display=esAdm?'':'none';
+  if(esAdm&&!rCob._concilLoaded){rCob._concilLoaded=true;loadConcil().then(()=>rCob());}
+  let rows=cobRows();
+  // Poblar selects dinámicos preservando selección
+  const llenar=(id,vals,pref)=>{const s=document.getElementById(id);if(!s)return;const prev=s.value;s.innerHTML='<option value="">'+pref+'</option>'+[...new Set(vals.filter(Boolean))].sort().map(v=>'<option>'+String(v).replace(/</g,'&lt;')+'</option>').join('');if([...s.options].some(o=>o.value===prev))s.value=prev;};
+  llenar('cob-met',rows.map(r=>r.met),'Método: todos');
+  llenar('cob-suc',rows.map(r=>r.suc),'Sucursal: todas');
+  llenar('cob-vend',rows.map(r=>r.vend),'Vendedor: todos');
+  const fm=document.getElementById('cob-met').value,fs=document.getElementById('cob-suc').value,fv=document.getElementById('cob-vend').value,q=(document.getElementById('cob-q').value||'').toLowerCase();
+  if(fm)rows=rows.filter(r=>r.met===fm);
+  if(fs)rows=rows.filter(r=>r.suc===fs);
+  if(fv)rows=rows.filter(r=>r.vend===fv);
+  if(q)rows=rows.filter(r=>String(r.folio).toLowerCase().includes(q)||String(r.cli).toLowerCase().includes(q));
+  rows.sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))||String(b.folio).localeCompare(String(a.folio)));
+  // Agrupar por día con subtotales por grupo de método
+  let h='',dia=null;
+  const porDia={};
+  rows.forEach(r=>{(porDia[r.fecha]=porDia[r.fecha]||[]).push(r);});
+  Object.keys(porDia).sort((a,b)=>b.localeCompare(a)).forEach(f=>{
+    const rs=porDia[f];
+    const subs={};rs.forEach(r=>{const g=metGrupoCob(r.met);subs[g]=(subs[g]||0)+r.monto;});
+    const tot=rs.reduce((s,r)=>s+r.monto,0);
+    const fbonita=new Date(f+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+    h+='<tr><td colspan="8" style="background:var(--green-l);font-weight:700;color:var(--green);padding:7px 10px">📅 '+fbonita+' &nbsp;·&nbsp; '+fmt(tot)+' &nbsp;<span style="font-weight:400;font-size:11px;color:#3a6b52">'+Object.keys(subs).filter(g=>subs[g]>0).map(g=>g+': '+fmt(subs[g])).join(' · ')+'</span></td></tr>';
+    rs.forEach(r=>{
+      const cz=concilDe(r.k);
+      const fondo=cz?('background:'+cz.color+';'):'';
+      const chk=(CONCIL_ON&&r.k&&r.monto>0&&!cz)?'<input type="checkbox" '+(CONCIL_SEL[r.k]?'checked':'')+' onchange="concilSel(\''+r.k+'\','+r.monto+')" style="width:16px;height:16px;cursor:pointer;margin-right:6px">':'';
+      const tag=cz?'<span class="badge" style="background:#fff;border:1px solid #ccc;color:#333;cursor:pointer" title="Picar para deshacer" onclick="concilQuitar('+cz.idx+')">🔗 '+cz.g.ref+'</span>':(r.ref||'');
+      h+='<tr style="'+fondo+(r.monto<=0?'opacity:.55':'')+'"><td class="mono" style="font-weight:600">'+chk+r.folio+'</td><td>'+r.cli+'</td><td style="font-size:11px;color:var(--text2)">'+r.tipo+'</td><td>'+metBadgeCob(r.met)+'</td><td class="mono" style="text-align:right;font-weight:600">'+fmt(r.monto)+'</td><td style="font-size:11px">'+r.vend+'</td><td style="font-size:11px">'+r.suc+'</td><td style="font-size:11px;color:var(--text3)">'+tag+'</td></tr>';
+    });
+  });
+  document.getElementById('cob-body').innerHTML=h||'<tr><td colspan="8" class="tbl-empty">Sin cobros en el periodo</td></tr>';
+  const tot=rows.reduce((s,r)=>s+r.monto,0);
+  let resTxt='→ '+rows.length+' registro'+(rows.length===1?'':'s')+' · '+fmt(tot);
+  if(esAdm){
+    // La cifra para la FACTURA GLOBAL (venta al público): cobros validados/conciliados que NO tienen factura propia
+    const gral=rows.filter(r=>r.monto>0&&!r.fac&&concilDe(r.k)).reduce((s,r)=>s+r.monto,0);
+    const sinVal=rows.filter(r=>r.monto>0&&!concilDe(r.k)).length;
+    resTxt+=' · 🧾 VTA GRAL validada (para factura global): '+fmt(gral)+(sinVal?' · ⚪ sin validar: '+sinVal:' · ✓ todo validado');
+  }
+  document.getElementById('cob-res').textContent=resTxt;
+  rCobBarra();
+}
+function limpiarCob(){['cob-met','cob-suc','cob-vend','cob-q'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});rCob();}
+function expCobXlsx(){
+  const rows=[['COBRANZA IMPULSO GALERIA'],['Fecha','Folio','Cliente','Tipo','Método','Monto','Vendedor','Sucursal','Ref']];
+  // exporta exactamente lo filtrado y visible
+  const d1=document.getElementById('cob-d1').value,d2=document.getElementById('cob-d2').value;
+  let data=cobRows();
+  const fm=document.getElementById('cob-met').value,fs=document.getElementById('cob-suc').value,fv=document.getElementById('cob-vend').value,q=(document.getElementById('cob-q').value||'').toLowerCase();
+  if(fm)data=data.filter(r=>r.met===fm);
+  if(fs)data=data.filter(r=>r.suc===fs);
+  if(fv)data=data.filter(r=>r.vend===fv);
+  if(q)data=data.filter(r=>String(r.folio).toLowerCase().includes(q)||String(r.cli).toLowerCase().includes(q));
+  data.sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
+  data.forEach(r=>rows.push([r.fecha,r.folio,r.cli,r.tipo,r.met,r.monto,r.vend,r.suc,r.ref]));
+  xlsxExp(rows,'cobranza_'+d1+'_a_'+d2);
+}
 function rAudit(){
   const d1El=document.getElementById('au-d1'),d2El=document.getElementById('au-d2');
   if(d1El&&!d1El.value){const h=new Date();d1El.value=dateStrLocal(new Date(h.getFullYear(),h.getMonth(),1));}
@@ -3615,6 +4120,12 @@ function genRecibo(){
 // === FACTURACION ===
 var FACTURAS=[];
 function initFacMes(){var s=document.getElementById('fac-mes');if(!s)return;var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var h='';for(var i=0;i<12;i++)h+='<option value="'+i+'">'+M[i]+' 2026</option>';s.innerHTML=h;s.value=new Date().getMonth();var fd=document.getElementById('fac-fecha');if(fd)fd.value=todayStr();}
+function facSaldo(f){
+  // Enlace factura↔notas: la factura está pagada cuando sus pedidos ya no deben
+  let saldo=0;
+  (f.folios||[]).forEach(fo=>{const p=pedidos.find(x=>x.folio===fo);if(p)saldo+=Math.max(0,+p.rest||0);});
+  return saldo;
+}
 function rFac(){
   var mes=parseInt(document.getElementById('fac-mes').value);
   var u=null;for(var i=0;i<USERS.length;i++){if(USERS[i].key===CU){u=USERS[i];break;}}
@@ -3625,9 +4136,16 @@ function rFac(){
   document.getElementById('fac-emitidas').textContent=FACTURAS.length;
   var ph='';for(var i=0;i<pend.length;i++){var p=pend[i];ph+='<tr><td><input type="checkbox" class="fac-cb" value="'+p.folio+'"></td><td class="mono" style="font-weight:600">'+p.folio+'</td><td>'+p.cli+'</td><td style="color:var(--text2)">'+p.fecha+'</td><td class="mono">'+fmt(p.total)+'</td></tr>';}
   document.getElementById('fac-pend-body').innerHTML=ph||'<tr><td colspan="5" class="tbl-empty">Sin pedidos de factura en este mes</td></tr>';
+  // Facturas por cobrar (todas, sin importar el mes): el enlace vivo factura↔cobros
+  var pcTot=0,pcN=0;
+  for(var i=0;i<FACTURAS.length;i++){var s=facSaldo(FACTURAS[i]);if(s>0.5){pcTot+=s;pcN++;}}
+  var pcEl=document.getElementById('fac-porcobrar');if(pcEl){pcEl.textContent=fmtK(pcTot);document.getElementById('fac-porcobrar-n').textContent=pcN?(pcN+' factura'+(pcN===1?'':'s')+' con saldo'):'todas cobradas ✓';}
   var eh='';var facsMes=FACTURAS.filter(function(f){return new Date(f.fecha).getMonth()===mes;});
-  for(var i=0;i<facsMes.length;i++){var f=facsMes[i],idx=FACTURAS.indexOf(f);eh+='<tr><td class="mono" style="font-weight:600">'+f.num+'</td><td style="color:var(--text2)">'+f.rfc+'</td><td style="color:var(--text2)">'+f.fecha+'</td><td style="font-size:11px;color:var(--text2)">'+f.folios.join(', ')+'</td><td class="mono">'+fmt(f.total)+'</td><td><button class="btn btn-d btn-xs" onclick="delFac('+idx+')">&#128465;</button></td></tr>';}
-  document.getElementById('fac-emit-body').innerHTML=eh||'<tr><td colspan="6" class="tbl-empty">Sin facturas emitidas</td></tr>';
+  for(var i=0;i<facsMes.length;i++){var f=facsMes[i],idx=FACTURAS.indexOf(f);
+    var saldo=facSaldo(f);
+    var cobro=saldo>0.5?'<span class="badge by">🕗 Por cobrar '+fmt(saldo)+'</span>':'<span class="badge bg">✔ Pagada</span>';
+    eh+='<tr><td class="mono" style="font-weight:600">'+f.num+'</td><td style="color:var(--text2)">'+f.rfc+'</td><td style="color:var(--text2)">'+f.fecha+'</td><td style="font-size:11px;color:var(--text2)">'+f.folios.join(', ')+'</td><td class="mono">'+fmt(f.total)+'</td><td>'+cobro+'</td><td><button class="btn btn-d btn-xs" onclick="delFac('+idx+')">&#128465;</button></td></tr>';}
+  document.getElementById('fac-emit-body').innerHTML=eh||'<tr><td colspan="7" class="tbl-empty">Sin facturas emitidas</td></tr>';
 }
 function selAllFac(cb){var cbs=document.querySelectorAll('.fac-cb');for(var i=0;i<cbs.length;i++)cbs[i].checked=cb.checked;}
 function emitirFactura(){
