@@ -92,6 +92,15 @@ def seed_usuarios():
         if not Usuario.query.filter_by(key=s['key']).first():
             db.session.add(Usuario(**s))
     db.session.commit()
+    # AUTO-RESCATE: el sistema no puede quedarse sin dueña. Si ninguna cuenta tiene
+    # rol owner (p.ej. se degradó por accidente al editarla), se restaura estefania.
+    if not Usuario.query.filter_by(role='owner').first():
+        u = Usuario.query.filter_by(key='estefania').first()
+        if u:
+            u.role = 'owner'
+            u.display = 'Estefania'
+            u.suc = 'Admin'
+            db.session.commit()
 
 # ── EMPLEADOS EN BD ───────────────────────────────────────────────────────────
 
@@ -237,6 +246,10 @@ def actualizar_usuario(uid):
     d = request.json or {}
     if 'role' in d and d['role'] == 'owner' and session.get('rol') != 'owner':
         return jsonify({'error': 'Solo la dueña puede asignar rol owner'}), 403
+    # Candado: no se puede degradar al único owner (el sistema quedaría sin dueña)
+    if u.role == 'owner' and d.get('role') and d['role'] != 'owner':
+        if Usuario.query.filter_by(role='owner').count() <= 1:
+            return jsonify({'error': 'No se puede quitar el rol de Dueña: es la única cuenta owner del sistema'}), 400
     nueva_key = (d.get('key') or u.key).strip().lower()
     if nueva_key != u.key:
         if u.key in USUARIOS_PROTEGIDOS:
