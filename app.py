@@ -437,6 +437,65 @@ def m_dict(m):
 
 # ── FACTURAS EN BD ────────────────────────────────────────────────────────────
 
+class CuentaPagar(db.Model):
+    __tablename__ = 'cxp'
+    id            = db.Column(db.Integer, primary_key=True)
+    proveedor     = db.Column(db.String(150), nullable=False)
+    factura_num   = db.Column(db.String(60))     # folio de la factura del proveedor
+    concepto      = db.Column(db.String(300))
+    monto         = db.Column(db.Float, default=0)
+    fecha_recibida= db.Column(db.String(20))
+    fecha_vence   = db.Column(db.String(20))
+    estatus       = db.Column(db.String(20), default='pendiente')  # pendiente | pagada
+    fecha_pago    = db.Column(db.String(20))
+    cuenta_pago   = db.Column(db.String(80))
+    ref_pago      = db.Column(db.String(150))
+    mov_id        = db.Column(db.Integer)        # enlace al movimiento de salida generado
+    oc            = db.Column(db.String(40))     # orden de compra relacionada (opcional)
+
+def cxp_dict(c):
+    return {'id':c.id,'proveedor':c.proveedor,'factura_num':c.factura_num or '','concepto':c.concepto or '',
+            'monto':c.monto or 0,'fecha_recibida':c.fecha_recibida or '','fecha_vence':c.fecha_vence or '',
+            'estatus':c.estatus or 'pendiente','fecha_pago':c.fecha_pago or '','cuenta_pago':c.cuenta_pago or '',
+            'ref_pago':c.ref_pago or '','mov_id':c.mov_id,'oc':c.oc or ''}
+
+@app.route('/api/cxp', methods=['GET'])
+@requiere_admin
+def get_cxp():
+    return jsonify([cxp_dict(c) for c in CuentaPagar.query.order_by(CuentaPagar.id.desc()).all()])
+
+@app.route('/api/cxp', methods=['POST'])
+@requiere_admin
+def crear_cxp():
+    d = request.json or {}
+    c = CuentaPagar(proveedor=d.get('proveedor','').strip(), factura_num=d.get('factura_num',''),
+                    concepto=d.get('concepto',''), monto=d.get('monto',0),
+                    fecha_recibida=d.get('fecha_recibida',''), fecha_vence=d.get('fecha_vence',''),
+                    estatus='pendiente', oc=d.get('oc',''))
+    if not c.proveedor:
+        return jsonify({'error':'Falta el proveedor'}), 400
+    db.session.add(c); db.session.commit()
+    return jsonify(cxp_dict(c))
+
+@app.route('/api/cxp/<int:cid>', methods=['PUT'])
+@requiere_admin
+def actualizar_cxp(cid):
+    c = CuentaPagar.query.get_or_404(cid)
+    d = request.json or {}
+    for campo in ['proveedor','factura_num','concepto','monto','fecha_recibida','fecha_vence',
+                  'estatus','fecha_pago','cuenta_pago','ref_pago','mov_id','oc']:
+        if campo in d:
+            setattr(c, campo, d[campo])
+    db.session.commit()
+    return jsonify(cxp_dict(c))
+
+@app.route('/api/cxp/<int:cid>', methods=['DELETE'])
+@requiere_admin
+def borrar_cxp(cid):
+    c = CuentaPagar.query.get_or_404(cid)
+    db.session.delete(c); db.session.commit()
+    return jsonify({'ok': True})
+
 class Factura(db.Model):
     __tablename__ = 'facturas'
     id     = db.Column(db.Integer, primary_key=True)
