@@ -3134,24 +3134,29 @@ function ctaDeMetodo(met,suc){
 }
 function cierreCalc(f){
   const abDelPed=p=>(ABONOS||[]).filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc)).reduce((s,a)=>s+(a.monto||0),0);
+  // Clave por CUENTA + SUCURSAL — Zibata se ve y se registra APARTE (como su ER de siempre)
+  const K='␟';
+  const sucG=s=>String(s||'').toLowerCase().includes('zibata')?'Zibata':'Jardines';
   const porCta={},sinCta=[];
-  const add=(cta,monto,det)=>{if(!cta){sinCta.push(det+' '+fmt(monto));return;}(porCta[cta]=porCta[cta]||{cob:0,dets:[]}).cob+=monto;porCta[cta].dets.push(det);};
+  const add=(cta,suc,monto,det)=>{if(!cta){sinCta.push(det+' '+fmt(monto));return;}const k=cta+K+sucG(suc);(porCta[k]=porCta[k]||{cta:cta,suc:sucG(suc),cob:0,dets:[]}).cob+=monto;porCta[k].dets.push(det);};
   pedidos.forEach(p=>{
     if(p.fecha!==f)return;
     const ao=Math.max(0,(p.ant||0)-abDelPed(p));
-    if(ao>0)add(ctaDeMetodo(p.met,p.suc),ao,'F.'+p.folio);
+    if(ao>0)add(ctaDeMetodo(p.met,p.suc),p.suc,ao,'F.'+p.folio);
   });
   (ABONOS||[]).forEach(a=>{
     if(a.fecha!==f)return;
-    add(ctaDeMetodo(a.met,a.suc),a.monto||0,'F.'+a.folio);
+    add(ctaDeMetodo(a.met,a.suc),a.suc,a.monto||0,'F.'+a.folio);
   });
-  // Registrado: entradas de ese día por cuenta (sin puentes ni conceptos excluidos)
+  // Registrado: entradas de ese día; concepto que contenga ZIBATA cuenta como Zibata
   const esPuente=c=>String(c||'').toLowerCase().includes('puente');
   movs.forEach(m=>{
     if(m.tipo!=='Entrada'||m.fecha!==f)return;
     if(esPuente(m.concepto)||AUDIT_EXCL.includes(m.concepto))return;
-    if(!porCta[m.cuenta])porCta[m.cuenta]={cob:0,dets:[]};
-    porCta[m.cuenta].reg=(porCta[m.cuenta].reg||0)+(m.monto||0);
+    const sM=String(m.concepto||'').toUpperCase().includes('ZIBATA')?'Zibata':'Jardines';
+    const k=m.cuenta+K+sM;
+    if(!porCta[k])porCta[k]={cta:m.cuenta,suc:sM,cob:0,dets:[]};
+    porCta[k].reg=(porCta[k].reg||0)+(m.monto||0);
   });
   Object.values(porCta).forEach(v=>{v.reg=v.reg||0;});
   return {porCta,sinCta};
@@ -3166,19 +3171,26 @@ function rCierre(){
   const f=document.getElementById('cie-fecha').value;
   const {porCta,sinCta}=cierreCalc(f);
   CIE_FALTANTES=[];
-  let h='<table class="tbl" style="font-size:12.5px"><thead><tr><th>Cuenta</th><th style="text-align:right">Cobrado (notas)</th><th style="text-align:right">Registrado (Movs)</th><th style="text-align:right">Diferencia</th><th>Estado</th></tr></thead><tbody>';
-  const ctas=Object.keys(porCta).sort();
-  if(!ctas.length)h+='<tr><td colspan="5" class="tbl-empty">Sin cobros ni registros ese día</td></tr>';
+  let h='';
   let totFalta=0;
-  ctas.forEach(c=>{
-    const v=porCta[c];const dif=v.cob-v.reg;
-    let est,fila='';
-    if(Math.abs(dif)<=0.5){est='<span class="badge bg">✓ Cuadra</span>';}
-    else if(dif>0){est='<span class="badge by">falta registrar '+fmt(dif)+'</span>';CIE_FALTANTES.push({cuenta:c,monto:+dif.toFixed(2)});totFalta+=dif;fila='background:#FFFBEB';}
-    else{est='<span class="badge br">registrado de más '+fmt(-dif)+'</span>';fila='background:#FEF2F2';}
-    h+='<tr style="'+fila+'"><td style="font-weight:600">'+c+'</td><td class="mono" style="text-align:right">'+fmt(v.cob)+'<div style="font-size:10px;color:var(--text3)">'+v.dets.slice(0,8).join(', ')+(v.dets.length>8?' +'+(v.dets.length-8):'')+'</div></td><td class="mono" style="text-align:right">'+fmt(v.reg)+'</td><td class="mono" style="text-align:right;font-weight:700">'+fmt(dif)+'</td><td>'+est+'</td></tr>';
+  const grupos=Object.values(porCta);
+  if(!grupos.length)h='<div class="tbl-empty">Sin cobros ni registros ese día</div>';
+  ['Jardines','Zibata'].forEach(sucB=>{
+    const filas=grupos.filter(v=>v.suc===sucB).sort((a,b)=>a.cta.localeCompare(b.cta));
+    if(!filas.length)return;
+    const subCob=filas.reduce((s,v)=>s+v.cob,0);
+    h+='<div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px"><span style="font-weight:800;color:var(--green);font-size:14px">'+(sucB==='Zibata'?'🔺 ZIBATA':'🌿 JARDINES')+'</span><span style="font-size:11px;color:var(--text3)">cobrado: '+fmt(subCob)+'</span></div>';
+    h+='<table class="tbl" style="font-size:12.5px;margin-bottom:4px"><thead><tr><th>Cuenta</th><th style="text-align:right">Cobrado (notas)</th><th style="text-align:right">Registrado (Movs)</th><th style="text-align:right">Diferencia</th><th>Estado</th></tr></thead><tbody>';
+    filas.forEach(v=>{
+      const dif=v.cob-v.reg;
+      let est,fila='';
+      if(Math.abs(dif)<=0.5){est='<span class="badge bg">✓ Cuadra</span>';}
+      else if(dif>0){est='<span class="badge by">falta registrar '+fmt(dif)+'</span>';CIE_FALTANTES.push({cuenta:v.cta,suc:v.suc,monto:+dif.toFixed(2)});totFalta+=dif;fila='background:#FFFBEB';}
+      else{est='<span class="badge br">registrado de más '+fmt(-dif)+'</span>';fila='background:#FEF2F2';}
+      h+='<tr style="'+fila+'"><td style="font-weight:600">'+v.cta+'</td><td class="mono" style="text-align:right">'+fmt(v.cob)+'<div style="font-size:10px;color:var(--text3)">'+v.dets.slice(0,8).join(', ')+(v.dets.length>8?' +'+(v.dets.length-8):'')+'</div></td><td class="mono" style="text-align:right">'+fmt(v.reg)+'</td><td class="mono" style="text-align:right;font-weight:700">'+fmt(dif)+'</td><td>'+est+'</td></tr>';
+    });
+    h+='</tbody></table>';
   });
-  h+='</tbody></table>';
   if(sinCta.length)h+='<div style="font-size:11.5px;color:#92400E;background:#FEF3C7;border-radius:8px;padding:7px 10px;margin-top:8px">⚠️ Cobros sin cuenta de banco clara (métodos como Tranquilo u otros): '+sinCta.join(' · ')+' — regístralos a mano si aplican.</div>';
   document.getElementById('cie-body').innerHTML=h;
   const btn=document.getElementById('cie-btn'),msg=document.getElementById('cie-msg');
@@ -3191,7 +3203,8 @@ function cierreRegistrar(){
   const btn=document.getElementById('cie-btn');btn.disabled=true;btn.textContent='Registrando…';
   const mes=parseInt(f.split('-')[1],10)-1;
   const crear=CIE_FALTANTES.map(x=>{
-    const mv={tipo:'Entrada',concepto:x.cuenta.toUpperCase(),desc:'VENTAS '+f+' (cierre del día)',cuenta:x.cuenta,cta_destino:'',monto:x.monto,fecha:f,mes:mes};
+    const esZ=x.suc==='Zibata';
+    const mv={tipo:'Entrada',concepto:esZ?'ZIBATA':x.cuenta.toUpperCase(),desc:(esZ?'Zibata ventas ':'VENTAS ')+f+' (cierre del día)',cuenta:x.cuenta,cta_destino:'',monto:x.monto,fecha:f,mes:mes};
     return fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
       .then(r=>{if(!r.ok)throw 0;return r.json();})
       .then(srv=>{if(srv&&srv.id)movs.unshift(srv);});
