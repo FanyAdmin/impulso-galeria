@@ -281,14 +281,15 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     </div>
     <div id="cb-info" style="font-size:12px;margin:4px 0 10px;color:var(--text3)">Escribe el folio para buscar el pedido</div>
     <div class="g2">
-      <div class="field"><label>Monto ($)</label><input type="number" id="cb-monto" placeholder="0.00"></div>
+      <div class="field"><label>Monto ($)</label><input type="number" id="cb-monto" placeholder="0.00" oninput="avisoCobroManual()"></div>
       <div class="field"><label>Método de pago</label><select id="cb-met"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>Intercambio Galería</option></select></div>
-      <div class="field"><label>Tipo</label><select id="cb-tipo"><option value="Liquidacion">Liquidación</option><option value="Abono">Abono</option></select></div>
+      <div class="field"><label>Tipo</label><select id="cb-tipo" onchange="avisoCobroManual()"><option value="Liquidacion">Liquidación</option><option value="Abono">Abono</option></select></div>
     </div>
     <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;margin-top:8px;cursor:pointer">
-      <input type="checkbox" id="cb-sumar" style="width:auto;margin-top:2px">
-      <span>También <strong>sumar al anticipo</strong> del pedido y descontar del restante.<br><span style="color:var(--text3)">Déjalo APAGADO si el dinero ya está reflejado en el pedido (como en cobros viejos) y solo quieres registrar la fecha y el método.</span></span>
+      <input type="checkbox" id="cb-sumar" style="width:auto;margin-top:2px" onchange="avisoCobroManual()">
+      <span>También <strong>sumar al anticipo</strong> del pedido y descontar del restante.<br><span style="color:var(--text3)">Se enciende sola cuando el pedido todavía debe (dinero que entra hoy). Apágala SOLO si el dinero ya está reflejado en el pedido y nada más quieres dejar la fecha y el método (cobros viejos).</span></span>
     </label>
+    <div id="cb-aviso" style="display:none;font-size:12px;margin-top:10px;padding:8px 10px;border-radius:8px;line-height:1.45"></div>
   </div>
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-cobro')">Cancelar</button><button class="btn btn-p" onclick="guardarCobroManual()">✓ Registrar</button></div>
 </div>
@@ -1634,13 +1635,41 @@ function calcES(){
   document.getElementById('me-s').value=fmt(s);
   document.getElementById('me-av').style.display=s>0?'block':'none';
 }
+// ─── GUARDADO VERIFICADO DEL PEDIDO ───────────────────────────────────────────
+// Antes: se registraba el abono y el PUT del pedido se mandaba "a ciegas"
+// (.catch vacio / sin revisar r.ok). Si fallaba, quedaba el cobro registrado y
+// el pedido con su saldo viejo — el descuadre de F.2502 Manuel Vital.
+// Ahora: confirma contra lo que DEVOLVIO el servidor, revierte lo local si no
+// guardo y avisa fuerte en pantalla. Nunca vuelve a fallar en silencio.
+function putPedidoVerificado(p,campos,prev){
+  if(!p||!p.id){
+    alert('\u26a0\ufe0f El cobro SI se registro, pero este pedido no tiene id en la base de datos\n(registro viejo cargado a mano), asi que su anticipo NO se pudo actualizar.\n\nFolio '+(p?p.folio:'?')+' — corrigelo con \u270f\ufe0f Editar pedido.');
+    return Promise.resolve(false);
+  }
+  return fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify(campos)})
+    .then(r=>{if(!r.ok)throw new Error('el servidor respondio '+r.status+(r.status===403?' (sin permiso)':''));return r.json();})
+    .then(d=>{
+      if(!d||typeof d.ant==='undefined')throw new Error('respuesta vacia del servidor');
+      if(Math.abs((d.ant||0)-(campos.ant||0))>0.01)throw new Error('se pidio guardar '+fmt(campos.ant)+' y el servidor dejo '+fmt(d.ant));
+      p.ant=d.ant;p.rest=d.rest;if(d.est)p.est=d.est;   // sincronizar con la BD
+      return true;
+    })
+    .catch(err=>{
+      if(prev){p.ant=prev.ant;p.rest=prev.rest;p.est=prev.est;}
+      alert('\ud83d\udd34 EL COBRO SE REGISTRO PERO EL PEDIDO NO SE ACTUALIZO\n\nFolio '+p.folio+' \u00b7 '+(p.cli||'')+'\nMotivo: '+err.message+'\n\nEl pedido va a seguir mostrando saldo. Avisa antes de entregar.');
+      return false;
+    });
+}
+
 function confEnt(){
   if(entIdx===null)return;
   const p=pedidos[entIdx],c=parseFloat(document.getElementById('me-monto').value)||0,s=Math.max(0,p.rest-c);
   const met=document.getElementById('me-m').value;
+  const prevEnt={ant:p.ant,rest:p.rest,est:p.est};
   p.ant+=c;p.rest=s;p.est='Entregado';p.entregaF=todayStr();
-  // Persistir la entrega en la BD (antes solo quedaba en el navegador)
-  if(p.id)fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({ant:p.ant,rest:p.rest,est:'Entregado'})}).catch(()=>{});
+  // Persistir la entrega en la BD — VERIFICADO (antes fallaba en silencio)
+  putPedidoVerificado(p,{ant:p.ant,rest:p.rest,est:'Entregado'},prevEnt).then(()=>{rPed();rCxC();rDia();});
   // Registrar el cobro de hoy como abono con fecha (para Mi Día)
   if(c>0){
     const ab={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:c,met:met,fecha:todayStr(),tipo:s>0?'Abono':'Liquidacion'};
@@ -1700,6 +1729,8 @@ function openAbCxC(listIdx){
   OM('mod-ab');
 }
 function openAb(idx){
+  _cxcList=[];   // limpiar la lista de CxC: si quedaba de una apertura anterior,
+                 // guardarAb podia aplicar el abono a OTRO pedido con ese indice
   abIdx=idx;const c=cuentas[idx];
   document.getElementById('ab-monto').value='';
   const abF2=document.getElementById('ab-fecha');if(abF2)abF2.value=todayStr();
@@ -1720,6 +1751,7 @@ function guardarAb(){
     const c=_cxcList[abIdx];
     const p=pedidos.find(x=>x.id===c.id||(x.folio===c.folio&&x.suc===c.suc));
     if(p){
+      const prevAb={ant:p.ant,rest:p.rest,est:p.est};
       p.ant=(p.ant||0)+m;
       p.rest=Math.max(0,(p.rest||0)-m);
       if(p.rest<=0)p.rest=0;
@@ -1728,13 +1760,11 @@ function guardarAb(){
       fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(abReg)})
       .then(r=>r.json()).then(d=>{if(d&&d.id)ABONOS.unshift(d);}).catch(()=>{ABONOS.unshift(abReg);});
       logActivity('Abonó a cuenta','Folio '+p.folio+' — '+fmt(m)+' ('+metAb+', '+fechaAb+')');
-      if(p.id){
-        fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ant:p.ant,rest:p.rest,est:p.rest<=0?'Entregado':p.est})
-        }).then(r=>r.json()).then(()=>{CM('mod-ab');rCxC();rDia();});
-        return;
-      }
+      // VERIFICADO: si el pedido no se actualiza, avisa (antes se iba al
+      // fallback de cuentas[] y el saldo solo cambiaba en la pantalla)
+      putPedidoVerificado(p,{ant:p.ant,rest:p.rest,est:p.rest<=0?'Entregado':p.est},prevAb)
+        .then(()=>{CM('mod-ab');rPed();rCxC();rDia();});
+      return;
     }
   }
   // Fallback: lógica original con cuentas[]
@@ -1794,6 +1824,7 @@ function openCobroManual(){
   document.getElementById('cb-fecha').value=todayStr();
   document.getElementById('cb-sumar').checked=false;
   document.getElementById('cb-info').textContent='Escribe el folio para buscar el pedido';
+  const cbAv=document.getElementById('cb-aviso');if(cbAv)cbAv.style.display='none';
   OM('mod-cobro');
 }
 function buscarFolioCobro(){
@@ -1805,6 +1836,33 @@ function buscarFolioCobro(){
   if(!matches.length){info.innerHTML='<span style="color:var(--red)">No se encontró ningún pedido con ese folio</span>';return;}
   _cbPedido=matches[0];
   info.innerHTML='✓ <strong>'+_cbPedido.cli+'</strong> · '+_cbPedido.suc+' · Total '+fmt(_cbPedido.total)+' · Abonado '+fmt(_cbPedido.ant)+' · Resta <strong>'+fmt(_cbPedido.rest)+'</strong>'+(matches.length>1?' <span style="color:var(--amber,#B45309)">(hay '+matches.length+' pedidos con este folio; se usará el de '+_cbPedido.suc+')</span>':'');
+  // EL PEDIDO DECIDE EL DEFAULT: si todavia debe, este cobro SI debe bajarle el saldo.
+  // Antes la casilla nacia apagada y una liquidacion podia dejar el pedido intacto.
+  const chkS=document.getElementById('cb-sumar');
+  if(chkS)chkS.checked=(_cbPedido.rest||0)>0.009;
+  avisoCobroManual();
+}
+// Aviso en vivo: dice EXACTAMENTE como va a quedar el pedido antes de registrar
+function avisoCobroManual(){
+  const av=document.getElementById('cb-aviso');if(!av)return;
+  const p=_cbPedido;
+  if(!p){av.style.display='none';return;}
+  const m=parseFloat(document.getElementById('cb-monto').value)||0;
+  const sumar=document.getElementById('cb-sumar').checked;
+  const tipo=document.getElementById('cb-tipo').value;
+  const rest=p.rest||0;
+  av.style.display='block';
+  if(sumar){
+    const nAnt=(p.ant||0)+m,nRest=Math.max(0,rest-m);
+    av.style.background='#ECFDF5';av.style.color='#065F46';av.style.border='1px solid #A7F3D0';
+    av.innerHTML='✅ El pedido quedará así: anticipo '+fmt(p.ant)+' → <strong>'+fmt(nAnt)+'</strong> · restante '+fmt(rest)+' → <strong>'+fmt(nRest)+'</strong>'+(m>0&&nRest<=0.009?' <strong>(LIQUIDADO)</strong>':'');
+  }else if(rest>0.009){
+    av.style.background='#FEF2F2';av.style.color='#991B1B';av.style.border='1px solid #FCA5A5';
+    av.innerHTML='🔴 <strong>Aguas:</strong> con la casilla apagada se registra el cobro pero el folio '+p.folio+' va a seguir debiendo '+fmt(rest)+' en CxC'+(tipo==='Liquidacion'?' — y lo marcaste como <strong>Liquidación</strong>':'')+'. Enciéndela si el cliente está pagando ahora.';
+  }else{
+    av.style.background='#F8FAFC';av.style.color='var(--text3)';av.style.border='1px solid var(--border)';
+    av.innerHTML='Este pedido ya no tiene saldo: solo se va a registrar la fecha y el método del cobro.';
+  }
 }
 function guardarCobroManual(){
   if(!_cbPedido){alert('Busca primero un folio válido');return;}
@@ -1815,14 +1873,23 @@ function guardarCobroManual(){
   const tipo=document.getElementById('cb-tipo').value;
   const sumar=document.getElementById('cb-sumar').checked;
   const p=_cbPedido;
+  // CANDADO: no dejar registrar un cobro que deja al pedido debiendo sin querer
+  if(!sumar&&(p.rest||0)>0.009){
+    const msg=(tipo==='Liquidacion')
+      ? 'Marcaste el cobro como LIQUIDACIÓN pero la casilla "sumar al anticipo" está APAGADA.\n\nEl folio '+p.folio+' ('+(p.cli||'')+') va a seguir apareciendo con saldo de '+fmt(p.rest)+' en CxC y en el ticket.\n\n¿Registrarlo así de todos modos?'
+      : 'La casilla "sumar al anticipo" está APAGADA y el folio '+p.folio+' todavía debe '+fmt(p.rest)+'.\n\nSu saldo NO va a bajar con este cobro.\n\n¿Registrarlo así de todos modos?';
+    if(!confirm(msg))return;
+  }
   const ab={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:m,met:met,fecha:fecha,tipo:tipo};
   fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(ab)})
   .then(r=>r.json()).then(d=>{
     if(d.error){alert(d.error);return;}
     ABONOS.unshift(d);
     if(sumar){
+      const prevCM={ant:p.ant,rest:p.rest,est:p.est};
       p.ant=(p.ant||0)+m;p.rest=Math.max(0,(p.rest||0)-m);
-      if(p.id)fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({ant:p.ant,rest:p.rest,est:p.rest<=0?'Entregado':p.est})}).catch(()=>{});
+      putPedidoVerificado(p,{ant:p.ant,rest:p.rest,est:p.rest<=0?'Entregado':p.est},prevCM)
+        .then(()=>{rPed();if(document.querySelector('#page-cxc.active'))rCxC();rDia();});
     }
     logActivity('Registró cobro manual','Folio '+p.folio+' — '+fmt(m)+' ('+met+', '+fecha+')');
     CM('mod-cobro');rDia();if(document.querySelector('#page-cxc.active'))rCxC();
