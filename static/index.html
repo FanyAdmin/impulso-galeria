@@ -478,7 +478,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-item" onclick="go('pend');rPend()" id="nav-pend">📌 Pendientes</div>
   <div class="sb-item" onclick="go('cxc')" id="nav-cxc">💰 Cuentas x cobrar</div>
   <div class="sb-item" onclick="go('dia')" id="nav-dia">📊 Mi día</div>
-  <div class="sb-item" onclick="go('cob')" id="nav-cob">💵 Cobranza</div>
+  <div class="sb-item admin-only" style="display:none" onclick="go('cob')" id="nav-cob">💵 Cobranza</div>
   <div class="sb-section">Catálogo</div>
   <div class="sb-item" onclick="go('cat')" id="nav-cat">🗂 Molduras</div>
   <div class="sb-section admin-only" style="display:none">Admin</div>
@@ -727,7 +727,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 
 <!-- ÓRDENES -->
 <div class="page" id="page-ord">
-  <div class="ph"><div><div class="ph-title">Órdenes de Compra</div><div class="ph-sub">Molduras pendientes de surtir por proveedor</div><button class="btn btn-s" onclick="openOrdManual()">➕ Orden manual</button> <button class="btn btn-s" onclick="openInsumosSem()">🧰 Insumos de taller (consejo)</button></div></div>
+  <div class="ph"><div><div class="ph-title">Órdenes de Compra</div><div class="ph-sub">Molduras pendientes de surtir por proveedor</div><button class="btn btn-s admin-only" style="display:none" onclick="openOrdManual()">➕ Orden manual</button> <button class="btn btn-s" onclick="openInsumosSem()">🧰 Insumos de taller (consejo)</button></div></div>
   <div class="chips">
     <div class="chip active" id="chip-ord-pend" onclick="switchOrdTab('activas',this)">Pendientes de pedir</div>
     <div class="chip" id="chip-ord-seg" onclick="switchOrdTab('seguimiento',this)">Seguimiento</div>
@@ -1550,6 +1550,12 @@ function onTotEdit(el){
 // ─── PEDIDOS ──────────────────────────────────────────────────────────────────
 const PPP=25;
 function misP(){const u=USERS.find(x=>x.key===CU);return (u.role==='admin'||u.role==='owner')?pedidos:pedidos.filter(p=>p.suc===u.suc);}
+// ── VISTA DE SUCURSAL (Zibata): solo lo suyo y en modo consulta ──────────────
+// El rol venta ve su operacion y un punto de referencia de lo que pidio;
+// las ordenes, la cobranza y los movimientos se manejan desde Jardines/admin.
+function _u(){return USERS.find(x=>x.key===CU);}
+function soloMira(){const u=_u();return !!u&&u.role==='venta';}
+function miSuc(){const u=_u();return u?u.suc:'';}
 function pfVal(id){const el=document.getElementById(id);return el?el.value:'';}
 function pintarFiltrosPed(){
   const base=misP();
@@ -2130,7 +2136,9 @@ function itemsPedidos(){
 }
 function rOrd(){
   const u=USERS.find(x=>x.key===CU);
-  const pend=pedidos.filter(p=>p.est==='Pendiente'&&p.items); // concentrado de AMBAS sucursales para todos: quien pida, pide todo
+  // Admin/owner: concentrado de AMBAS sucursales (quien pide, pide todo).
+  // Venta: solo lo de su sucursal, como referencia de lo que dejo pedido.
+  const pend=pedidos.filter(p=>p.est==='Pendiente'&&p.items&&(!soloMira()||p.suc===miSuc()));
   const yaPedidos=itemsPedidos();
   const byP={};
   pend.forEach(p=>(p.items||[]).forEach(it=>{if(!it.mol||yaPedidos.has(claveItem(p.folio,it.mol)))return;const pv=provDe(it);if(!byP[pv])byP[pv]=[];const ex=byP[pv].find(x=>x.mol===it.mol);if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(p.suc&&!ex.sucs.includes(p.suc))ex.sucs.push(p.suc);if(it.l1&&it.l2){ex.meds.push(`${it.l1}×${it.l2}`);ex.medsQ=medsQAdd(ex.medsQ,it.l1,it.l2,it.q);}if(p.fecha&&(!ex.fecha||p.fecha<ex.fecha))ex.fecha=p.fecha;}else byP[pv].push({mol:it.mol,pzas:it.q,fols:[p.folio],sucs:p.suc?[p.suc]:[],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[],medsQ:medsQAdd([],it.l1,it.l2,it.q),fecha:p.fecha||''});}));
@@ -2144,7 +2152,7 @@ function rOrd(){
   const notas=[...new Set(provs.flatMap(pv=>byP[pv].flatMap(it=>it.fols)))];
 
   // 1) Estado del día
-  const banner=`<div style="background:${px.hoy?'var(--green-l)':'var(--surface2)'};border:1px solid ${px.hoy?'#A7D7BC':'var(--border)'};border-radius:var(--rad);padding:10px 14px;margin-bottom:12px;font-size:13px">${px.hoy?'🟢 <strong>Hoy es día de pedido</strong>':'📅 Próximo día de pedido: <strong>'+px.f.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})+'</strong>'} <span style="color:var(--text3)">· Se pide lunes, miércoles y viernes</span>${ultOrd?`<span style="color:var(--text3)"> · Última orden: <strong>${ultOrd.oc||'—'}</strong> (${ultOrd.fecha})</span>`:''}</div>`;
+  const banner=soloMira()?'':`<div style="background:${px.hoy?'var(--green-l)':'var(--surface2)'};border:1px solid ${px.hoy?'#A7D7BC':'var(--border)'};border-radius:var(--rad);padding:10px 14px;margin-bottom:12px;font-size:13px">${px.hoy?'🟢 <strong>Hoy es día de pedido</strong>':'📅 Próximo día de pedido: <strong>'+px.f.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})+'</strong>'} <span style="color:var(--text3)">· Se pide lunes, miércoles y viernes</span>${ultOrd?`<span style="color:var(--text3)"> · Última orden: <strong>${ultOrd.oc||'—'}</strong> (${ultOrd.fecha})</span>`:''}</div>`;
 
   // 2) Pedidas hoy (progreso del día)
   const hechasHoy=pedidasHoy.length?`<div style="background:var(--green-l);border:1px solid #A7D7BC;border-radius:var(--rad);padding:8px 14px;margin-bottom:12px;font-size:12px">✅ <strong>Pedidas hoy:</strong> ${pedidasHoy.map(o=>`<span class="mono" style="font-weight:700">${o.oc||''}</span> ${o.prov_nombre||o.prov}`).join(' · ')}</div>`:'';
@@ -2166,8 +2174,13 @@ function rOrd(){
     <div style="flex:1;min-width:140px;background:var(--surface);border:1px solid var(--border);border-left:4px solid #B45309;border-radius:10px;padding:12px 14px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">🧾 Notas de clientes</div><div class="mono" style="font-size:26px;font-weight:800">${notas.length}</div></div>
   </div>`;
 
-  // 4) Guía de pasos
-  const guia=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--text2)">
+  // 4) Guía de pasos (para quien pide) o aviso de consulta (para sucursal)
+  const guia=soloMira()
+    ? `<div style="background:#EFF6FF;border:1px solid #BFDBFE;color:#1E3A8A;border-radius:var(--rad);padding:10px 14px;margin-bottom:14px;font-size:12px">
+        👀 <strong>Vista de consulta.</strong> Aquí ves las molduras que dejaste pedidas desde ${miSuc()}.
+        Las órdenes a proveedor se hacen desde Jardines — tú no tienes que pedir nada.
+      </div>`
+    : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--text2)">
     <span style="background:var(--surface2);border-radius:99px;padding:5px 12px"><strong>1️⃣ Revisa</strong> lo acumulado</span>
     <span style="background:var(--surface2);border-radius:99px;padding:5px 12px"><strong>2️⃣ Pide e imprime</strong> por proveedor</span>
     <span style="background:var(--surface2);border-radius:99px;padding:5px 12px"><strong>3️⃣ Entrega la hoja</strong> · queda copia en Historial</span>
@@ -2189,8 +2202,8 @@ function rOrd(){
           <div style="font-size:11px;color:var(--text3)">${byP[pv].length} molduras${fechaVieja?' · acumulando desde el '+fechaVieja:''}</div>
         </div>
         <button class="btn btn-s btn-sm" onclick="toggleOrdDet(${i})"><span id="ord-arrow-${i}">▸</span> Ver molduras</button>
-        <button class="btn btn-p btn-sm" onclick="pedirOrd('${pv}','wa')">📱 Pedir x WhatsApp</button>
-        <button class="btn btn-s btn-sm" onclick="pedirOrd('${pv}','print')">🖨️ Pedir e imprimir</button>
+        ${soloMira()?'':`<button class="btn btn-p btn-sm" onclick="pedirOrd('${pv}','wa')">📱 Pedir x WhatsApp</button>
+        <button class="btn btn-s btn-sm" onclick="pedirOrd('${pv}','print')">🖨️ Pedir e imprimir</button>`}
       </div>
       <div id="ord-det-${i}" style="display:none;border-top:1px solid var(--border);padding:0 16px 14px">
         <div class="tw" style="margin:10px 0 0"><table class="tbl"><thead><tr><th>Moldura</th><th>Sucursal</th><th style="text-align:center">Piezas</th><th>Medidas</th><th>Pedidos</th><th>Ingresó</th></tr></thead>
@@ -2235,11 +2248,11 @@ function rOrdHist(){
         <div><div style="font-size:13px;font-weight:700"><span class="mono" style="color:var(--green)">${e.oc||''}</span> · ${e.prov_nombre||e.prov}</div>
         <div style="font-size:11px;color:var(--text3);margin-top:1px">Pedida el ${e.fecha} · ${its.reduce((a,b)=>a+b.pzas,0)} piezas · ${completa?'<span style="color:var(--green);font-weight:700">✓ Todo llegó</span>':rec>0?'<span style="color:#B45309;font-weight:700">'+rec+'/'+its.length+' molduras llegaron</span>':'<span>Esperando entrega</span>'}</div></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button class="btn btn-s btn-sm" onclick="copiarOrdenWA(${e.id})">📱 Copiar WA</button>
+          ${soloMira()?'':`<button class="btn btn-s btn-sm" onclick="copiarOrdenWA(${e.id})">📱 Copiar WA</button>`}
           <button class="btn btn-s btn-sm" onclick="reimprimirOrd(${e.id})">🖨️ Reimprimir</button>
           <button class="btn btn-s btn-sm" onclick="ticketOrd(${e.id})">🧾 Ticket (3 copias)</button>
-          <button class="btn btn-s btn-sm" style="color:#991B1B;border-color:#fca5a5" onclick="cancelarOrd(${e.id})">❌ Cancelar orden</button>
-          ${faltan>0&&rec>0?`<button class="btn btn-s btn-sm" style="color:#B45309;border-color:#B45309" onclick="faltantesAPendientes(${e.id})">↩ Faltantes (${faltan}) a Pendientes</button>`:''}
+          ${soloMira()?'':`<button class="btn btn-s btn-sm" style="color:#991B1B;border-color:#fca5a5" onclick="cancelarOrd(${e.id})">❌ Cancelar orden</button>`}
+          ${!soloMira()&&faltan>0&&rec>0?`<button class="btn btn-s btn-sm" style="color:#B45309;border-color:#B45309" onclick="faltantesAPendientes(${e.id})">↩ Faltantes (${faltan}) a Pendientes</button>`:''}
           ${esAdm?`<button class="btn btn-d btn-sm" onclick="delOrdHist(${e.id})">🗑</button>`:''}
         </div>
       </div>
@@ -4738,8 +4751,12 @@ function misC(){
 }
 function rPend(){
   fetch('/api/pendientes',{credentials:'include'})
-  .then(r=>r.json()).then(data=>{
+  .then(r=>r.json()).then(dataAll=>{
     const body=document.getElementById('pend-body');
+    // Cada sucursal ve SOLO sus pendientes (antes se veian los de ambas)
+    const yo=_u(),data=soloMira()
+      ? (dataAll||[]).filter(p=>p.suc===yo.suc||(p.asignado&&yo&&(p.asignado===yo.name||p.asignado===yo.suc)))
+      : (dataAll||[]);
     if(!data.length){body.innerHTML='<div style="text-align:center;padding:40px;color:#888">No hay pendientes. ¡Todo al corriente! ✅</div>';return;}
     const abiertos=data.filter(p=>p.est!=='cerrado');
     const cerrados=data.filter(p=>p.est==='cerrado');
