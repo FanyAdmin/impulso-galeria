@@ -118,6 +118,7 @@ class Empleado(db.Model):
     rfc     = db.Column(db.String(20))
     tel     = db.Column(db.String(30))
     dir     = db.Column(db.String(300))
+    diapago    = db.Column(db.String(15), default='')          # dia de la semana en que se le paga
     estatus    = db.Column(db.String(20), default='activo')   # activo | baja
     fecha_baja = db.Column(db.String(20), default='')
 
@@ -125,7 +126,7 @@ def emp_dict(e):
     return {'id':e.id,'nombre':e.nombre,'puesto':e.puesto,'suc':e.suc,
             'ingreso':e.ingreso,'salario':e.salario,'metpago':e.metpago,
             'banco':e.banco,'curp':e.curp,'rfc':e.rfc,'tel':e.tel,'dir':e.dir,
-            'estatus':e.estatus or 'activo','fecha_baja':e.fecha_baja or ''}
+            'diapago':e.diapago or '','estatus':e.estatus or 'activo','fecha_baja':e.fecha_baja or ''}
 
 # ── HELPERS DE AUTORIZACIÓN ───────────────────────────────────────────────────
 
@@ -295,6 +296,7 @@ def crear_empleado():
                  salario=d.get('salario',0), metpago=d.get('metpago',''),
                  banco=d.get('banco',''), curp=d.get('curp',''),
                  rfc=d.get('rfc',''), tel=d.get('tel',''), dir=d.get('dir',''),
+                 diapago=d.get('diapago',''),
                  estatus=d.get('estatus','activo'), fecha_baja=d.get('fecha_baja',''))
     db.session.add(e)
     db.session.commit()
@@ -305,7 +307,7 @@ def crear_empleado():
 def actualizar_empleado(eid):
     e = Empleado.query.get_or_404(eid)
     d = request.json or {}
-    for campo in ['nombre','puesto','suc','ingreso','salario','metpago','banco','curp','rfc','tel','dir','estatus','fecha_baja']:
+    for campo in ['nombre','puesto','suc','ingreso','salario','metpago','banco','curp','rfc','tel','dir','diapago','estatus','fecha_baja']:
         if campo in d:
             setattr(e, campo, d[campo])
     db.session.commit()
@@ -1015,6 +1017,7 @@ def migrar_columnas():
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS fecha_baja VARCHAR(20) DEFAULT ''",
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS tipo_prod VARCHAR(20) DEFAULT 'marcos'",
         "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_arte FLOAT DEFAULT 10",
+        "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS diapago VARCHAR(15) DEFAULT ''",
     ]:
         try:
             db.session.execute(text(stmt)); db.session.commit()
