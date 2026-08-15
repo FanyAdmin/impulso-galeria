@@ -1025,6 +1025,154 @@ def migrar_columnas():
             except Exception:
                 db.session.rollback()
 
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REVISIÓN DE NOTAS FÍSICAS  ·  la foto de la nota manuscrita contra lo capturado
+# ───────────────────────────────────────────────────────────────────────────────
+# No se guarda ninguna foto: se lee, se compara y solo queda el resultado.
+# Usa urllib de la librería estándar a propósito — no hace falta tocar
+# requirements.txt ni instalar el SDK.
+# Requiere la variable de entorno ANTHROPIC_API_KEY en Railway.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class RevNota(db.Model):
+    __tablename__ = 'rev_notas'
+    id       = db.Column(db.Integer, primary_key=True)
+    folio    = db.Column(db.String(30))
+    suc      = db.Column(db.String(30))
+    fecha    = db.Column(db.String(20))     # día de la revisión
+    veredicto= db.Column(db.String(20))     # cuadra | difiere | sin_pedido
+    difs     = db.Column(db.Text)           # JSON con las diferencias
+    lectura  = db.Column(db.Text)           # JSON con lo que se leyó de la foto
+    quien    = db.Column(db.String(50))
+
+def rev_dict(r):
+    def _j(v):
+        try: return json.loads(v) if v else None
+        except Exception: return None
+    return {'id': r.id, 'folio': r.folio, 'suc': r.suc, 'fecha': r.fecha,
+            'veredicto': r.veredicto, 'difs': _j(r.difs), 'lectura': _j(r.lectura),
+            'quien': r.quien}
+
+INSTRUCCION_NOTA = """Esta es la foto de una nota de pedido escrita a mano de una galería de enmarcado en México.
+
+Lee lo que ALCANCES A LEER y devuelve SOLO un objeto JSON, sin explicaciones, sin ```.
+
+Estructura exacta:
+{
+  "folio": "número de nota o folio, como string, o null",
+  "cliente": "nombre del cliente o null",
+  "fecha": "fecha de la nota en formato AAAA-MM-DD, o null",
+  "articulos": [
+    {"moldura":"clave o nombre de la moldura","ancho":número en cm o null,
+     "alto":número en cm o null,"cantidad":número,"extras":"texto o null"}
+  ],
+  "anticipo": número o null,
+  "total": número o null,
+  "ilegible": ["nombre de cada campo que no se pudo leer con seguridad"],
+  "confianza": número del 0 al 100
+}
+
+Reglas:
+- Si un dato no se ve o no estás seguro, pon null y agrégalo a "ilegible". NUNCA inventes.
+- Las medidas suelen venir como 30x40 o 30 × 40 (ancho por alto) en centímetros.
+- Los importes vienen en pesos mexicanos; devuélvelos como número sin $ ni comas.
+- Si la foto no es una nota de pedido, devuelve {"error":"no es una nota"}."""
+
+@app.route('/api/leer-nota', methods=['POST'])
+@requiere_login
+def leer_nota():
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'Falta la llave ANTHROPIC_API_KEY en las variables de entorno de Railway. '
+                                 'Agrégala en Railway > Variables y vuelve a desplegar.'}), 500
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'No llegó ninguna foto'}), 400
+
+    import base64, urllib.request, urllib.error
+    raw = f.read()
+    if len(raw) > 5 * 1024 * 1024:
+        return jsonify({'error': 'La foto pesa más de 5 MB. Tómala de nuevo con menos resolución.'}), 400
+    media = (f.mimetype or 'image/jpeg').lower()
+    if media not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif'):
+        media = 'image/jpeg'
+
+    payload = {
+        'model': 'claude-sonnet-5',
+        'max_tokens': 1500,
+        'messages': [{'role': 'user', 'content': [
+            {'type': 'image', 'source': {'type': 'base64', 'media_type': media,
+                                         'data': base64.b64encode(raw).decode()}},
+            {'type': 'text', 'text': INSTRUCCION_NOTA}
+        ]}]
+    }
+    req = urllib.request.Request(
+        'https://api.anthropic.com/v1/messages',
+        data=json.dumps(payload).encode('utf-8'),
+        headers={'content-type': 'application/json', 'x-api-key': api_key,
+                 'anthropic-version': '2023-06-01'})
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            data = json.loads(r.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        try: det = e.read().decode('utf-8')[:300]
+        except Exception: det = ''
+        msg = 'La API de Anthropic respondió ' + str(e.code)
+        if e.code == 401: msg = 'La llave ANTHROPIC_API_KEY no es válida o está vencida.'
+        elif e.code == 429: msg = 'La API está saturada o se acabó el saldo. Espera un momento e intenta de nuevo.'
+        return jsonify({'error': msg, 'detalle': det}), 502
+    except Exception as e:
+        return jsonify({'error': 'No se pudo contactar la API: ' + str(e)}), 502
+
+    txt = ''.join(b.get('text', '') for b in data.get('content', []) if b.get('type') == 'text')
+    limpio = txt.strip()
+    if limpio.startswith('```'):
+        limpio = limpio.split('```')[1] if '```' in limpio[3:] else limpio
+        limpio = limpio.replace('json', '', 1).strip()
+    try:
+        lectura = json.loads(limpio)
+    except Exception:
+        return jsonify({'error': 'No se pudo interpretar la lectura de la foto', 'crudo': txt[:400]}), 502
+
+    u = data.get('usage', {}) or {}
+    return jsonify({'lectura': lectura,
+                    'uso': {'entrada': u.get('input_tokens', 0), 'salida': u.get('output_tokens', 0)}})
+
+@app.route('/api/revnotas', methods=['GET'])
+@requiere_login
+def get_revnotas():
+    q = RevNota.query
+    fecha = request.args.get('fecha')
+    if fecha: q = q.filter(RevNota.fecha == fecha)
+    return jsonify([rev_dict(r) for r in q.order_by(RevNota.id.desc()).limit(500).all()])
+
+@app.route('/api/revnotas', methods=['POST'])
+@requiere_login
+def post_revnota():
+    d = request.json or {}
+    prev = RevNota.query.filter_by(folio=str(d.get('folio') or ''), fecha=d.get('fecha')).first()
+    r = prev or RevNota()
+    r.folio     = str(d.get('folio') or '')
+    r.suc       = d.get('suc')
+    r.fecha     = d.get('fecha')
+    r.veredicto = d.get('veredicto')
+    r.difs      = json.dumps(d.get('difs'))
+    r.lectura   = json.dumps(d.get('lectura'))
+    r.quien     = session.get('usuario')
+    if not prev: db.session.add(r)
+    db.session.commit()
+    return jsonify(rev_dict(r))
+
+@app.route('/api/revnotas/<int:rid>', methods=['DELETE'])
+@requiere_login
+def del_revnota(rid):
+    r = RevNota.query.get(rid)
+    if r:
+        db.session.delete(r); db.session.commit()
+    return jsonify({'ok': True})
+
 with app.app_context():
     db.create_all()
     migrar_columnas()
