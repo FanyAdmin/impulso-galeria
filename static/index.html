@@ -1554,7 +1554,7 @@ function misP(){const u=USERS.find(x=>x.key===CU);return (u.role==='admin'||u.ro
 // El rol venta ve su operacion y un punto de referencia de lo que pidio;
 // las ordenes, la cobranza y los movimientos se manejan desde Jardines/admin.
 function _u(){return USERS.find(x=>x.key===CU);}
-function soloMira(){const u=_u();return !!u&&u.role==='venta';}
+function soloMira(){const u=_u();return !!u&&u.role==='venta'&&String(u.suc||'').toLowerCase().includes('zibata');} // solo Zibata consulta; Jardines sí pide
 function miSuc(){const u=_u();return u?u.suc:'';}
 function pfVal(id){const el=document.getElementById(id);return el?el.value:'';}
 function pintarFiltrosPed(){
