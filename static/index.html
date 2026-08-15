@@ -726,6 +726,23 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   </div>
 </div>
 
+<!-- PAGO DE NÓMINA (uno por persona) -->
+<div class="modal-bg" id="mod-nom-pago" style="display:none">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-hdr"><div class="modal-ttl" id="nomp-ttl">💸 Registrar pago</div><button class="modal-x" onclick="CM('mod-nom-pago')">✕</button></div>
+    <div class="modal-bd">
+      <div id="nomp-info" style="font-size:13px;color:var(--text2);margin-bottom:12px"></div>
+      <div class="field"><label>Fecha del pago</label><input type="date" id="nomp-fecha"></div>
+      <div class="field"><label>Cuenta de donde sale</label><select id="nomp-cta"></select></div>
+      <div class="field"><label>Concepto</label><select id="nomp-concepto"></select></div>
+      <div class="field"><label>Monto</label><input type="number" id="nomp-monto" step="0.01"></div>
+      <div class="field"><label>Descripción (así se verá en Movimientos)</label><input id="nomp-desc"></div>
+      <div style="font-size:11.5px;color:var(--text3);line-height:1.45">Al confirmar se crea la <b>Salida</b> en Movimientos, igual que cuando la capturas a mano — pero ligada a esta semana, para poder deshacerla.</div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-nom-pago')">Cancelar</button><button class="btn btn-p" onclick="confPagoNom()">✓ Registrar pago</button></div>
+  </div>
+</div>
+
 <!-- REVISIÓN DE NOTAS -->
 <div class="page" id="page-rev">
   <div class="ph"><div>
@@ -1106,7 +1123,10 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   </div>
   <div id="nom-avance" style="font-size:13px;margin:0 0 12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px"></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Empleado</th><th>Sucursal</th><th>Dias</th><th>Faltas</th><th>Salario</th><th>Descuento</th><th>A pagar</th><th>Se paga</th><th>¿Pagado?</th><th></th></tr></thead><tbody id="nom-body"></tbody></table></div>
-  <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:.875rem"><button class="btn btn-s" onclick="verBitacoraNom()">📋 Bitácora de pagos</button><button class="btn btn-p" onclick="pagarNom()">Registrar pago de nomina</button></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:.875rem;flex-wrap:wrap">
+    <span style="font-size:11.5px;color:var(--text3)">Cada pago se registra por persona con la casilla <b>¿Pagado?</b> y crea su salida en Movimientos.</span>
+    <button class="btn btn-s" onclick="verBitacoraNom()">📋 Bitácora de pagos</button>
+  </div>
 </div>
 <div class="page" id="page-pend">
   <div class="ph"><div><div class="ph-title">Pendientes</div><div class="ph-sub">Tareas y seguimientos del equipo</div></div><button class="btn btn-p btn-sm" onclick="openNuevoPend()">+ Nuevo pendiente</button></div>
@@ -4508,21 +4528,84 @@ function guardarNomPagos(){
     .catch(function(e){alert('No se pudo guardar la marca de pago: '+e.message+'\nVuelve a intentar.');});
 }
 function pagoDe(sem,id){return (NOM_PAGOS[sem]||{})[String(id)]||null;}
+// Número de semana ISO — es el que ella usa en sus movimientos ("Semana 32")
+function semanaNum(fechaIso){
+  var d=new Date(fechaIso+'T12:00:00');
+  var t=new Date(d.valueOf());
+  t.setDate(t.getDate()+3-((d.getDay()+6)%7));
+  var s1=new Date(t.getFullYear(),0,4);
+  return 1+Math.round(((t-s1)/86400000-3+((s1.getDay()+6)%7))/7);
+}
 
-// Palomear = registrar el pago de esa persona en esa semana
+// Palomear = registrar el pago de esa persona Y crear su movimiento de salida,
+// uno por persona, tal como se capturaba a mano.
+var nomPagoCtx=null;
 function togPagoNom(id,sem,monto,nombre){
   var ya=pagoDe(sem,id);
-  if(ya){
-    if(!confirm('¿Quitar la marca de pago de '+nombre+'?\nSe registró el '+ya.fecha+' por '+fmt(ya.monto)+'.'))
-      {rNom();return;}
-    delete NOM_PAGOS[sem][String(id)];
-  }else{
-    var f=prompt('¿Qué día le pagaste a '+nombre+'?\n(deja la fecha de hoy si fue hoy)',todayStr());
-    if(!f){rNom();return;}
-    if(!NOM_PAGOS[sem])NOM_PAGOS[sem]={};
-    NOM_PAGOS[sem][String(id)]={fecha:f,monto:monto};
+  if(ya)return deshacerPagoNom(id,sem,nombre);
+  var e=(EMPLEADOS||[]).find(function(x){return String(x.id)===String(id);})||{};
+  nomPagoCtx={id:id,sem:sem,monto:monto,nombre:nombre,suc:e.suc||''};
+  document.getElementById('nomp-ttl').textContent='💸 Pagar a '+nombre;
+  document.getElementById('nomp-info').innerHTML='Semana <b>'+semanaNum(sem)+'</b> · '+(e.suc||'')+
+    (e.diapago?' · se le paga los '+e.diapago:'')+(e.metpago?' · '+e.metpago:'');
+  document.getElementById('nomp-fecha').value=todayStr();
+  var selC=document.getElementById('nomp-cta');
+  selC.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option>'+c+'</option>';}).join('');
+  if(String(e.metpago||'').toLowerCase().indexOf('transfer')>=0){
+    for(var i=0;i<selC.options.length;i++){if(selC.options[i].value.toLowerCase().indexOf('efectivo')<0){selC.selectedIndex=i;break;}}
   }
-  guardarNomPagos().then(rNom);
+  var selCo=document.getElementById('nomp-concepto');
+  var conceptos=(ER_CATS&&ER_CATS.gastos_admin)?ER_CATS.gastos_admin:['Nómina'];
+  selCo.innerHTML=conceptos.map(function(c){return '<option'+(c==='Nómina'?' selected':'')+'>'+c+'</option>';}).join('');
+  document.getElementById('nomp-monto').value=(+monto||0).toFixed(2);
+  document.getElementById('nomp-desc').value='Pago de nomina '+(String(e.suc||'').toLowerCase().indexOf('zibata')>=0?'Zibata ':'')+
+    'Semana '+semanaNum(sem)+' ('+nombre+')';
+  OM('mod-nom-pago');
+  rNom();   // deja la casilla como estaba hasta que confirme
+}
+
+function confPagoNom(){
+  if(!nomPagoCtx)return;
+  var c=nomPagoCtx;
+  var fecha=document.getElementById('nomp-fecha').value;
+  var cta=document.getElementById('nomp-cta').value;
+  var concepto=document.getElementById('nomp-concepto').value;
+  var monto=parseFloat(document.getElementById('nomp-monto').value)||0;
+  var desc=document.getElementById('nomp-desc').value.trim();
+  if(!fecha||!cta||!monto){alert('Fecha, cuenta y monto son obligatorios');return;}
+  var mv={tipo:'Salida',concepto:concepto,desc:desc,cuenta:cta,cta_destino:'',
+          monto:monto,fecha:fecha,mes:parseInt(fecha.split('-')[1],10)-1};
+  fetch('/api/movimientos',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(mvSrv){
+    if(mvSrv&&mvSrv.id)movs.unshift(mvSrv);
+    if(!NOM_PAGOS[c.sem])NOM_PAGOS[c.sem]={};
+    NOM_PAGOS[c.sem][String(c.id)]={fecha:fecha,monto:monto,cuenta:cta,concepto:concepto,
+      desc:desc,mov_id:(mvSrv&&mvSrv.id)||null};
+    return guardarNomPagos();
+  })
+  .then(function(){
+    if(typeof logActivity==='function')logActivity('Pagó nómina',c.nombre+' — '+fmt(monto)+' desde '+cta);
+    CM('mod-nom-pago');nomPagoCtx=null;rNom();
+    if(typeof rMovs==='function'&&document.querySelector('#page-mov.active'))rMovs();
+  })
+  .catch(function(e){alert('⚠️ No se pudo registrar el pago: '+e.message+'\nNada quedó guardado, inténtalo de nuevo.');});
+}
+
+function deshacerPagoNom(id,sem,nombre){
+  var p=pagoDe(sem,id);if(!p){rNom();return;}
+  if(!confirm('¿Deshacer el pago de '+nombre+'?\n\nSe registró el '+p.fecha+' por '+fmt(p.monto)+
+              (p.cuenta?' desde '+p.cuenta:'')+'.\nTambién se BORRA su movimiento de salida.')){rNom();return;}
+  var borrar=p.mov_id?fetch('/api/movimientos/'+p.mov_id,{method:'DELETE',credentials:'include'}):Promise.resolve();
+  borrar.then(function(){
+    if(p.mov_id)movs=movs.filter(function(m){return m.id!==p.mov_id;});
+    delete NOM_PAGOS[sem][String(id)];
+    return guardarNomPagos();
+  }).then(function(){
+    if(typeof logActivity==='function')logActivity('Deshizo pago de nómina',nombre);
+    rNom();
+  }).catch(function(e){alert('No se pudo deshacer: '+e.message);});
 }
 
 function rNom(){
@@ -4557,7 +4640,8 @@ function rNom(){
     h+='<td><label style="display:flex;align-items:center;gap:7px;cursor:pointer">'+
        '<input type="checkbox" '+(pg?'checked':'')+' style="width:19px;height:19px;accent-color:var(--green);cursor:pointer" '+
        'onchange="togPagoNom('+e.id+',\''+sv+'\','+ap.toFixed(2)+',\''+String(e.nombre).replace(/'/g,'')+'\')">'+
-       (pg?'<span style="font-size:11px;color:var(--green);font-weight:700">pagado el '+pg.fecha+'</span>'
+       (pg?'<span style="font-size:11px;color:var(--green);font-weight:700">pagado el '+pg.fecha+
+            (pg.cuenta?'<br><span style="font-weight:400;color:var(--text3)">'+pg.cuenta+(pg.mov_id?' · 🔗 en Movimientos':'')+'</span>':'')+'</span>'
           :'<span style="font-size:11px;color:var(--text3)">pendiente</span>')+'</label></td>';
     h+='<td><button class="btn btn-s btn-xs" onclick="genReciboNom('+e.id+',\''+sv+'\','+ap.toFixed(2)+','+f+','+desc.toFixed(2)+')">Recibo</button></td></tr>';
   }
@@ -4582,7 +4666,7 @@ function verBitacoraNom(){
           suc:e?e.suc:'—',
           semIni:sem,
           semana:ini.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+' al '+fin.toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'}),
-          monto:p.monto||0,fecha:p.fecha||''});
+          monto:p.monto||0,fecha:p.fecha||'',cuenta:p.cuenta||'—',ligado:p.mov_id?'sí':'no'});
       });
     });
     filas.sort(function(a,b){return b.semIni.localeCompare(a.semIni)||a.nombre.localeCompare(b.nombre);});
@@ -4603,11 +4687,11 @@ function verBitacoraNom(){
       '<div class="sub">Impulso Galería · generada el '+new Date().toLocaleDateString("es-MX",{day:"numeric",month:"long",year:"numeric"})+'</div>'+
       '<button class="no" onclick="window.print()" style="margin-bottom:14px;padding:8px 14px;cursor:pointer">🖨️ Imprimir</button>'+
       (filas.length?
-        '<table><thead><tr><th>Empleado</th><th>Sucursal</th><th>Semana</th><th class="m">Pagado</th><th>Fecha de pago</th></tr></thead><tbody>'+
+        '<table><thead><tr><th>Empleado</th><th>Sucursal</th><th>Semana</th><th class="m">Pagado</th><th>Fecha de pago</th><th>Cuenta</th><th>En Movimientos</th></tr></thead><tbody>'+
         filas.map(function(x){return '<tr><td>'+x.nombre+'</td><td>'+x.suc+'</td><td>'+x.semana+'</td><td class="m">'+
-          x.monto.toLocaleString('es-MX',{style:'currency',currency:'MXN'})+'</td><td>'+x.fecha+'</td></tr>';}).join('')+
+          x.monto.toLocaleString('es-MX',{style:'currency',currency:'MXN'})+'</td><td>'+x.fecha+'</td><td>'+x.cuenta+'</td><td>'+x.ligado+'</td></tr>';}).join('')+
         '</tbody><tfoot><tr><td colspan="3">'+filas.length+' pagos registrados</td><td class="m">'+
-        tot.toLocaleString('es-MX',{style:'currency',currency:'MXN'})+'</td><td></td></tr></tfoot></table>'
+        tot.toLocaleString('es-MX',{style:'currency',currency:'MXN'})+'</td><td colspan="3"></td></tr></tfoot></table>'
         :'<p style="color:#888">Todavía no hay pagos palomeados. Marca la casilla ¿Pagado? de cada quien y aquí se va llenando.</p>')+
       '</body></html>');
     w.document.close();
