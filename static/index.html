@@ -3842,8 +3842,32 @@ function edoProcesar(deps,otrosAb){
     }
   });
   h+='</tbody></table>';
-  const libres=poolTar.filter(r=>!usados[r.k]);
-  if(libres.length)h+='<div style="margin-top:10px;font-size:12px"><b>⚪ Cobros con tarjeta que NINGÚN depósito reclamó ('+libres.length+' · '+fmt(libres.reduce((s,r)=>s+r.monto,0))+'):</b><div style="font-size:11.5px;color:var(--text2);margin-top:4px">'+libres.map(r=>r.fecha+' F.'+r.folio+' '+fmt(r.monto)).join(' · ')+'</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Posibles causas: el depósito llega en el siguiente corte del banco, el cobro se capturó con otro método, o falta en tu pegado.</div></div>';
+  // ── SOLO SE JUZGA EL PERIODO QUE SE PEGÓ ────────────────────────────────
+  // Antes se listaban TODOS los cobros de tarjeta sin reclamar, aunque fueran
+  // de semanas que ni venían en el pegado: pegar una semana se veía como
+  // desastre. Ahora lo de fuera del periodo se aparta y solo se cuenta.
+  const fDeps=deps.map(d=>d.fecha).filter(Boolean).sort();
+  const desde=fDeps[0],hasta=fDeps[fDeps.length-1];
+  // el depósito llega hasta 4 días después del cobro → el periodo de cobros
+  // arranca 4 días antes del primer depósito
+  const desdeCob=desde?dateStrLocal(new Date(new Date(desde+'T12:00').getTime()-4*86400000)):null;
+  const dentro=r=>!desde||(r.fecha>=desdeCob&&r.fecha<=hasta);
+
+  const libresTodos=poolTar.filter(r=>!usados[r.k]);
+  const libres=libresTodos.filter(dentro);
+  const fuera=libresTodos.filter(r=>!dentro(r));
+
+  if(desde){
+    const nOk=EDO_PROPS.length,nMal=deps.length-nOk;
+    h='<div style="margin-bottom:10px;padding:9px 13px;background:var(--surface2);border-radius:9px;font-size:12px">'+
+      '📆 Analizando <b>del '+desde+' al '+hasta+'</b> · '+deps.length+' depósito(s) pegados · '+
+      '<span style="color:var(--green);font-weight:700">'+nOk+' casan</span>'+
+      (nMal>0?' · <span style="color:#991B1B;font-weight:700">'+nMal+' no cuadran</span>':'')+
+      '<div style="font-size:11px;color:var(--text3);margin-top:2px">Solo se revisan los cobros de este periodo. Puedes pegar por semana sin problema.</div></div>'+h;
+  }
+
+  if(libres.length)h+='<div style="margin-top:10px;font-size:12px"><b>⚪ Cobros con tarjeta de este periodo que NINGÚN depósito reclamó ('+libres.length+' · '+fmt(libres.reduce((s,r)=>s+r.monto,0))+'):</b><div style="font-size:11.5px;color:var(--text2);margin-top:4px">'+libres.map(r=>r.fecha+' F.'+r.folio+' '+fmt(r.monto)).join(' · ')+'</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Posibles causas: el depósito llega en el siguiente corte del banco, el cobro se capturó con otro método, o falta en tu pegado.</div></div>';
+  if(fuera.length)h+='<div style="margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:9px;font-size:11.5px;color:var(--text2)">😌 Hay <b>'+fuera.length+'</b> cobro(s) con tarjeta por '+fmt(fuera.reduce((s,r)=>s+r.monto,0))+' <b>fuera</b> del periodo que pegaste — esos se revisan cuando pegues su semana, no son un problema de hoy. <a href="#" onclick="document.getElementById(\'edo-fuera\').style.display=\'block\';this.style.display=\'none\';return false;">ver cuáles</a><div id="edo-fuera" style="display:none;margin-top:5px;color:var(--text3)">'+fuera.map(r=>r.fecha+' F.'+r.folio+' '+fmt(r.monto)).join(' · ')+'</div></div>';
   if(otrosAb&&otrosAb.length)h+='<div style="margin-top:10px;font-size:11.5px;color:var(--text2)"><b>ℹ️ Otros abonos del banco (no son ventas — devoluciones, traspasos, intereses):</b> '+otrosAb.map(o=>o.fecha+' '+fmt(o.monto)+' '+o.det).join(' · ')+'</div>';
   const nOk=EDO_PROPS.length;
   h='<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:13px"><b>'+deps.length+' depósito(s) leídos · ✅ '+nOk+' casan · 🔴 '+(deps.length-nOk)+' no cuadran</b>'+(nOk?'<button class="btn btn-p btn-sm" style="margin-left:auto" onclick="edoAceptarTodos()">✓✓ Aceptar todos los que casan</button>':'')+'</div>'+h;
