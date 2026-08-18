@@ -480,6 +480,36 @@ def leer_edocta():
         texto = '\n'.join((p.extract_text() or '') for p in reader.pages)
     except Exception as e:
         return jsonify({'error': 'No pude leer el PDF: ' + str(e)}), 400
+    # ── FORMATO 2: "Detalle de movimientos" (se descarga por rango de días) ──
+    # Trae la fecha completa 17/08/2026 y el signo en el propio monto, en vez de
+    # "AGO. 17" con saldo corrido. Se detecta y se procesa aparte.
+    det_re = _re.compile(r'^(\d{2})/(\d{2})/(\d{4})\s+(.+?)\s+(\d{6,})\s+(-?[\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*$')
+    det_lineas = [l.strip() for l in texto.split('\n') if det_re.match(l.strip())]
+    if len(det_lineas) >= 5:
+        depositos, otros, n = [], [], 0
+        for lin in det_lineas:
+            g = det_re.match(lin)
+            dia, mes, anio_l = int(g.group(1)), int(g.group(2)), int(g.group(3))
+            concepto = g.group(4).strip()
+            ref = g.group(5)
+            monto = float(g.group(6).replace(',', ''))
+            n += 1
+            if monto <= 0:            # cargos (comisiones, transferencias enviadas)
+                continue
+            fecha = '%04d-%02d-%02d' % (anio_l, mes, dia)
+            cu = concepto.upper()
+            if cu.startswith('LIQUIDACION ADQUIRENTE'):
+                sub = 'AMEX' if 'AMEX' in cu else ('CREDITO' if 'CREDITO' in cu else 'DEBITO')
+                depositos.append({'fecha': fecha, 'monto': monto, 'tipo': 'terminal', 'det': sub, 'terminal': ref})
+            elif cu.startswith('DEPOSITO') or cu.startswith('TRASPASO DE ('):
+                depositos.append({'fecha': fecha, 'monto': monto, 'tipo': 'spei',
+                                  'det': concepto[:70], 'terminal': ref})
+            else:
+                otros.append({'fecha': fecha, 'monto': monto, 'det': concepto[:50] or 'abono'})
+        return jsonify({'depositos': depositos, 'otros_abonos': otros,
+                        'anio': anio_l if det_lineas else 2026, 'n_movs': n,
+                        'formato': 'detalle_movimientos'})
+
     m = _re.search(r'Del\s+\d{1,2}\s+\w+\.?\s+(\d{4})', texto)
     anio = int(m.group(1)) if m else 2026
     ini = _re.compile(r'^([A-Z]{3})\.?\s+(\d{1,2})\s+(\d{6,})\s+(.*)$')
