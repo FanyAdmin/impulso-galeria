@@ -479,6 +479,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-item" onclick="go('cxc')" id="nav-cxc">💰 Cuentas x cobrar</div>
   <div class="sb-item" onclick="go('dia')" id="nav-dia">📊 Mi día</div>
   <div class="sb-item" onclick="go('rev')" id="nav-rev">📸 Revisión de notas</div>
+  <div class="sb-item admin-only" style="display:none" onclick="go('cuadre')" id="nav-cuadre">🏦 Cuadre de banco</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('cob')" id="nav-cob">💵 Cobranza</div>
   <div class="sb-section">Catálogo</div>
   <div class="sb-item" onclick="go('cat')" id="nav-cat">🗂 Molduras</div>
@@ -741,6 +742,29 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     </div>
     <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-nom-pago')">Cancelar</button><button class="btn btn-p" onclick="confPagoNom()">✓ Registrar pago</button></div>
   </div>
+</div>
+
+<!-- CUADRE DE BANCO -->
+<div class="page" id="page-cuadre">
+  <div class="ph"><div>
+    <div class="ph-title">Cuadre de banco</div>
+    <div class="ph-sub">Sube el estado de cuenta y la plataforma encuentra sola lo que no coincide</div>
+  </div></div>
+
+  <div class="card" style="padding:18px;margin-bottom:14px">
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div class="field" style="margin:0;min-width:170px"><label>Cuenta</label><select id="cua-cta"></select></div>
+      <div class="field" style="margin:0;flex:1;min-width:230px"><label>PDF del banco</label>
+        <input type="file" id="cua-file" accept="application/pdf"></div>
+      <button class="btn btn-p" onclick="cuaAnalizar()">🔎 Cuadrar</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--text3);margin-top:9px">
+      Sirve el estado de cuenta mensual y el “Detalle de movimientos” por días. No se guarda el archivo.
+    </div>
+    <div id="cua-prog" style="display:none;margin-top:10px;font-size:12px;color:var(--text2)"></div>
+  </div>
+
+  <div id="cua-res"></div>
 </div>
 
 <!-- REVISIÓN DE NOTAS -->
@@ -1469,7 +1493,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:rDia,cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);},rev:rRev
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);},rev:rRev,cuadre:rCuadre
   })[id]?.();
 }
 
@@ -2435,6 +2459,217 @@ function revAbrirPedido(folio){
   if(i<0){alert('Ya no encuentro ese pedido.');return;}
   go('ped');
   setTimeout(()=>{if(typeof openEditPed==='function')openEditPed(i);},250);
+}
+
+// ═══ CUADRE DE BANCO ═══════════════════════════════════════════════════════
+// Compara movimiento por movimiento el PDF del banco contra lo capturado.
+// Distingue cuatro casos, que es lo que hace la diferencia entre "no cuadra"
+// y saber POR QUÉ no cuadra:
+//   ✅ coincide  ⏳ depósito en tránsito (cobrado hoy, el banco lo abona después)
+//   🏦 está en OTRA cuenta   🔴 no está en ningún lado
+var CUA=null;
+
+function rCuadre(){
+  var sel=document.getElementById('cua-cta');
+  if(sel&&!sel.options.length)
+    sel.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option'+(c==='INBURSA'?' selected':'')+'>'+c+'</option>';}).join('');
+}
+
+function cuaAnalizar(){
+  var f=document.getElementById('cua-file').files[0];
+  if(!f){alert('Elige primero el PDF del banco');return;}
+  var pr=document.getElementById('cua-prog');
+  pr.style.display='';pr.textContent='Leyendo el estado de cuenta…';
+  var fd=new FormData();fd.append('file',f);
+  fetch('/api/edocta',{method:'POST',credentials:'include',body:fd})
+    .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d;});})
+    .then(function(d){
+      if(!d.cargos){throw new Error('Este PDF se leyó con el formato viejo, que no trae los cargos.\nUsa el “Detalle de movimientos” que se descarga por días.');}
+      CUA=d;pr.style.display='none';pintaCuadre(d);
+    })
+    .catch(function(e){pr.style.display='none';alert('No se pudo leer: '+e.message);});
+}
+
+function pintaCuadre(d){
+  var cta=document.getElementById('cua-cta').value;
+  var $=fmt;
+  var desde=d.desde,hasta=d.hasta;
+  var dif=function(a,b){return Math.abs(new Date(a)-new Date(b))/86400000;};
+
+  // movimientos MÍOS del periodo
+  var mios=movs.filter(function(m){
+    var f=String(m.fecha||'').slice(0,10);
+    return f>=desde&&f<=hasta&&(m.cuenta===cta||m.cta_destino===cta);
+  }).map(function(m){return {m:m,usado:false};});
+  var miosOtros=movs.filter(function(m){
+    var f=String(m.fecha||'').slice(0,10);
+    return f>=desde&&f<=hasta&&m.cuenta!==cta&&m.cta_destino!==cta;
+  }).map(function(m){return {m:m,usado:false};});
+
+  var esSalida=function(m){return m.cuenta===cta&&(m.tipo==='Salida'||m.tipo==='Retiro'||m.tipo==='Traspaso');};
+  var esEntrada=function(m){return (m.cuenta===cta&&m.tipo==='Entrada')||(m.cta_destino===cta&&m.tipo==='Traspaso');};
+
+  function buscar(lista,monto,fecha,filtro,dias){
+    for(var i=0;i<lista.length;i++){
+      var x=lista[i];
+      if(x.usado)continue;
+      if(!filtro(x.m))continue;
+      if(Math.abs(x.m.monto-monto)>0.5)continue;
+      if(dif(String(x.m.fecha).slice(0,10),fecha)>dias)continue;
+      x.usado=true;return x.m;
+    }
+    return null;
+  }
+
+  // ── CARGOS del banco (salidas): sin retraso, deben estar el mismo día ─────
+  var cOK=[],cOtra=[],cFalta=[];
+  (d.cargos||[]).forEach(function(b){
+    if(buscar(mios,b.monto,b.fecha,esSalida,2)){cOK.push(b);return;}
+    var o=buscar(miosOtros,b.monto,b.fecha,function(){return true;},2);
+    if(o){cOtra.push({b:b,mio:o});return;}
+    cFalta.push(b);
+  });
+
+  // ── ABONOS del banco (entradas): pueden traer hasta 4 días de retraso ─────
+  var abonos=(d.depositos||[]).concat(d.otros_abonos||[]);
+  var aOK=[],aOtra=[],aFalta=[];
+  abonos.forEach(function(b){
+    if(buscar(mios,b.monto,b.fecha,esEntrada,5)){aOK.push(b);return;}
+    var o=buscar(miosOtros,b.monto,b.fecha,function(){return true;},5);
+    if(o){aOtra.push({b:b,mio:o});return;}
+    aFalta.push(b);
+  });
+
+  // ── lo MÍO que el banco nunca vio ────────────────────────────────────────
+  var sobranE=mios.filter(function(x){return !x.usado&&esEntrada(x.m);});
+  var sobranS=mios.filter(function(x){return !x.usado&&esSalida(x.m);});
+  var ultimos=function(m){return dif(String(m.fecha).slice(0,10),hasta)<=4;};
+  var transito=sobranE.filter(function(x){return ultimos(x.m);});
+  var fantasma=sobranE.filter(function(x){return !ultimos(x.m);});
+
+  // ── el número que importa ────────────────────────────────────────────────
+  var sal=saldoCta(cta),saldoYo=(BANCOS_INIT[cta]||0)+sal.e-sal.s;
+  var saldoBanco=d.saldo_final;
+  var brecha=saldoBanco!=null?(saldoYo-saldoBanco):null;
+  var faltaSal=cFalta.reduce(function(a,b){return a+b.monto;},0);
+  var faltaEnt=aFalta.reduce(function(a,b){return a+b.monto;},0);
+  var enTransito=transito.reduce(function(a,x){return a+x.m.monto;},0);
+  var fant=fantasma.reduce(function(a,x){return a+x.m.monto;},0);
+  var sobraSal=sobranS.reduce(function(a,x){return a+x.m.monto;},0);
+  var explicado=faltaSal-faltaEnt+enTransito+fant-sobraSal;
+
+  var tar=function(t,v,col,bg,sub){return '<div style="flex:1;min-width:150px;background:'+bg+';border-radius:12px;padding:12px 15px">'+
+    '<div style="font-size:10px;font-weight:800;color:'+col+';text-transform:uppercase;letter-spacing:.05em">'+t+'</div>'+
+    '<div class="mono" style="font-size:24px;font-weight:800;color:'+col+'">'+v+'</div>'+
+    (sub?'<div style="font-size:11px;color:'+col+';opacity:.85">'+sub+'</div>':'')+'</div>';};
+
+  var h='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'+
+    tar('Dice la plataforma',$(saldoYo),'#1F3864','#EEF2FA')+
+    tar('Dice el banco',saldoBanco!=null?$(saldoBanco):'—','#065F46','#ECFDF5')+
+    tar('Diferencia',brecha!=null?$(brecha):'—',Math.abs(brecha||0)<1?'#065F46':'#991B1B',Math.abs(brecha||0)<1?'#ECFDF5':'#FEF2F2')+
+    '</div>';
+
+  h+='<div class="card" style="padding:14px 16px;margin-bottom:14px">'+
+     '<div style="font-size:13px;font-weight:800;margin-bottom:8px">De dónde sale esa diferencia</div>'+
+     '<table class="tbl" style="width:100%"><tbody>'+
+     renCua('🔴 Salidas del banco que NO tienes capturadas',cFalta.length,faltaSal,'suben tu saldo de más')+
+     renCua('🔴 Entradas del banco que NO tienes capturadas',aFalta.length,-faltaEnt,'bajan tu saldo de más')+
+     renCua('⏳ Cobros tuyos que el banco aún no deposita',transito.length,enTransito,'normal, se acomoda en días')+
+     renCua('👻 Entradas tuyas que el banco nunca recibió',fantasma.length,fant,'revisar: ¿ingreso duplicado?')+
+     renCua('👻 Salidas tuyas que el banco nunca cobró',sobranS.length,-sobraSal,'revisar: ¿pago que no salió?')+
+     '<tr style="border-top:2px solid var(--border)"><td style="font-weight:800">Suma de lo anterior</td><td></td>'+
+     '<td class="mono" style="text-align:right;font-weight:800">'+$(explicado)+'</td><td style="font-size:11px;color:var(--text3)">'+
+     (brecha!=null&&Math.abs(explicado-brecha)<2?'✅ explica la diferencia completa':'quedan '+$((brecha||0)-explicado)+' de antes del periodo')+
+     '</td></tr></tbody></table></div>';
+
+  if(cFalta.length)h+=bloqueCua('🔴 Salidas del banco que no están en '+cta,cFalta,cta,'Salida');
+  if(aFalta.length)h+=bloqueCua('🔴 Entradas del banco que no están en '+cta,aFalta,cta,'Entrada');
+  if(cOtra.length||aOtra.length){
+    var mez=cOtra.concat(aOtra);
+    h+='<div class="card" style="padding:0;overflow:hidden;border-left:6px solid #B45309;margin-bottom:12px">'+
+      '<div style="padding:12px 16px;font-size:13px;font-weight:800;color:#92400E">🏦 Salieron o entraron a '+cta+', pero las capturaste en otra cuenta ('+mez.length+')</div>'+
+      '<div style="border-top:1px solid var(--border);padding:10px 16px"><table class="tbl" style="width:100%">'+
+      '<thead><tr><th>Fecha</th><th>Dice el banco</th><th style="text-align:right">Monto</th><th>Tu cuenta</th><th>Tu concepto</th></tr></thead><tbody>'+
+      mez.map(function(x){return '<tr><td>'+x.b.fecha+'</td><td>'+(x.b.det||x.b.tipo||'')+'</td><td class="mono" style="text-align:right">'+$(x.b.monto)+
+        '</td><td style="color:#991B1B;font-weight:700">'+(x.mio.cuenta||'')+'</td><td>'+(x.mio.concepto||'')+'</td></tr>';}).join('')+
+      '</tbody></table><div style="font-size:11.5px;color:var(--text3);margin-top:7px">Estas no se registran de nuevo: hay que <b>corregirles la cuenta</b> en Movimientos, o las contarías dos veces.</div></div></div>';
+  }
+  if(fantasma.length)h+=bloqueMios('👻 Entradas tuyas que el banco nunca recibió',fantasma,'#991B1B');
+  if(sobranS.length)h+=bloqueMios('👻 Salidas tuyas que el banco nunca cobró',sobranS,'#B45309');
+  if(transito.length)h+=bloqueMios('⏳ Cobros que el banco todavía no deposita (esto está bien)',transito,'#1D4ED8');
+
+  h+='<div style="font-size:11.5px;color:var(--text3);margin-top:10px">Periodo leído: '+desde+' al '+hasta+
+     ' · '+(d.cargos||[]).length+' cargos y '+abonos.length+' abonos del banco · '+mios.length+' movimientos tuyos.</div>';
+  document.getElementById('cua-res').innerHTML=h;
+}
+
+function renCua(t,n,monto,nota){
+  return '<tr><td style="font-weight:600">'+t+'</td><td style="color:var(--text3)">'+n+'</td>'+
+    '<td class="mono" style="text-align:right;font-weight:700">'+fmt(monto)+'</td>'+
+    '<td style="font-size:11px;color:var(--text3)">'+nota+'</td></tr>';
+}
+
+function bloqueCua(titulo,lista,cta,tipo){
+  var com=lista.filter(function(b){return b.comision;}),otros=lista.filter(function(b){return !b.comision;});
+  var h='<div class="card" style="padding:0;overflow:hidden;border-left:6px solid #991B1B;margin-bottom:12px">'+
+    '<div style="padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'+
+    '<span style="font-size:13px;font-weight:800;color:#991B1B">'+titulo+' ('+lista.length+')</span>'+
+    '<span style="flex:1"></span>';
+  if(com.length)h+='<button class="btn btn-s btn-sm" onclick="cuaRegistrarCom()">💸 Registrar las '+com.length+' comisiones en un solo movimiento</button>';
+  h+='</div><div style="border-top:1px solid var(--border);padding:10px 16px"><table class="tbl" style="width:100%">'+
+    '<thead><tr><th>Fecha</th><th>Concepto del banco</th><th style="text-align:right">Monto</th><th></th></tr></thead><tbody>'+
+    lista.map(function(b,i){return '<tr><td>'+b.fecha+'</td><td>'+(b.det||b.tipo||'')+(b.comision?' <span style="font-size:10px;background:var(--surface2);border-radius:5px;padding:1px 6px">comisión</span>':'')+
+      '</td><td class="mono" style="text-align:right">'+fmt(b.monto)+'</td>'+
+      '<td><button class="btn btn-s btn-xs" onclick="cuaRegistrar(\''+tipo+'\',\''+b.fecha+'\','+b.monto+',\''+String(b.det||'').replace(/'/g,'')+'\')">Registrar</button></td></tr>';}).join('')+
+    '</tbody></table>';
+  if(otros.length&&com.length)h+='<div style="font-size:11.5px;color:var(--text3);margin-top:7px">Las '+otros.length+' que no son comisión son pagos reales: revisa cada una antes de registrarla.</div>';
+  return h+'</div></div>';
+}
+
+function bloqueMios(titulo,lista,color){
+  return '<div class="card" style="padding:0;overflow:hidden;border-left:6px solid '+color+';margin-bottom:12px">'+
+    '<div style="padding:12px 16px;font-size:13px;font-weight:800;color:'+color+'">'+titulo+' ('+lista.length+')</div>'+
+    '<div style="border-top:1px solid var(--border);padding:10px 16px"><table class="tbl" style="width:100%">'+
+    '<thead><tr><th>Fecha</th><th>Concepto</th><th>Descripción</th><th style="text-align:right">Monto</th></tr></thead><tbody>'+
+    lista.map(function(x){return '<tr><td>'+String(x.m.fecha).slice(0,10)+'</td><td>'+(x.m.concepto||'')+'</td><td>'+
+      (x.m.desc||'')+'</td><td class="mono" style="text-align:right">'+fmt(x.m.monto)+'</td></tr>';}).join('')+
+    '</tbody></table></div></div>';
+}
+
+// Registrar UNA salida/entrada faltante
+function cuaRegistrar(tipo,fecha,monto,desc){
+  var cta=document.getElementById('cua-cta').value;
+  if(!confirm('¿Registrar en '+cta+' una '+tipo+' del '+fecha+' por '+fmt(monto)+'?\n\n'+desc))return;
+  var mv={tipo:tipo,concepto:tipo==='Salida'?'Comisiones bancarias':'Otros ingresos',desc:desc,
+          cuenta:cta,cta_destino:'',monto:monto,fecha:fecha,mes:parseInt(fecha.split('-')[1],10)-1};
+  fetch('/api/movimientos',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(d){movs.unshift(d);pintaCuadre(CUA);})
+  .catch(function(e){alert('No se pudo registrar: '+e.message);});
+}
+
+// Registrar TODAS las comisiones del periodo en un solo movimiento
+function cuaRegistrarCom(){
+  var cta=document.getElementById('cua-cta').value;
+  var com=(CUA.cargos||[]).filter(function(b){return b.comision;});
+  // recalcular cuáles siguen faltando
+  var faltan=com.filter(function(b){
+    return !movs.some(function(m){return m.cuenta===cta&&(m.tipo==='Salida')&&Math.abs(m.monto-b.monto)<0.5&&
+      String(m.fecha||'').slice(0,10)===b.fecha;});
+  });
+  var tot=faltan.reduce(function(a,b){return a+b.monto;},0);
+  if(!tot){alert('Ya no falta ninguna comisión.');return;}
+  var f=faltan[faltan.length-1].fecha;
+  if(!confirm('Se va a registrar UNA salida de '+fmt(tot)+' en '+cta+'\ncon fecha '+f+', juntando '+faltan.length+' comisiones del banco.\n\n¿Continuar?'))return;
+  var mv={tipo:'Salida',concepto:'Comisiones bancarias',
+          desc:'Comisiones de terminal, cuotas e IVA del '+CUA.desde+' al '+CUA.hasta+' ('+faltan.length+' cargos)',
+          cuenta:cta,cta_destino:'',monto:Math.round(tot*100)/100,fecha:f,mes:parseInt(f.split('-')[1],10)-1};
+  fetch('/api/movimientos',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(d){movs.unshift(d);alert('Listo. Ojo: la comparación de abajo va a seguir marcando los cargos uno por uno, porque los juntaste en uno solo.');pintaCuadre(CUA);})
+  .catch(function(e){alert('No se pudo registrar: '+e.message);});
 }
 
 function rOrd(){
