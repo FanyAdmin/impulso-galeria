@@ -486,7 +486,7 @@ def leer_edocta():
     det_re = _re.compile(r'^(\d{2})/(\d{2})/(\d{4})\s+(.+?)\s+(\d{6,})\s+(-?[\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*$')
     det_lineas = [l.strip() for l in texto.split('\n') if det_re.match(l.strip())]
     if len(det_lineas) >= 5:
-        depositos, otros, n = [], [], 0
+        depositos, otros, cargos, n = [], [], [], 0
         for lin in det_lineas:
             g = det_re.match(lin)
             dia, mes, anio_l = int(g.group(1)), int(g.group(2)), int(g.group(3))
@@ -494,7 +494,17 @@ def leer_edocta():
             ref = g.group(5)
             monto = float(g.group(6).replace(',', ''))
             n += 1
-            if monto <= 0:            # cargos (comisiones, transferencias enviadas)
+            if monto <= 0:            # cargos: comisiones, transferencias enviadas, TDC
+                cu2 = concepto.upper()
+                # comision del banco = lo que cobra por operar, NO los pagos que ella hace.
+                # Ojo: "TRANSFERENCIA - ENVIO - SPEI" es la comision de $4.50;
+                # "TRANSFERENCIA SPEI" a secas es la transferencia de verdad.
+                es_com = ('TASA DE DESCTO' in cu2 or 'TASA DESCUENTO' in cu2
+                          or 'CUOTA MENSUAL' in cu2 or cu2.startswith('IVA')
+                          or 'TRANSFERENCIA - ENVIO' in cu2)
+                cargos.append({'fecha': '%04d-%02d-%02d' % (anio_l, mes, dia),
+                               'monto': round(-monto, 2), 'det': concepto[:70],
+                               'ref': ref, 'comision': es_com})
                 continue
             fecha = '%04d-%02d-%02d' % (anio_l, mes, dia)
             cu = concepto.upper()
@@ -506,8 +516,18 @@ def leer_edocta():
                                   'det': concepto[:70], 'terminal': ref})
             else:
                 otros.append({'fecha': fecha, 'monto': monto, 'det': concepto[:50] or 'abono'})
-        return jsonify({'depositos': depositos, 'otros_abonos': otros,
+        msaldo = _re.search(r'Saldo\s+Saldo disponible', texto)
+        sfin = None
+        msf = _re.search(r'([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+0\s+0', texto)
+        if msf:
+            try: sfin = float(msf.group(1).replace(',', ''))
+            except Exception: sfin = None
+        fechas_ok = sorted(d['fecha'] for d in depositos + cargos if d.get('fecha'))
+        return jsonify({'depositos': depositos, 'otros_abonos': otros, 'cargos': cargos,
                         'anio': anio_l if det_lineas else 2026, 'n_movs': n,
+                        'saldo_final': sfin,
+                        'desde': fechas_ok[0] if fechas_ok else None,
+                        'hasta': fechas_ok[-1] if fechas_ok else None,
                         'formato': 'detalle_movimientos'})
 
     m = _re.search(r'Del\s+\d{1,2}\s+\w+\.?\s+(\d{4})', texto)
