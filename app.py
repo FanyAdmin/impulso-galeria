@@ -1226,6 +1226,75 @@ def del_revnota(rid):
         db.session.delete(r); db.session.commit()
     return jsonify({'ok': True})
 
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SEGUIMIENTO DE PEDIDOS A PROVEEDOR  ·  la hoja que Ana y Estefania llenan
+# ───────────────────────────────────────────────────────────────────────────────
+# Una fila POR FACTURA, no por pedido: Servimarco manda dos facturas de un mismo
+# pedido y eso rompia cualquier estructura de una-a-una. La fila nace sola con la
+# orden de compra (fecha y numero ya los sabe la plataforma) y ellas completan
+# factura, monto y pagos. Vencimiento, saldo, atraso y estatus se calculan solos.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class FacProv(db.Model):
+    __tablename__ = 'fac_prov'
+    id          = db.Column(db.Integer, primary_key=True)
+    oc          = db.Column(db.String(20))     # OC-0036 (o vacio si es manual)
+    prov        = db.Column(db.String(60))
+    fecha_ped   = db.Column(db.String(20))     # cuando se pidio
+    factura     = db.Column(db.String(40))
+    fecha_fac   = db.Column(db.String(20))
+    venc        = db.Column(db.String(20))     # se calcula, pero editable
+    monto       = db.Column(db.Float, default=0)
+    abonado     = db.Column(db.Float, default=0)
+    fecha_pago  = db.Column(db.String(20))
+    mov_id      = db.Column(db.Integer)        # salida ligada en Movimientos
+    nota        = db.Column(db.String(200))
+
+def fp_dict(f):
+    return {'id':f.id,'oc':f.oc or '','prov':f.prov or '','fecha_ped':f.fecha_ped or '',
+            'factura':f.factura or '','fecha_fac':f.fecha_fac or '','venc':f.venc or '',
+            'monto':f.monto or 0,'abonado':f.abonado or 0,'fecha_pago':f.fecha_pago or '',
+            'mov_id':f.mov_id,'nota':f.nota or ''}
+
+@app.route('/api/facprov', methods=['GET'])
+@requiere_login
+def get_facprov():
+    q = FacProv.query
+    prov = request.args.get('prov')
+    if prov: q = q.filter(FacProv.prov == prov)
+    return jsonify([fp_dict(f) for f in q.order_by(FacProv.id.desc()).limit(800).all()])
+
+@app.route('/api/facprov', methods=['POST'])
+@requiere_admin
+def post_facprov():
+    d = request.json or {}
+    f = FacProv(oc=d.get('oc',''), prov=d.get('prov',''), fecha_ped=d.get('fecha_ped',''),
+                factura=d.get('factura',''), fecha_fac=d.get('fecha_fac',''),
+                venc=d.get('venc',''), monto=d.get('monto',0) or 0,
+                abonado=d.get('abonado',0) or 0, fecha_pago=d.get('fecha_pago',''),
+                mov_id=d.get('mov_id'), nota=d.get('nota',''))
+    db.session.add(f); db.session.commit()
+    return jsonify(fp_dict(f))
+
+@app.route('/api/facprov/<int:fid>', methods=['PUT'])
+@requiere_admin
+def put_facprov(fid):
+    f = FacProv.query.get_or_404(fid)
+    d = request.json or {}
+    for c in ['oc','prov','fecha_ped','factura','fecha_fac','venc','monto','abonado','fecha_pago','mov_id','nota']:
+        if c in d: setattr(f, c, d[c])
+    db.session.commit()
+    return jsonify(fp_dict(f))
+
+@app.route('/api/facprov/<int:fid>', methods=['DELETE'])
+@requiere_admin
+def del_facprov(fid):
+    f = FacProv.query.get(fid)
+    if f: db.session.delete(f); db.session.commit()
+    return jsonify({'ok': True})
+
 with app.app_context():
     db.create_all()
     migrar_columnas()
