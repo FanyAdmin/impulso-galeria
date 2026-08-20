@@ -478,23 +478,23 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-item" onclick="go('pend');rPend()" id="nav-pend">📌 Pendientes</div>
   <div class="sb-item" onclick="go('cxc')" id="nav-cxc">💰 Cuentas x cobrar</div>
   <div class="sb-item" onclick="go('dia')" id="nav-dia">📊 Mi día</div>
-  <div class="sb-item" onclick="go('rev')" id="nav-rev">📸 Revisión de notas</div>
-  <div class="sb-item admin-only" style="display:none" onclick="go('cuadre')" id="nav-cuadre">🏦 Cuadre de banco</div>
+  <div class="sb-item owner-only" style="display:none" onclick="go('rev')" id="nav-rev">📸 Revisión de notas</div>
+  <div class="sb-item owner-only" style="display:none" onclick="go('cuadre')" id="nav-cuadre">🏦 Cuadre de banco</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('cob')" id="nav-cob">💵 Cobranza</div>
   <div class="sb-section">Catálogo</div>
   <div class="sb-item" onclick="go('cat')" id="nav-cat">🗂 Molduras</div>
   <div class="sb-section admin-only" style="display:none">Admin</div>
-  <div class="sb-item admin-only" style="display:none" onclick="go('dash')" id="nav-dash">📈 Dashboard</div>
+  <div class="sb-item owner-only" style="display:none"  onclick="go('dash')" id="nav-dash">📈 Dashboard</div>
   <div class="sb-item" onclick="go('ord')" id="nav-ord">🛒 Órdenes de compra</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('mov')" id="nav-mov">🔄 Movimientos</div>
-  <div class="sb-item admin-only" style="display:none" onclick="go('cxp')" id="nav-cxp">📤 Cuentas x pagar</div>
+  <div class="sb-item owner-only" style="display:none"  onclick="go('cxp')" id="nav-cxp">📤 Cuentas x pagar</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('er')" id="nav-er">📉 Estado de resultados</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('ban')" id="nav-ban">🏦 Bancos</div>
   <div class="sb-sec admin-only" style="display:none">Recursos Humanos</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('rh')" id="nav-rh">👥 Empleados</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('asist')" id="nav-asist">📅 Asistencias</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('nom')" id="nav-nom">💵 Nomina semanal</div>
-  <div class="sb-item admin-only" style="display:none" onclick="go('lft')" id="nav-lft">🧮 Calculadora LFT</div>
+  <div class="sb-item owner-only" style="display:none"  onclick="go('lft')" id="nav-lft">🧮 Calculadora LFT</div>
   <div class="sb-item admin-only" onclick="go('vip');rVIP()" id="nav-vip">⭐ Clientes VIP</div>
   <div class="sb-sec admin-only" style="display:none">Config</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('vends')" id="nav-vends">🏷 Vendedores</div>
@@ -1493,6 +1493,8 @@ function doLogin(){
     // Restaurar TODO el menú antes de aplicar reglas del rol (evita heredar el menú de la sesión anterior)
     document.querySelectorAll('.sb-item,.sb-sec,.sb-section').forEach(el=>{if(!el.classList.contains('admin-only')&&!el.classList.contains('owner-only'))el.style.display='';});
     document.querySelectorAll('.admin-only').forEach(el=>el.style.display=(u.role==='admin'||u.role==='owner')?'':'none');
+    // owner-only: cosas que Estefania sí ve y admin no
+    document.querySelectorAll('.owner-only').forEach(el=>el.style.display=(u.role==='owner')?'':'none');
     document.querySelectorAll('.owner-only').forEach(el=>el.style.display=u.role==='owner'?'':'none');
     if(u.role==='taller'){
       // Taller solo ve Pendientes y Órdenes de compra (con Seguimiento)
