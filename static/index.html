@@ -909,6 +909,36 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 </div>
 <div class="page" id="page-cxp">
   <div class="ph"><div><div class="ph-title">📤 Cuentas por Pagar</div><div class="ph-sub">Facturas de proveedores: pendientes hasta que registres su pago — y el movimiento de salida se crea solo</div></div></div>
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <div class="chip active" id="chip-cxp-hoja" onclick="cxpVista('hoja',this)">📋 Seguimiento de pedidos</div>
+    <div class="chip" id="chip-cxp-suelta" onclick="cxpVista('suelta',this)">📄 Facturas sueltas</div>
+  </div>
+
+  <!-- ── HOJA DE SEGUIMIENTO ─────────────────────────────────────────── -->
+  <div id="cxp-hoja">
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+      <div class="field" style="margin:0;min-width:170px"><label>Proveedor</label><select id="fp-prov" onchange="rFP()"></select></div>
+      <div class="field" style="margin:0;min-width:110px"><label>Días de crédito</label><input type="number" id="fp-dias" value="30" style="width:90px" onchange="rFP()"></div>
+      <button class="btn btn-s" onclick="fpTraerOC()">⬇️ Traer pedidos que faltan</button>
+      <button class="btn btn-s" onclick="fpNueva()">➕ Fila en blanco</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-s" onclick="fpExcel()">📊 Excel</button>
+    </div>
+    <div id="fp-met" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div class="tw" style="max-height:65vh;overflow:auto"><table class="tbl" id="fp-tbl">
+      <thead><tr>
+        <th>Fecha pedido</th><th>Pedido</th><th>Factura</th><th>Fecha factura</th>
+        <th>Vence</th><th style="text-align:right">Monto</th><th style="text-align:right">Abonado</th>
+        <th style="text-align:right">Pendiente</th><th style="text-align:center">Atraso</th>
+        <th>Estatus</th><th>Fecha de pago</th><th></th>
+      </tr></thead><tbody id="fp-body"></tbody></table></div>
+    <div style="font-size:11.5px;color:var(--text3);margin-top:8px">
+      Escribe directo en las celdas blancas y se guarda al salir de la celda. El vencimiento se calcula
+      con los días de crédito a partir de la fecha de la factura; si lo escribes a mano, respeta el tuyo.
+    </div>
+  </div>
+
+  <div id="cxp-suelta" style="display:none">
   <div class="metrics" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:1rem">
     <div class="metric" style="flex:1;min-width:170px;border-left:3px solid #B91C1C"><div class="m-label">⏳ Total pendiente</div><div class="m-val" id="cxp-pend">$0</div><div style="font-size:10px;color:var(--text3)" id="cxp-pend-n"></div></div>
     <div class="metric" style="flex:1;min-width:170px;border-left:3px solid #F59E0B"><div class="m-label">🔥 Vencidas / vencen en 7 días</div><div class="m-val" id="cxp-urg">$0</div><div style="font-size:10px;color:var(--text3)" id="cxp-urg-n"></div></div>
@@ -934,6 +964,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <span id="cxp-res" style="font-size:11px;color:var(--text3)"></span>
   </div>
   <div class="card" style="padding:0;overflow:hidden"><div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Proveedor</th><th>Factura</th><th>Concepto</th><th style="text-align:right">Monto</th><th>Vence</th><th>Estatus</th><th></th></tr></thead><tbody id="cxp-body"></tbody></table></div></div>
+  </div>
 </div>
 <div class="modal-bg" id="mod-cxp-pago" style="display:none">
   <div class="modal" style="max-width:440px">
@@ -1493,7 +1524,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:rDia,cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);},rev:rRev,cuadre:rCuadre
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},rev:rRev,cuadre:rCuadre
   })[id]?.();
 }
 
@@ -2670,6 +2701,210 @@ function cuaRegistrarCom(){
   .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
   .then(function(d){movs.unshift(d);alert('Listo. Ojo: la comparación de abajo va a seguir marcando los cargos uno por uno, porque los juntaste en uno solo.');pintaCuadre(CUA);})
   .catch(function(e){alert('No se pudo registrar: '+e.message);});
+}
+
+// ═══ SEGUIMIENTO DE PEDIDOS A PROVEEDOR ════════════════════════════════════
+// La hoja que se llena, no un reporte. Una fila POR FACTURA (un pedido puede
+// traer dos). Nace de la orden de compra y ellas completan lo demás.
+var FP=[];
+
+function cxpVista(t,el){
+  document.querySelectorAll('#chip-cxp-hoja,#chip-cxp-suelta').forEach(function(c){c.classList.remove('active');});
+  if(el)el.classList.add('active');
+  document.getElementById('cxp-hoja').style.display=t==='hoja'?'':'none';
+  document.getElementById('cxp-suelta').style.display=t==='suelta'?'':'none';
+  if(t==='hoja')cargarFP();
+}
+
+function cargarFP(){
+  var sel=document.getElementById('fp-prov');
+  if(sel&&!sel.options.length)
+    sel.innerHTML=Object.keys(PROVS).map(function(p){return '<option value="'+p+'"'+(p==='SM'?' selected':'')+'>'+PROVS[p]+'</option>';}).join('');
+  fetch('/api/facprov',{credentials:'include'}).then(function(r){return r.json();})
+    .then(function(d){FP=d||[];rFP();}).catch(function(){FP=[];rFP();});
+}
+
+function fpDias(){return parseInt(document.getElementById('fp-dias').value,10)||30;}
+function fpProv(){return document.getElementById('fp-prov').value;}
+function fpVence(f){
+  if(!f.venc&&f.fecha_fac){
+    var d=new Date(f.fecha_fac+'T12:00:00');d.setDate(d.getDate()+fpDias());
+    return dateStrLocal(d);
+  }
+  return f.venc||'';
+}
+function fpAtraso(f){
+  var v=fpVence(f),pend=(f.monto||0)-(f.abonado||0);
+  if(!v||pend<=0.5)return 0;
+  return Math.floor((new Date().setHours(12,0,0,0)-new Date(v+'T12:00:00'))/86400000);
+}
+
+function rFP(){
+  var body=document.getElementById('fp-body');if(!body)return;
+  var prov=fpProv();
+  var lista=FP.filter(function(f){return f.prov===prov;})
+    .sort(function(a,b){return (b.fecha_ped||'').localeCompare(a.fecha_ped||'')||b.id-a.id;});
+  if(!lista.length){
+    body.innerHTML='<tr><td colspan="12" class="tbl-empty">Sin pedidos de '+(PROVS[prov]||prov)+
+      '. Usa “⬇️ Traer pedidos que faltan” para bajar las órdenes de compra ya hechas.</td></tr>';
+    document.getElementById('fp-met').innerHTML='';return;
+  }
+  var totM=0,totP=0,venc=0,sinFac=0;
+  body.innerHTML=lista.map(function(f){
+    var pend=Math.round(((f.monto||0)-(f.abonado||0))*100)/100;
+    var at=fpAtraso(f), v=fpVence(f);
+    var pagada=(f.monto||0)>0&&pend<=0.5;
+    totM+=f.monto||0; if(!pagada)totP+=pend;
+    if(at>0)venc+=pend;
+    if(!f.factura)sinFac++;
+    var bg=!f.factura?'background:#F8FAFC'
+      :pagada?'background:#F0FDF4'
+      :at>0?'background:#FEF2F2'
+      :(v&&(new Date(v+'T12:00:00')-new Date())/86400000<=7)?'background:#FFFBEB':'';
+    var ed=function(campo,val,tipo,ancho){
+      return '<td><input value="'+(val||'')+'" '+(tipo?'type="'+tipo+'"':'')+
+        ' onchange="fpSet('+f.id+',\''+campo+'\',this.value)" '+
+        'style="width:'+(ancho||90)+'px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;background:#fff"></td>';
+    };
+    return '<tr style="'+bg+'">'+
+      '<td style="font-size:12px;color:var(--text2)">'+(f.fecha_ped||'—')+'</td>'+
+      '<td style="font-size:12px;font-weight:700">'+(f.oc||'—')+'</td>'+
+      ed('factura',f.factura,'',100)+
+      ed('fecha_fac',f.fecha_fac,'date',125)+
+      '<td style="font-size:12px;font-weight:600;color:'+(at>0?'#991B1B':'var(--text2)')+'">'+(v||'—')+'</td>'+
+      ed('monto',f.monto||'','number',95)+
+      ed('abonado',f.abonado||'','number',95)+
+      '<td class="mono" style="text-align:right;font-weight:700">'+(pagada?'—':fmt(pend))+'</td>'+
+      '<td style="text-align:center">'+(at>0?'<span style="background:#FEE2E2;color:#991B1B;border-radius:99px;padding:2px 8px;font-size:11px;font-weight:800">'+at+'</span>':'<span style="color:var(--text3)">0</span>')+'</td>'+
+      '<td>'+(!f.factura?'<span style="font-size:11px;color:var(--text3)">falta factura</span>'
+        :pagada?'<span style="font-size:11px;font-weight:800;color:var(--green)">PAGADO</span>'
+        :at>0?'<span style="font-size:11px;font-weight:800;color:#991B1B">VENCIDA</span>'
+        :'<span style="font-size:11px;font-weight:700;color:#B45309">por pagar</span>')+'</td>'+
+      ed('fecha_pago',f.fecha_pago,'date',125)+
+      '<td style="white-space:nowrap">'+
+        (!pagada&&(f.monto||0)>0?'<button class="btn btn-s btn-xs" onclick="fpPagar('+f.id+')">💸 Pagar</button> ':'')+
+        '<button class="btn btn-s btn-xs" onclick="fpOtra('+f.id+')" title="Otra factura del mismo pedido">➕</button> '+
+        '<button class="btn btn-d btn-xs" onclick="fpBorrar('+f.id+')">🗑</button></td>'+
+      '</tr>';
+  }).join('');
+
+  var t=function(l,v,c,bg,sub){return '<div style="flex:1;min-width:140px;background:'+bg+';border-radius:11px;padding:11px 14px">'+
+    '<div style="font-size:10px;font-weight:800;color:'+c+';text-transform:uppercase;letter-spacing:.05em">'+l+'</div>'+
+    '<div class="mono" style="font-size:22px;font-weight:800;color:'+c+'">'+v+'</div>'+
+    (sub?'<div style="font-size:11px;color:'+c+';opacity:.8">'+sub+'</div>':'')+'</div>';};
+  document.getElementById('fp-met').innerHTML=
+    t('Por pagar',fmt(totP),'#B45309','#FFFBEB',lista.length+' facturas')+
+    t('Vencido',fmt(venc),'#991B1B','#FEF2F2','')+
+    t('Facturado total',fmt(totM),'#1F3864','#EEF2FA','')+
+    t('Sin factura aún',sinFac,'#4B5563','#F3F4F6','pedidos por capturar');
+}
+
+// Guardar una celda al salir de ella
+function fpSet(id,campo,val){
+  var f=FP.find(function(x){return x.id===id;});if(!f)return;
+  var v=(campo==='monto'||campo==='abonado')?(parseFloat(val)||0):val;
+  var body={};body[campo]=v;
+  // al poner la fecha de la factura, calcular el vencimiento y dejarlo fijo
+  if(campo==='fecha_fac'&&v&&!f.venc){
+    var d=new Date(v+'T12:00:00');d.setDate(d.getDate()+fpDias());
+    body.venc=dateStrLocal(d);
+  }
+  fetch('/api/facprov/'+id,{method:'PUT',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(d){var i=FP.findIndex(function(x){return x.id===id;});if(i>=0)FP[i]=d;rFP();})
+  .catch(function(e){alert('No se guardó: '+e.message);rFP();});
+}
+
+// Bajar las órdenes de compra que aún no tienen fila
+function fpTraerOC(){
+  var prov=fpProv();
+  var yaOC={};FP.forEach(function(f){if(f.oc)yaOC[f.oc]=true;});
+  var nuevas=(ORDENES||[]).filter(function(o){
+    return (o.prov===prov||o.proveedor===prov)&&o.oc&&!yaOC[o.oc];
+  });
+  if(!nuevas.length){alert('No hay pedidos nuevos de '+(PROVS[prov]||prov)+' sin fila.');return;}
+  if(!confirm('Se van a agregar '+nuevas.length+' pedido(s) de '+(PROVS[prov]||prov)+
+              ' a la hoja, con su fecha y número.\nLa factura y el monto los pones tú.\n\n¿Continuar?'))return;
+  var hechas=0;
+  (function sig(i){
+    if(i>=nuevas.length){cargarFP();alert('Listo: '+hechas+' pedido(s) agregados.');return;}
+    var o=nuevas[i];
+    fetch('/api/facprov',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({oc:o.oc,prov:prov,fecha_ped:String(o.fecha||'').slice(0,10)})})
+      .then(function(){hechas++;}).catch(function(){}).then(function(){sig(i+1);});
+  })(0);
+}
+
+function fpNueva(){
+  fetch('/api/facprov',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({prov:fpProv(),fecha_ped:todayStr()})})
+  .then(function(r){return r.json();}).then(function(d){FP.unshift(d);rFP();})
+  .catch(function(e){alert('No se pudo: '+e.message);});
+}
+
+// Otra factura del MISMO pedido (Servimarco parte los pedidos)
+function fpOtra(id){
+  var f=FP.find(function(x){return x.id===id;});if(!f)return;
+  fetch('/api/facprov',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({oc:f.oc,prov:f.prov,fecha_ped:f.fecha_ped})})
+  .then(function(r){return r.json();}).then(function(d){FP.unshift(d);rFP();})
+  .catch(function(e){alert('No se pudo: '+e.message);});
+}
+
+function fpBorrar(id){
+  var f=FP.find(function(x){return x.id===id;});if(!f)return;
+  if(!confirm('¿Borrar la fila del pedido '+(f.oc||'')+(f.factura?' · factura '+f.factura:'')+'?'))return;
+  fetch('/api/facprov/'+id,{method:'DELETE',credentials:'include'})
+    .then(function(){FP=FP.filter(function(x){return x.id!==id;});rFP();});
+}
+
+// Pagar: crea la salida en Movimientos y la liga, como ya hace CxP
+function fpPagar(id){
+  var f=FP.find(function(x){return x.id===id;});if(!f)return;
+  var pend=Math.round(((f.monto||0)-(f.abonado||0))*100)/100;
+  var monto=parseFloat(prompt('¿Cuánto le vas a pagar a '+(PROVS[f.prov]||f.prov)+
+    ' de la factura '+(f.factura||'(sin número)')+'?\nPendiente: '+fmt(pend),pend.toFixed(2)));
+  if(!monto)return;
+  var cta=prompt('¿De qué cuenta sale?\n('+Object.keys(BANCOS_INIT).join(' · ')+')','INBURSA');
+  if(!cta||!BANCOS_INIT.hasOwnProperty(cta)){if(cta)alert('Esa cuenta no existe.');return;}
+  var fecha=prompt('¿Qué día se pagó?',todayStr());if(!fecha)return;
+  var mv={tipo:'Salida',concepto:'Molduras',
+          desc:'Pago '+(PROVS[f.prov]||f.prov)+' factura '+(f.factura||'')+(f.oc?' · '+f.oc:''),
+          cuenta:cta,cta_destino:'',monto:monto,fecha:fecha,mes:parseInt(fecha.split('-')[1],10)-1};
+  fetch('/api/movimientos',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(mvSrv){
+    if(mvSrv&&mvSrv.id)movs.unshift(mvSrv);
+    var ab=Math.round(((f.abonado||0)+monto)*100)/100;
+    return fetch('/api/facprov/'+id,{method:'PUT',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({abonado:ab,fecha_pago:fecha,mov_id:(mvSrv&&mvSrv.id)||null})});
+  })
+  .then(function(r){return r.json();})
+  .then(function(d){var i=FP.findIndex(function(x){return x.id===id;});if(i>=0)FP[i]=d;rFP();
+    if(typeof logActivity==='function')logActivity('Pagó a proveedor',(PROVS[f.prov]||f.prov)+' '+fmt(monto));})
+  .catch(function(e){alert('⚠️ '+e.message);});
+}
+
+function fpExcel(){
+  var prov=fpProv();
+  var lista=FP.filter(function(f){return f.prov===prov;});
+  var cab=['Fecha pedido','Pedido','Factura','Fecha factura','Vence','Monto','Abonado','Pendiente','Atraso','Estatus','Fecha de pago'];
+  var filas=lista.map(function(f){
+    var pend=(f.monto||0)-(f.abonado||0),at=fpAtraso(f);
+    return [f.fecha_ped,f.oc,f.factura,f.fecha_fac,fpVence(f),f.monto||0,f.abonado||0,
+            Math.round(pend*100)/100,at,
+            !f.factura?'falta factura':(pend<=0.5&&(f.monto||0)>0?'PAGADO':(at>0?'VENCIDA':'por pagar')),
+            f.fecha_pago];
+  });
+  var csv=[cab].concat(filas).map(function(r){return r.map(function(c){
+    return '"'+String(c==null?'':c).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,\ufeff'+encodeURIComponent(csv);
+  a.download='pedidos-'+(PROVS[prov]||prov).replace(/ /g,'-')+'-'+todayStr()+'.csv';
+  a.click();
 }
 
 function rOrd(){
