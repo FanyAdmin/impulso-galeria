@@ -1156,7 +1156,7 @@ def leer_nota():
 
     payload = {
         'model': 'claude-sonnet-5',
-        'max_tokens': 1500,
+        'max_tokens': 900,
         'messages': [{'role': 'user', 'content': [
             {'type': 'image', 'source': {'type': 'base64', 'media_type': media,
                                          'data': base64.b64encode(raw).decode()}},
@@ -1169,7 +1169,7 @@ def leer_nota():
         headers={'content-type': 'application/json', 'x-api-key': api_key,
                  'anthropic-version': '2023-06-01'})
     try:
-        with urllib.request.urlopen(req, timeout=90) as r:
+        with urllib.request.urlopen(req, timeout=60) as r:
             data = json.loads(r.read().decode('utf-8'))
     except urllib.error.HTTPError as e:
         try: det = e.read().decode('utf-8')[:300]
