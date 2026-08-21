@@ -40,7 +40,8 @@ class Pedido(db.Model):
     rest       = db.Column(db.Float, default=0)
     obs        = db.Column(db.String(300))
     est        = db.Column(db.String(30), default='Pendiente')
-    entrega    = db.Column(db.String(20))
+    entrega    = db.Column(db.String(20))   # la PROMETIDA al cliente
+    entrega_real = db.Column(db.String(20)) # cuando se entrego de verdad
     taller_est = db.Column(db.String(30))
     casillero  = db.Column(db.String(30))
     factura_num = db.Column(db.String(30))
@@ -356,7 +357,7 @@ def crear_pedido():
 def actualizar_pedido(pid):
     p = Pedido.query.get_or_404(pid)
     d = request.json or {}
-    for campo in ['folio','tipo_venta','tipo_prod','cli','tel','suc','vend','fecha','mes','sub','total','met','ant','rest','obs','est','entrega','taller_est','casillero','factura_num']:
+    for campo in ['folio','tipo_venta','tipo_prod','cli','tel','suc','vend','fecha','mes','sub','total','met','ant','rest','obs','est','entrega','entrega_real','taller_est','casillero','factura_num']:
         if campo in d:
             setattr(p, campo, d[campo])
     if 'items' in d:
@@ -380,7 +381,7 @@ def p_dict(p):
         'items':json.loads(p.items) if p.items else [],
         'sub':p.sub,'total':p.total,'met':p.met,
         'ant':p.ant,'rest':p.rest,'obs':p.obs,
-        'est':p.est,'entrega':p.entrega,
+        'est':p.est,'entrega':p.entrega,'entrega_real':p.entrega_real or '',
         'factura_num':p.factura_num or '',
         'taller_est':p.taller_est,'casillero':p.casillero
     }
@@ -1068,6 +1069,7 @@ def migrar_columnas():
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS tipo_prod VARCHAR(20) DEFAULT 'marcos'",
         "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_arte FLOAT DEFAULT 10",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS diapago VARCHAR(15) DEFAULT ''",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS entrega_real VARCHAR(20)",
     ]:
         try:
             db.session.execute(text(stmt)); db.session.commit()
