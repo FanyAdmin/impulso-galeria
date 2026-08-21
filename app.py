@@ -1135,65 +1135,92 @@ Reglas:
 - Los importes vienen en pesos mexicanos; devuélvelos como número sin $ ni comas.
 - Si la foto no es una nota de pedido, devuelve {"error":"no es una nota"}."""
 
+@app.route('/api/diag-nota', methods=['GET'])
+@requiere_login
+def diag_nota():
+    """Abrir en el navegador para saber por qué falla la lectura de notas."""
+    k = os.environ.get('ANTHROPIC_API_KEY') or ''
+    try:
+        n_rev = RevNota.query.count(); tabla = True
+    except Exception as e:
+        n_rev = str(e)[:120]; tabla = False
+    import sys
+    return jsonify({
+        'llave_configurada': bool(k),
+        'llave_empieza_con': (k[:7] + '…') if k else '(vacía)',
+        'llave_largo': len(k),
+        'llave_con_espacios': k != k.strip(),
+        'tabla_rev_notas': tabla,
+        'notas_guardadas': n_rev,
+        'python': sys.version.split()[0],
+        'modelo': 'claude-sonnet-5'
+    })
+
 @app.route('/api/leer-nota', methods=['POST'])
 @requiere_login
 def leer_nota():
-    api_key = os.environ.get('ANTHROPIC_API_KEY')
-    if not api_key:
-        return jsonify({'error': 'Falta la llave ANTHROPIC_API_KEY en las variables de entorno de Railway. '
-                                 'Agrégala en Railway > Variables y vuelve a desplegar.'}), 500
-    f = request.files.get('file')
-    if not f:
-        return jsonify({'error': 'No llegó ninguna foto'}), 400
+  try:
+      api_key = os.environ.get('ANTHROPIC_API_KEY')
+      if not api_key:
+          return jsonify({'error': 'Falta la llave ANTHROPIC_API_KEY en las variables de entorno de Railway. '
+                                   'Agrégala en Railway > Variables y vuelve a desplegar.'}), 500
+      f = request.files.get('file')
+      if not f:
+          return jsonify({'error': 'No llegó ninguna foto'}), 400
 
-    import base64, urllib.request, urllib.error
-    raw = f.read()
-    if len(raw) > 5 * 1024 * 1024:
-        return jsonify({'error': 'La foto pesa más de 5 MB. Tómala de nuevo con menos resolución.'}), 400
-    media = (f.mimetype or 'image/jpeg').lower()
-    if media not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif'):
-        media = 'image/jpeg'
+      import base64, urllib.request, urllib.error
+      raw = f.read()
+      if len(raw) > 5 * 1024 * 1024:
+          return jsonify({'error': 'La foto pesa más de 5 MB. Tómala de nuevo con menos resolución.'}), 400
+      media = (f.mimetype or 'image/jpeg').lower()
+      if media not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif'):
+          media = 'image/jpeg'
 
-    payload = {
-        'model': 'claude-sonnet-5',
-        'max_tokens': 900,
-        'messages': [{'role': 'user', 'content': [
-            {'type': 'image', 'source': {'type': 'base64', 'media_type': media,
-                                         'data': base64.b64encode(raw).decode()}},
-            {'type': 'text', 'text': INSTRUCCION_NOTA}
-        ]}]
-    }
-    req = urllib.request.Request(
-        'https://api.anthropic.com/v1/messages',
-        data=json.dumps(payload).encode('utf-8'),
-        headers={'content-type': 'application/json', 'x-api-key': api_key,
-                 'anthropic-version': '2023-06-01'})
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            data = json.loads(r.read().decode('utf-8'))
-    except urllib.error.HTTPError as e:
-        try: det = e.read().decode('utf-8')[:300]
-        except Exception: det = ''
-        msg = 'La API de Anthropic respondió ' + str(e.code)
-        if e.code == 401: msg = 'La llave ANTHROPIC_API_KEY no es válida o está vencida.'
-        elif e.code == 429: msg = 'La API está saturada o se acabó el saldo. Espera un momento e intenta de nuevo.'
-        return jsonify({'error': msg, 'detalle': det}), 502
-    except Exception as e:
-        return jsonify({'error': 'No se pudo contactar la API: ' + str(e)}), 502
+      payload = {
+          'model': 'claude-sonnet-5',
+          'max_tokens': 900,
+          'messages': [{'role': 'user', 'content': [
+              {'type': 'image', 'source': {'type': 'base64', 'media_type': media,
+                                           'data': base64.b64encode(raw).decode()}},
+              {'type': 'text', 'text': INSTRUCCION_NOTA}
+          ]}]
+      }
+      req = urllib.request.Request(
+          'https://api.anthropic.com/v1/messages',
+          data=json.dumps(payload).encode('utf-8'),
+          headers={'content-type': 'application/json', 'x-api-key': api_key,
+                   'anthropic-version': '2023-06-01'})
+      try:
+          with urllib.request.urlopen(req, timeout=60) as r:
+              data = json.loads(r.read().decode('utf-8'))
+      except urllib.error.HTTPError as e:
+          try: det = e.read().decode('utf-8')[:300]
+          except Exception: det = ''
+          msg = 'La API de Anthropic respondió ' + str(e.code)
+          if e.code == 401: msg = 'La llave ANTHROPIC_API_KEY no es válida o está vencida.'
+          elif e.code == 429: msg = 'La API está saturada o se acabó el saldo. Espera un momento e intenta de nuevo.'
+          return jsonify({'error': msg, 'detalle': det}), 502
+      except Exception as e:
+          return jsonify({'error': 'No se pudo contactar la API: ' + str(e)}), 502
 
-    txt = ''.join(b.get('text', '') for b in data.get('content', []) if b.get('type') == 'text')
-    limpio = txt.strip()
-    if limpio.startswith('```'):
-        limpio = limpio.split('```')[1] if '```' in limpio[3:] else limpio
-        limpio = limpio.replace('json', '', 1).strip()
-    try:
-        lectura = json.loads(limpio)
-    except Exception:
-        return jsonify({'error': 'No se pudo interpretar la lectura de la foto', 'crudo': txt[:400]}), 502
+      txt = ''.join(b.get('text', '') for b in data.get('content', []) if b.get('type') == 'text')
+      limpio = txt.strip()
+      if limpio.startswith('```'):
+          limpio = limpio.split('```')[1] if '```' in limpio[3:] else limpio
+          limpio = limpio.replace('json', '', 1).strip()
+      try:
+          lectura = json.loads(limpio)
+      except Exception:
+          return jsonify({'error': 'No se pudo interpretar la lectura de la foto', 'crudo': txt[:400]}), 502
 
-    u = data.get('usage', {}) or {}
-    return jsonify({'lectura': lectura,
-                    'uso': {'entrada': u.get('input_tokens', 0), 'salida': u.get('output_tokens', 0)}})
+      u = data.get('usage', {}) or {}
+      return jsonify({'lectura': lectura,
+                      'uso': {'entrada': u.get('input_tokens', 0), 'salida': u.get('output_tokens', 0)}})
+  except Exception as e:
+      import traceback
+      app.logger.error('leer_nota reventó: %s', traceback.format_exc())
+      return jsonify({'error': 'El servidor falló al leer la foto: ' + type(e).__name__ + ': ' + str(e)[:200],
+                      'detalle': 'Mándale esta línea a Claude.'}), 500
 
 @app.route('/api/revnotas', methods=['GET'])
 @requiere_login
