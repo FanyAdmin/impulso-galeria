@@ -175,6 +175,39 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   input,select{font-size:16px}
 }
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ── PANTALLA HOY ─────────────────────────────────────────────────────────
+   Estilo propio, no toca el resto de la plataforma. Azul polvo + blanco,
+   y el rosa SOLO como acento: contorno de lo urgente y los números. */
+#page-hoy{font-family:'Outfit',-apple-system,'Segoe UI',sans-serif}
+#page-hoy .hoy-wrap{background:#A9C8E3;margin:-1.25rem;padding:30px 28px 38px;min-height:calc(100vh - 60px)}
+#page-hoy .hoy-hdr{position:relative;text-align:center;margin-bottom:26px}
+#page-hoy .hoy-fec{font-size:18px;font-weight:600;color:#fff;opacity:.95}
+#page-hoy .hoy-h1{font-size:56px;font-weight:900;line-height:.9;letter-spacing:-.035em;color:#fff;margin:2px 0}
+#page-hoy .hoy-h1 em{font-style:normal;color:#FBF0A8}
+#page-hoy .hoy-cnt{font-size:15px;font-weight:600;color:#fff;opacity:.9;margin-top:8px}
+#page-hoy .hoy-star{position:absolute;left:0;top:10px;font-size:52px;color:#FBF0A8;transform:rotate(-14deg);line-height:1}
+#page-hoy .hoy-star2{position:absolute;right:4px;top:62px;font-size:28px;color:#FBF0A8;transform:rotate(10deg);opacity:.85}
+#page-hoy .hoy-t{display:flex;align-items:center;gap:16px;background:#fff;border-radius:24px;
+  padding:18px 22px;margin-bottom:13px;cursor:pointer;position:relative;
+  box-shadow:0 5px 18px rgba(22,35,58,.13);transition:transform .13s,box-shadow .13s}
+#page-hoy .hoy-t:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(22,35,58,.2)}
+#page-hoy .hoy-t.urge{box-shadow:0 0 0 4px #FF3D9A,0 8px 22px rgba(255,61,154,.32)}
+#page-hoy .hoy-ico{width:56px;height:56px;border-radius:17px;background:#F4F7FB;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:26px}
+#page-hoy .hoy-tt{font-size:18.5px;font-weight:800;letter-spacing:-.02em;line-height:1.12;color:#16233A}
+#page-hoy .hoy-tt b{color:#FF3D9A;font-weight:900}
+#page-hoy .hoy-ts{font-size:13.5px;font-weight:500;color:#5C6B84;margin-top:3px}
+#page-hoy .hoy-fl{font-size:26px;font-weight:800;color:#C3CEDE}
+#page-hoy .hoy-tag{position:absolute;top:-9px;left:22px;background:#FF3D9A;color:#fff;border-radius:8px;
+  padding:3px 11px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+#page-hoy .hoy-tag.am{background:#FBF0A8;color:#6B5A00}
+#page-hoy .hoy-pie{text-align:center;font-size:14px;font-weight:600;color:#fff;opacity:.9;margin-top:20px}
+#page-hoy .hoy-ok{background:#fff;border-radius:24px;padding:3.5rem 1rem;text-align:center}
+@media(max-width:600px){#page-hoy .hoy-h1{font-size:40px}#page-hoy .hoy-wrap{padding:22px 16px 30px}}
+</style>
 </head>
 <body>
 
@@ -473,7 +506,8 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
-  <div class="sb-item active" onclick="go('cot')" id="nav-cot">🧮 Cotizador</div>
+  <div class="sb-item active" onclick="go('hoy')" id="nav-hoy" style="font-weight:700">☀️ Hoy</div>
+  <div class="sb-item" onclick="go('cot')" id="nav-cot">🧮 Cotizador</div>
   <div class="sb-item" onclick="go('ped')" id="nav-ped">📋 Pedidos</div>
   <div class="sb-item" onclick="go('pend');rPend()" id="nav-pend">📌 Pendientes</div>
   <div class="sb-item" onclick="go('cxc')" id="nav-cxc">💰 Cuentas x cobrar</div>
@@ -742,6 +776,11 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     </div>
     <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-nom-pago')">Cancelar</button><button class="btn btn-p" onclick="confPagoNom()">✓ Registrar pago</button></div>
   </div>
+</div>
+
+<!-- HOY -->
+<div class="page" id="page-hoy">
+  <div class="hoy-wrap"><div id="hoy-c"></div></div>
 </div>
 
 <!-- CUADRE DE BANCO -->
@@ -1526,7 +1565,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:rDia,cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},rev:rRev,cuadre:rCuadre
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:rHoy,rev:rRev,cuadre:rCuadre
   })[id]?.();
 }
 
@@ -2945,6 +2984,126 @@ function fpExcel(){
   a.href='data:text/csv;charset=utf-8,\ufeff'+encodeURIComponent(csv);
   a.download='pedidos-'+(PROVS[prov]||prov).replace(/ /g,'-')+'-'+todayStr()+'.csv';
   a.click();
+}
+
+// ═══ PANTALLA "HOY" ════════════════════════════════════════════════════════
+// No es un dashboard de gráficas: es la lista de lo que falta hacer, y cada
+// renglón lleva a donde se resuelve. Se alimenta de datos que ya existen.
+function rHoy(){
+  var c=document.getElementById('hoy-c');if(!c)return;
+  var u=_u()||{},hoy=todayStr(),d=new Date();
+  var DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  // el encabezado se pinta abajo, junto con las tarjetas
+  var mios=misP();
+  var T=[];   // los pendientes: {u:urgencia, ico, txt, sub, ir, fn}
+
+  // ── 1) Pedidos prometidos para hoy o ya vencidos ────────────────────────
+  var vencidos=mios.filter(function(p){
+    return p.est==='Pendiente'&&p.entrega&&String(p.entrega).length>=8&&p.entrega<hoy;});
+  var paraHoy=mios.filter(function(p){return p.est==='Pendiente'&&p.entrega===hoy;});
+  if(vencidos.length)T.push({u:1,tag:'Ya se pasó',ico:'⏰',txt:vencidos.length+(vencidos.length===1?' pedido pasado de su fecha':' pedidos pasados de su fecha'),
+    sub:'El más viejo: '+vencidos.map(function(p){return p.entrega;}).sort()[0]+' · folios '+
+        vencidos.slice(0,6).map(function(p){return p.folio;}).join(', ')+(vencidos.length>6?'…':''),ir:'ped'});
+  if(paraHoy.length)T.push({u:2,tag:'Hoy',ico:'📦',txt:paraHoy.length+(paraHoy.length===1?' pedido prometido para hoy':' pedidos prometidos para hoy'),
+    sub:'Folios '+paraHoy.map(function(p){return p.folio;}).join(', '),ir:'ped'});
+
+  // ── 2) Cuentas por cobrar con saldo ─────────────────────────────────────
+  var deben=mios.filter(function(p){return (p.rest||0)>0.5;});
+  if(deben.length){
+    var tot=deben.reduce(function(a,p){return a+(p.rest||0);},0);
+    var entregadosDebiendo=deben.filter(function(p){return p.est==='Entregado';});
+    T.push({u:entregadosDebiendo.length?2:3,ico:'💰',
+      txt:fmt(tot)+' por cobrar en '+deben.length+(deben.length===1?' pedido':' pedidos'),
+      sub:entregadosDebiendo.length?('⚠️ '+entregadosDebiendo.length+' ya se entregaron y siguen debiendo'):'ninguno entregado con saldo',ir:'cxc'});
+  }
+
+  // ── 3) Día de pedido ────────────────────────────────────────────────────
+  try{
+    var px=proxDiaPedido();
+    var pend=pedidos.filter(function(p){return p.est==='Pendiente'&&p.items;});
+    var pz=0,mols={};
+    pend.forEach(function(p){(p.items||[]).forEach(function(it){
+      if(!it.mol)return;pz+=(it.q||1);mols[it.mol]=1;});});
+    if(px&&px.hoy&&pz)T.push({u:1,tag:'Hoy',ico:'🛒',txt:'Hoy es día de pedido · '+pz+(pz===1?' pieza acumulada':' piezas acumuladas'),
+      sub:Object.keys(mols).length+' molduras distintas esperando',ir:'ord'});
+    else if(px&&!px.hoy&&pz)T.push({u:4,ico:'🛒',txt:pz+' pieza(s) esperando para el próximo pedido',
+      sub:'Se pide el '+px.f.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'}),ir:'ord'});
+  }catch(e){}
+
+  // ── 4) Notas del día anterior sin revisar (si ya usan la revisión) ──────
+  var ayer=dateStrLocal(new Date(Date.now()-86400000));
+  var dePedidosAyer=mios.filter(function(p){return String(p.fecha||'').slice(0,10)===ayer;});
+  if(dePedidosAyer.length&&typeof REV!=='undefined'){
+    var revisados={};(REV||[]).forEach(function(r){revisados[String(r.folio)]=1;});
+    var sinRevisar=dePedidosAyer.filter(function(p){return !revisados[String(p.folio)];});
+    if(sinRevisar.length===dePedidosAyer.length&&dePedidosAyer.length>2)
+      T.push({u:3,ico:'📸',txt:'Las notas de ayer no se han revisado',
+        sub:dePedidosAyer.length+' pedido(s) capturados ayer',ir:'rev'});
+  }
+
+  // ── 5) Proveedores: facturas vencidas o por vencer ──────────────────────
+  if(typeof FP!=='undefined'&&FP&&FP.length){
+    var venc=[],porVenc=[],sinFac=0,totV=0;
+    FP.forEach(function(f){
+      var pend2=(f.monto||0)-(f.abonado||0);
+      if(!f.factura){sinFac++;return;}
+      if(pend2<=0.5)return;
+      var v=f.venc||'';if(!v)return;
+      var dd=Math.floor((new Date(hoy+'T12:00:00')-new Date(v+'T12:00:00'))/86400000);
+      if(dd>0){venc.push(f);totV+=pend2;}
+      else if(dd>=-7)porVenc.push(f);
+    });
+    if(venc.length)T.push({u:1,tag:'Vencida',ico:'🔥',txt:venc.length+(venc.length===1?' factura de proveedor vencida · ':' facturas de proveedor vencidas · ')+fmt(totV),
+      sub:'Facturas '+venc.slice(0,5).map(function(f){return f.factura;}).join(', '),ir:'cxp'});
+    if(porVenc.length)T.push({u:3,ico:'📤',txt:porVenc.length+(porVenc.length===1?' factura vence esta semana':' facturas vencen esta semana'),
+      sub:'Facturas '+porVenc.slice(0,5).map(function(f){return f.factura;}).join(', '),ir:'cxp'});
+    if(sinFac)T.push({u:4,ico:'📄',txt:sinFac+(sinFac===1?' pedido a proveedor sin factura':' pedidos a proveedor sin factura'),
+      sub:'Se pierden si no se registran',ir:'cxp'});
+  }
+
+  // ── 6) Nómina: a quién le toca hoy ──────────────────────────────────────
+  var hoyDia=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][d.getDay()];
+  var tocaHoy=(EMPLEADOS||[]).filter(function(e){return e.diapago===hoyDia&&(e.estatus||'activo')==='activo';});
+  if(tocaHoy.length)T.push({u:2,tag:'Hoy',ico:'💵',txt:'Hoy toca pagarle a '+tocaHoy.map(function(e){return e.nombre;}).join(', '),
+    sub:'Se paga los '+hoyDia.toLowerCase(),ir:'nom'});
+
+  // ── 7) Pendientes (los recaditos) ───────────────────────────────────────
+  // ── 8) Cierre del día de ayer ───────────────────────────────────────────
+  var cobrosAyer=(ABONOS||[]).filter(function(a){return String(a.fecha||'').slice(0,10)===ayer;});
+  var movsAyer=(movs||[]).filter(function(m){return String(m.fecha||'').slice(0,10)===ayer&&m.tipo==='Entrada';});
+  if(cobrosAyer.length&&!movsAyer.length&&(u.role==='admin'||u.role==='owner'))
+    T.push({u:2,ico:'🌙',txt:'El cierre de ayer no se registró',
+      sub:cobrosAyer.length+' cobro(s) de ayer sin su entrada en Movimientos',ir:'cob'});
+
+  T.sort(function(a,b){return a.u-b.u;});
+
+  var DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  var MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var urg=T.filter(function(x){return x.u===1;}).length;
+  var nom=(u.name||u.key||'').split(' ')[0];
+  var hdr='<div class="hoy-hdr"><div class="hoy-star">★</div><div class="hoy-star2">★</div>'+
+    '<div class="hoy-fec">'+DIAS[d.getDay()]+' '+d.getDate()+' de '+MES[d.getMonth()]+'</div>'+
+    '<div class="hoy-h1">'+(nom?'Hola, '+nom+'<br>':'')+'esto es lo de <em>HOY</em></div>'+
+    '<div class="hoy-cnt">'+(T.length?(urg?urg+' urgente(s) · ':'')+T.length+' en total':'nada pendiente')+'</div></div>';
+
+  if(!T.length){
+    c.innerHTML=hdr+'<div class="hoy-ok"><div style="font-size:46px">🎉</div>'+
+      '<div style="font-size:20px;font-weight:800;margin-top:8px">Todo al corriente</div>'+
+      '<div style="font-size:14px;color:#5C6B84;margin-top:4px">No hay nada pendiente por ahora.</div></div>';
+    return;
+  }
+  // resalta en rosa los números dentro del texto
+  var res=function(t){return String(t).replace(/(\$[\d,]+(?:\.\d{2})?|\b\d+\b)/,'<b>$1</b>');};
+  var etq={1:'',2:'',3:'',4:''};
+  c.innerHTML=hdr+T.map(function(x){
+    var esUrge=x.u===1;   // solo lo que YA se pasó lleva el contorno rosa
+    var tag=x.tag?'<div class="hoy-tag'+(x.u===2?' am':'')+'">'+x.tag+'</div>':'';
+    return '<div class="hoy-t'+(esUrge?' urge':'')+'" onclick="go(\''+x.ir+'\')">'+tag+
+      '<div class="hoy-ico">'+x.ico+'</div>'+
+      '<div style="flex:1;min-width:0"><div class="hoy-tt">'+res(x.txt)+'</div>'+
+      '<div class="hoy-ts">'+(x.sub||'')+'</div></div>'+
+      '<div class="hoy-fl">›</div></div>';
+  }).join('')+'<div class="hoy-pie">Pica cualquiera y te llevo a resolverlo ★</div>';
 }
 
 function rOrd(){
