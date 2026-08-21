@@ -1110,30 +1110,47 @@ def rev_dict(r):
             'veredicto': r.veredicto, 'difs': _j(r.difs), 'lectura': _j(r.lectura),
             'quien': r.quien}
 
-INSTRUCCION_NOTA = """Esta es la foto de una nota de pedido escrita a mano de una galería de enmarcado en México.
+INSTRUCCION_NOTA = """Esta es la foto de una ORDEN DE TRABAJO escrita a mano de Impulso Galería, un taller de enmarcado en Querétaro.
 
 Lee lo que ALCANCES A LEER y devuelve SOLO un objeto JSON, sin explicaciones, sin ```.
 
 Estructura exacta:
 {
-  "folio": "número de nota o folio, como string, o null",
+  "folio": "el número que viene junto a N° arriba a la derecha, como string, o null",
   "cliente": "nombre del cliente o null",
   "fecha": "fecha de la nota en formato AAAA-MM-DD, o null",
+  "entrega": "fecha de entrega prometida en AAAA-MM-DD si viene escrita, o null",
   "articulos": [
-    {"moldura":"clave o nombre de la moldura","ancho":número en cm o null,
+    {"moldura":"clave de la moldura","ancho":número en cm o null,
      "alto":número en cm o null,"cantidad":número,"extras":"texto o null"}
   ],
+  "subtotal": número o null,
   "anticipo": número o null,
+  "resta": número o null,
   "total": número o null,
   "ilegible": ["nombre de cada campo que no se pudo leer con seguridad"],
   "confianza": número del 0 al 100
 }
 
+CÓMO SE LEE UNA NOTA DE ESTE TALLER:
+- Un ARTÍCULO es una moldura con su medida. La clave de moldura se ve como Cen-03-005,
+  32-05, CLAVE-43, ML-2140 y parecidas.
+- Lo que viene DEBAJO de una moldura y NO trae clave ni medida propia son EXTRAS de ese
+  mismo marco, NO artículos aparte. Los extras típicos son: V. Anti o Vid. Antireflex
+  (vidrio antirreflejante), Vidrio Normal, /2 Vidrio, Vid. Museo, ML, 2ML, Cama Justa,
+  "con placa", "con plaza". Mételos en el campo "extras" del artículo de arriba y NO
+  los cuentes como artículo.
+- Las medidas vienen como 31x43, 31 x 43 o 31X43 y son ANCHO por ALTO en centímetros.
+- La CANTIDAD suele estar en la primera columna, a la izquierda de la descripción.
+- Importes: SUB TOTAL es el subtotal; "A CUENTA" es el ANTICIPO que ya pagó el cliente;
+  "RESTA" es lo que queda a deber. Devuélvelos como número sin $ ni comas.
+- Ojo: a estas notas les engrapan el ticket del banco (INBURSA, terminal). Ese ticket es
+  el comprobante del anticipo, NO es la nota. No tomes su folio ni su fecha como los de la
+  orden; su importe sí suele coincidir con el anticipo.
+
 Reglas:
 - Si un dato no se ve o no estás seguro, pon null y agrégalo a "ilegible". NUNCA inventes.
-- Las medidas suelen venir como 30x40 o 30 × 40 (ancho por alto) en centímetros.
-- Los importes vienen en pesos mexicanos; devuélvelos como número sin $ ni comas.
-- Si la foto no es una nota de pedido, devuelve {"error":"no es una nota"}."""
+- Si la foto no es una orden de trabajo, devuelve {"error":"no es una nota"}."""
 
 @app.route('/api/diag-nota', methods=['GET'])
 @requiere_login
