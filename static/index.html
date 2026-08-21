@@ -1808,7 +1808,7 @@ function rPed(f){
     return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}<br>${tpB} ${tpBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
-      <td style="color:var(--text2)">${p.entrega}</td><td>${badge}</td><td>${btn}</td><td><button onclick="ticketPedido(pedidos[${idx}])" title="Imprimir nota (3 copias)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🧾</button><button onclick="insumosPed(${idx})" title="Insumos que ocupa este pedido" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">📋</button>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td style="color:var(--text2);font-size:12px">${colEntrega(p)}</td><td>${badge}</td><td>${btn}</td><td><button onclick="ticketPedido(pedidos[${idx}])" title="Imprimir nota (3 copias)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🧾</button><button onclick="insumosPed(${idx})" title="Insumos que ocupa este pedido" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">📋</button>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
   document.getElementById('p-pag').innerHTML=total>1?
     `<span style="margin-right:4px;color:var(--text2)">Pág ${pedPage+1} de ${total} · ${list.length} pedidos</span>
@@ -1865,14 +1865,34 @@ function putPedidoVerificado(p,campos,prev){
     });
 }
 
+// Cómo se ve la entrega: la prometida arriba, la real abajo, y si se cumplió
+function colEntrega(p){
+  var prom=p.entrega&&String(p.entrega).length>=8?p.entrega:'';
+  var real=p.entrega_real||'';
+  if(!prom&&!real)return '<span style="color:var(--text3)">—</span>';
+  var h='';
+  if(prom)h+='<div>'+prom+'</div>';
+  if(real){
+    var tarde=prom&&real>prom;
+    h+='<div style="font-size:11px;font-weight:700;color:'+(tarde?'#B45309':'var(--green)')+'">'+
+       '✓ '+real+(tarde?' (tarde)':'')+'</div>';
+  }else if(prom&&p.est==='Pendiente'){
+    var d=Math.floor((new Date().setHours(12,0,0,0)-new Date(prom+'T12:00:00'))/86400000);
+    if(d>0)h+='<div style="font-size:11px;font-weight:700;color:#991B1B">'+d+' día(s) tarde</div>';
+  }else if(!real&&p.est==='Entregado'){
+    h+='<div style="font-size:11px;color:var(--text3)">entregado (sin fecha)</div>';
+  }
+  return h;
+}
 function confEnt(){
   if(entIdx===null)return;
   const p=pedidos[entIdx],c=parseFloat(document.getElementById('me-monto').value)||0,s=Math.max(0,p.rest-c);
   const met=document.getElementById('me-m').value;
   const prevEnt={ant:p.ant,rest:p.rest,est:p.est};
   p.ant+=c;p.rest=s;p.est='Entregado';p.entregaF=todayStr();
+  p.entrega_real=todayStr();   // CUÁNDO se entregó de verdad (antes solo vivía en pantalla)
   // Persistir la entrega en la BD — VERIFICADO (antes fallaba en silencio)
-  putPedidoVerificado(p,{ant:p.ant,rest:p.rest,est:'Entregado'},prevEnt).then(()=>{rPed();rCxC();rDia();});
+  putPedidoVerificado(p,{ant:p.ant,rest:p.rest,est:'Entregado',entrega_real:p.entrega_real},prevEnt).then(()=>{rPed();rCxC();rDia();});
   // Registrar el cobro de hoy como abono con fecha (para Mi Día)
   if(c>0){
     const ab={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:c,met:met,fecha:todayStr(),tipo:s>0?'Abono':'Liquidacion'};
