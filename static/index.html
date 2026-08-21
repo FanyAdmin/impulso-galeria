@@ -512,7 +512,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-item" onclick="go('pend');rPend()" id="nav-pend">📌 Pendientes</div>
   <div class="sb-item" onclick="go('cxc')" id="nav-cxc">💰 Cuentas x cobrar</div>
   <div class="sb-item" onclick="go('dia')" id="nav-dia">📊 Mi día</div>
-  <div class="sb-item owner-only" style="display:none" onclick="go('rev')" id="nav-rev">📸 Revisión de notas</div>
+  <div class="sb-item" onclick="go('rev')" id="nav-rev">📸 Revisión de notas</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('cuadre')" id="nav-cuadre">🏦 Cuadre de banco</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('cob')" id="nav-cob">💵 Cobranza</div>
   <div class="sb-section">Catálogo</div>
@@ -2488,10 +2488,17 @@ function revComparar(lec){
     const a=norm(lec.cliente),b=norm(p.cli);
     if(a&&b&&a.indexOf(b)<0&&b.indexOf(a)<0)difs.push({campo:'cliente',nota:lec.cliente,sistema:p.cli});
   }
+  if(lec.entrega&&p.entrega&&String(lec.entrega).slice(0,10)!==String(p.entrega).slice(0,10))
+    difs.push({campo:'entrega prometida',nota:lec.entrega,sistema:p.entrega});
   const arts=(lec.articulos||[]).filter(x=>x&&x.moldura);
   const items=p.items||[];
-  if(arts.length&&items.length&&arts.length!==items.length)
+  // Los extras (vidrio, ML, cama justa) a veces se capturan como partida aparte,
+  // así que solo se avisa si en la NOTA hay MÁS artículos que en el sistema.
+  if(arts.length&&items.length&&arts.length>items.length)
     difs.push({campo:'artículos',nota:arts.length+' en la nota',sistema:items.length+' capturados'});
+  else if(arts.length&&items.length&&arts.length<items.length)
+    difs.push({campo:'artículos (revisar)',nota:arts.length+' moldura(s) en la nota',
+      sistema:items.length+' partidas capturadas · puede ser el vidrio como partida aparte'});
   arts.forEach((a,k)=>{
     const it=items[k];
     if(!it){difs.push({campo:'artículo '+(k+1),nota:a.moldura,sistema:'no capturado'});return;}
@@ -2503,15 +2510,29 @@ function revComparar(lec){
     if(a.cantidad!=null&&it.q!=null&&Number(a.cantidad)!==Number(it.q))
       difs.push({campo:'cantidad '+(k+1),nota:a.cantidad,sistema:it.q});
   });
+  // ── EL DINERO: es lo que más duele si se captura mal ────────────────────
   const dif$=(x,y)=>x!=null&&y!=null&&Math.abs(Number(x)-Number(y))>1;
-  if(dif$(lec.total,p.total))difs.push({campo:'total',nota:fmt(lec.total),sistema:fmt(p.total)});
-  return{veredicto:difs.length?'difiere':'cuadra',suc:p.suc||'',difs:difs};
+  const tot=lec.total!=null?lec.total:lec.subtotal;
+  if(dif$(tot,p.total))difs.push({campo:'💰 total',nota:fmt(tot),sistema:fmt(p.total)});
+  // anticipo: en la nota es "A CUENTA"; en el pedido es lo pagado original
+  const antOrig=(p.ant||0)-(ABONOS||[]).filter(a=>String(a.folio)===folio).reduce((x,a)=>x+(a.monto||0),0);
+  if(dif$(lec.anticipo,antOrig))
+    difs.push({campo:'💰 anticipo',nota:fmt(lec.anticipo),sistema:fmt(antOrig)});
+  if(dif$(lec.resta,p.rest))difs.push({campo:'💰 resta',nota:fmt(lec.resta),sistema:fmt(p.rest)});
+  // que la propia nota cuadre: subtotal − anticipo debe dar la resta
+  if(lec.subtotal!=null&&lec.anticipo!=null&&lec.resta!=null&&
+     Math.abs((lec.subtotal-lec.anticipo)-lec.resta)>1)
+    difs.push({campo:'⚠️ la nota no cuadra sola',
+      nota:fmt(lec.subtotal)+' − '+fmt(lec.anticipo)+' = '+fmt(lec.subtotal-lec.anticipo),
+      sistema:'la nota dice resta '+fmt(lec.resta)});
+  return{veredicto:difs.length?'difiere':'cuadra',suc:p.suc||miSuc()||'',difs:difs};
 }
 
 function pintaRev(){
   const c=document.getElementById('rev-res');if(!c)return;
   const yo=_u();
-  const lista=soloMira()?REV.filter(r=>r.suc===miSuc()):REV;
+  const yoSuc=miSuc(),esVta=(yo&&yo.role==='venta');
+  const lista=esVta?REV.filter(r=>r.suc===yoSuc):REV;
   if(!lista.length){
     c.innerHTML='<div style="text-align:center;padding:3.5rem 1rem"><div style="font-size:40px">📸</div>'+
       '<div style="font-size:16px;font-weight:700;margin-top:8px">Sin notas revisadas este día</div>'+
@@ -2522,7 +2543,7 @@ function pintaRev(){
   // Los pedidos del día que NADIE fotografió: la revisión al revés
   const fecha=document.getElementById('rev-fecha').value;
   const fotografiados=new Set(lista.map(r=>String(r.folio)));
-  const sinFoto=(soloMira()?misP():pedidos).filter(p=>p.fecha===fecha&&!fotografiados.has(String(p.folio)));
+  const sinFoto=(esVta?misP():pedidos).filter(p=>p.fecha===fecha&&!fotografiados.has(String(p.folio)));
 
   const tarjeta=(t,n,col,bg)=>'<div style="flex:1;min-width:130px;background:'+bg+';border-radius:12px;padding:12px 14px">'+
     '<div style="font-size:10px;font-weight:700;color:'+col+';text-transform:uppercase;letter-spacing:.05em">'+t+'</div>'+
