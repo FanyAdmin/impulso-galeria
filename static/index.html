@@ -2376,11 +2376,11 @@ function revEncoger(file){
       const img=new Image();
       img.onerror=()=>mal(new Error('el archivo no es una imagen'));
       img.onload=()=>{
-        const MAX=1600,esc=Math.min(MAX/img.width,MAX/img.height,1);
+        const MAX=1100,esc=Math.min(MAX/img.width,MAX/img.height,1);   // 1600 tardaba de más
         const cv=document.createElement('canvas');
         cv.width=Math.round(img.width*esc);cv.height=Math.round(img.height*esc);
         cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
-        cv.toBlob(b=>b?ok(b):mal(new Error('no se pudo procesar')),'image/jpeg',0.82);
+        cv.toBlob(b=>b?ok(b):mal(new Error('no se pudo procesar')),'image/jpeg',0.74);
       };
       img.src=rd.result;
     };
@@ -2400,9 +2400,27 @@ async function revSubir(files){
     bar.style.width=Math.round((i-1)/files.length*100)+'%';
     try{
       const chica=await revEncoger(file);
+      txt.textContent='Leyendo nota '+i+' de '+files.length+'… ('+Math.round(chica.size/1024)+' KB, tarda ~15 seg)';
       const fd=new FormData();fd.append('file',chica,'nota.jpg');
-      const r=await fetch('/api/leer-nota',{method:'POST',credentials:'include',body:fd});
-      const d=await r.json();
+      // Corte propio a los 75 seg para dar un mensaje entendible en vez de "Load failed"
+      const ctrl=new AbortController(),tmr=setTimeout(()=>ctrl.abort(),75000);
+      let r,d;
+      try{
+        r=await fetch('/api/leer-nota',{method:'POST',credentials:'include',body:fd,signal:ctrl.signal});
+      }catch(err){
+        clearTimeout(tmr);
+        alert('Nota '+i+': se cortó la conexión con el servidor.\n\n'+
+              (err.name==='AbortError'
+                ? 'Tardó más de 75 segundos.'
+                : 'Safari lo reporta como "Load failed".')+
+              '\n\nCausas típicas:\n• El servidor corta las peticiones largas (hay que subirle el tiempo de espera en Railway)\n'+
+              '• Internet lento al subir la foto\n\nPrueba con una sola foto y con wifi.');
+        continue;
+      }
+      clearTimeout(tmr);
+      try{ d=await r.json(); }catch(err){
+        alert('Nota '+i+': el servidor respondió algo que no se entiende (error '+r.status+').');continue;
+      }
       if(!r.ok||d.error){alert('Nota '+i+': '+(d.error||('error '+r.status))+(d.detalle?'\n\n'+d.detalle:''));continue;}
       const lec=d.lectura||{};
       if(lec.error){alert('Nota '+i+': la foto no parece una nota de pedido.');continue;}
