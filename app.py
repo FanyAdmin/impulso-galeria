@@ -1341,6 +1341,86 @@ def del_facprov(fid):
     if f: db.session.delete(f); db.session.commit()
     return jsonify({'ok': True})
 
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ASISTENTE  ·  la plataforma contesta en español sobre los datos del negocio
+# ───────────────────────────────────────────────────────────────────────────────
+# El frontend arma un RESUMEN de los datos (no manda la base completa) y lo envía
+# junto con la conversación. Aquí solo se reenvía a la API y se devuelve el texto.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+SISTEMA_ASISTENTE = """Eres la asistente administrativa de Impulso Galería, un taller de enmarcado
+en Querétaro con dos sucursales: Jardines y Zibata. Hablas con Estefania, la dueña, o con Ana Karen
+de administración.
+
+Cómo respondes:
+- En español de México, directo y corto. Nada de rodeos ni de "según los datos proporcionados".
+- Con NÚMEROS concretos: folios, montos, nombres, fechas. Si no está en los datos, dilo claro
+  ("eso no lo tengo aquí") en vez de suponer.
+- Cuando algo esté mal, dilo sin adornos y explica qué conviene hacer.
+- Si te preguntan algo que requiere datos que no vienen en el resumen, di exactamente qué
+  pantalla de la plataforma lo tiene.
+- No inventes NUNCA un folio, un monto ni un nombre. Es dinero real.
+- Máximo 6 renglones salvo que te pidan detalle.
+
+Del negocio: se cotiza por metro lineal de moldura más extras (vidrio, ML, cama justa).
+Se pide moldura a proveedor lunes, miércoles y viernes. Los cobros con tarjeta entran al banco
+un día HÁBIL después. Servimarco es el proveedor principal, a 30 días de crédito."""
+
+@app.route('/api/asistente', methods=['POST'])
+@requiere_login
+def asistente():
+  try:
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'Falta la llave ANTHROPIC_API_KEY en Railway.'}), 500
+    d = request.json or {}
+    msgs = d.get('mensajes') or []
+    datos = d.get('datos') or {}
+    if not msgs:
+        return jsonify({'error': 'No llegó ninguna pregunta'}), 400
+
+    contexto = 'DATOS DE HOY (' + str(d.get('hoy','')) + '):\n' + json.dumps(datos, ensure_ascii=False)
+    if len(contexto) > 120000:
+        contexto = contexto[:120000] + '\n[...resumen recortado]'
+
+    mensajes = []
+    for i, m in enumerate(msgs[-12:]):
+        rol = 'assistant' if m.get('rol') == 'asistente' else 'user'
+        txt = str(m.get('txt', ''))[:4000]
+        if rol == 'user' and i == len(msgs[-12:]) - 1:
+            txt = contexto + '\n\nPREGUNTA: ' + txt
+        mensajes.append({'role': rol, 'content': txt})
+
+    import urllib.request, urllib.error
+    payload = {'model': 'claude-sonnet-5', 'max_tokens': 1200,
+               'system': SISTEMA_ASISTENTE, 'messages': mensajes}
+    req = urllib.request.Request('https://api.anthropic.com/v1/messages',
+        data=json.dumps(payload).encode('utf-8'),
+        headers={'content-type': 'application/json', 'x-api-key': api_key,
+                 'anthropic-version': '2023-06-01'})
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            data = json.loads(r.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        try: det = e.read().decode('utf-8')[:200]
+        except Exception: det = ''
+        msg = 'La API respondió ' + str(e.code)
+        if e.code == 401: msg = 'La llave de API no es válida.'
+        elif e.code == 429: msg = 'Se acabó el saldo o hay demasiadas peticiones. Revisa tu saldo en console.anthropic.com'
+        return jsonify({'error': msg, 'detalle': det}), 502
+    except Exception as e:
+        return jsonify({'error': 'No se pudo contactar la API: ' + str(e)}), 502
+
+    txt = ''.join(b.get('text','') for b in data.get('content',[]) if b.get('type')=='text')
+    u = data.get('usage',{}) or {}
+    return jsonify({'texto': txt, 'uso': {'entrada': u.get('input_tokens',0), 'salida': u.get('output_tokens',0)}})
+  except Exception as e:
+    import traceback
+    app.logger.error('asistente reventó: %s', traceback.format_exc())
+    return jsonify({'error': 'El servidor falló: ' + type(e).__name__ + ': ' + str(e)[:200]}), 500
+
 with app.app_context():
     db.create_all()
     migrar_columnas()
