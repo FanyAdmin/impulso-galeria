@@ -182,6 +182,42 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
    Estilo propio, no toca el resto de la plataforma. Azul polvo + blanco,
    y el rosa SOLO como acento: contorno de lo urgente y los números. */
 #page-hoy{font-family:'Outfit',-apple-system,'Segoe UI',sans-serif}
+/* ── ASISTENTE: una conversación, no una pantalla de campos ───────────── */
+#page-asis{font-family:'Outfit',-apple-system,'Segoe UI',sans-serif}
+#page-asis .as-wrap{background:#A9C8E3;margin:-1.25rem;padding:0;height:calc(100vh - 60px);display:flex;flex-direction:column}
+#page-asis .as-top{padding:18px 24px 12px;color:#fff;flex-shrink:0}
+#page-asis .as-top h2{font-size:30px;font-weight:900;margin:0;letter-spacing:-.03em;line-height:1}
+#page-asis .as-top h2 em{font-style:normal;color:#FBF0A8}
+#page-asis .as-top .s{font-size:13.5px;font-weight:600;opacity:.92;margin-top:3px}
+#page-asis .as-chat{flex:1;overflow-y:auto;padding:6px 22px 10px}
+#page-asis .as-msg{max-width:min(760px,92%);margin-bottom:12px;font-size:14.5px;line-height:1.5}
+#page-asis .as-yo{margin-left:auto;background:#16233A;color:#fff;border-radius:20px 20px 6px 20px;padding:12px 17px;font-weight:600}
+#page-asis .as-ella{background:#fff;color:#16233A;border-radius:20px 20px 20px 6px;padding:14px 18px;
+  box-shadow:0 4px 14px rgba(22,35,58,.13);white-space:pre-wrap}
+#page-asis .as-ella b{color:#FF3D9A}
+#page-asis .as-card{background:#fff;border-radius:18px;padding:13px 17px;margin-bottom:9px;cursor:pointer;
+  display:flex;align-items:center;gap:13px;box-shadow:0 4px 14px rgba(22,35,58,.13)}
+#page-asis .as-card.u{box-shadow:0 0 0 3px #FF3D9A,0 6px 18px rgba(255,61,154,.3)}
+#page-asis .as-card .i{width:44px;height:44px;border-radius:14px;background:#F4F7FB;display:flex;
+  align-items:center;justify-content:center;font-size:21px;flex-shrink:0}
+#page-asis .as-card .t{font-size:15px;font-weight:800;color:#16233A;line-height:1.15}
+#page-asis .as-card .t b{color:#FF3D9A}
+#page-asis .as-card .d{font-size:12.5px;color:#5C6B84;margin-top:2px}
+#page-asis .as-pen{font-size:12px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.07em;
+  opacity:.9;margin:4px 0 8px}
+#page-asis .as-abajo{flex-shrink:0;padding:10px 22px 18px;background:linear-gradient(180deg,rgba(169,200,227,0),#A9C8E3 22%)}
+#page-asis .as-sug{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px}
+#page-asis .as-sug span{background:rgba(255,255,255,.85);border-radius:99px;padding:7px 14px;font-size:12.5px;
+  font-weight:700;color:#16233A;cursor:pointer;border:1.5px solid rgba(255,255,255,.6)}
+#page-asis .as-sug span:hover{background:#fff;border-color:#FF3D9A}
+#page-asis .as-box{display:flex;gap:9px;background:#fff;border-radius:20px;padding:8px 8px 8px 18px;
+  box-shadow:0 6px 20px rgba(22,35,58,.16);align-items:center}
+#page-asis .as-box input{flex:1;border:none;outline:none;font-size:15px;font-family:inherit;font-weight:500;background:transparent}
+#page-asis .as-box button{background:#FF3D9A;color:#fff;border:none;border-radius:15px;width:42px;height:42px;
+  font-size:19px;cursor:pointer;flex-shrink:0}
+#page-asis .as-box button:disabled{opacity:.4;cursor:default}
+@media(max-width:600px){#page-asis .as-top h2{font-size:24px}#page-asis .as-chat{padding:6px 14px 10px}
+  #page-asis .as-abajo{padding:8px 14px 14px}}
 #page-hoy .hoy-wrap{background:#A9C8E3;margin:-1.25rem;padding:30px 28px 38px;min-height:calc(100vh - 60px)}
 #page-hoy .hoy-hdr{position:relative;text-align:center;margin-bottom:26px}
 #page-hoy .hoy-fec{font-size:18px;font-weight:600;color:#fff;opacity:.95}
@@ -506,7 +542,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
-  <div class="sb-item active" onclick="go('hoy')" id="nav-hoy" style="font-weight:700">☀️ Hoy</div>
+  <div class="sb-item active" onclick="go('asis')" id="nav-asis" style="font-weight:700">💬 Asistente</div>
   <div class="sb-item" onclick="go('cot')" id="nav-cot">🧮 Cotizador</div>
   <div class="sb-item" onclick="go('ped')" id="nav-ped">📋 Pedidos</div>
   <div class="sb-item" onclick="go('pend');rPend()" id="nav-pend">📌 Pendientes</div>
@@ -775,6 +811,33 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div style="font-size:11.5px;color:var(--text3);line-height:1.45">Al confirmar se crea la <b>Salida</b> en Movimientos, igual que cuando la capturas a mano — pero ligada a esta semana, para poder deshacerla.</div>
     </div>
     <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-nom-pago')">Cancelar</button><button class="btn btn-p" onclick="confPagoNom()">✓ Registrar pago</button></div>
+  </div>
+</div>
+
+<!-- AUDITORÍA -->
+<div class="page" id="page-audit2">
+  <div class="ph"><div>
+    <div class="ph-title">🔎 Lo que la plataforma encontró sola</div>
+    <div class="ph-sub">Revisa toda la base buscando lo que no debería existir. Nadie tiene que pedírselo.</div>
+  </div></div>
+  <div id="aud2-c"></div>
+</div>
+
+<!-- ASISTENTE -->
+<div class="page" id="page-asis">
+  <div class="as-wrap">
+    <div class="as-top">
+      <h2 id="as-h">Hola</h2>
+      <div class="s" id="as-s">Pregúntame lo que quieras de tu negocio</div>
+    </div>
+    <div class="as-chat" id="as-chat"></div>
+    <div class="as-abajo">
+      <div class="as-sug" id="as-sug"></div>
+      <div class="as-box">
+        <input id="as-in" placeholder="Escribe tu pregunta…" onkeydown="if(event.key==='Enter')asEnviar()">
+        <button id="as-btn" onclick="asEnviar()">↑</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1554,7 +1617,7 @@ function doLogin(){
   }).catch(()=>showLE('Error de conexion'));
 }
 function showLE(m){const e=document.getElementById('lerr');e.textContent=m;e.style.display='block';}
-function logout(){CU=null;cart=[];molSel=null;document.getElementById('app').style.display='none';document.getElementById('login').style.display='flex';document.getElementById('pwd').value='';document.getElementById('lerr').style.display='none';document.querySelectorAll('.ucard').forEach(c=>c.classList.remove('sel'));try{go('cot');}catch(e){}}
+function logout(){CU=null;cart=[];molSel=null;document.getElementById('app').style.display='none';document.getElementById('login').style.display='flex';document.getElementById('pwd').value='';document.getElementById('lerr').style.display='none';document.querySelectorAll('.ucard').forEach(c=>c.classList.remove('sel'));try{go('asis');}catch(e){}}
 
 // ─── NAV ──────────────────────────────────────────────────────────────────────
 function go(id){
@@ -1565,7 +1628,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:rDia,cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:rHoy,rev:rRev,cuadre:rCuadre
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},asis:()=>{cargarAuditOK().then(rAsis);},rev:rRev,cuadre:rCuadre
   })[id]?.();
 }
 
@@ -3010,8 +3073,325 @@ function fpExcel(){
 // ═══ PANTALLA "HOY" ════════════════════════════════════════════════════════
 // No es un dashboard de gráficas: es la lista de lo que falta hacer, y cada
 // renglón lleva a donde se resuelve. Se alimenta de datos que ya existen.
-function rHoy(){
-  var c=document.getElementById('hoy-c');if(!c)return;
+// ═══ AUDITORÍA PERMANENTE ══════════════════════════════════════════════════
+// La diferencia con todo lo demás: esto NO espera a que alguien abra una
+// pantalla. Corre solo, sobre TODA la base, buscando lo que no debería existir.
+// Lo que encuentra sube a la pantalla Hoy sin que nadie lo pida.
+//
+// Cada hallazgo se puede marcar como revisado y no vuelve a molestar; eso se
+// guarda en BD (config audit_ok) para que valga para todos los equipos.
+var AUDIT_OK={};
+var AUDIT=[];
+
+function cargarAuditOK(){
+  return fetch('/api/config/audit_ok',{credentials:'include'}).then(function(r){return r.json();})
+    .then(function(d){AUDIT_OK=d.valor||{};return AUDIT_OK;}).catch(function(){AUDIT_OK={};return AUDIT_OK;});
+}
+function marcarRevisado(clave){
+  AUDIT_OK[clave]=todayStr();
+  fetch('/api/config/audit_ok',{method:'PUT',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:AUDIT_OK})})
+    .then(function(){correrAuditoria();rHoy();})
+    .catch(function(e){alert('No se pudo guardar: '+e.message);});
+}
+
+// huella de un pedido: sus molduras con sus medidas, ordenadas
+function huellaPed(p){
+  var it=(p.items||[]).filter(function(x){return x&&x.mol;});
+  if(!it.length)return '';
+  return it.map(function(x){
+    return String(x.mol).trim().toUpperCase()+'|'+
+           (Math.round((x.l1||0)*10)/10)+'x'+(Math.round((x.l2||0)*10)/10)+'|'+(x.q||1);
+  }).sort().join(' ~ ');
+}
+function normNom(t){return String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');}
+function diasEntre(a,b){return Math.abs(new Date(a+'T12:00:00')-new Date(b+'T12:00:00'))/86400000;}
+
+function correrAuditoria(){
+  var H=[];  // hallazgos
+  var hoy=todayStr();
+  var add=function(tipo,clave,grav,titulo,detalle,ir){
+    if(AUDIT_OK[clave])return;
+    H.push({tipo:tipo,clave:clave,grav:grav,titulo:titulo,detalle:detalle,ir:ir||'ped'});
+  };
+
+  // ── 1) PEDIDOS DUPLICADOS: misma moldura y mismas medidas ────────────────
+  var porHuella={};
+  (pedidos||[]).forEach(function(p){
+    var h=huellaPed(p);if(!h)return;
+    (porHuella[h]=porHuella[h]||[]).push(p);
+  });
+  Object.keys(porHuella).forEach(function(h){
+    var g=porHuella[h];if(g.length<2)return;
+    g.sort(function(a,b){return String(a.fecha||'').localeCompare(String(b.fecha||''));});
+    for(var i=1;i<g.length;i++){
+      var a=g[i-1],b=g[i];
+      if(!a.fecha||!b.fecha)continue;
+      var d=diasEntre(a.fecha,b.fecha);
+      if(d>60)continue;                       // separados por meses: es un cliente que repite
+      var mismoCli=normNom(a.cli)===normNom(b.cli);
+      add('dup','dup:'+a.folio+'-'+b.folio, mismoCli?1:2,
+        (mismoCli?'Pedido duplicado':'Dos pedidos idénticos')+': folios '+a.folio+' y '+b.folio,
+        (mismoCli?a.cli:a.cli+' / '+b.cli)+' · misma moldura y medidas · '+
+        (d<1?'el mismo día':'con '+Math.round(d)+' día(s) de diferencia')+
+        ' · '+fmt(b.total)+' cada uno','ped');
+    }
+  });
+
+  // ── 2) MOLDURA PEDIDA DOS VECES al proveedor ─────────────────────────────
+  var pedidasEn={};
+  (ORDENES||[]).forEach(function(o){
+    (o.items||[]).forEach(function(it){
+      if(!it||!it.mol)return;
+      (it.fols||[]).forEach(function(f){
+        var k=String(f)+'||'+String(it.mol).trim().toUpperCase();
+        (pedidasEn[k]=pedidasEn[k]||[]).push(o.oc||('OC?'+o.id));
+      });
+    });
+  });
+  Object.keys(pedidasEn).forEach(function(k){
+    var ocs=[...new Set(pedidasEn[k])];
+    if(ocs.length<2)return;
+    var pt=k.split('||');
+    add('dupmol','dupmol:'+k,1,
+      'Moldura pedida dos veces al proveedor',
+      'La moldura '+pt[1]+' del folio '+pt[0]+' salió en '+ocs.join(' y ')+
+      ' · material comprado de más','ord');
+  });
+
+  // ── 3) FOLIOS REPETIDOS ──────────────────────────────────────────────────
+  var porFolio={};
+  (pedidos||[]).forEach(function(p){(porFolio[String(p.folio)]=porFolio[String(p.folio)]||[]).push(p);});
+  Object.keys(porFolio).forEach(function(f){
+    var g=porFolio[f];if(g.length<2)return;
+    if(normNom(g[0].cli)===normNom(g[1].cli))return;   // ese ya sale como duplicado
+    add('folio','folio:'+f,2,'Folio '+f+' usado '+g.length+' veces',
+      g.map(function(p){return (p.cli||'?')+' ('+(p.suc||'?')+')';}).join(' · '),'ped');
+  });
+
+  // ── 4) PRECIO FUERA DE RANGO ─────────────────────────────────────────────
+  // Se compara el precio por metro lineal de cada pedido contra la mediana.
+  var pxml=[];
+  (pedidos||[]).forEach(function(p){
+    var ml=0;(p.items||[]).forEach(function(it){
+      if(!it||!it.mol)return;ml+=2*(((it.l1||0)+(it.l2||0))/100)*(it.q||1);});
+    if(ml>0.5&&(p.total||0)>0)pxml.push({p:p,v:(p.total)/ml});
+  });
+  if(pxml.length>25){
+    var vals=pxml.map(function(x){return x.v;}).sort(function(a,b){return a-b;});
+    var med=vals[Math.floor(vals.length/2)];
+    pxml.forEach(function(x){
+      if(x.v>med*3.5)
+        add('precio','precio-alto:'+x.p.folio,3,'Precio muy alto · folio '+x.p.folio,
+          (x.p.cli||'')+' · '+fmt(x.v)+' por metro lineal cuando lo normal es '+fmt(med),'ped');
+      else if(x.v<med*0.3)
+        add('precio','precio-bajo:'+x.p.folio,2,'Precio muy bajo · folio '+x.p.folio,
+          (x.p.cli||'')+' · '+fmt(x.v)+' por metro lineal cuando lo normal es '+fmt(med)+
+          ' · ¿se cotizó sin utilidad?','ped');
+    });
+  }
+
+  // ── 5) ENTREGADO PERO DEBIENDO ───────────────────────────────────────────
+  (pedidos||[]).forEach(function(p){
+    if(p.est==='Entregado'&&(p.rest||0)>0.5)
+      add('debe','debe:'+p.folio,2,'Entregado y sigue debiendo · folio '+p.folio,
+        (p.cli||'')+' · debe '+fmt(p.rest)+' de '+fmt(p.total),'cxc');
+  });
+
+  // ── 6) ABONOS QUE NO CUADRAN CON EL PEDIDO ───────────────────────────────
+  var abPorFolio={};
+  (ABONOS||[]).forEach(function(a){(abPorFolio[String(a.folio)]=abPorFolio[String(a.folio)]||[]).push(a);});
+  Object.keys(abPorFolio).forEach(function(f){
+    var p=(pedidos||[]).find(function(x){return String(x.folio)===f;});
+    if(!p)return;
+    var suma=abPorFolio[f].reduce(function(t,a){return t+(a.monto||0);},0);
+    if(suma>(p.ant||0)+0.5)
+      add('abono','abono:'+f,1,'Cobrado más de lo que dice el pedido · folio '+f,
+        (p.cli||'')+' · '+fmt(suma)+' en abonos contra '+fmt(p.ant)+' de anticipo','cxc');
+    var liq=abPorFolio[f].filter(function(a){return a.tipo==='Liquidacion';});
+    if(liq.length&&(p.rest||0)>0.5)
+      add('abono','liq:'+f,1,'Liquidado pero el pedido sigue con saldo · folio '+f,
+        (p.cli||'')+' · restante '+fmt(p.rest),'cxc');
+  });
+
+  // ── 7) FECHAS IMPOSIBLES ─────────────────────────────────────────────────
+  (pedidos||[]).forEach(function(p){
+    var e=String(p.entrega||'');
+    if(e.length<8)return;
+    if(e<String(p.fecha||''))
+      add('fecha','fecha:'+p.folio,3,'Entrega anterior al pedido · folio '+p.folio,
+        'Se pidió el '+p.fecha+' y la entrega dice '+e,'ped');
+    else if(e>'2027-12-31'||e<'2015-01-01')
+      add('fecha','fecha:'+p.folio,3,'Fecha de entrega imposible · folio '+p.folio,
+        (p.cli||'')+' · dice '+e,'ped');
+  });
+
+  // ── 8) SUCURSAL QUE NO EXISTE ────────────────────────────────────────────
+  var raras=(pedidos||[]).filter(function(p){
+    return ['Jardines','Zibata'].indexOf(String(p.suc||'').trim())<0;});
+  if(raras.length)
+    add('suc','suc:'+raras.length,2,raras.length+' pedido(s) sin sucursal válida',
+      'La sucursal no ve estos pedidos · folios '+raras.slice(0,8).map(function(p){return p.folio;}).join(', ')+
+      (raras.length>8?'…':''),'ped');
+
+  H.sort(function(a,b){return a.grav-b.grav;});
+  AUDIT=H;
+  return H;
+}
+
+function rAudit2(){
+  var c=document.getElementById('aud2-c');if(!c)return;
+  var A=correrAuditoria();
+  var revisados=Object.keys(AUDIT_OK).length;
+  if(!A.length){
+    c.innerHTML='<div class="card" style="padding:3rem 1rem;text-align:center">'+
+      '<div style="font-size:44px">✅</div><div style="font-size:19px;font-weight:800;margin-top:8px">Nada raro encontrado</div>'+
+      '<div style="font-size:13px;color:var(--text3);margin-top:4px">Se revisaron '+(pedidos||[]).length+' pedidos, '+
+      (ORDENES||[]).length+' órdenes y '+(ABONOS||[]).length+' cobros.'+
+      (revisados?' · '+revisados+' hallazgo(s) marcados como revisados':'')+'</div></div>';
+    return;
+  }
+  var COL={1:['#991B1B','#FEF2F2','Cuesta dinero'],2:['#B45309','#FFFBEB','Por confirmar'],3:['#4B5563','#F8FAFC','Dato mal capturado']};
+  var h='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">';
+  [1,2,3].forEach(function(g){
+    var n=A.filter(function(x){return x.grav===g;}).length;
+    h+='<div style="flex:1;min-width:150px;background:'+COL[g][1]+';border-radius:12px;padding:12px 15px">'+
+      '<div style="font-size:10px;font-weight:800;color:'+COL[g][0]+';text-transform:uppercase;letter-spacing:.05em">'+COL[g][2]+'</div>'+
+      '<div class="mono" style="font-size:26px;font-weight:800;color:'+COL[g][0]+'">'+n+'</div></div>';
+  });
+  h+='</div><div style="font-size:11.5px;color:var(--text3);margin-bottom:12px">Se revisaron '+
+     (pedidos||[]).length+' pedidos, '+(ORDENES||[]).length+' órdenes de compra y '+(ABONOS||[]).length+' cobros'+
+     (revisados?' · '+revisados+' hallazgo(s) ya marcados como revisados':'')+'.</div>';
+
+  h+=A.map(function(x){
+    var cc=COL[x.grav];
+    return '<div class="card" style="padding:0;overflow:hidden;border-left:6px solid '+cc[0]+';margin-bottom:11px">'+
+      '<div style="display:flex;align-items:center;gap:14px;padding:14px 18px;flex-wrap:wrap">'+
+        '<div style="flex:1;min-width:230px">'+
+          '<div style="font-size:15px;font-weight:800;color:'+cc[0]+'">'+x.titulo+'</div>'+
+          '<div style="font-size:12.5px;color:var(--text2);margin-top:3px">'+x.detalle+'</div></div>'+
+        '<button class="btn btn-s btn-sm" onclick="go(\''+x.ir+'\')">Ir a revisarlo</button> '+
+        '<button class="btn btn-s btn-sm" onclick="marcarRevisado(\''+x.clave.replace(/'/g,"")+'\')">✓ Ya lo revisé</button>'+
+      '</div></div>';
+  }).join('');
+  h+='<div style="font-size:11.5px;color:var(--text3);margin-top:10px">Lo que marques como revisado no vuelve a aparecer, ni aquí ni en Hoy.</div>';
+  c.innerHTML=h;
+}
+
+// ═══ ASISTENTE ═════════════════════════════════════════════════════════════
+// Una conversación en vez de pantallas. Abre con los pendientes del día (lo que
+// antes era la pantalla Hoy) y responde preguntas sobre los datos reales.
+var AS_MSGS=[];
+var AS_OCUPADA=false;
+
+// Resumen COMPACTO de los datos. No se manda la base entera: solo lo que hace
+// falta para contestar, y recortado para que no se dispare el costo.
+function asDatos(){
+  var u=_u()||{},hoy=todayStr(),mes=hoy.slice(0,7);
+  var mios=misP();
+  var pend=mios.filter(function(p){return p.est==='Pendiente';});
+  var deben=mios.filter(function(p){return (p.rest||0)>0.5;});
+  var delMes=mios.filter(function(p){return String(p.fecha||'').slice(0,7)===mes;});
+  var corto=function(p){return {folio:p.folio,cli:p.cli,suc:p.suc,fecha:p.fecha,total:p.total,
+    anticipo:p.ant,resta:p.rest,estatus:p.est,entrega_prometida:p.entrega||null,
+    entrega_real:p.entrega_real||null,vendedor:p.vend||null};};
+  var saldos={};
+  try{Object.keys(BANCOS_INIT).forEach(function(c){
+    var x=saldoCta(c);saldos[c]=Math.round(((BANCOS_INIT[c]||0)+x.e-x.s)*100)/100;});}catch(e){}
+  var hall=[];try{hall=correrAuditoria().map(function(x){
+    return {gravedad:x.grav,que:x.titulo,detalle:x.detalle};});}catch(e){}
+  var prov=[];try{prov=(FP||[]).filter(function(f){return (f.monto||0)-(f.abonado||0)>0.5;})
+    .map(function(f){return {proveedor:PROVS[f.prov]||f.prov,factura:f.factura,pedido:f.oc,
+      monto:f.monto,abonado:f.abonado,vence:f.venc};}).slice(0,40);}catch(e){}
+  var molPend={};try{pedidos.filter(function(p){return p.est==='Pendiente'&&p.items;})
+    .forEach(function(p){(p.items||[]).forEach(function(it){
+      if(it&&it.mol)molPend[it.mol]=(molPend[it.mol]||0)+(it.q||1);});});}catch(e){}
+  return {
+    quien:{nombre:u.name||u.key,rol:u.role,sucursal:u.suc},
+    resumen:{pedidos_totales:mios.length,pendientes:pend.length,
+      por_cobrar_total:Math.round(deben.reduce(function(a,p){return a+(p.rest||0);},0)*100)/100,
+      pedidos_del_mes:delMes.length,
+      vendido_del_mes:Math.round(delMes.reduce(function(a,p){return a+(p.total||0);},0)*100)/100},
+    saldos_por_cuenta:saldos,
+    pendientes:pend.slice(0,60).map(corto),
+    con_saldo:deben.slice(0,60).map(corto),
+    del_mes:delMes.slice(0,80).map(corto),
+    molduras_por_pedir:molPend,
+    facturas_proveedor_por_pagar:prov,
+    hallazgos_de_la_revision:hall.slice(0,40),
+    nota:'Los pedidos que se listan están recortados a los más relevantes; los totales del resumen sí son de todo.'
+  };
+}
+
+function rAsis(){
+  var u=_u()||{},d=new Date();
+  var DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  var MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var nom=(u.name||u.key||'').split(' ')[0];
+  document.getElementById('as-h').innerHTML='Hola, <em>'+(nom||'qué tal')+'</em>';
+  document.getElementById('as-s').textContent=DIAS[d.getDay()]+' '+d.getDate()+' de '+MES[d.getMonth()];
+  document.getElementById('as-sug').innerHTML=
+    ['¿Qué debo revisar hoy?','¿Cuánto me deben?','¿Qué le debo a Servimarco?',
+     '¿Cómo va el mes contra el pasado?','¿Qué pedidos van tarde?']
+    .map(function(q){return '<span onclick="asPregunta(\''+q.replace(/'/g,'')+'\')">'+q+'</span>';}).join('');
+  if(!AS_MSGS.length)asPintarInicio();
+  else asPintar();
+}
+
+// Lo primero que ve: sus pendientes, sin preguntarlos
+function asPintarInicio(){
+  var c=document.getElementById('as-chat');
+  var T=[];try{T=hoyPendientes();}catch(e){}
+  var h='';
+  if(!T.length){
+    h='<div class="as-msg as-ella">Todo al corriente por ahora. No encontré nada pendiente ni nada raro en tus datos.\n\nPregúntame lo que quieras.</div>';
+  }else{
+    var urg=T.filter(function(x){return x.u===1;}).length;
+    h='<div class="as-msg as-ella">Revisé tus pedidos, cobros, órdenes y facturas. '+
+      (urg?'Hay <b>'+urg+'</b> '+(urg===1?'cosa urgente':'cosas urgentes')+' y ':'Encontré ')+
+      T.length+' '+(T.length===1?'pendiente':'pendientes')+' en total.</div>';
+    h+='<div class="as-pen">Lo que falta hacer</div>';
+    h+=T.map(function(x){
+      return '<div class="as-card'+(x.u===1?' u':'')+'" onclick="go(\''+x.ir+'\')">'+
+        '<div class="i">'+x.ico+'</div><div style="flex:1;min-width:0">'+
+        '<div class="t">'+String(x.txt).replace(/(\$[\d,]+(?:\.\d{2})?|\b\d+\b)/,'<b>$1</b>')+'</div>'+
+        '<div class="d">'+(x.sub||'')+'</div></div>'+
+        '<div style="font-size:22px;color:#C3CEDE;font-weight:800">›</div></div>';
+    }).join('');
+  }
+  c.innerHTML=h;c.scrollTop=0;
+}
+
+function asPintar(){
+  var c=document.getElementById('as-chat');
+  c.innerHTML=AS_MSGS.map(function(m){
+    if(m.rol==='yo')return '<div class="as-msg as-yo">'+asEsc(m.txt)+'</div>';
+    return '<div class="as-msg as-ella">'+asEsc(m.txt).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')+'</div>';
+  }).join('');
+  c.scrollTop=c.scrollHeight;
+}
+function asEsc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function asPregunta(q){document.getElementById('as-in').value=q;asEnviar();}
+
+function asEnviar(){
+  if(AS_OCUPADA)return;
+  var inp=document.getElementById('as-in'),q=inp.value.trim();
+  if(!q)return;
+  inp.value='';
+  AS_MSGS.push({rol:'yo',txt:q});
+  AS_MSGS.push({rol:'asistente',txt:'…'});
+  asPintar();
+  AS_OCUPADA=true;document.getElementById('as-btn').disabled=true;
+  fetch('/api/asistente',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mensajes:AS_MSGS.slice(0,-1),datos:asDatos(),hoy:todayStr()})})
+  .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||('error '+r.status));return d;});})
+  .then(function(d){AS_MSGS[AS_MSGS.length-1]={rol:'asistente',txt:d.texto||'(sin respuesta)'};asPintar();})
+  .catch(function(e){AS_MSGS[AS_MSGS.length-1]={rol:'asistente',txt:'⚠️ '+e.message};asPintar();})
+  .then(function(){AS_OCUPADA=false;document.getElementById('as-btn').disabled=false;});
+}
+
+function hoyPendientes(){
   var u=_u()||{},hoy=todayStr(),d=new Date();
   var DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
   // el encabezado se pinta abajo, junto con las tarjetas
@@ -3096,7 +3476,33 @@ function rHoy(){
     T.push({u:2,ico:'🌙',txt:'El cierre de ayer no se registró',
       sub:cobrosAyer.length+' cobro(s) de ayer sin su entrada en Movimientos',ir:'cob'});
 
+  // ── LO QUE ENCONTRÓ LA AUDITORÍA, sin que nadie lo pidiera ──────────────
+  if((u.role==='admin'||u.role==='owner')&&typeof correrAuditoria==='function'){
+    try{
+      var A=correrAuditoria();
+      var graves=A.filter(function(x){return x.grav===1;});
+      if(graves.length)T.push({u:1,tag:'Revisar',ico:'🔎',
+        txt:graves.length+(graves.length===1?' cosa que no debería estar así':' cosas que no deberían estar así'),
+        sub:graves.slice(0,2).map(function(x){return x.titulo;}).join(' · '),ir:'audit2'});
+      var medios=A.filter(function(x){return x.grav===2;});
+      if(medios.length)T.push({u:3,ico:'🔎',
+        txt:medios.length+' detalle(s) por confirmar',
+        sub:medios.slice(0,2).map(function(x){return x.titulo;}).join(' · '),ir:'audit2'});
+      var leves=A.filter(function(x){return x.grav===3;});
+      if(leves.length)T.push({u:4,ico:'🧹',txt:leves.length+' dato(s) mal capturados',
+        sub:'Fechas o precios raros que conviene limpiar',ir:'audit2'});
+    }catch(e){}
+  }
+
   T.sort(function(a,b){return a.u-b.u;});
+  return T;
+}
+
+function rHoy(){
+  var c=document.getElementById('hoy-c');if(!c)return;
+  var u=_u()||{},d=new Date();
+  var T=hoyPendientes();
+
 
   var DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   var MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -5676,11 +6082,11 @@ function loadData(){
     ABONOS=abns||[];
     const uAct=USERS.find(x=>x.key===CU);
     if(uAct&&uAct.role==='taller'){go('ord');switchOrdTab('seguimiento',document.getElementById('chip-ord-seg'));}
-    else go('cot');
+    else go('asis');   // se entra a la conversación, no al cotizador
     console.log('Data loaded: '+pedidos.length+' pedidos, '+movs.length+' movs');
     // Re-render active page in case user navigated before data arrived
     const activePage=document.querySelector('.page.active');
-    if(activePage){const pid=activePage.id.replace('page-','');if(pid!=='cot')go(pid);}
+    if(activePage){const pid=activePage.id.replace('page-','');if(pid!=='asis')go(pid);}
   }).catch(e=>console.error('Load error:',e));
 }
 
