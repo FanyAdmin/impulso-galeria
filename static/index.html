@@ -582,7 +582,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 26-ago · compacto v6</div></div>
+  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 26-ago · casar por grupo</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
@@ -3123,9 +3123,185 @@ function pintaCuadre(d){
   if(sobranS.length)h+=bloqueMios('👻 Salidas tuyas que el banco nunca cobró',sobranS,'#B45309');
   if(transito.length)h+=bloqueMios('⏳ Cobros que el banco todavía no deposita (esto está bien)',transito,'#1D4ED8');
 
+  // Lo que quedó suelto de los dos lados: materia prima del casado por grupo
+  CUA_LIBRE={
+    banco:aFalta.map(function(b){return {f:b.fecha,monto:b.monto,det:(b.det||b.tipo||''),signo:1};})
+      .concat(cFalta.map(function(b){return {f:b.fecha,monto:b.monto,det:(b.det||b.tipo||''),signo:-1};}))
+      .filter(function(b){return !CUA_CASADOS[claveBco(b)];}),
+    mios:transito.concat(fantasma).map(function(x){return {m:x.m,signo:1};})
+      .concat(sobranS.map(function(x){return {m:x.m,signo:-1};}))
+      .filter(function(x){return !x.m.conciliado;})
+  };
+  h+=panelGrupos();
+
   h+='<div style="font-size:11.5px;color:var(--text3);margin-top:10px">Periodo leído: '+desde+' al '+hasta+
      ' · '+(d.cargos||[]).length+' cargos y '+abonos.length+' abonos del banco · '+mios.length+' movimientos tuyos.</div>';
   document.getElementById('cua-res').innerHTML=h;
+}
+
+// ═══ CASAR POR GRUPO ═══════════════════════════════════════════════════════
+// El banco deposita cobro por cobro; tú registras la venta del día en un solo
+// renglón. Uno contra uno nunca va a cuadrar: aquí se casan VARIOS renglones
+// del banco contra UNO tuyo (o al revés), y la diferencia se nombra: comisión.
+var CUA_LIBRE={banco:[],mios:[]};
+var CUA_CASADOS={};              // renglones del banco ya casados en esta sesión
+var GSEL={banco:{},mios:{}};     // lo que está palomeado ahora
+function claveBco(b){return b.f+'|'+b.monto.toFixed(2)+'|'+(b.det||'').slice(0,18);}
+function tolDe(monto){return Math.max(2,Math.abs(monto)*0.02);}   // 2%: la comisión de terminal
+
+// Busca combinaciones del banco que sumen UN movimiento tuyo (hasta 6 renglones)
+function gSugerencias(){
+  var out=[],usados={};
+  (CUA_LIBRE.mios||[]).forEach(function(x){
+    var meta=+x.m.monto, fm=String(x.m.fecha).slice(0,10);
+    var cand=(CUA_LIBRE.banco||[]).filter(function(b){
+      if(usados[claveBco(b)])return false;
+      if(b.signo!==x.signo)return false;
+      var d=(new Date(b.f)-new Date(fm))/86400000;
+      return d>=-2&&d<=6&&b.monto<=meta+tolDe(meta);
+    }).sort(function(a,b){return b.monto-a.monto;}).slice(0,16);
+    var mejor=null,pasos=0;
+    (function dfs(i,suma,pick){
+      if(mejor||pasos++>12000)return;
+      // El banco deposita IGUAL o MENOS (la comisión). Que deposite de más no es
+      // una comisión: eso no se propone solo, se casa a mano.
+      var dif=meta-suma;
+      if(pick.length>=1&&dif>=-1&&dif<=tolDe(meta)){mejor={lineas:pick.slice(),suma:suma,dif:dif};return;}
+      if(i>=cand.length||pick.length>=10||suma>meta+tolDe(meta))return;
+      pick.push(cand[i]);dfs(i+1,suma+cand[i].monto,pick);pick.pop();
+      dfs(i+1,suma,pick);
+    })(0,0,[]);
+    if(mejor&&mejor.lineas.length>1){
+      mejor.lineas.sort(function(p,q){return p.f.localeCompare(q.f);});
+      mejor.lineas.forEach(function(b){usados[claveBco(b)]=1;});
+      out.push({mio:x,g:mejor});
+    }
+  });
+  return out;
+}
+
+function panelGrupos(){
+  if(!(CUA_LIBRE.mios||[]).length||!(CUA_LIBRE.banco||[]).length)return '';
+  var sug=gSugerencias();
+  var h='<div class="card" style="padding:0;overflow:hidden;border-left:6px solid #6D28D9;margin-bottom:12px">'+
+    '<div style="padding:12px 16px"><div style="font-size:13px;font-weight:800;color:#6D28D9">🔗 Casar por grupo</div>'+
+    '<div style="font-size:12px;color:var(--text2);margin-top:2px">Tú registras la venta del día en un renglón y el banco la deposita cobro por cobro. '+
+    'Palomea de los dos lados: cuando la suma cuadre (o la diferencia sea la comisión), se casan. '+
+    '<b>Revisa cada grupo antes de casarlo</b>: si dos días traen montos parecidos, la propuesta puede mezclarlos.</div></div>';
+
+  if(sug.length){
+    h+='<div style="border-top:1px solid var(--border);padding:10px 16px;background:#FAF7FF">'+
+      '<div style="font-size:12px;font-weight:800;color:#6D28D9;margin-bottom:6px">Encontré '+sug.length+' grupo(s) que cuadran solos</div>'+
+      sug.map(function(s,i){
+        var com=s.g.dif;
+        return '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:9px;padding:8px 12px;margin-bottom:6px">'+
+          '<div style="flex:1;min-width:230px;font-size:12px">'+
+            '<b>'+(s.mio.m.concepto||'')+'</b> · '+String(s.mio.m.fecha).slice(0,10)+' · <b class="mono">'+fmt(s.mio.m.monto)+'</b>'+
+            '<div style="color:var(--text3);margin-top:2px">= '+s.g.lineas.map(function(b){return b.f.slice(5)+' '+fmt(b.monto);}).join(' + ')+'</div>'+
+          '</div>'+
+          (Math.abs(com)>0.5?'<span class="ord-alerta" style="background:#FEF3C7;color:#8A6100">comisión ≈ '+fmt(com)+'</span>':
+            '<span class="ord-alerta" style="background:#D8F0E0;color:#12724C">exacto</span>')+
+          '<button class="btn btn-p btn-xs" onclick="gAplicar('+i+')">✓ Casar</button></div>';
+      }).join('')+'</div>';
+    GSUG=sug;
+  } else { GSUG=[]; }
+
+  // Tablero manual: los dos lados con casillas
+  var col=function(tit,filas){return '<div style="flex:1;min-width:270px"><div style="font-size:11.5px;font-weight:800;color:var(--text2);margin-bottom:5px">'+tit+'</div>'+filas+'</div>';};
+  var fb=(CUA_LIBRE.banco||[]).map(function(b,i){
+    return '<label style="display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0;cursor:pointer">'+
+      '<input type="checkbox" onchange="gTog(\'banco\','+i+',this.checked)" style="width:15px;height:15px">'+
+      '<span style="color:var(--text3);width:52px">'+b.f.slice(5)+'</span>'+
+      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+b.det+'</span>'+
+      '<b class="mono">'+(b.signo<0?'−':'')+fmt(b.monto)+'</b></label>';
+  }).join('')||'<div style="font-size:12px;color:var(--text3)">Nada suelto</div>';
+  var fm=(CUA_LIBRE.mios||[]).map(function(x,i){
+    return '<label style="display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0;cursor:pointer">'+
+      '<input type="checkbox" onchange="gTog(\'mios\','+i+',this.checked)" style="width:15px;height:15px">'+
+      '<span style="color:var(--text3);width:52px">'+String(x.m.fecha).slice(5,10)+'</span>'+
+      '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(x.m.concepto||'')+'</span>'+
+      '<b class="mono">'+(x.signo<0?'−':'')+fmt(x.m.monto)+'</b></label>';
+  }).join('')||'<div style="font-size:12px;color:var(--text3)">Nada suelto</div>';
+
+  h+='<div style="border-top:1px solid var(--border);padding:12px 16px;display:flex;gap:22px;flex-wrap:wrap">'+
+      col('🏦 Renglones del banco',fb)+col('📒 Movimientos tuyos',fm)+'</div>'+
+     '<div id="g-barra" style="border-top:1px solid var(--border);padding:10px 16px;background:var(--surface2);display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12.5px">'+
+      '<span>Banco: <b class="mono" id="g-tb">$0.00</b></span>'+
+      '<span>Tuyo: <b class="mono" id="g-tm">$0.00</b></span>'+
+      '<span>Diferencia: <b class="mono" id="g-td">$0.00</b></span>'+
+      '<span id="g-nota" style="color:var(--text3)"></span><span style="flex:1"></span>'+
+      '<button class="btn btn-p btn-sm" id="g-btn" onclick="gCasar()" disabled>✓ Casar seleccionados</button></div>'+
+    '</div>';
+  return h;
+}
+var GSUG=[];
+
+function gTog(lado,i,on){
+  if(on)GSEL[lado][i]=true;else delete GSEL[lado][i];
+  gPinta();
+}
+function gTotales(){
+  var tb=0,tm=0;
+  Object.keys(GSEL.banco).forEach(function(i){var b=CUA_LIBRE.banco[i];if(b)tb+=b.monto*b.signo;});
+  Object.keys(GSEL.mios).forEach(function(i){var x=CUA_LIBRE.mios[i];if(x)tm+=(+x.m.monto)*x.signo;});
+  return {tb:tb,tm:tm,dif:tm-tb};
+}
+function gPinta(){
+  var t=gTotales(),tol=tolDe(Math.abs(t.tm)||Math.abs(t.tb));
+  var e=function(id){return document.getElementById(id);};
+  if(!e('g-tb'))return;
+  e('g-tb').textContent=fmt(t.tb);e('g-tm').textContent=fmt(t.tm);e('g-td').textContent=fmt(t.dif);
+  var hay=Object.keys(GSEL.banco).length&&Object.keys(GSEL.mios).length;
+  var ok=hay&&Math.abs(t.dif)<=tol;
+  e('g-td').style.color=ok?'#12724C':'#B0004E';
+  e('g-nota').textContent=!hay?'palomea de los dos lados'
+    :(ok?(Math.abs(t.dif)>0.5?'la diferencia se registra como comisión':'cuadra exacto')
+        :'se pasa de la tolerancia ('+fmt(tol)+')');
+  e('g-btn').disabled=!ok;
+  e('g-btn').style.opacity=ok?1:.45;
+}
+function gAplicar(i){
+  var s=GSUG[i];if(!s)return;
+  GSEL={banco:{},mios:{}};
+  var im=CUA_LIBRE.mios.indexOf(s.mio); if(im>=0)GSEL.mios[im]=true;
+  s.g.lineas.forEach(function(b){var ib=CUA_LIBRE.banco.indexOf(b);if(ib>=0)GSEL.banco[ib]=true;});
+  gCasar();
+}
+// Casa lo palomeado: concilia tus movimientos y nombra la diferencia
+function gCasar(){
+  var t=gTotales();
+  var mios=Object.keys(GSEL.mios).map(function(i){return CUA_LIBRE.mios[i];}).filter(Boolean);
+  var bcos=Object.keys(GSEL.banco).map(function(i){return CUA_LIBRE.banco[i];}).filter(Boolean);
+  if(!mios.length||!bcos.length)return;
+  var cta=document.getElementById('cua-cta').value;
+  var dif=Math.round(t.dif*100)/100;    // + : el banco depositó menos que tu registro
+  var txt='Se van a casar '+bcos.length+' renglón(es) del banco ('+fmt(t.tb)+')\ncon '+mios.length+' movimiento(s) tuyo(s) ('+fmt(t.tm)+').\n\n';
+  txt+=Math.abs(dif)<0.5?'Cuadra exacto.':(dif>0
+      ? 'El banco depositó '+fmt(dif)+' menos: se registra como comisión bancaria.'
+      : 'El banco depositó '+fmt(-dif)+' más: se registra como ingreso no capturado.');
+  if(!confirm(txt+'\n\n¿Continuar?'))return;
+
+  var ids=mios.map(function(x){return {id:x.m.id,ref:'grupo '+bcos[0].f};});
+  fetch('/api/conciliar',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({fecha:todayStr(),items:ids})})
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(){
+    mios.forEach(function(x){x.m.conciliado=todayStr();});
+    bcos.forEach(function(b){CUA_CASADOS[claveBco(b)]=1;});
+    if(Math.abs(dif)>=0.5){
+      var f=bcos[bcos.length-1].f;
+      var mv=dif>0
+        ? {tipo:'Salida',concepto:'Comisiones bancarias',desc:'Comisión de terminal al casar '+bcos.length+' depósito(s) contra '+(mios[0].m.concepto||'venta'),cuenta:cta,cta_destino:'',monto:Math.abs(dif),fecha:f,mes:parseInt(f.split('-')[1],10)-1}
+        : {tipo:'Entrada',concepto:'Otros ingresos',desc:'Depositado de más al casar '+bcos.length+' renglón(es) del banco',cuenta:cta,cta_destino:'',monto:Math.abs(dif),fecha:f,mes:parseInt(f.split('-')[1],10)-1};
+      return fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+        .then(function(r){return r.json();}).then(function(d){movs.unshift(d);
+          return fetch('/api/conciliar',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({fecha:todayStr(),items:[{id:d.id,ref:'grupo '+f}]})}).then(function(){d.conciliado=todayStr();});
+        });
+    }
+  })
+  .then(function(){GSEL={banco:{},mios:{}};pintaCuadre(CUA);})
+  .catch(function(e){alert('No se pudo casar: '+e.message);});
 }
 
 var CUA_OK=[];
