@@ -541,6 +541,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div class="sb-item" onclick="go('cxc')" id="nav-cxc">💰 Cuentas x cobrar</div>
   <div class="sb-item" onclick="go('dia')" id="nav-dia">📊 Mi día</div>
   <div class="sb-item" onclick="go('rev')" id="nav-rev">📸 Revisión de notas</div>
+  <div class="sb-item admin-only" style="display:none" onclick="go('audit2')" id="nav-audit2">🔎 Revisión automática <span id="aud2-badge" style="background:#D81B60;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
   <div class="sb-item owner-only" style="display:none" onclick="go('cuadre')" id="nav-cuadre">🏦 Cuadre de banco</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('cob')" id="nav-cob">💵 Cobranza</div>
   <div class="sb-section">Catálogo</div>
@@ -812,6 +813,18 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="ph-title">🔎 Lo que la plataforma encontró sola</div>
     <div class="ph-sub">Revisa toda la base buscando lo que no debería existir. Nadie tiene que pedírselo.</div>
   </div></div>
+  <div class="card" style="padding:15px 18px;margin-bottom:16px">
+    <div style="font-size:15px;font-weight:800">🔢 Continuidad de notas · como tu Excel</div>
+    <div style="font-size:12px;color:var(--text3);margin:2px 0 11px">Nota por nota: verde si se capturó, rosa si se saltó. Elige el rango que quieras revisar.</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="field" style="min-width:160px;margin:0"><label>Sucursal</label><select id="fol-suc" onchange="folRango()"></select></div>
+      <div class="field" style="width:120px;margin:0"><label>De la nota</label><input type="number" id="fol-de"></div>
+      <div class="field" style="width:120px;margin:0"><label>a la nota</label><input type="number" id="fol-a"></div>
+      <button class="btn btn-p btn-sm" onclick="rFolios()">Ver notas</button>
+      <button class="btn btn-s btn-sm" onclick="folImprimir()">🖨️ Imprimir</button>
+    </div>
+    <div id="fol-c" style="margin-top:13px"></div>
+  </div>
   <div id="aud2-c"></div>
 </div>
 
@@ -821,6 +834,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="ph-title">📆 Calendario</div>
     <div class="ph-sub">Lo del negocio y lo de la gente, en un solo lugar. Pica un día para anotar algo.</div>
   </div></div>
+  <div id="cal-audit"></div>
   <div class="cal-top">
     <button class="cal-nav" onclick="calMover(-1)">‹</button>
     <div class="cal-mes" id="cal-mes"></div>
@@ -1622,7 +1636,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:rDia,cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(rCal);},rev:rRev,cuadre:rCuadre
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:rCuadre
   })[id]?.();
 }
 
@@ -3122,7 +3136,9 @@ function marcarRevisado(clave){
   AUDIT_OK[clave]=todayStr();
   fetch('/api/config/audit_ok',{method:'PUT',credentials:'include',
     headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:AUDIT_OK})})
-    .then(function(){correrAuditoria();rHoy();})
+    .then(function(){correrAuditoria();
+      try{if(document.getElementById('aud2-c')){rAudit2();if(FOL_VISTA)rFolios();}}catch(e){}
+      try{if(typeof hoyPendientes==='function')rHoy();}catch(e){}})
     .catch(function(e){alert('No se pudo guardar: '+e.message);});
 }
 
@@ -3265,14 +3281,230 @@ function correrAuditoria(){
       'La sucursal no ve estos pedidos · folios '+raras.slice(0,8).map(function(p){return p.folio;}).join(', ')+
       (raras.length>8?'…':''),'ped');
 
+  // ── 9) NOTAS SALTADAS ────────────────────────────────────────────────────
+  // Lo que hacía a mano en su Excel: si la numeración brinca, algo no se
+  // capturó. Solo se miran los últimos 120 días para no revivir el histórico.
+  foliosHuecos(120).forEach(function(h){
+    add('folfalta',h.clave,h.cuantos>=5?3:2,
+      (h.cuantos===1?'Falta la nota '+h.desde:'Faltan '+h.cuantos+' notas ('+h.desde+' a '+h.hasta+')')+' · '+h.suc,
+      h.pista,'ped');
+  });
+
   H.sort(function(a,b){return a.grav-b.grav;});
   AUDIT=H;
+  try{badgeAudit();}catch(e){}
   return H;
+}
+
+
+// ═══ CONTINUIDAD DE NOTAS (folios saltados) ════════════════════════════════
+// Su Excel pinta de rosa el número de nota que no se capturó. Esto hace lo
+// mismo, pero solo, por sucursal, y además sabe qué nota va antes y después
+// para poder decir si el hueco es sospechoso o normal.
+var FOL_VISTA=null;
+
+function folioNum(p){
+  var m=String(p&&p.folio!=null?p.folio:'').match(/\d+/);
+  return m?parseInt(m[0],10):null;
+}
+function folSucOf(p){var s=String(p.suc||'').trim();return s||'(sin sucursal)';}
+
+// Agrupa los pedidos por sucursal en un mapa folio -> pedidos
+function foliosPorSuc(){
+  var R={};
+  (pedidos||[]).forEach(function(p){
+    var n=folioNum(p);if(n===null)return;
+    var s=folSucOf(p);
+    if(!R[s])R[s]={mapa:{},nums:[]};
+    if(!R[s].mapa[n]){R[s].mapa[n]=[];R[s].nums.push(n);}
+    R[s].mapa[n].push(p);
+  });
+  Object.keys(R).forEach(function(s){R[s].nums.sort(function(a,b){return a-b;});});
+  return R;
+}
+
+function folPista(h,M){
+  var a=h.antes,b=h.despues;
+  if(h.cuantos>=5)
+    return 'Bloque de '+h.cuantos+' notas seguidas · suele ser un talonario de otra sucursal o notas que nunca se usaron';
+  if(a&&b&&a.fecha&&a.fecha===b.fecha)
+    return 'La nota anterior ('+a.folio+') y la siguiente ('+b.folio+') son del mismo día, el '+a.fecha+
+           ' · casi seguro esa nota existe en papel y no se capturó';
+  return 'Entre la '+(a?a.folio+' del '+(a.fecha||'?'):'—')+' y la '+(b?b.folio+' del '+(b.fecha||'?'):'—')+
+         ' · revísala contra el talonario';
+}
+
+// Huecos de numeración. dias=N limita a lo reciente (para la auditoría);
+// desdeF/hastaF fuerzan un rango (para el panel visual).
+function foliosHuecos(dias,sucF,desdeF,hastaF){
+  var R=foliosPorSuc(),out=[],hoy=new Date(todayStr()+'T12:00:00');
+  Object.keys(R).forEach(function(s){
+    if(sucF&&s!==sucF)return;
+    var M=R[s].mapa,nums=R[s].nums;
+    if(nums.length<3)return;
+    var desde=(desdeF!=null?desdeF:nums[0]),hasta=(hastaF!=null?hastaF:nums[nums.length-1]);
+    if(dias){
+      var lim=null;
+      for(var i=0;i<nums.length&&lim===null;i++){
+        var f=M[nums[i]][0].fecha||'';
+        if(f&&(hoy-new Date(f+'T12:00:00'))/86400000<=dias)lim=nums[i];
+      }
+      if(lim===null)return;
+      desde=Math.max(desde,lim);
+    }
+    if(hasta-desde>3000)desde=hasta-3000;   // candado por si hay un folio disparatado
+    var run=null;
+    var cerrar=function(r){
+      r.suc=s;
+      r.antes=(M[r.desde-1]||[])[0]||null;
+      r.despues=(M[r.hasta+1]||[])[0]||null;
+      r.clave='folfalta:'+s+':'+r.desde+'-'+r.hasta;
+      r.pista=folPista(r,M);
+      out.push(r);
+    };
+    for(var n=desde;n<=hasta;n++){
+      if(M[n]){if(run){cerrar(run);run=null;}}
+      else{if(!run)run={desde:n,hasta:n,cuantos:1};else{run.hasta=n;run.cuantos++;}}
+    }
+    if(run)cerrar(run);
+  });
+  return out;
+}
+
+// ── Panel visual: la tabla verde/rosa ──────────────────────────────────────
+function folInit(){
+  var sel=document.getElementById('fol-suc');if(!sel)return;
+  var R=foliosPorSuc(),sucs=Object.keys(R).sort();
+  var prev=sel.value;
+  sel.innerHTML=sucs.map(function(s){return '<option>'+s+'</option>';}).join('');
+  if(prev&&sucs.indexOf(prev)>=0)sel.value=prev;
+  else if(sucs.indexOf('Jardines')>=0)sel.value='Jardines';
+  folRango();
+}
+// Al cambiar de sucursal propone sus últimas 200 notas
+function folRango(){
+  var sel=document.getElementById('fol-suc');if(!sel||!sel.value)return;
+  var R=foliosPorSuc()[sel.value];if(!R||!R.nums.length)return;
+  var max=R.nums[R.nums.length-1],min=R.nums[0];
+  document.getElementById('fol-de').value=Math.max(min,max-199);
+  document.getElementById('fol-a').value=max;
+  document.getElementById('fol-c').innerHTML='';
+}
+
+function folDatos(){
+  var suc=document.getElementById('fol-suc').value;
+  var de=parseInt(document.getElementById('fol-de').value,10);
+  var a=parseInt(document.getElementById('fol-a').value,10);
+  var R=foliosPorSuc()[suc];
+  if(!R)return null;
+  if(isNaN(de))de=R.nums[0];
+  if(isNaN(a))a=R.nums[R.nums.length-1];
+  if(a<de){var t=de;de=a;a=t;}
+  if(a-de>800)de=a-800;                     // no tiene caso pintar más
+  var filas=[],reg=0,falt=0,just=0,dup=0;
+  for(var n=de;n<=a;n++){
+    var g=R.mapa[n];
+    if(g){
+      reg++;if(g.length>1)dup++;
+      filas.push({n:n,est:'si',fecha:g[0].fecha||'',cli:g[0].cli||'',veces:g.length,total:g[0].total||0});
+    }else{
+      var ok=null;
+      Object.keys(AUDIT_OK).forEach(function(k){
+        if(k.indexOf('folfalta:'+suc+':')!==0)return;
+        var pt=k.split(':')[2].split('-');
+        if(n>=parseInt(pt[0],10)&&n<=parseInt(pt[1],10))ok=k;
+      });
+      if(ok)just++;else falt++;
+      filas.push({n:n,est:ok?'just':'no',clave:ok});
+    }
+  }
+  FOL_VISTA={suc:suc,de:de,a:a,filas:filas,reg:reg,falt:falt,just:just,dup:dup};
+  return FOL_VISTA;
+}
+
+function rFolios(){
+  var c=document.getElementById('fol-c');if(!c)return;
+  var D=folDatos();
+  if(!D){c.innerHTML='<div style="font-size:12.5px;color:var(--text3)">No hay notas de esa sucursal.</div>';return;}
+  var huecos=foliosHuecos(null,D.suc,D.de,D.a);
+  var res='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:11px">'+
+    '<div style="flex:1;min-width:130px;background:#ECFDF3;border-radius:12px;padding:10px 14px"><div style="font-size:10px;font-weight:800;color:#12724C;text-transform:uppercase;letter-spacing:.05em">Registradas</div><div class="mono" style="font-size:24px;font-weight:800;color:#12724C">'+D.reg+'</div></div>'+
+    '<div style="flex:1;min-width:130px;background:'+(D.falt?'#FDF2F7':'#F8FAFC')+';border-radius:12px;padding:10px 14px"><div style="font-size:10px;font-weight:800;color:'+(D.falt?'#B0004E':'#64748B')+';text-transform:uppercase;letter-spacing:.05em">Saltadas</div><div class="mono" style="font-size:24px;font-weight:800;color:'+(D.falt?'#B0004E':'#64748B')+'">'+D.falt+'</div></div>'+
+    '<div style="flex:1;min-width:130px;background:#FFFBEB;border-radius:12px;padding:10px 14px"><div style="font-size:10px;font-weight:800;color:#8A6100;text-transform:uppercase;letter-spacing:.05em">Justificadas</div><div class="mono" style="font-size:24px;font-weight:800;color:#8A6100">'+D.just+'</div></div>'+
+    '<div style="flex:1;min-width:130px;background:'+(D.dup?'#FEF2F2':'#F8FAFC')+';border-radius:12px;padding:10px 14px"><div style="font-size:10px;font-weight:800;color:'+(D.dup?'#991B1B':'#64748B')+';text-transform:uppercase;letter-spacing:.05em">Folios repetidos</div><div class="mono" style="font-size:24px;font-weight:800;color:'+(D.dup?'#991B1B':'#64748B')+'">'+D.dup+'</div></div>'+
+    '</div>';
+
+  var hres=huecos.length?'<div style="font-size:12.5px;margin-bottom:10px">'+huecos.map(function(h){
+      var esOk=!!AUDIT_OK[h.clave];
+      return '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:'+(esOk?'#FFFBEB':'#FDF2F7')+';border-radius:10px;padding:8px 12px;margin-bottom:6px">'+
+        '<b style="color:'+(esOk?'#8A6100':'#B0004E')+'">'+(h.cuantos===1?'Falta la nota '+h.desde:'Faltan '+h.cuantos+' notas: '+h.desde+' a '+h.hasta)+'</b>'+
+        '<span style="flex:1;min-width:180px;color:var(--text2)">'+h.pista+'</span>'+
+        (esOk?'<span style="font-size:11px;font-weight:700;color:#8A6100">✓ justificada</span>'
+             :'<button class="btn btn-s btn-sm" onclick="marcarRevisado(\''+h.clave+'\')">✓ Justificar</button>')+
+        '</div>';
+    }).join('')+'</div>'
+    :'<div style="background:#ECFDF3;border-radius:10px;padding:9px 13px;font-size:12.5px;color:#12724C;font-weight:700;margin-bottom:10px">✅ Sin saltos: de la '+D.de+' a la '+D.a+' está toda la numeración.</div>';
+
+  var filas=D.filas.map(function(f){
+    if(f.est==='si')
+      return '<tr><td class="mono" style="font-weight:700">'+f.n+'</td>'+
+        '<td style="background:#D8F0E0;color:#12724C;font-weight:800;font-size:11px">NOTA REGISTRADA</td>'+
+        '<td>'+f.fecha+'</td><td>'+f.cli+(f.veces>1?' <b style="color:#991B1B">(folio repetido ×'+f.veces+')</b>':'')+'</td>'+
+        '<td class="mono" style="text-align:right">'+fmt(f.total)+'</td></tr>';
+    var ok=f.est==='just';
+    return '<tr><td class="mono" style="font-weight:700">'+f.n+'</td>'+
+      '<td style="background:'+(ok?'#FEF3C7':'#FBD3E0')+';color:'+(ok?'#8A6100':'#B0004E')+';font-weight:800;font-size:11px">'+(ok?'JUSTIFICADA':'NOTA NO REGISTRADA')+'</td>'+
+      '<td colspan="3" style="color:var(--text3)">—</td></tr>';
+  }).join('');
+
+  c.innerHTML=res+hres+
+    '<div style="max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:10px">'+
+    '<table style="width:100%;border-collapse:collapse;font-size:12px">'+
+    '<thead><tr style="position:sticky;top:0"><th style="background:var(--surface2);text-align:left;padding:7px">No. de nota</th>'+
+    '<th style="background:var(--surface2);text-align:left;padding:7px">Estado</th>'+
+    '<th style="background:var(--surface2);text-align:left;padding:7px">Fecha</th>'+
+    '<th style="background:var(--surface2);text-align:left;padding:7px">Cliente</th>'+
+    '<th style="background:var(--surface2);text-align:right;padding:7px">Total</th></tr></thead>'+
+    '<tbody>'+filas+'</tbody></table></div>'+
+    '<div style="font-size:11.5px;color:var(--text3);margin-top:8px">Un hueco no siempre es un error: puede ser una nota cancelada o de otro talonario. Lo que justifiques deja de aparecer aquí y en la lista de abajo.</div>';
+}
+
+function folImprimir(){
+  var D=FOL_VISTA||folDatos();
+  if(!D){alert('Primero pica "Ver notas".');return;}
+  var w=window.open('','_blank');
+  w.document.write('<!doctype html><meta charset="utf-8"><title>Continuidad de notas</title>'+
+    '<style>body{font-family:system-ui,Segoe UI,sans-serif;padding:22px;color:#1c2b3a}'+
+    'h1{font-size:20px;margin:0 0 2px}p{font-size:12px;color:#555;margin:0 0 14px}'+
+    'table{width:100%;border-collapse:collapse;font-size:11.5px}'+
+    'th{background:#1F3864;color:#fff;text-align:left;padding:6px}'+
+    'td{padding:4px 6px;border-bottom:1px solid #eee}'+
+    '.si{background:#D8F0E0;color:#12724C;font-weight:700}'+
+    '.no{background:#FBD3E0;color:#B0004E;font-weight:700}'+
+    '.ju{background:#FEF3C7;color:#8A6100;font-weight:700}</style>'+
+    '<h1>Continuidad de notas · '+D.suc+'</h1>'+
+    '<p>Notas '+D.de+' a '+D.a+' · '+D.reg+' registradas · '+D.falt+' saltadas · '+D.just+' justificadas · '+
+    new Date().toLocaleString('es-MX')+'</p>'+
+    '<table><thead><tr><th>No. de nota</th><th>Estado</th><th>Fecha</th><th>Cliente</th></tr></thead><tbody>'+
+    D.filas.map(function(f){
+      if(f.est==='si')return '<tr><td>'+f.n+'</td><td class="si">NOTA REGISTRADA</td><td>'+f.fecha+'</td><td>'+f.cli+'</td></tr>';
+      var ok=f.est==='just';
+      return '<tr><td>'+f.n+'</td><td class="'+(ok?'ju':'no')+'">'+(ok?'JUSTIFICADA':'NOTA NO REGISTRADA')+'</td><td>—</td><td>—</td></tr>';
+    }).join('')+'</tbody></table>');
+  w.document.close();setTimeout(function(){w.print();},400);
+}
+
+// Badge del menú: que se vea sin entrar
+function badgeAudit(){
+  var b=document.getElementById('aud2-badge');if(!b)return;
+  var n=(AUDIT&&AUDIT.length)||0;
+  if(n){b.textContent=n;b.style.display='';}else{b.style.display='none';}
 }
 
 function rAudit2(){
   var c=document.getElementById('aud2-c');if(!c)return;
   var A=correrAuditoria();
+  try{if(!document.getElementById('fol-suc').options.length)folInit();}catch(e){}
   var revisados=Object.keys(AUDIT_OK).length;
   if(!A.length){
     c.innerHTML='<div class="card" style="padding:3rem 1rem;text-align:center">'+
@@ -3369,6 +3601,33 @@ function rCal(){
   }
   document.getElementById('cal-grid').innerHTML=celdas;
   document.getElementById('cal-det').innerHTML='';
+  try{pintaAvisoAudit();}catch(e){}
+}
+
+// La auditoría no espera a que abran su pantalla: avisa aquí, en la primera
+// pantalla que ven al entrar.
+function pintaAvisoAudit(){
+  var c=document.getElementById('cal-audit');if(!c)return;
+  var uu=_u()||{};
+  if(uu.role!=='owner'&&uu.role!=='admin'){c.innerHTML='';return;}
+  var A=correrAuditoria();
+  badgeAudit();
+  if(!A.length){
+    c.innerHTML='<div style="background:#ECFDF3;border:1px solid #A7D7BC;border-radius:12px;padding:10px 15px;margin-bottom:14px;font-size:12.5px;color:#12724C;font-weight:700">'+
+      '✅ Revisión automática: nada raro en '+(pedidos||[]).length+' pedidos · numeración de notas al corriente</div>';
+    return;
+  }
+  var urg=A.filter(function(x){return x.grav===1;}).length;
+  var fal=A.filter(function(x){return x.tipo==='folfalta';}).length;
+  c.innerHTML='<div onclick="go(\'audit2\')" style="cursor:pointer;background:#FDF2F7;border:1px solid #F7C0D8;border-radius:12px;padding:11px 15px;margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+    '<div style="font-size:22px">🔎</div>'+
+    '<div style="flex:1;min-width:220px">'+
+      '<div style="font-size:14px;font-weight:800;color:#B0004E">La plataforma encontró '+A.length+' cosa(s) que revisar</div>'+
+      '<div style="font-size:12px;color:var(--text2);margin-top:2px">'+
+        (urg?urg+' que cuestan dinero · ':'')+
+        (fal?fal+' hueco(s) en la numeración de notas · ':'')+
+        'pica para verlas</div>'+
+    '</div><div style="font-size:20px;color:#B0004E">›</div></div>';
 }
 
 // Qué pasa ese día
@@ -6049,6 +6308,7 @@ function loadData(){
     if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
     ORDENES=ords||[];
     ABONOS=abns||[];
+    cargarAuditOK().then(function(){try{correrAuditoria();badgeAudit();}catch(e){}}).catch(function(){});
     const uAct=USERS.find(x=>x.key===CU);
     if(uAct&&uAct.role==='taller'){go('ord');switchOrdTab('seguimiento',document.getElementById('chip-ord-seg'));}
     else go('cal');   // se entra al calendario
