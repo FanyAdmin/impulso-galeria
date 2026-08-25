@@ -59,6 +59,11 @@ class Movimiento(db.Model):
     cuenta      = db.Column(db.String(50))
     cta_destino = db.Column(db.String(50))
     socio       = db.Column(db.String(50))
+    # ── CONCILIACIÓN ───────────────────────────────────────────────────────
+    # Lo que le faltaba a la plataforma: cada movimiento sabe si YA se vio en
+    # el banco. Mientras no esté conciliado, el saldo es "en libros", no real.
+    conciliado  = db.Column(db.String(20), default='')   # fecha en que se concilió
+    banco_ref   = db.Column(db.String(40), default='')   # referencia del banco
 
 # ── USUARIOS EN BD ────────────────────────────────────────────────────────────
 
@@ -120,6 +125,7 @@ class Empleado(db.Model):
     tel     = db.Column(db.String(30))
     dir     = db.Column(db.String(300))
     diapago    = db.Column(db.String(15), default='')          # dia de la semana en que se le paga
+    cumple     = db.Column(db.String(10), default='')          # MM-DD, para el calendario
     estatus    = db.Column(db.String(20), default='activo')   # activo | baja
     fecha_baja = db.Column(db.String(20), default='')
 
@@ -127,7 +133,7 @@ def emp_dict(e):
     return {'id':e.id,'nombre':e.nombre,'puesto':e.puesto,'suc':e.suc,
             'ingreso':e.ingreso,'salario':e.salario,'metpago':e.metpago,
             'banco':e.banco,'curp':e.curp,'rfc':e.rfc,'tel':e.tel,'dir':e.dir,
-            'diapago':e.diapago or '','estatus':e.estatus or 'activo','fecha_baja':e.fecha_baja or ''}
+            'diapago':e.diapago or '','cumple':e.cumple or '','estatus':e.estatus or 'activo','fecha_baja':e.fecha_baja or ''}
 
 # ── HELPERS DE AUTORIZACIÓN ───────────────────────────────────────────────────
 
@@ -297,7 +303,7 @@ def crear_empleado():
                  salario=d.get('salario',0), metpago=d.get('metpago',''),
                  banco=d.get('banco',''), curp=d.get('curp',''),
                  rfc=d.get('rfc',''), tel=d.get('tel',''), dir=d.get('dir',''),
-                 diapago=d.get('diapago',''),
+                 diapago=d.get('diapago',''), cumple=d.get('cumple',''),
                  estatus=d.get('estatus','activo'), fecha_baja=d.get('fecha_baja',''))
     db.session.add(e)
     db.session.commit()
@@ -308,7 +314,7 @@ def crear_empleado():
 def actualizar_empleado(eid):
     e = Empleado.query.get_or_404(eid)
     d = request.json or {}
-    for campo in ['nombre','puesto','suc','ingreso','salario','metpago','banco','curp','rfc','tel','dir','diapago','estatus','fecha_baja']:
+    for campo in ['nombre','puesto','suc','ingreso','salario','metpago','banco','curp','rfc','tel','dir','diapago','cumple','estatus','fecha_baja']:
         if campo in d:
             setattr(e, campo, d[campo])
     db.session.commit()
@@ -417,7 +423,7 @@ def crear_movimiento():
 def actualizar_movimiento(mid):
     m = Movimiento.query.get_or_404(mid)
     d = request.json or {}
-    for campo in ['tipo','concepto','desc','monto','fecha','mes','suc','cuenta','cta_destino','socio']:
+    for campo in ['tipo','concepto','desc','monto','fecha','mes','suc','cuenta','cta_destino','socio','conciliado','banco_ref']:
         if campo in d:
             setattr(m, campo, d[campo])
     db.session.commit()
@@ -435,7 +441,8 @@ def m_dict(m):
     return {
         'id':m.id,'tipo':m.tipo,'concepto':m.concepto,'desc':m.desc,
         'monto':m.monto,'fecha':m.fecha,'mes':m.mes,'suc':m.suc,
-        'cuenta':m.cuenta,'cta_destino':m.cta_destino,'socio':m.socio
+        'cuenta':m.cuenta,'cta_destino':m.cta_destino,'socio':m.socio,
+        'conciliado':m.conciliado or '','banco_ref':m.banco_ref or ''
     }
 
 # ── FACTURAS EN BD ────────────────────────────────────────────────────────────
@@ -1069,7 +1076,10 @@ def migrar_columnas():
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS tipo_prod VARCHAR(20) DEFAULT 'marcos'",
         "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_arte FLOAT DEFAULT 10",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS diapago VARCHAR(15) DEFAULT ''",
+        "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS cumple VARCHAR(10) DEFAULT ''",
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS entrega_real VARCHAR(20)",
+        "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS conciliado VARCHAR(20) DEFAULT ''",
+        "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS banco_ref VARCHAR(40) DEFAULT ''",
     ]:
         try:
             db.session.execute(text(stmt)); db.session.commit()
@@ -1415,11 +1425,38 @@ def asistente():
 
     txt = ''.join(b.get('text','') for b in data.get('content',[]) if b.get('type')=='text')
     u = data.get('usage',{}) or {}
+    if not txt.strip():
+        # Vino vacío: hay que saber POR QUÉ, no tragárselo en silencio
+        return jsonify({'error': 'La respuesta llegó vacía.',
+                        'motivo': data.get('stop_reason'),
+                        'bloques': [b.get('type') for b in data.get('content',[])],
+                        'tokens_entrada': u.get('input_tokens',0),
+                        'tokens_salida': u.get('output_tokens',0),
+                        'crudo': json.dumps(data)[:400]}), 502
     return jsonify({'texto': txt, 'uso': {'entrada': u.get('input_tokens',0), 'salida': u.get('output_tokens',0)}})
   except Exception as e:
     import traceback
     app.logger.error('asistente reventó: %s', traceback.format_exc())
     return jsonify({'error': 'El servidor falló: ' + type(e).__name__ + ': ' + str(e)[:200]}), 500
+
+
+
+@app.route('/api/conciliar', methods=['POST'])
+@requiere_admin
+def conciliar_movs():
+    """Marca movimientos como vistos en el banco. Lo que NO se marca es lo que
+    hay que investigar — la plataforma ya no lo olvida entre sesiones."""
+    d = request.json or {}
+    hoy = d.get('fecha') or ''
+    n = 0
+    for it in (d.get('items') or []):
+        m = Movimiento.query.get(it.get('id'))
+        if not m: continue
+        m.conciliado = '' if it.get('quitar') else (hoy or 'sí')
+        m.banco_ref = '' if it.get('quitar') else str(it.get('ref') or '')
+        n += 1
+    db.session.commit()
+    return jsonify({'ok': True, 'actualizados': n})
 
 with app.app_context():
     db.create_all()
