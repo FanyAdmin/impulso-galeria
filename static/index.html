@@ -714,7 +714,13 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="metric"><div class="m-label">Total pendiente</div><div class="m-val" id="cxc-p">$0</div></div>
     <div class="metric"><div class="m-label">Total abonado</div><div class="m-val" id="cxc-a">$0</div></div>
   </div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Entregado</th><th>Total</th><th>Abonado</th><th>Saldo</th><th>Estado</th><th></th></tr></thead><tbody id="cxc-body"></tbody></table></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+    <button class="chip" id="cxc-chip-cli" onclick="setCxcVista('cli',this)">🧑 Por cliente</button>
+    <button class="chip active" id="cxc-chip-nota" onclick="setCxcVista('nota',this)">🧾 Por nota</button>
+    <span style="font-size:11.5px;color:var(--text3)">La vista por cliente junta todas sus notas y saca su estado de cuenta.</span>
+  </div>
+  <div id="cxc-cli" style="display:none"></div>
+  <div id="cxc-tabla"><div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Entregado</th><th>Total</th><th>Abonado</th><th>Saldo</th><th>Estado</th><th></th></tr></thead><tbody id="cxc-body"></tbody></table></div></div>
 </div>
 
 <!-- MI DÍA -->
@@ -2018,7 +2024,252 @@ function confEnt(){
 
 // ─── CXC ──────────────────────────────────────────────────────────────────────
 // misC: ver versión con pedidos[] más abajo
+
+// ═══ ESTADO DE CUENTA POR CLIENTE ══════════════════════════════════════════
+// Nace del Excel que se armó para Alejo: un cliente con varias notas que va
+// abonando. Aquí no hace falta repartir FIFO a mano — cada abono ya está
+// pegado a su nota — pero el papel que se le entrega al cliente es el mismo.
+var CXC_VISTA='nota';
+// Cada sucursal ve a SUS clientes; admin y dueña ven todo y además pueden
+// sacar el estado de cuenta de una sola sucursal con estos chips.
+var EDO_SUC='Todas';
+function setEdoSuc(v,btn){
+  EDO_SUC=v;
+  document.querySelectorAll('#edo-chips .chip').forEach(function(b){b.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  rCxCCli();
+}
+function edoAdm(){var u=_u()||{};return u.role==='admin'||u.role==='owner';}
+// ¿este pedido entra según quién soy y qué sucursal elegí?
+function edoVisible(p){
+  var u=_u()||{};
+  if(!edoAdm())return p.suc===u.suc;
+  return EDO_SUC==='Todas'||p.suc===EDO_SUC;
+}
+
+function setCxcVista(v,btn){
+  CXC_VISTA=v;
+  document.querySelectorAll('#cxc-chip-cli,#cxc-chip-nota').forEach(function(b){b.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  document.getElementById('cxc-cli').style.display=(v==='cli')?'':'none';
+  document.getElementById('cxc-tabla').style.display=(v==='cli')?'none':'';
+  rCxC();
+}
+
+// Todas las notas del cliente (pagadas y pendientes), respetando el rol
+function pedsDeCliente(claveCli){
+  return (pedidos||[]).filter(function(p){
+    return normNom(p.cli)===claveCli && edoVisible(p);
+  }).sort(function(a,b){return String(a.fecha||'').localeCompare(String(b.fecha||''));});
+}
+// El mismo cliente aparece escrito de varias formas ("ALEJO SANTANA",
+// "alejo  santana"). Se queda la forma más usada, y en empate la más reciente.
+function mejorNombre(peds){
+  var cnt={},best='',bn=-1;
+  peds.forEach(function(p){
+    var n=String(p.cli||'').trim().replace(/\s+/g,' ');
+    if(!n)return;
+    cnt[n]=(cnt[n]||0)+1;
+  });
+  Object.keys(cnt).forEach(function(n){
+    var score=cnt[n]*10+(/[A-ZÁÉÍÓÚÑ]/.test(n.charAt(0))?1:0);
+    if(score>bn){bn=score;best=n;}
+  });
+  return best;
+}
+function abonosDePed(p){
+  return (ABONOS||[]).filter(function(a){
+    return (a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc);
+  });
+}
+function diasDe(f){
+  if(!f)return 0;
+  return Math.max(0,Math.round((new Date(todayStr()+'T12:00:00')-new Date(f+'T12:00:00'))/86400000));
+}
+// Descripción del trabajo, como en la columna del Excel
+function descPed(p){
+  var it=(p.items||[]).filter(function(x){return x&&(x.mol||x.desc);});
+  if(!it.length)return (p.obs||'—');
+  return it.map(function(x){
+    var m=(x.q>1?'('+x.q+') ':'')+(x.mol||x.desc||'');
+    if(x.l1&&x.l2)m+=' '+x.l1+'×'+x.l2;
+    return m;
+  }).join(' / ');
+}
+
+// Agrupa a los que deben
+function clientesDeudores(){
+  var G={};
+  (pedidos||[]).forEach(function(p){
+    if(!((p.rest||0)>0.5))return;
+    if(!edoVisible(p))return;
+    var k=normNom(p.cli);if(!k)return;
+    if(!G[k])G[k]={clave:k,cli:p.cli||'',notas:0,saldo:0,total:0,abon:0,vieja:'',sucs:{},_peds:[]};
+    var g=G[k];
+    g.notas++;g.saldo+=(p.rest||0);g.total+=(p.total||0);g.abon+=(p.ant||0);
+    if(p.suc)g.sucs[p.suc]=1;
+    if(p.fecha&&(!g.vieja||p.fecha<g.vieja))g.vieja=p.fecha;
+    g._peds.push(p);
+  });
+  Object.keys(G).forEach(function(k){G[k].cli=mejorNombre(G[k]._peds)||G[k].cli;});
+  return Object.keys(G).map(function(k){return G[k];})
+    .sort(function(a,b){return b.saldo-a.saldo;});
+}
+
+function rCxCCli(){
+  var c=document.getElementById('cxc-cli');if(!c)return;
+  var q=((document.getElementById('cxc-q')||{}).value||'').trim().toLowerCase();
+  var L=clientesDeudores().filter(function(g){return !q||g.cli.toLowerCase().indexOf(q)>=0;});
+  if(!L.length){c.innerHTML='<div class="tbl-empty" style="padding:2rem;text-align:center">Nadie con saldo pendiente'+(q?' para "'+q+'"':'')+'.</div>';return;}
+  var tot=L.reduce(function(t,g){return t+g.saldo;},0);
+  var chips=edoAdm()
+    ? '<div id="edo-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'+
+      ['Todas','Jardines','Zibata'].map(function(v){
+        return '<button class="chip'+(EDO_SUC===v?' active':'')+'" onclick="setEdoSuc(\''+v+'\',this)">'+
+          (v==='Todas'?'🏠 Ambas sucursales':(v==='Jardines'?'🌳 Jardines':'🏔️ Zibata'))+'</button>';
+      }).join('')+'</div>'
+    : '<div style="background:#EFF6FF;border:1px solid #BFDBFE;color:#1E3A8A;border-radius:10px;padding:8px 13px;margin-bottom:10px;font-size:12px">'+
+      '👀 Estás viendo a los clientes de <b>'+((_u()||{}).suc||'')+'</b>. El estado de cuenta sale solo con las notas de tu sucursal.</div>';
+  c.innerHTML=chips+'<div style="font-size:12px;color:var(--text3);margin-bottom:10px">'+L.length+
+    ' cliente(s) con saldo'+(edoAdm()&&EDO_SUC!=='Todas'?' en '+EDO_SUC:'')+' · <b class="mono">'+fmt(tot)+'</b> por cobrar</div>'+
+    L.map(function(g){
+      var d=diasDe(g.vieja),col=d>90?'#B0004E':(d>60?'#B45309':'#1E5F8A');
+      return '<div class="card" style="padding:13px 16px;margin-bottom:10px;display:flex;gap:14px;align-items:center;flex-wrap:wrap;border-left:5px solid '+col+'">'+
+        '<div style="flex:1;min-width:210px">'+
+          '<div style="font-size:15px;font-weight:800">'+(g.cli||'—')+'</div>'+
+          '<div style="font-size:12px;color:var(--text2);margin-top:2px">'+g.notas+' nota(s) con saldo · '+
+            Object.keys(g.sucs).join(', ')+(g.vieja?' · la más vieja del '+g.vieja+' <b style="color:'+col+'">('+d+' días)</b>':'')+'</div>'+
+        '</div>'+
+        '<div style="text-align:right;min-width:120px">'+
+          '<div style="font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Debe</div>'+
+          '<div class="mono" style="font-size:22px;font-weight:800;color:'+col+'">'+fmt(g.saldo)+'</div></div>'+
+        '<button class="btn btn-p btn-sm" onclick="edoCuenta(\''+g.clave+'\',false)">📄 Estado de cuenta</button> '+
+        '<button class="btn btn-s btn-sm" onclick="edoCuenta(\''+g.clave+'\',true)">📚 Completo</button> '+
+        '<button class="btn btn-s btn-sm" onclick="edoWA(\''+g.clave+'\')">📱 WhatsApp</button>'+
+      '</div>';
+    }).join('');
+}
+
+// ── El documento que se le entrega al cliente ──────────────────────────────
+function edoDatos(clave,todo){
+  var peds=pedsDeCliente(clave);
+  if(!peds.length)return null;
+  var cli=mejorNombre(peds)||peds[0].cli||'';
+  var filas=[],abonos=[],edad={a:0,b:0,c:0,d:0};
+  peds.forEach(function(p){
+    var saldo=+(p.rest||0),pag=+(p.ant||0),tot=+(p.total||0);
+    if(!todo&&saldo<=0.5)return;
+    var dias=saldo>0.5?diasDe(p.fecha):0;
+    if(saldo>0.5){
+      if(dias<=30)edad.a+=saldo;else if(dias<=60)edad.b+=saldo;else if(dias<=90)edad.c+=saldo;else edad.d+=saldo;
+    }
+    filas.push({folio:p.folio,fecha:p.fecha||'',suc:p.suc||'',desc:descPed(p),total:tot,pag:pag,saldo:saldo,
+      est:saldo<=0.5?'PAGADA':(pag>0?'PARCIAL':'PENDIENTE'),dias:dias});
+    abonosDePed(p).forEach(function(a){
+      abonos.push({fecha:a.fecha||'',monto:+(a.monto||0),met:a.met||'',folio:p.folio});
+    });
+  });
+  abonos.sort(function(x,y){return String(x.fecha).localeCompare(String(y.fecha));});
+  var T={total:0,pag:0,saldo:0};
+  filas.forEach(function(f){T.total+=f.total;T.pag+=f.pag;T.saldo+=f.saldo;});
+  var tel='';peds.forEach(function(p){if(p.tel)tel=p.tel;});
+  var sucs={};filas.forEach(function(f){if(f.suc)sucs[f.suc]=1;});
+  return {cli:cli,tel:tel,filas:filas,abonos:abonos,T:T,edad:edad,todo:!!todo,
+          sucs:Object.keys(sucs),alcance:(edoAdm()&&EDO_SUC==='Todas')?'':( edoAdm()?EDO_SUC:((_u()||{}).suc||''))};
+}
+
+function edoCuenta(clave,todo){
+  var D=edoDatos(clave,todo);
+  if(!D){alert('No encontré notas de ese cliente.');return;}
+  var AZ='#1F3864';
+  var fila=function(f){
+    var col=f.est==='PAGADA'?'#12724C':(f.est==='PARCIAL'?'#8A6100':'#B0004E');
+    var bg =f.est==='PAGADA'?'#ECFDF3':(f.est==='PARCIAL'?'#FFFBEB':'#FDF2F7');
+    return '<tr><td class="m">'+f.folio+'</td><td>'+f.fecha+'</td><td class="d">'+
+      String(f.desc).replace(/</g,'&lt;')+'</td><td class="m r">'+fmt(f.total)+'</td>'+
+      '<td class="m r">'+fmt(f.pag)+'</td><td class="m r"><b>'+fmt(f.saldo)+'</b></td>'+
+      '<td style="background:'+bg+';color:'+col+';font-weight:700;font-size:10px">'+f.est+'</td>'+
+      '<td class="r">'+(f.dias?f.dias+' d':'')+'</td></tr>';
+  };
+  var html='<!doctype html><meta charset="utf-8"><title>Estado de cuenta '+D.cli+'</title>'+
+  '<style>'+
+  'body{font-family:Calibri,"Segoe UI",system-ui,sans-serif;color:#1c2b3a;margin:0;padding:26px 30px}'+
+  '.hd{display:flex;align-items:center;gap:16px;border-bottom:3px solid '+AZ+';padding-bottom:10px}'+
+  '.hd h1{margin:0;font-size:21px;color:'+AZ+';letter-spacing:.02em}'+
+  '.hd .sub{font-size:11px;color:#5a6b80;line-height:1.5}'+
+  '.caja{background:'+AZ+';color:#fff;border-radius:8px;padding:9px 14px;text-align:right;min-width:150px}'+
+  '.caja b{display:block;font-size:16px}'+
+  'h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:'+AZ+';margin:20px 0 7px;border-bottom:1px solid #dbe3ee;padding-bottom:3px}'+
+  'table{width:100%;border-collapse:collapse;font-size:11px}'+
+  'th{background:'+AZ+';color:#fff;text-align:left;padding:6px 7px;font-weight:600}'+
+  'td{padding:5px 7px;border-bottom:1px solid #eef2f6;vertical-align:top}'+
+  '.m{font-family:Consolas,monospace}.r{text-align:right;white-space:nowrap}.d{color:#41506b}'+
+  'tfoot td{border-top:2px solid '+AZ+';font-weight:800;background:#F4F7FB}'+
+  '.res{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}'+
+  '.res div{flex:1;min-width:130px;background:#F4F7FB;border-radius:9px;padding:9px 13px}'+
+  '.res span{display:block;font-size:9.5px;font-weight:700;color:#5a6b80;text-transform:uppercase;letter-spacing:.05em}'+
+  '.res b{font-size:17px;font-family:Consolas,monospace}'+
+  '.pie{margin-top:22px;border-top:1px solid #dbe3ee;padding-top:9px;font-size:10px;color:#5a6b80;line-height:1.6}'+
+  '@media print{body{padding:10px}}'+
+  '</style>'+
+  '<div class="hd"><div style="flex:1">'+
+    '<h1>IMPULSO GALERIA Y MARCOS</h1>'+
+    '<div class="sub">Hacienda Escolásticas 107, Jardines de la Hacienda · Querétaro, Qro.<br>'+
+    'Tel. (442) 216 5203 · pedidos@impulsogaleria.com</div></div>'+
+    '<div class="caja">ESTADO DE CUENTA<b>'+new Date().toLocaleDateString('es-MX')+'</b>'+
+    '<span style="font-size:9.5px">fecha de corte</span></div></div>'+
+  '<h2>Cliente</h2>'+
+  '<div style="font-size:16px;font-weight:800">'+String(D.cli).replace(/</g,'&lt;')+'</div>'+
+  (D.tel?'<div style="font-size:11px;color:#5a6b80">Tel. '+D.tel+'</div>':'')+
+  '<div style="font-size:11px;color:#5a6b80;margin-top:2px">Notas de '+
+    (D.sucs.length?D.sucs.join(' y '):'—')+
+    (D.alcance?' <b>· sucursal '+D.alcance+'</b>':'')+'</div>'+
+  '<div class="res">'+
+    '<div><span>Total de notas</span><b>'+fmt(D.T.total)+'</b></div>'+
+    '<div><span>Abonado</span><b style="color:#12724C">'+fmt(D.T.pag)+'</b></div>'+
+    '<div style="background:#FDF2F7"><span>Saldo pendiente</span><b style="color:#B0004E">'+fmt(D.T.saldo)+'</b></div>'+
+    '<div><span>Notas incluidas</span><b>'+D.filas.length+'</b></div>'+
+  '</div>'+
+  '<h2>'+(D.todo?'Todas sus notas':'Notas con saldo')+' (importes con IVA incluido)</h2>'+
+  '<table><thead><tr><th>Folio</th><th>Fecha</th><th>Trabajo</th><th class="r">Importe</th>'+
+  '<th class="r">Abonado</th><th class="r">Saldo</th><th>Estado</th><th class="r">Días</th></tr></thead>'+
+  '<tbody>'+D.filas.map(fila).join('')+'</tbody>'+
+  '<tfoot><tr><td colspan="3">TOTALES</td><td class="m r">'+fmt(D.T.total)+'</td>'+
+  '<td class="m r">'+fmt(D.T.pag)+'</td><td class="m r">'+fmt(D.T.saldo)+'</td><td colspan="2"></td></tr></tfoot></table>'+
+  (D.abonos.length?'<h2>Abonos recibidos</h2><table><thead><tr><th>Fecha</th><th>Forma de pago</th>'+
+    '<th>Aplicado a la nota</th><th class="r">Monto</th></tr></thead><tbody>'+
+    D.abonos.map(function(a){return '<tr><td>'+a.fecha+'</td><td>'+a.met+'</td><td class="m">'+a.folio+'</td><td class="m r">'+fmt(a.monto)+'</td></tr>';}).join('')+
+    '</tbody></table>':'')+
+  '<h2>Antigüedad del saldo</h2>'+
+  '<table><thead><tr><th>0 a 30 días</th><th>31 a 60</th><th>61 a 90</th><th>Más de 90</th><th class="r">Total</th></tr></thead>'+
+  '<tbody><tr><td class="m">'+fmt(D.edad.a)+'</td><td class="m">'+fmt(D.edad.b)+'</td><td class="m">'+fmt(D.edad.c)+
+  '</td><td class="m" style="color:#B0004E;font-weight:700">'+fmt(D.edad.d)+'</td>'+
+  '<td class="m r"><b>'+fmt(D.edad.a+D.edad.b+D.edad.c+D.edad.d)+'</b></td></tr></tbody></table>'+
+  '<div class="pie">Los importes incluyen IVA. Cualquier aclaración sobre este estado de cuenta, favor de comunicarla '+
+  'antes de realizar el pago, al (442) 216 5203 o a pedidos@impulsogaleria.com.<br>'+
+  'Documento generado el '+new Date().toLocaleString('es-MX')+' · Impulso Galería y Marcos</div>';
+  var w=window.open('','_blank');
+  if(!w){alert('El navegador bloqueó la ventana. Permite las ventanas emergentes de este sitio.');return;}
+  w.document.write(html);w.document.close();
+  setTimeout(function(){try{w.print();}catch(e){}},500);
+}
+
+// Resumen corto para mandarlo por WhatsApp
+function edoWA(clave){
+  var D=edoDatos(clave,false);
+  if(!D)return;
+  var t='*IMPULSO GALERÍA* — Estado de cuenta\n'+D.cli+
+    (D.alcance?'\nSucursal '+D.alcance:'')+
+    '\nCorte al '+new Date().toLocaleDateString('es-MX')+'\n\n';
+  D.filas.forEach(function(f){
+    t+='• Nota '+f.folio+' ('+f.fecha+') — '+fmt(f.saldo)+(f.pag>0?' (abonado '+fmt(f.pag)+' de '+fmt(f.total)+')':'')+'\n';
+  });
+  t+='\n*SALDO TOTAL: '+fmt(D.T.saldo)+'*\n\nCualquier aclaración al (442) 216 5203. ¡Gracias!';
+  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');
+}
+
 function rCxC(){
+  try{if(CXC_VISTA==='cli')rCxCCli();}catch(e){}
   const list=misC(),ab=list.filter(c=>!c.liq);
   document.getElementById('cxc-n').textContent=ab.length;
   document.getElementById('cxc-p').textContent=fmtK(ab.reduce((a,b)=>a+b.saldo,0));
