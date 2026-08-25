@@ -184,6 +184,27 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
 #page-hoy{font-family:'Outfit',-apple-system,'Segoe UI',sans-serif}
 /* ── ASISTENTE: una conversación, no una pantalla de campos ───────────── */
 #page-asis{font-family:'Outfit',-apple-system,'Segoe UI',sans-serif}
+/* ── CALENDARIO ────────────────────────────────────────────────────────── */
+#page-cal{font-family:'Outfit',-apple-system,'Segoe UI',sans-serif}
+#page-cal .cal-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+#page-cal .cal-mes{font-size:30px;font-weight:900;letter-spacing:-.03em;text-transform:capitalize}
+#page-cal .cal-nav{background:#fff;border:2px solid var(--border);border-radius:12px;width:38px;height:38px;
+  font-size:17px;font-weight:800;cursor:pointer;color:#16233A}
+#page-cal .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:7px}
+#page-cal .cal-dow{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;
+  color:#8A94A3;text-align:center;padding:4px 0}
+#page-cal .cal-d{background:#fff;border-radius:14px;min-height:104px;padding:8px 9px;cursor:pointer;
+  border:2px solid transparent;box-shadow:0 2px 8px rgba(22,35,58,.07);transition:transform .1s}
+#page-cal .cal-d:hover{transform:translateY(-2px);border-color:#FF3D9A}
+#page-cal .cal-d.fuera{background:#F6F8FB;opacity:.5;box-shadow:none}
+#page-cal .cal-d.hoy{border-color:#FF3D9A;box-shadow:0 0 0 3px rgba(255,61,154,.18)}
+#page-cal .cal-d.fest{background:#FFF4F8}
+#page-cal .cal-n{font-size:15px;font-weight:800;color:#16233A}
+#page-cal .cal-d.fuera .cal-n{color:#B7C0CE}
+#page-cal .cal-e{font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 6px;margin-top:3px;
+  display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:700px){#page-cal .cal-d{min-height:74px;padding:5px 6px}
+  #page-cal .cal-e{font-size:9px;padding:1px 4px}#page-cal .cal-mes{font-size:22px}}
 #page-asis .as-wrap{background:#A9C8E3;margin:-1.25rem;padding:0;height:calc(100vh - 60px);display:flex;flex-direction:column}
 #page-asis .as-top{padding:18px 24px 12px;color:#fff;flex-shrink:0}
 #page-asis .as-top h2{font-size:30px;font-weight:900;margin:0;letter-spacing:-.03em;line-height:1}
@@ -543,6 +564,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('asis')" id="nav-asis" style="font-weight:700">💬 Asistente</div>
+  <div class="sb-item" onclick="go('cal')" id="nav-cal">📆 Calendario</div>
   <div class="sb-item" onclick="go('cot')" id="nav-cot">🧮 Cotizador</div>
   <div class="sb-item" onclick="go('ped')" id="nav-ped">📋 Pedidos</div>
   <div class="sb-item" onclick="go('pend');rPend()" id="nav-pend">📌 Pendientes</div>
@@ -821,6 +843,25 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
     <div class="ph-sub">Revisa toda la base buscando lo que no debería existir. Nadie tiene que pedírselo.</div>
   </div></div>
   <div id="aud2-c"></div>
+</div>
+
+<!-- CALENDARIO -->
+<div class="page" id="page-cal">
+  <div class="ph"><div>
+    <div class="ph-title">📆 Calendario</div>
+    <div class="ph-sub">Lo del negocio y lo de la gente, en un solo lugar. Pica un día para anotar algo.</div>
+  </div></div>
+  <div class="cal-top">
+    <button class="cal-nav" onclick="calMover(-1)">‹</button>
+    <div class="cal-mes" id="cal-mes"></div>
+    <button class="cal-nav" onclick="calMover(1)">›</button>
+    <button class="btn btn-s btn-sm" onclick="calMover(0,true)">Hoy</button>
+    <span style="flex:1"></span>
+    <span id="cal-ley" style="font-size:11.5px;color:var(--text3)"></span>
+  </div>
+  <div class="cal-grid" id="cal-dow"></div>
+  <div class="cal-grid" id="cal-grid" style="margin-top:6px"></div>
+  <div id="cal-det" style="margin-top:16px"></div>
 </div>
 
 <!-- ASISTENTE -->
@@ -1235,6 +1276,7 @@ input:focus,select:focus{border-color:var(--green2);box-shadow:0 0 0 2px rgba(42
       <div class="field"><label>Fecha de ingreso</label><input type="date" id="em-fi"></div>
       <div class="field"><label>Salario semanal ($)</label><input type="number" id="em-sal"></div>
       <div class="field"><label>Metodo pago</label><select id="em-mp"><option>Efectivo</option><option>Transferencia</option></select></div>
+      <div class="field"><label>Cumpleaños</label><input type="date" id="em-cum"></div>
       <div class="field"><label>Día de pago</label><select id="em-dp"><option value="">Sin definir</option><option>Lunes</option><option>Martes</option><option>Miércoles</option><option>Jueves</option><option>Viernes</option><option>Sábado</option><option>Domingo</option></select></div>
       <div class="field"><label>Banco / Cuenta</label><input id="em-banco"></div>
       <div class="field"><label>CURP</label><input id="em-curp"></div>
@@ -1628,7 +1670,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:rDia,cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},asis:()=>{cargarAuditOK().then(rAsis);},rev:rRev,cuadre:rCuadre
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},asis:()=>{cargarAuditOK().then(rAsis);},cal:()=>{cargarCalNotas().then(rCal);},rev:rRev,cuadre:rCuadre
   })[id]?.();
 }
 
@@ -2743,6 +2785,14 @@ function pintaCuadre(d){
 
   // ── el número que importa ────────────────────────────────────────────────
   var sal=saldoCta(cta),saldoYo=(BANCOS_INIT[cta]||0)+sal.e-sal.s;
+  // Saldo CONCILIADO: solo con lo que ya se vio en el banco. Es el saldo real.
+  var conc=movs.filter(function(m){return (m.cuenta===cta||m.cta_destino===cta)&&m.conciliado;});
+  var cE=conc.filter(function(m){return (m.cuenta===cta&&m.tipo==='Entrada')||(m.cta_destino===cta&&m.tipo==='Traspaso');})
+              .reduce(function(a,m){return a+m.monto;},0);
+  var cS=conc.filter(function(m){return m.cuenta===cta&&(m.tipo==='Salida'||m.tipo==='Retiro'||m.tipo==='Traspaso');})
+              .reduce(function(a,m){return a+m.monto;},0);
+  var saldoConc=(BANCOS_INIT[cta]||0)+cE-cS;
+  var noConc=movs.filter(function(m){return (m.cuenta===cta||m.cta_destino===cta)&&!m.conciliado;}).length;
   var saldoBanco=d.saldo_final;
   var brecha=saldoBanco!=null?(saldoYo-saldoBanco):null;
   var faltaSal=cFalta.reduce(function(a,b){return a+b.monto;},0);
@@ -2752,15 +2802,17 @@ function pintaCuadre(d){
   var sobraSal=sobranS.reduce(function(a,x){return a+x.m.monto;},0);
   var explicado=faltaSal-faltaEnt+enTransito+fant-sobraSal;
 
-  var tar=function(t,v,col,bg,sub){return '<div style="flex:1;min-width:150px;background:'+bg+';border-radius:12px;padding:12px 15px">'+
+  var tar=function(t,v,col,bg,sub){return '<div style="flex:1;min-width:135px;background:'+bg+';border-radius:12px;padding:12px 15px">'+
     '<div style="font-size:10px;font-weight:800;color:'+col+';text-transform:uppercase;letter-spacing:.05em">'+t+'</div>'+
     '<div class="mono" style="font-size:24px;font-weight:800;color:'+col+'">'+v+'</div>'+
     (sub?'<div style="font-size:11px;color:'+col+';opacity:.85">'+sub+'</div>':'')+'</div>';};
 
   var h='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'+
-    tar('Dice la plataforma',$(saldoYo),'#1F3864','#EEF2FA')+
-    tar('Dice el banco',saldoBanco!=null?$(saldoBanco):'—','#065F46','#ECFDF5')+
-    tar('Diferencia',brecha!=null?$(brecha):'—',Math.abs(brecha||0)<1?'#065F46':'#991B1B',Math.abs(brecha||0)<1?'#ECFDF5':'#FEF2F2')+
+    tar('Saldo en libros',$(saldoYo),'#1F3864','#EEF2FA','todo lo capturado')+
+    tar('Saldo conciliado',$(saldoConc),'#0369A1','#EFF6FF','solo lo visto en el banco')+
+    tar('Dice el banco',saldoBanco!=null?$(saldoBanco):'—','#065F46','#ECFDF5','')+
+    tar('Diferencia',brecha!=null?$(brecha):'—',Math.abs(brecha||0)<1?'#065F46':'#991B1B',Math.abs(brecha||0)<1?'#ECFDF5':'#FEF2F2',
+        noConc+' movimiento(s) sin conciliar')+
     '</div>';
 
   h+='<div class="card" style="padding:14px 16px;margin-bottom:14px">'+
@@ -2775,6 +2827,17 @@ function pintaCuadre(d){
      '<td class="mono" style="text-align:right;font-weight:800">'+$(explicado)+'</td><td style="font-size:11px;color:var(--text3)">'+
      (brecha!=null&&Math.abs(explicado-brecha)<2?'✅ explica la diferencia completa':'quedan '+$((brecha||0)-explicado)+' de antes del periodo')+
      '</td></tr></tbody></table></div>';
+
+  // Guardar el trabajo: lo que coincidió queda marcado y ya no se revisa otra vez
+  CUA_OK=[];
+  mios.forEach(function(x){if(x.usado&&!x.m.conciliado)CUA_OK.push(x.m.id);});
+  if(CUA_OK.length)
+    h+='<div class="card" style="padding:13px 17px;margin-bottom:12px;border-left:6px solid #065F46;background:#ECFDF5">'+
+      '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">'+
+      '<div style="flex:1;min-width:230px"><div style="font-size:14px;font-weight:800;color:#065F46">'+
+      CUA_OK.length+' movimiento(s) coincidieron con el banco</div>'+
+      '<div style="font-size:12px;color:var(--text2);margin-top:2px">Márcalos como conciliados y no los vuelves a revisar. La próxima vez solo aparece lo nuevo.</div></div>'+
+      '<button class="btn btn-p btn-sm" onclick="cuaMarcar()">✓ Marcar como conciliados</button></div>';
 
   if(cFalta.length)h+=bloqueCua('🔴 Salidas del banco que no están en '+cta,cFalta,cta,'Salida');
   if(aFalta.length)h+=bloqueCua('🔴 Entradas del banco que no están en '+cta,aFalta,cta,'Entrada');
@@ -2795,6 +2858,22 @@ function pintaCuadre(d){
   h+='<div style="font-size:11.5px;color:var(--text3);margin-top:10px">Periodo leído: '+desde+' al '+hasta+
      ' · '+(d.cargos||[]).length+' cargos y '+abonos.length+' abonos del banco · '+mios.length+' movimientos tuyos.</div>';
   document.getElementById('cua-res').innerHTML=h;
+}
+
+var CUA_OK=[];
+// Guarda el resultado de la revisión: lo conciliado deja de ser trabajo pendiente
+function cuaMarcar(){
+  if(!CUA_OK.length)return;
+  fetch('/api/conciliar',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({fecha:todayStr(),items:CUA_OK.map(function(id){return {id:id};})})})
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(d){
+    CUA_OK.forEach(function(id){var m=movs.find(function(x){return x.id===id;});if(m)m.conciliado=todayStr();});
+    alert('✅ '+d.actualizados+' movimiento(s) quedaron conciliados.\n\nA partir de ahora tu saldo conciliado sube y esos ya no se revisan.');
+    pintaCuadre(CUA);
+  })
+  .catch(function(e){alert('No se pudo guardar: '+e.message);});
 }
 
 function renCua(t,n,monto,nota){
@@ -3323,6 +3402,164 @@ function asDatos(){
   };
 }
 
+// ═══ CALENDARIO DEL NEGOCIO ════════════════════════════════════════════════
+// Junta lo que la plataforma ya sabe (días de pedido, nómina, vencimientos,
+// entregas, vacaciones) con lo que ustedes anoten a mano. Las notas se guardan
+// en BD para que las vean todos.
+var CAL_MES=null, CAL_NOTAS={};
+
+var FESTIVOS_FIJOS={'01-01':'Año Nuevo','05-01':'Día del Trabajo','09-16':'Independencia',
+  '12-25':'Navidad','11-02':'Día de Muertos','12-12':'Virgen de Guadalupe','02-14':'San Valentín',
+  '05-10':'Día de las Madres','12-24':'Nochebuena','12-31':'Fin de Año'};
+
+// festivos que caen en lunes según la ley
+function festivoLey(y,m,d){
+  var f=new Date(y,m,d),dow=f.getDay();
+  if(dow!==1)return null;
+  var sem=Math.ceil(d/7);
+  if(m===1&&sem===1)return 'Día de la Constitución';
+  if(m===2&&sem===3)return 'Natalicio de Benito Juárez';
+  if(m===10&&sem===3)return 'Revolución Mexicana';
+  return null;
+}
+
+function cargarCalNotas(){
+  return fetch('/api/config/calendario',{credentials:'include'}).then(function(r){return r.json();})
+    .then(function(d){CAL_NOTAS=d.valor||{};return CAL_NOTAS;}).catch(function(){CAL_NOTAS={};return CAL_NOTAS;});
+}
+function guardarCalNotas(){
+  return fetch('/api/config/calendario',{method:'PUT',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:CAL_NOTAS})})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);})
+    .catch(function(e){alert('No se pudo guardar la nota: '+e.message);});
+}
+
+function rCal(){
+  if(!CAL_MES){var h=new Date();CAL_MES=new Date(h.getFullYear(),h.getMonth(),1);}
+  var dow=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  document.getElementById('cal-dow').innerHTML=dow.map(function(d){return '<div class="cal-dow">'+d+'</div>';}).join('');
+  var MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  document.getElementById('cal-mes').textContent=MES[CAL_MES.getMonth()]+' '+CAL_MES.getFullYear();
+  document.getElementById('cal-ley').innerHTML=
+    '🎂 cumpleaños · 🏖 vacaciones · 📤 vence factura · 📦 entrega · 🎉 festivo · 📝 tu nota · (🛒 pedido y 💵 nómina solo en las próximas dos semanas)';
+
+  var y=CAL_MES.getFullYear(),m=CAL_MES.getMonth();
+  var prim=new Date(y,m,1),ini=(prim.getDay()+6)%7;   // lunes primero
+  var hoy=todayStr();
+  var celdas='';
+  for(var i=0;i<42;i++){
+    var f=new Date(y,m,1-ini+i);
+    var fs=dateStrLocal(f),fuera=f.getMonth()!==m;
+    var ev=calEventos(f,fs);
+    var fest=ev.filter(function(e){return e.t==='fest';}).length;
+    celdas+='<div class="cal-d'+(fuera?' fuera':'')+(fs===hoy?' hoy':'')+(fest?' fest':'')+
+      '" onclick="calDia(\''+fs+'\')">'+
+      '<div class="cal-n">'+f.getDate()+'</div>'+
+      ev.slice(0,4).map(function(e){
+        return '<span class="cal-e" style="background:'+e.bg+';color:'+e.c+'">'+e.txt+'</span>';}).join('')+
+      (ev.length>4?'<span class="cal-e" style="background:#EEF2F7;color:#5C6B84">+'+(ev.length-4)+' más</span>':'')+
+      '</div>';
+  }
+  document.getElementById('cal-grid').innerHTML=celdas;
+  document.getElementById('cal-det').innerHTML='';
+}
+
+// Qué pasa ese día
+function calEventos(f,fs){
+  var ev=[],y=f.getFullYear(),m=f.getMonth(),d=f.getDate(),dow=f.getDay();
+  var mmdd=String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  var u=_u()||{},esVta=(u.role==='venta');
+
+  // festivos
+  if(FESTIVOS_FIJOS[mmdd])ev.push({t:'fest',txt:'🎉 '+FESTIVOS_FIJOS[mmdd],bg:'#FFE3EF',c:'#B0246B'});
+  var fl=festivoLey(y,m,d);
+  if(fl)ev.push({t:'fest',txt:'🎉 '+fl,bg:'#FFE3EF',c:'#B0246B'});
+
+  // cumpleaños
+  (EMPLEADOS||[]).forEach(function(e){
+    if(e.cumple===mmdd&&(e.estatus||'activo')==='activo')
+      ev.push({t:'cum',txt:'🎂 '+String(e.nombre).split(' ')[0],bg:'#FEF3C7',c:'#8A6400'});
+  });
+
+  // vacaciones e incapacidades (de Asistencias)
+  (EMPLEADOS||[]).forEach(function(e){
+    var k=e.id+'_'+y+'_'+m,da=(ASISTENCIAS||{})[k]||{};
+    if(da[d]==='vac')ev.push({t:'vac',txt:'🏖 '+String(e.nombre).split(' ')[0],bg:'#DBF4FF',c:'#0369A1'});
+    else if(da[d]==='inc')ev.push({t:'inc',txt:'🤒 '+String(e.nombre).split(' ')[0],bg:'#FEF3C7',c:'#92400E'});
+  });
+
+  // Lo que se repite cada semana (día de pedido y nómina) SOLO se muestra en la
+  // semana en curso y la siguiente. Si no, tapa lo que de verdad hay que ver.
+  var difH=(f-new Date(todayStr()+'T12:00:00'))/86400000;
+  var cerca=(difH>=-1&&difH<=13);
+  if(cerca){
+    if([1,3,5].indexOf(dow)>=0&&!esVta)ev.push({t:'ped',txt:'🛒 día de pedido',bg:'#E8F5EC',c:'#0F5132'});
+    var DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    var toca=(EMPLEADOS||[]).filter(function(e){return e.diapago===DIAS[dow]&&(e.estatus||'activo')==='activo';});
+    if(toca.length&&!esVta)ev.push({t:'nom',txt:'💵 pagar a '+toca.map(function(e){return String(e.nombre).split(' ')[0];}).join(', '),
+      bg:'#E8F5EC',c:'#0F5132'});
+  }
+
+  // facturas de proveedor que vencen
+  if(typeof FP!=='undefined'&&FP&&!esVta){
+    var v=FP.filter(function(x){return x.venc===fs&&((x.monto||0)-(x.abonado||0))>0.5;});
+    if(v.length)ev.push({t:'fac',txt:'📤 vence '+(v.length>1?v.length+' facturas':'factura '+(v[0].factura||'')),
+      bg:'#FFF1E6',c:'#B45309'});
+  }
+
+  // entregas prometidas
+  var ent=misP().filter(function(p){return String(p.entrega||'').slice(0,10)===fs&&p.est==='Pendiente';});
+  if(ent.length)ev.push({t:'ent',txt:'📦 '+ent.length+' entrega'+(ent.length>1?'s':''),bg:'#EDE9FE',c:'#5B21B6'});
+
+  // notas escritas a mano
+  ((CAL_NOTAS[fs]||[])).forEach(function(nt){
+    ev.push({t:'nota',txt:'📝 '+nt.txt,bg:'#F1F5F9',c:'#334155'});
+  });
+  return ev;
+}
+
+function calMover(n,aHoy){
+  if(aHoy){var h=new Date();CAL_MES=new Date(h.getFullYear(),h.getMonth(),1);}
+  else CAL_MES=new Date(CAL_MES.getFullYear(),CAL_MES.getMonth()+n,1);
+  rCal();
+}
+
+// Ver el detalle del día y anotar
+function calDia(fs){
+  var f=new Date(fs+'T12:00:00');
+  var ev=calEventos(f,fs);
+  var DIAS=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  var MES=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var c=document.getElementById('cal-det');
+  var notas=CAL_NOTAS[fs]||[];
+  c.innerHTML='<div class="card" style="padding:16px 20px">'+
+    '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px">'+
+    '<div style="font-size:17px;font-weight:800;text-transform:capitalize">'+DIAS[f.getDay()]+' '+f.getDate()+' de '+MES[f.getMonth()]+'</div>'+
+    '<span style="flex:1"></span>'+
+    '<button class="btn btn-p btn-sm" onclick="calAnotar(\''+fs+'\')">📝 Anotar algo</button></div>'+
+    (ev.length?ev.map(function(e){
+      return '<div style="background:'+e.bg+';color:'+e.c+';border-radius:10px;padding:8px 13px;margin-bottom:6px;font-size:13.5px;font-weight:700">'+e.txt+'</div>';
+    }).join(''):'<div style="font-size:13px;color:var(--text3)">Nada anotado para este día.</div>')+
+    (notas.length?'<div style="margin-top:10px;font-size:11.5px;color:var(--text3)">Tus notas: '+
+      notas.map(function(nt,i){return '<a href="#" onclick="calBorrar(\''+fs+'\','+i+');return false;" style="color:#991B1B">✕ '+nt.txt+'</a>';}).join(' · ')+'</div>':'')+
+    '</div>';
+  c.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function calAnotar(fs){
+  var t=prompt('¿Qué pasa el '+fs+'?\n(vacaciones, junta, entrega especial, lo que sea)');
+  if(!t||!t.trim())return;
+  if(!CAL_NOTAS[fs])CAL_NOTAS[fs]=[];
+  CAL_NOTAS[fs].push({txt:t.trim(),quien:(_u()||{}).name||CU});
+  guardarCalNotas().then(function(){rCal();calDia(fs);});
+}
+function calBorrar(fs,i){
+  if(!confirm('¿Borrar esta nota?'))return;
+  (CAL_NOTAS[fs]||[]).splice(i,1);
+  if(!CAL_NOTAS[fs].length)delete CAL_NOTAS[fs];
+  guardarCalNotas().then(function(){rCal();calDia(fs);});
+}
+
 function rAsis(){
   var u=_u()||{},d=new Date();
   var DIAS=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -3382,10 +3619,22 @@ function asEnviar(){
   AS_MSGS.push({rol:'asistente',txt:'…'});
   asPintar();
   AS_OCUPADA=true;document.getElementById('as-btn').disabled=true;
+  var _d=asDatos();
+  console.log('[asistente] resumen: '+Math.round(JSON.stringify(_d).length/1024)+' KB');
   fetch('/api/asistente',{method:'POST',credentials:'include',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({mensajes:AS_MSGS.slice(0,-1),datos:asDatos(),hoy:todayStr()})})
-  .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||('error '+r.status));return d;});})
+    body:JSON.stringify({mensajes:AS_MSGS.slice(0,-1),datos:_d,hoy:todayStr()})})
+  .then(function(r){return r.json().then(function(d){
+    if(!r.ok){
+      var extra='';
+      if(d.motivo)extra+='\n\nMotivo: '+d.motivo;
+      if(d.bloques)extra+='\nBloques: '+JSON.stringify(d.bloques);
+      if(d.tokens_entrada)extra+='\nTokens de entrada: '+d.tokens_entrada+' · salida: '+d.tokens_salida;
+      if(d.detalle)extra+='\n\n'+d.detalle;
+      if(d.crudo)extra+='\n\n'+d.crudo;
+      throw new Error((d.error||('error '+r.status))+extra);
+    }
+    return d;});})
   .then(function(d){AS_MSGS[AS_MSGS.length-1]={rol:'asistente',txt:d.texto||'(sin respuesta)'};asPintar();})
   .catch(function(e){AS_MSGS[AS_MSGS.length-1]={rol:'asistente',txt:'⚠️ '+e.message};asPintar();})
   .then(function(){AS_OCUPADA=false;document.getElementById('as-btn').disabled=false;});
@@ -5491,11 +5740,11 @@ function reactivarEmp(i){
   }).catch(function(){alert('Error de conexión');});
 }
 function openAddEmp(){editEmpIdx=null;document.getElementById('emp-form-ttl').textContent='+ Nuevo';['em-n','em-pu','em-fi','em-sal','em-banco','em-curp','em-rfc','em-tel','em-dir'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});document.getElementById('emp-form').style.display='block';}
-function editEmp(i){editEmpIdx=i;var e=EMPLEADOS[i];document.getElementById('emp-form-ttl').textContent='Editar: '+e.nombre;document.getElementById('em-n').value=e.nombre;document.getElementById('em-pu').value=e.puesto;document.getElementById('em-s').value=e.suc;document.getElementById('em-fi').value=e.ingreso;document.getElementById('em-sal').value=e.salario;document.getElementById('em-mp').value=e.metpago;var _dp=document.getElementById('em-dp');if(_dp)_dp.value=e.diapago||'';document.getElementById('em-banco').value=e.banco||'';document.getElementById('em-curp').value=e.curp||'';document.getElementById('em-rfc').value=e.rfc||'';document.getElementById('em-tel').value=e.tel||'';document.getElementById('em-dir').value=e.dir||'';document.getElementById('emp-form').style.display='block';}
+function editEmp(i){editEmpIdx=i;var e=EMPLEADOS[i];document.getElementById('emp-form-ttl').textContent='Editar: '+e.nombre;document.getElementById('em-n').value=e.nombre;document.getElementById('em-pu').value=e.puesto;document.getElementById('em-s').value=e.suc;document.getElementById('em-fi').value=e.ingreso;document.getElementById('em-sal').value=e.salario;document.getElementById('em-mp').value=e.metpago;var _dp=document.getElementById('em-dp');if(_dp)_dp.value=e.diapago||'';var _cu=document.getElementById('em-cum');if(_cu)_cu.value=e.cumple?('2000-'+e.cumple):'';document.getElementById('em-banco').value=e.banco||'';document.getElementById('em-curp').value=e.curp||'';document.getElementById('em-rfc').value=e.rfc||'';document.getElementById('em-tel').value=e.tel||'';document.getElementById('em-dir').value=e.dir||'';document.getElementById('emp-form').style.display='block';}
 function saveEmp(){
   var nom=document.getElementById('em-n').value.trim(),fi=document.getElementById('em-fi').value,sal=parseFloat(document.getElementById('em-sal').value)||0;
   if(!nom||!fi||!sal){alert('Nombre, fecha y salario son requeridos');return;}
-  var e={nombre:nom,puesto:document.getElementById('em-pu').value,suc:document.getElementById('em-s').value,ingreso:fi,salario:sal,metpago:document.getElementById('em-mp').value,diapago:(document.getElementById('em-dp')||{}).value||'',banco:document.getElementById('em-banco').value,curp:document.getElementById('em-curp').value,rfc:document.getElementById('em-rfc').value,tel:document.getElementById('em-tel').value,dir:document.getElementById('em-dir').value};
+  var e={nombre:nom,puesto:document.getElementById('em-pu').value,suc:document.getElementById('em-s').value,ingreso:fi,salario:sal,metpago:document.getElementById('em-mp').value,diapago:(document.getElementById('em-dp')||{}).value||'',cumple:((document.getElementById('em-cum')||{}).value||'').slice(5),banco:document.getElementById('em-banco').value,curp:document.getElementById('em-curp').value,rfc:document.getElementById('em-rfc').value,tel:document.getElementById('em-tel').value,dir:document.getElementById('em-dir').value};
   if(editEmpIdx!==null){e.estatus=EMPLEADOS[editEmpIdx].estatus||'activo';e.fecha_baja=EMPLEADOS[editEmpIdx].fecha_baja||'';}else{e.estatus='activo';e.fecha_baja='';}
   var req=editEmpIdx!==null
     ?fetch('/api/empleados/'+EMPLEADOS[editEmpIdx].id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(e)})
