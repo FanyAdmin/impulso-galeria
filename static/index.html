@@ -26,7 +26,7 @@
   --num:'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace;
 }
 html{-webkit-text-size-adjust:100%}
-body{font-family:var(--ui);background:var(--bg);color:var(--text);font-size:13.5px;line-height:1.55;
+body{font-family:var(--ui);background:var(--bg);color:var(--text);font-size:13px;line-height:1.45;
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-.005em}
 input,select,textarea{font-family:var(--ui);font-size:13.5px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rad);padding:7px 11px;color:var(--text);width:100%;outline:none;transition:border-color .15s,box-shadow .15s}
 input::placeholder,textarea::placeholder{color:var(--text3)}
@@ -47,14 +47,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 /* Panel lateral tipo Finder: gris translúcido, sin líneas duras */
 .sidebar{width:222px;min-width:222px;background:rgba(241,243,246,.86);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding-bottom:6px}
 .content{flex:1;overflow-y:auto;background:var(--bg)}
-.page{display:none;padding:1.75rem 2rem}.page.active{display:block}
+.page{display:none;padding:1.15rem 1.35rem}.page.active{display:block}
 
 /* ── SIDEBAR ── */
 .sb-logo{padding:1.15rem 1.15rem .9rem}
 .sb-brand{font-size:15.5px;font-weight:700;letter-spacing:.02em;color:var(--text)}
 .sb-sub{font-size:11px;color:var(--text3);margin-top:1px;letter-spacing:0}
-.sb-section{font-size:11px;font-weight:600;color:var(--text3);padding:14px 18px 4px;letter-spacing:0}
-.sb-item{display:flex;align-items:center;gap:9px;padding:7px 11px;margin:1px 9px;border-radius:8px;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;transition:background .12s,color .12s}
+.sb-section{font-size:10.5px;font-weight:600;color:var(--text3);padding:10px 17px 3px;letter-spacing:0}
+.sb-item{display:flex;align-items:center;gap:8px;padding:5px 10px;margin:1px 8px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--text2);cursor:pointer;transition:background .12s,color .12s}
 .sb-item:hover{background:rgba(20,24,31,.05);color:var(--text)}
 .sb-item.active{background:var(--surface);color:var(--green);font-weight:600;box-shadow:var(--sh1)}
 .sb-foot{margin-top:auto;padding:.9rem 1.15rem;border-top:1px solid var(--border)}
@@ -71,22 +71,27 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 .btn-xs{padding:3px 9px;font-size:12px;font-weight:500}
 
 /* ── CARDS / TABLES ── */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);padding:1.25rem 1.35rem;margin-bottom:1rem;box-shadow:var(--sh2)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);padding:1rem 1.1rem;margin-bottom:.75rem;box-shadow:var(--sh2)}
 .card-title{font-size:12px;font-weight:600;color:var(--text3);letter-spacing:0;margin-bottom:.8rem}
-.tw{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);overflow:hidden;margin-bottom:1rem;box-shadow:var(--sh2)}
-.tbl{width:100%;border-collapse:collapse;font-size:13px}
-/* Encabezado blanco con una sola línea de pelo: la tabla respira */
-.tbl th{font-size:12px;font-weight:600;color:var(--text3);padding:11px 15px;text-align:left;background:var(--surface);border-bottom:1px solid var(--border);letter-spacing:0;white-space:nowrap}
-.tbl td{padding:11px 15px;border-bottom:1px solid var(--border);vertical-align:middle;font-variant-numeric:tabular-nums}
+.tw{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);overflow:hidden;margin-bottom:.75rem;box-shadow:var(--sh2)}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+/* Encabezado blanco con una sola línea de pelo, pero apretado */
+.tbl th{font-size:11.5px;font-weight:600;color:var(--text3);padding:7px 10px;text-align:left;background:var(--surface);border-bottom:1px solid var(--border);letter-spacing:0;white-space:nowrap}
+.tbl td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:middle;font-variant-numeric:tabular-nums}
+/* Las columnas se pegan a su contenido; el sobrante se lo queda la última
+   (la de los botones), en vez de repartirse como huecos entre Cliente y Vendedor */
+.tbl th,.tbl td{width:1%;white-space:nowrap}
+.tbl th:last-child,.tbl td:last-child{width:auto}
+.tbl td.wrap,.tbl th.wrap{white-space:normal;width:auto}
 .tbl tr:last-child td{border-bottom:none}
 .tbl tbody tr{transition:background .1s}
 .tbl tbody tr:hover td{background:#F7F9FB}
 .tbl-empty{text-align:center;color:var(--text3);padding:2.5rem!important}
 
 /* ── METRICS ── */
-.metrics{display:grid;gap:.8rem;margin-bottom:1.35rem}
+.metrics{display:grid;gap:.6rem;margin-bottom:.9rem}
 .m4{grid-template-columns:repeat(4,1fr)}.m3{grid-template-columns:repeat(3,1fr)}.m2{grid-template-columns:repeat(2,1fr)}
-.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);padding:1.05rem 1.2rem;box-shadow:var(--sh2)}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);padding:.8rem 1rem;box-shadow:var(--sh2)}
 .m-label{font-size:12px;font-weight:500;color:var(--text3);letter-spacing:0;margin-bottom:5px}
 .m-val{font-size:24px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;font-family:var(--num);letter-spacing:-.02em}
 .m-sub{font-size:12px;color:var(--text3);margin-top:3px}
@@ -146,13 +151,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 .pval-iva{font-size:14px;font-weight:600;color:var(--green);font-family:'JetBrains Mono',monospace;text-align:right;margin-top:1px}
 
 /* ── PAGE HEADER ── */
-.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;gap:12px;flex-wrap:wrap}
+.ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:.9rem;gap:10px;flex-wrap:wrap}
 .ph-title{font-size:22px;font-weight:700;letter-spacing:-.025em}
 .ph-sub{font-size:13px;color:var(--text3);margin-top:2px}
 
 /* ── TABS ── */
 /* Pestañas tipo segmento de Mac: un riel gris con la activa en blanco */
-.tabs{display:inline-flex;gap:2px;margin-bottom:1.25rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px}
+.tabs{display:inline-flex;gap:2px;margin-bottom:.85rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:3px}
 .tab{padding:6px 15px;font-size:13px;font-weight:500;cursor:pointer;color:var(--text2);border-radius:7px;transition:background .12s,color .12s}
 .tab:hover{color:var(--text)}
 .tab.active{color:var(--text);background:var(--surface);font-weight:600;box-shadow:var(--sh1)}
@@ -173,6 +178,26 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 .er-un td{background:#E6F4ED;color:var(--green);font-size:13px!important}
 .er-item td{color:var(--text2);font-size:11px}
 .er-item td:first-child{padding-left:22px!important}
+
+/* ── HOJA DE PEDIDO: columnas alineadas ── */
+.ord-hd,.ord-row{display:grid;grid-template-columns:20px 42px minmax(115px,1.2fr) minmax(130px,1.55fr) 64px 100px 56px 62px 62px;gap:9px;align-items:center}
+/* Los metros solo se piden por tira en Marcos y Marcos; los demás no llevan esa columna */
+.ord-hd.sinm,.ord-row.sinm{grid-template-columns:20px 42px minmax(115px,1.2fr) minmax(140px,1.7fr) 104px 56px 62px 62px}
+.ord-hd{padding:4px 14px;font-size:10.5px;color:var(--text3);background:var(--surface2);border-top:1px solid var(--border)}
+.ord-row{padding:5px 14px;border-top:1px solid var(--border);transition:background .1s}
+.ord-row:hover{background:#FAFAF8}
+.ord-row .cel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* La franja del proveedor se queda arriba mientras recorres sus molduras */
+.ord-fr{position:sticky;top:0;z-index:6}
+.ord-alerta{font-size:10px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:5px;white-space:nowrap}
+@media(max-width:980px){
+  .ord-hd{display:none}
+  .ord-row{grid-template-columns:20px 44px 1fr;row-gap:2px}
+  .ord-row .cel-med{grid-column:2/4}
+  .ord-row .cel-nota,.ord-row .cel-fec,.ord-row .cel-suc,.ord-row .cel-ml{display:none}
+  .ord-row.sinm{grid-template-columns:20px 44px 1fr}
+}
+@media print{.sidebar,.mob-bar,.btn,.ord-hd input{display:none!important}}
 
 /* ── ABONO ROW ── */
 .ab-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -557,7 +582,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 26-ago · look limpio</div></div>
+  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 26-ago · compacto v6</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
@@ -1458,8 +1483,8 @@ function pintaSel(i){
   if(cnt)cnt.textContent=pz;
   const eti=document.getElementById('sel-eti-'+i);
   if(eti)eti.textContent=dentro.length===v.items.length
-    ? 'todas las molduras entran en la orden'
-    : (v.items.length-dentro.length)+' moldura(s) fuera de esta orden';
+    ? ''
+    : ' · '+(v.items.length-dentro.length)+' fuera de esta orden';
   ['wa','print'].forEach(m=>{const b=document.getElementById('sel-btn-'+m+'-'+i);if(b){b.disabled=!pz;b.style.opacity=pz?1:.45;b.style.cursor=pz?'pointer':'not-allowed';}});
   v.items.forEach((it,j)=>{
     const f=fueraSel(v.pv,it.mol),row=document.getElementById('sel-row-'+i+'-'+j);
@@ -4038,6 +4063,45 @@ function rHoy(){
   }).join('')+'<div class="hoy-pie">Pica cualquiera y te llevo a resolverlo ★</div>';
 }
 
+// ── DÍA DE PEDIDO: filtro, orden y datos derivados ──────────────────────────
+var ORD_Q='',ORD_SORT='pzas';
+function ordBuscar(v){ORD_Q=String(v||'').trim().toLowerCase();rOrd();const c=document.getElementById('ord-q');if(c){c.focus();c.value=ORD_Q;}}
+function ordOrden(k){ORD_SORT=k;rOrd();}
+// Metros lineales, con la MISMA fórmula con la que se arma la orden
+function ordML(it){
+  const d=despDe(it.mol);
+  return medsList(it).reduce(function(s,x){
+    const p=String(x.m).split('×'); if(p.length<2)return s;
+    return s+((((+p[0])+(+p[1]))*2/100)+d)*(x.q||1);
+  },0);
+}
+function ordDias(f){
+  if(!f)return null;
+  return Math.max(0,Math.round((new Date(todayStr()+'T12:00:00')-new Date(f+'T12:00:00'))/86400000));
+}
+// Piezas de esa moldura que pidió cada sucursal.
+// Las órdenes viejas no traen el desglose: ahí se marca ✓ si esa sucursal aparece.
+var ORD_SUCS=['Jardines','Zibata'];
+function pzSucOf(it,suc){
+  if(it.pzSuc&&it.pzSuc[suc]!=null)return it.pzSuc[suc];
+  const l=it.sucs||[];
+  if(l.length===1&&l[0]===suc)return it.pzas||0;
+  return l.indexOf(suc)>=0?'✓':0;
+}
+function celSuc(it,suc,color){
+  const v=pzSucOf(it,suc);
+  return v?`<b style="color:${color}">${v}</b>`:'<span style="color:#C9CED6">·</span>';
+}
+
+// Aviso del catálogo: lo que no conviene pedir a ciegas
+function ordAlerta(mol){
+  const m=molBase(mol);
+  if(!m)return {t:'sin catálogo',c:'#B0004E',bg:'#FBD3E0'};
+  if(m.estatus==='descontinuada')return {t:'descontinuada',c:'#B0004E',bg:'#FBD3E0'};
+  if(m.estatus==='agotada')return {t:'agotada',c:'#8A6100',bg:'#FEF3C7'};
+  return null;
+}
+
 function rOrd(){
   const u=USERS.find(x=>x.key===CU);
   // Admin/owner: concentrado de AMBAS sucursales (quien pide, pide todo).
@@ -4045,7 +4109,7 @@ function rOrd(){
   const pend=pedidos.filter(p=>p.est==='Pendiente'&&p.items&&(!soloMira()||p.suc===miSuc()));
   const yaPedidos=itemsPedidos();
   const byP={};
-  pend.forEach(p=>(p.items||[]).forEach(it=>{if(!it.mol||yaPedidos.has(claveItem(p.folio,it.mol)))return;const pv=provDe(it);if(!byP[pv])byP[pv]=[];const ex=byP[pv].find(x=>x.mol===it.mol);if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(p.suc&&!ex.sucs.includes(p.suc))ex.sucs.push(p.suc);if(it.l1&&it.l2){ex.meds.push(`${it.l1}×${it.l2}`);ex.medsQ=medsQAdd(ex.medsQ,it.l1,it.l2,it.q);}if(p.fecha&&(!ex.fecha||p.fecha<ex.fecha))ex.fecha=p.fecha;}else byP[pv].push({mol:it.mol,pzas:it.q,fols:[p.folio],sucs:p.suc?[p.suc]:[],meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[],medsQ:medsQAdd([],it.l1,it.l2,it.q),fecha:p.fecha||''});}));
+  pend.forEach(p=>(p.items||[]).forEach(it=>{if(!it.mol||yaPedidos.has(claveItem(p.folio,it.mol)))return;const pv=provDe(it);if(!byP[pv])byP[pv]=[];const ex=byP[pv].find(x=>x.mol===it.mol);if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(p.suc&&!ex.sucs.includes(p.suc))ex.sucs.push(p.suc);if(p.suc)ex.pzSuc[p.suc]=(ex.pzSuc[p.suc]||0)+it.q;if(it.l1&&it.l2){ex.meds.push(`${it.l1}×${it.l2}`);ex.medsQ=medsQAdd(ex.medsQ,it.l1,it.l2,it.q);}if(p.fecha&&(!ex.fecha||p.fecha<ex.fecha))ex.fecha=p.fecha;}else byP[pv].push({mol:it.mol,pzas:it.q,fols:[p.folio],sucs:p.suc?[p.suc]:[],pzSuc:p.suc?{[p.suc]:it.q}:{},meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[],medsQ:medsQAdd([],it.l1,it.l2,it.q),fecha:p.fecha||''});}));
   const provs=Object.keys(byP).sort((a,b)=>byP[b].reduce((s,x)=>s+x.pzas,0)-byP[a].reduce((s,x)=>s+x.pzas,0));
   const px=proxDiaPedido();
   const ultOrd=ORDENES.length?ORDENES[0]:null;
@@ -4071,106 +4135,164 @@ function rOrd(){
     return;
   }
 
-  // 3) Resumen de lo acumulado
+  // 3) Tira de control: números del día, buscador y orden
   const mayor=provs[0],mayorPz=byP[mayor].reduce((a,b)=>a+b.pzas,0),stMay=provColor(mayor);
-  const resumen=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-    <div style="flex:2;min-width:190px;background:${stMay.bg};border:1px solid ${stMay.c}22;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:14px">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:10px;font-weight:700;color:${stMay.c};text-transform:uppercase;letter-spacing:.06em">El más cargado</div>
-        <div style="font-size:15px;font-weight:800;color:${stMay.c};margin-top:1px">${PROVS[mayor]||mayor}</div>
-        <div class="mono" style="font-size:30px;font-weight:800;color:${stMay.c};line-height:1.05">${mayorPz} <span style="font-size:12px;font-weight:700">piezas</span></div>
-      </div>
-      <div style="flex-shrink:0;opacity:.9">${provMarca(mayor,26)}</div>
+  const chip=(k,t)=>`<button class="btn ${ORD_SORT===k?'btn-p':'btn-s'} btn-xs" onclick="ordOrden('${k}')">${t}</button>`;
+  const resumen=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rad);padding:9px 14px;margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:12.5px">
+      <span><b class="mono" style="font-size:17px">${totPzas}</b> piezas</span>
+      <span style="color:var(--text2)"><b class="mono">${totMols}</b> molduras</span>
+      <span style="color:var(--text2)"><b class="mono">${notas.length}</b> notas</span>
+      <span style="color:var(--text2)">·  el más cargado: <b style="color:${stMay.c}">${PROVS[mayor]||mayor}</b></span>
+      <span style="flex:1"></span>
+      ${soloMira()?'':'<button class="btn btn-s btn-xs" onclick="imprimirHojaDia()">🖨️ Hoja del día</button>'}
+      <button class="btn btn-s btn-xs" onclick="ordPlegarTodo(true)">▸ Plegar</button>
+      <button class="btn btn-s btn-xs" onclick="ordPlegarTodo(false)">▾ Abrir</button>
     </div>
-    <div style="flex:1;min-width:120px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">📦 Piezas en total</div><div class="mono" style="font-size:26px;font-weight:800">${totPzas}</div></div>
-    <div style="flex:1;min-width:120px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">🖼 Molduras distintas</div><div class="mono" style="font-size:26px;font-weight:800">${totMols}</div></div>
-    <div style="flex:1;min-width:120px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 14px"><div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">🧾 Notas de clientes</div><div class="mono" style="font-size:26px;font-weight:800">${notas.length}</div></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <input id="ord-q" value="${ORD_Q}" oninput="ordBuscar(this.value)" placeholder="🔍 Filtrar moldura, medida o nota..." style="width:250px;font-size:12px;padding:4px 9px">
+      <span style="font-size:11px;color:var(--text3)">Ordenar:</span>
+      ${chip('pzas','Piezas')} ${chip('espera','Antigüedad')} ${chip('mol','Nombre')}
+      ${ORD_Q?`<span style="font-size:11px;color:#8A6100;font-weight:700">Filtro activo: solo esconde renglones, no los saca de la orden</span>`:''}
+      <span style="flex:1"></span>
+      <span style="font-size:11px;color:var(--text3)">Los metros solo salen en Marcos y Marcos, para saber cuántas tiras pedir</span>
+    </div>
   </div>`;
 
-  // 4) Guía de pasos (para quien pide) o aviso de consulta (para sucursal)
+  // 4) Aviso solo para quien consulta
   const guia=soloMira()
-    ? `<div style="background:#EFF6FF;border:1px solid #BFDBFE;color:#1E3A8A;border-radius:var(--rad);padding:10px 14px;margin-bottom:14px;font-size:12px">
-        👀 <strong>Vista de consulta.</strong> Aquí ves las molduras que dejaste pedidas desde ${miSuc()}.
-        Las órdenes a proveedor se hacen desde Jardines — tú no tienes que pedir nada.
+    ? `<div style="background:#EFF6FF;border:1px solid #BFDBFE;color:#1E3A8A;border-radius:var(--rad);padding:9px 14px;margin-bottom:10px;font-size:12px">
+        👀 <strong>Vista de consulta.</strong> Esto es lo que dejaste pedido desde ${miSuc()}. Las órdenes se hacen desde Jardines.
       </div>`
-    : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;color:var(--text2)">
-    <span style="background:var(--surface2);border-radius:99px;padding:5px 12px"><strong>1️⃣ Revisa</strong> lo acumulado</span>
-    <span style="background:var(--surface2);border-radius:99px;padding:5px 12px"><strong>2️⃣ Pide e imprime</strong> por proveedor</span>
-    <span style="background:var(--surface2);border-radius:99px;padding:5px 12px"><strong>3️⃣ Entrega la hoja</strong> · queda copia en Historial</span>
-  </div>`;
+    : '';
 
-  // 5) Tarjetas por proveedor (detalle plegado)
-  const topPz=byP[provs[0]].reduce((a,b)=>a+b.pzas,0)||1;
-  ORD_VIEW=provs.map(pv=>({pv,items:byP[pv]}));   // indice i/j que usan las casillas
-  document.getElementById('ord-c').innerHTML=banner+hechasHoy+resumen+guia+provs.map((pv,i)=>{
-    const pzas=byP[pv].reduce((a,b)=>a+b.pzas,0);
-    const fechaVieja=byP[pv].map(it=>it.fecha).filter(Boolean).sort()[0];
-    const st=provColor(pv);
-    const pct=Math.max(6,Math.round(pzas/topPz*100));   // volumen relativo al mayor
-    const nNotas=[...new Set(byP[pv].flatMap(it=>it.fols))].length;
-    const pzSel=byP[pv].filter(it=>!fueraSel(pv,it.mol)).reduce((a,b)=>a+b.pzas,0);
+  // 5) Hoja de trabajo: franja pegajosa por proveedor y molduras en columnas
+  const ordena=(A)=>A.slice().sort((x,y)=>
+      ORD_SORT==='mol'?String(x.mol).localeCompare(String(y.mol))
+    : ORD_SORT==='espera'?String(x.fecha||'9999').localeCompare(String(y.fecha||'9999'))
+    : y.pzas-x.pzas);
+  const pasa=(it)=>!ORD_Q||[it.mol,(it.fols||[]).join(' '),medsList(it).map(m=>m.m).join(' ')]
+      .join(' ').toLowerCase().indexOf(ORD_Q)>=0;
+
+  ORD_VIEW=provs.map(pv=>({pv,items:ordena(byP[pv])}));   // indice i/j de las casillas
+  document.getElementById('ord-c').innerHTML=banner+hechasHoy+resumen+guia+ORD_VIEW.map((v,i)=>{
+    const pv=v.pv,st=provColor(pv),items=v.items;
+    const fechaVieja=items.map(it=>it.fecha).filter(Boolean).sort()[0];
+    const dv=ordDias(fechaVieja);
+    const nNotas=[...new Set(items.flatMap(it=>it.fols))].length;
+    const dentro=items.filter(it=>!fueraSel(pv,it.mol));
+    const pzSel=dentro.reduce((a,b)=>a+b.pzas,0);
+    const mlSel=dentro.reduce((a,b)=>a+ordML(b),0);
+    const alertas=items.filter(it=>ordAlerta(it.mol)).length;
+    const visibles=items.filter(pasa);
     return `
-    <div class="card" style="padding:0;overflow:hidden;border-left:8px solid ${st.c};margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:20px;padding:18px 20px;flex-wrap:wrap;background:linear-gradient(100deg,${st.bg} 0%,${st.bg}55 42%,transparent 78%)">
-        <div style="width:94px;height:54px;border-radius:10px;background:#fff;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:8px;box-shadow:var(--sh1)">
-          ${provMarca(pv,32)}
+    <div class="card" style="padding:0;margin-bottom:10px;border-left:3px solid ${st.c};overflow:visible">
+      <div class="ord-fr" style="display:flex;align-items:center;gap:12px;padding:8px 14px;background:${st.bg};border-radius:9px 9px 0 0;flex-wrap:wrap;border-bottom:1px solid ${st.c}22">
+        <div style="width:56px;height:24px;display:flex;align-items:center;flex-shrink:0">${provMarca(pv,22)}</div>
+        <div style="font-size:14px;font-weight:700;color:${st.c}">${PROVS[pv]||pv}</div>
+        <div style="font-size:11.5px;color:var(--text2)">
+          <b class="mono" id="sel-cnt-${i}" style="font-size:15px;color:${st.c}">${pzSel}</b> pzas ·
+          ${pv==='MM'?`<b class="mono">${mlSel.toFixed(1)}</b> metros <b style="color:${st.c}">≈ ${Math.ceil(mlSel/2)} tiras</b> · `:''}
+          ${items.length} molduras · ${nNotas} notas${dv!==null?` · la más vieja <b style="color:${dv>14?'#B0004E':(dv>7?'#8A6100':'var(--text2)')}">${dv} d</b>`:''}<span id="sel-eti-${i}" style="color:#92400E;font-weight:700"></span>
         </div>
-        <div style="flex:1;min-width:220px">
-          <div style="font-size:19px;font-weight:800;color:${st.c};letter-spacing:-.01em">${PROVS[pv]||pv}</div>
-          <div style="display:flex;align-items:baseline;gap:8px;margin-top:4px">
-            <span class="mono" id="sel-cnt-${i}" style="font-size:34px;font-weight:700;color:${st.c};line-height:1;letter-spacing:-.02em">${pzSel}</span>
-            <span style="font-size:13px;font-weight:800;color:${st.c};text-transform:uppercase;letter-spacing:.06em">piezas por pedir</span>
-          </div>
-          <div style="height:9px;border-radius:99px;background:#fff;border:1px solid ${st.c}22;overflow:hidden;margin-top:9px">
-            <div style="height:100%;width:${pct}%;background:${st.c};border-radius:99px"></div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">
-            <span style="background:#fff;border:1px solid ${st.c}33;color:${st.c};font-size:11px;font-weight:700;border-radius:99px;padding:3px 10px">${byP[pv].length} molduras</span>
-            <span style="background:#fff;border:1px solid ${st.c}33;color:${st.c};font-size:11px;font-weight:700;border-radius:99px;padding:3px 10px">${nNotas} notas</span>
-            ${fechaVieja?`<span style="font-size:11px;color:var(--text2)">esperando desde el ${fechaVieja}</span>`:''}
-          </div>
-          <div id="sel-eti-${i}" style="font-size:12px;font-weight:700;color:${st.c};margin-top:6px">todas las molduras entran en la orden</div>
-        </div>
-        <button class="btn btn-s btn-sm" onclick="toggleOrdDet(${i})"><span id="ord-arrow-${i}">▸</span> Ver molduras</button>
-        ${soloMira()?'':`<button id="sel-btn-wa-${i}" class="btn btn-p btn-sm" onclick="pedirOrd('${pv}','wa')">📱 Pedir x WhatsApp</button>
-        <button id="sel-btn-print-${i}" class="btn btn-s btn-sm" onclick="pedirOrd('${pv}','print')">🖨️ Pedir e imprimir</button>`}
+        ${alertas?`<span class="ord-alerta" style="background:#FEF3C7;color:#8A6100">⚠️ ${alertas} con aviso</span>`:''}
+        <span style="flex:1"></span>
+        ${soloMira()?'':`<button class="btn btn-s btn-xs" onclick="selTodas(${i},true)">Todas</button>
+        <button class="btn btn-s btn-xs" onclick="selTodas(${i},false)">Ninguna</button>`}
+        <button class="btn btn-s btn-xs" onclick="toggleOrdDet(${i})"><span id="ord-arrow-${i}">▾</span></button>
+        ${soloMira()?'':`<button id="sel-btn-wa-${i}" class="btn btn-p btn-xs" onclick="pedirOrd('${pv}','wa')">📱 Pedir</button>
+        <button id="sel-btn-print-${i}" class="btn btn-s btn-xs" onclick="pedirOrd('${pv}','print')">🖨️ Imprimir</button>`}
       </div>
-      <div id="ord-det-${i}" style="display:none;border-top:1px solid var(--border)">
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--surface2);flex-wrap:wrap">
-          <span style="font-size:11px;font-weight:800;color:var(--text2);text-transform:uppercase;letter-spacing:.06em">Elige qué se pide hoy</span>
-          <span style="font-size:11px;color:var(--text3)">Destilda lo que quieras dejar para la próxima</span>
-          <span style="flex:1"></span>
-          ${soloMira()?'':`<button class="btn btn-s btn-sm" onclick="selTodas(${i},true)">Todas</button>
-          <button class="btn btn-s btn-sm" onclick="selTodas(${i},false)">Ninguna</button>`}
-        </div>
-        ${byP[pv].map((it,j)=>{
-          const ml=medsList(it);
+      <div id="ord-det-${i}">
+        <div class="ord-hd${pv==='MM'?'':' sinm'}"><span></span><span style="text-align:right">Pzas</span><span>Moldura</span><span>Medidas</span>${pv==='MM'?'<span style="text-align:right" title="Metros lineales: perímetro + desperdicio. Marcos y Marcos vende por tira de 2 m">Metros</span>':''}<span>Notas</span><span>Espera</span><span style="text-align:center">Jardines</span><span style="text-align:center">Zibata</span></div>
+        ${items.map((it,j)=>{
+          if(!pasa(it))return '';
           const fols=[...new Set(it.fols)];
           const fuera=fueraSel(pv,it.mol);
-          const meds=ml.length?ml.map(x=>`<span style="background:var(--surface2);border-radius:6px;padding:2px 7px;font-size:11px;color:var(--text2);white-space:nowrap">${x.m} <b>×${x.q}</b></span>`).join(' '):'<span style="font-size:11px;color:var(--text3)">sin medidas capturadas</span>';
+          const ml=medsList(it);
+          const meds=ml.length?ml.map(x=>`${x.m}<b>×${x.q}</b>`).join(' · '):'—';
+          const al=ordAlerta(it.mol);
+          const d=ordDias(it.fecha);
           return `
-          <div id="sel-row-${i}-${j}" style="display:flex;align-items:flex-start;gap:14px;padding:12px 18px;border-top:1px solid var(--border);opacity:${fuera?'.42':'1'};background:${fuera?'var(--surface2)':'transparent'};transition:opacity .12s">
-            ${soloMira()?'':`<input type="checkbox" id="sel-chk-${i}-${j}" ${fuera?'':'checked'} onchange="togSelOrd(${i},${j})" style="width:22px;height:22px;margin-top:12px;accent-color:${st.c};cursor:pointer;flex-shrink:0">`}
-            <div style="width:52px;height:52px;border-radius:12px;background:${st.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0">
-              <span class="mono" style="font-size:21px;font-weight:800;color:${st.c};line-height:1">${it.pzas}</span>
-              <span style="font-size:8px;font-weight:700;color:${st.c};text-transform:uppercase">pzas</span>
-            </div>
-            <div style="flex:1;min-width:0">
-              <div style="font-size:15px;font-weight:700;margin-bottom:5px">${it.mol}</div>
-              <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px">${meds}</div>
-              <div style="font-size:11px;color:var(--text3)">${sucsHTML(it)} · notas ${fols.join(', ')}${it.fecha?' · desde el '+it.fecha:''}</div>
-            </div>
+          <div id="sel-row-${i}-${j}" class="ord-row${pv==='MM'?'':' sinm'}" style="opacity:${fuera?'.4':'1'};background:${fuera?'var(--surface2)':'transparent'}">
+            ${soloMira()?'<span></span>':`<input type="checkbox" id="sel-chk-${i}-${j}" ${fuera?'':'checked'} onchange="togSelOrd(${i},${j})" style="width:16px;height:16px;accent-color:${st.c};cursor:pointer">`}
+            <span class="mono" style="text-align:right;font-size:13px;font-weight:800;color:${st.c}">${it.pzas}</span>
+            <span class="cel" style="font-size:12.5px;font-weight:600" title="${it.mol}">${it.mol}${al?`<span class="ord-alerta" style="background:${al.bg};color:${al.c}">${al.t}</span>`:''}</span>
+            <span class="cel cel-med" style="font-size:11.5px;color:var(--text2)">${meds}</span>
+            ${pv==='MM'?`<span class="cel cel-ml mono" style="text-align:right;font-size:11.5px;color:var(--text2)">${ordML(it).toFixed(1)}</span>`:''}
+            <span class="cel cel-nota mono" style="font-size:11px;color:var(--text3)" title="${fols.join(', ')}">${fols.join(', ')}</span>
+            <span class="cel cel-fec" style="font-size:11px;color:${d>14?'#B0004E':(d>7?'#8A6100':'var(--text3)')};font-weight:${d>7?'700':'400'}">${d===null?'—':d+' d'}</span>
+            <span class="cel cel-suc" style="font-size:12px;text-align:center">${celSuc(it,'Jardines',st.c)}</span>
+            <span class="cel cel-suc" style="font-size:12px;text-align:center">${celSuc(it,'Zibata',st.c)}</span>
           </div>`;
         }).join('')}
+        ${visibles.length?'':'<div style="padding:10px 14px;font-size:12px;color:var(--text3)">Ninguna moldura de este proveedor coincide con el filtro.</div>'}
       </div>
     </div>`;
   }).join('');
 }
+
+// ── La hoja del día: todo lo pendiente en una sola impresión ────────────────
+function imprimirHojaDia(){
+  const v=ORD_VIEW||[];
+  if(!v.length){alert('No hay nada pendiente por pedir.');return;}
+  const hoy=new Date().toLocaleDateString('es-MX');
+  let tot=0;
+  const bloques=v.map(function(g){
+    const st=provColor(g.pv);
+    const esMM=g.pv==='MM';                       // solo MM se pide por tira
+    const pz=g.items.reduce((a,b)=>a+b.pzas,0);
+    const ml=esMM?g.items.reduce((a,b)=>a+ordML(b),0):0;
+    tot+=pz;
+    const filas=g.items.map(function(it){
+      const al=ordAlerta(it.mol),d=ordDias(it.fecha);
+      return '<tr><td class="chk">☐</td><td class="n">'+it.pzas+'</td><td><b>'+it.mol+'</b>'+
+        (al?' <span class="al">'+al.t+'</span>':'')+(fueraSel(g.pv,it.mol)?' <span class="al">fuera de esta orden</span>':'')+'</td>'+
+        '<td>'+medsList(it).map(x=>x.m+' ×'+x.q).join(' · ')+'</td>'+
+        (esMM?'<td class="n">'+ordML(it).toFixed(2)+'</td>':'')+
+        '<td>'+[...new Set(it.fols)].join(', ')+'</td>'+
+        '<td class="n">'+(d===null?'—':d+' d')+'</td>'+
+        '<td class="n">'+(pzSucOf(it,'Jardines')||'·')+'</td>'+
+        '<td class="n">'+(pzSucOf(it,'Zibata')||'·')+'</td></tr>';
+    }).join('');
+    return '<h2 style="color:'+st.c+'">'+(PROVS[g.pv]||g.pv)+
+      ' <span>'+pz+' pzas'+(esMM?' · '+ml.toFixed(1)+' metros · ≈'+Math.ceil(ml/2)+' tiras':'')+'</span></h2>'+
+      '<table><thead><tr><th></th><th>Pzas</th><th>Moldura</th><th>Medidas</th>'+
+      (esMM?'<th>Metros</th>':'')+'<th>Notas</th><th>Espera</th><th>Jardines</th><th>Zibata</th></tr></thead><tbody>'+filas+'</tbody></table>';
+  }).join('');
+  const w=window.open('','_blank');
+  if(!w){alert('El navegador bloqueó la ventana. Permite las ventanas emergentes.');return;}
+  w.document.write('<!doctype html><meta charset="utf-8"><title>Hoja del día '+hoy+'</title>'+
+   '<style>body{font-family:Calibri,system-ui,sans-serif;color:#1c2b3a;padding:20px}'+
+   'h1{font-size:19px;margin:0}h1 span{font-size:12px;color:#5a6b80;font-weight:400}'+
+   'h2{font-size:14px;margin:16px 0 5px;border-bottom:2px solid currentColor;padding-bottom:2px}'+
+   'h2 span{font-size:11px;color:#5a6b80;font-weight:400}'+
+   'table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:6px}'+
+   'th{background:#F1F3F6;text-align:left;padding:4px 6px;font-size:10px;color:#5a6b80}'+
+   'td{padding:4px 6px;border-bottom:1px solid #eee}'+
+   '.n{text-align:right;font-family:Consolas,monospace}.chk{font-size:14px;width:18px}'+
+   '.al{background:#FEF3C7;color:#8A6100;font-size:9px;font-weight:700;border-radius:3px;padding:1px 4px}'+
+   '@media print{body{padding:6px}}</style>'+
+   '<h1>Hoja del día de pedido <span>· '+hoy+' · '+tot+' piezas</span></h1>'+
+   bloques+
+   '<p style="font-size:10px;color:#5a6b80;margin-top:10px">Palomea a mano lo que vayas confirmando con cada proveedor. Impulso Galería.</p>');
+  w.document.close();
+  setTimeout(function(){try{w.print();}catch(e){}},400);
+}
+
 function toggleOrdDet(i){
   const d=document.getElementById('ord-det-'+i),a=document.getElementById('ord-arrow-'+i);
   const abierto=d.style.display!=='none';
   d.style.display=abierto?'none':'';
   if(a)a.textContent=abierto?'▸':'▾';
+}
+// Plegar / desplegar TODAS las franjas de golpe
+function ordPlegarTodo(cerrar){
+  (ORD_VIEW||[]).forEach(function(_,i){
+    const d=document.getElementById('ord-det-'+i),a=document.getElementById('ord-arrow-'+i);
+    if(d)d.style.display=cerrar?'none':'';
+    if(a)a.textContent=cerrar?'▸':'▾';
+  });
 }
 
 function switchOrdTab(tab, el){
@@ -4746,8 +4868,8 @@ function pedirOrd(pv,modo){
     (p.items||[]).filter(it=>it.mol&&provDe(it)===pv&&!yaPedidos.has(claveItem(p.folio,it.mol))&&!fueraSel(pv,it.mol)).forEach(it=>{
       const mlIt=(it.l1&&it.l2)?((((+it.l1)+(+it.l2))*2/100)+despDe(it.mol))*(it.q||1):0;
       const ex=items.find(x=>x.mol===it.mol);
-      if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(p.suc&&!ex.sucs.includes(p.suc))ex.sucs.push(p.suc);ex.ml=(ex.ml||0)+mlIt;if(it.l1&&it.l2){ex.meds.push(`${it.l1}×${it.l2}`);ex.medsQ=medsQAdd(ex.medsQ,it.l1,it.l2,it.q);}}
-      else items.push({mol:it.mol,pzas:it.q,fols:[p.folio],sucs:p.suc?[p.suc]:[],ml:mlIt,meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[],medsQ:medsQAdd([],it.l1,it.l2,it.q)});
+      if(ex){ex.pzas+=it.q;ex.fols.push(p.folio);if(p.suc&&!ex.sucs.includes(p.suc))ex.sucs.push(p.suc);if(p.suc)ex.pzSuc[p.suc]=(ex.pzSuc[p.suc]||0)+it.q;ex.ml=(ex.ml||0)+mlIt;if(it.l1&&it.l2){ex.meds.push(`${it.l1}×${it.l2}`);ex.medsQ=medsQAdd(ex.medsQ,it.l1,it.l2,it.q);}}
+      else items.push({mol:it.mol,pzas:it.q,fols:[p.folio],sucs:p.suc?[p.suc]:[],pzSuc:p.suc?{[p.suc]:it.q}:{},ml:mlIt,meds:it.l1&&it.l2?[`${it.l1}×${it.l2}`]:[],medsQ:medsQAdd([],it.l1,it.l2,it.q)});
     }));
   if(!items.length){alert(Object.keys(SEL_FUERA).length?'No hay ninguna moldura seleccionada de este proveedor.\nPalomea al menos una para poder pedir.':'No hay molduras pendientes de este proveedor');return;}
   const fueraN=byPFuera(pv);
@@ -4789,6 +4911,9 @@ function printOrd(pv,itemsPre,wPre,oc,fechaOrden,comentarios){
       }));
   }
   const fecha=new Date().toLocaleDateString('es-MX');
+  // Marcos y Marcos es el único que se pide por tira: solo ahí van los metros
+  const esMM=pv==='MM';
+  const mlTotal=esMM?items.reduce((a,b)=>a+(b.ml!=null?+b.ml:(typeof ordML==='function'?ordML(b):0)),0):0;
   // Comentarios e instrucciones de envío (se preguntan al imprimir, como en el Excel)
   const coment=comentarios!==undefined?comentarios:(prompt('📝 Comentarios e instrucciones de envío (opcional):','')||'');
   // Datos de contacto por proveedor (los conocidos; los demás solo nombre)
@@ -4850,14 +4975,30 @@ function printOrd(pv,itemsPre,wPre,oc,fechaOrden,comentarios){
       <b>Dirección:</b> HACIENDA ESCOLASTICAS NO.107 COL. JARDINES DE LA HACIENDA · Tel: 4422165203
     </div></div>
   </div>
-  <table class="itm"><thead><tr><th style="text-align:left">Código / Moldura</th><th style="width:90px">Sucursal</th><th style="width:95px">Medida (cm)</th><th style="width:52px">Cant</th><th style="width:120px">Nota (pedidos)</th></tr></thead>
+  <table class="itm"><thead><tr><th style="text-align:left">Código / Moldura</th><th style="width:62px">Jardines</th><th style="width:62px">Zibata</th><th style="width:160px">Medidas (cm)</th><th style="width:48px">Pzas</th>${esMM?'<th style="width:56px">Metros</th>':''}<th style="width:112px">Nota (pedidos)</th></tr></thead>
   <tbody>${items.map(it=>{
+    // Un renglón por moldura. Las medidas van apiladas en su celda: antes cada
+    // medida abría un renglón nuevo y se repetía el nombre, la sucursal y las notas.
     const ml=medsList(it);
     const fols=[...new Set(it.fols)].join(', ');
-    const sucT=(sucsTxt(it)||'—').toUpperCase();
-    if(!ml.length)return `<tr><td style="font-weight:600">${it.mol}</td><td class="suc-tag">${sucT}</td><td style="text-align:center">—</td><td style="text-align:center;font-weight:700">${it.pzas}</td><td>${fols}</td></tr>`;
-    return ml.map(x=>`<tr><td style="font-weight:600">${it.mol}</td><td class="suc-tag">${sucT}</td><td style="text-align:center">${x.m}</td><td style="text-align:center;font-weight:700">${x.q}</td><td>${fols}</td></tr>`).join('');
-  }).join('')}</tbody></table>
+    const mts=(it.ml!=null?+it.ml:(typeof ordML==='function'?ordML(it):0));
+    const meds=ml.length
+      ? ml.map(x=>`${x.m}<b> ×${x.q}</b>`).join('<br>')
+      : '—';
+    return `<tr><td style="font-weight:600">${it.mol}</td>
+      <td class="suc-tag" style="text-align:center">${pzSucOf(it,'Jardines')||'·'}</td>
+      <td class="suc-tag" style="text-align:center">${pzSucOf(it,'Zibata')||'·'}</td>
+      <td style="text-align:center;line-height:1.45">${meds}</td>
+      <td style="text-align:center;font-weight:700">${it.pzas}</td>
+      ${esMM?`<td style="text-align:center">${mts?mts.toFixed(2):'—'}</td>`:''}
+      <td>${fols}</td></tr>`;
+  }).join('')}
+  <tr><td colspan="4" style="text-align:right;font-weight:700;background:#EEF1F7">TOTAL</td>
+    <td style="text-align:center;font-weight:800;background:#EEF1F7">${items.reduce((a,b)=>a+(b.pzas||0),0)}</td>
+    ${esMM?`<td style="text-align:center;font-weight:800;background:#EEF1F7">${mlTotal.toFixed(2)}</td>`:''}
+    <td style="background:#EEF1F7"></td></tr>
+  </tbody></table>
+  ${esMM?`<div style="margin-top:6px;font-size:11.5px"><b>Tiras de 2 m a pedir: ${Math.ceil(mlTotal/2)}</b> (${mlTotal.toFixed(2)} metros lineales, desperdicio incluido)</div>`:''}
   <div class="coment"><div class="navy">COMENTARIOS E INSTRUCCIONES DE ENVÍO</div><div class="bd">${(coment||'').replace(/</g,'&lt;')}</div></div>
   <div class="firmas"><div><b>Hecho por:</b> &nbsp;ESTEFANIA MEDINA</div><div><b>Autorizado por:</b> &nbsp;RAUL CHAVEZ</div></div>
   <div class="pie">Si tienes alguna pregunta por favor contáctanos<br><b>Telf: 4422165203 &nbsp;/&nbsp; E-mail: pedidos@impulsogaleria.com</b></div>
