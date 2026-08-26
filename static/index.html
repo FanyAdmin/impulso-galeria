@@ -596,41 +596,47 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · comisiones</div></div>
+  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · menú nuevo</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
   <div class="sb-item" onclick="go('cot')" id="nav-cot">🧮 Cotizador</div>
   <div class="sb-item" onclick="go('ped')" id="nav-ped">📋 Pedidos</div>
-  <div class="sb-item" onclick="go('pend');rPend()" id="nav-pend">📌 Pendientes</div>
   <div class="sb-item" onclick="go('cxc')" id="nav-cxc">💰 Cuentas x cobrar</div>
   <div class="sb-item" onclick="go('dia')" id="nav-dia">📊 Mi día</div>
-  <div class="sb-item" onclick="go('rev')" id="nav-rev">📸 Revisión de notas</div>
-  <div class="sb-item admin-only" style="display:none" onclick="go('audit2')" id="nav-audit2">🔎 Revisión automática <span id="aud2-badge" style="background:#D81B60;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
-  <div class="sb-item owner-only" style="display:none" onclick="go('cuadre')" id="nav-cuadre">🏦 Cuadre de banco</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('cob')" id="nav-cob">💵 Cobranza</div>
+  <div class="sb-item" onclick="go('ord')" id="nav-ord">🛒 Órdenes de compra</div>
+  <div class="sb-item" onclick="go('pend');rPend()" id="nav-pend">📌 Pendientes</div>
+  <div class="sb-item admin-only" onclick="go('vip');rVIP()" id="nav-vip">⭐ Clientes VIP</div>
+
   <div class="sb-section">Catálogo</div>
   <div class="sb-item" onclick="go('cat')" id="nav-cat">🗂 Molduras</div>
+
   <div class="sb-section admin-only" style="display:none">Admin</div>
   <div class="sb-item owner-only" style="display:none"  onclick="go('dash')" id="nav-dash">📈 Dashboard</div>
-  <div class="sb-item" onclick="go('ord')" id="nav-ord">🛒 Órdenes de compra</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('mov')" id="nav-mov">🔄 Movimientos</div>
   <div class="sb-item owner-only" style="display:none"  onclick="go('cxp')" id="nav-cxp">📤 Cuentas x pagar</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('er')" id="nav-er">📉 Estado de resultados</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('ban')" id="nav-ban">🏦 Bancos</div>
-  <div class="sb-sec admin-only" style="display:none">Recursos Humanos</div>
+  <div class="sb-item" onclick="go('fac')" id="nav-fac">📄 Facturacion</div>
+
+  <div class="sb-section">Auditoría</div>
+  <div class="sb-item admin-only" style="display:none" onclick="go('audit2')" id="nav-audit2">🔎 Revisión automática <span id="aud2-badge" style="background:#D81B60;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
+  <div class="sb-item" onclick="go('rev')" id="nav-rev">📸 Revisión de notas</div>
+  <div class="sb-item owner-only" style="display:none" onclick="go('cuadre')" id="nav-cuadre">🏦 Cuadre de banco</div>
+  <div class="sb-item owner-only" style="display:none" onclick="go('audit')" id="nav-audit">🔍 Auditoría Efectivo</div>
+  <div class="sb-item owner-only" style="display:none" onclick="go('activity');clearActivityBadge()" id="nav-activity">🔔 Actividad <span id="activity-badge" style="background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
+
+  <div class="sb-section admin-only" style="display:none">Recursos Humanos</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('rh')" id="nav-rh">👥 Empleados</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('asist')" id="nav-asist">📅 Asistencias</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('nom')" id="nav-nom">💵 Nomina semanal</div>
-  <div class="sb-item owner-only" style="display:none"  onclick="go('lft')" id="nav-lft">🧮 Calculadora LFT</div>
-  <div class="sb-item admin-only" onclick="go('vip');rVIP()" id="nav-vip">⭐ Clientes VIP</div>
-  <div class="sb-sec admin-only" style="display:none">Config</div>
-  <div class="sb-item admin-only" style="display:none" onclick="go('vends')" id="nav-vends">🏷 Vendedores</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('com')" id="nav-com">💸 Comisiones</div>
-  <div class="sb-item owner-only" style="display:none" onclick="go('audit')" id="nav-audit">🔍 Auditoría Efectivo</div>
-  <div class="sb-item" onclick="go('fac')" id="nav-fac">📄 Facturacion</div>
+  <div class="sb-item owner-only" style="display:none"  onclick="go('lft')" id="nav-lft">🧮 Calculadora LFT</div>
+
+  <div class="sb-section admin-only" style="display:none">Config</div>
+  <div class="sb-item admin-only" style="display:none" onclick="go('vends')" id="nav-vends">🏷 Vendedores</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('usr')" id="nav-usr">👤 Usuarios</div>
-  <div class="sb-item owner-only" style="display:none" onclick="go('activity');clearActivityBadge()" id="nav-activity">🔔 Actividad <span id="activity-badge" style="background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
   <div class="sb-foot">
     <div class="sb-user" id="sb-user">—</div>
     <div class="sb-role" id="sb-role">—</div>
