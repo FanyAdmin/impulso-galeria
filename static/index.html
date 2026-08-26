@@ -582,7 +582,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 26-ago · casar por grupo</div></div>
+  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 26-ago · cierre del día</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
@@ -798,6 +798,17 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
   <div class="card">
     <div class="card-title">💰 Dinero cobrado hoy por cuenta</div>
     <div id="d-cuentas" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px"></div>
+  </div>
+  <div class="card admin-only" id="cierre-card" style="display:none;padding:0;overflow:hidden;border-left:6px solid #1D4ED8">
+    <div style="padding:13px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="flex:1;min-width:250px">
+        <div style="font-size:14px;font-weight:800;color:#1D4ED8">🧾 Cierre del día · cobro por cobro</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px" id="cierre-sub">—</div>
+      </div>
+      <button class="btn btn-s btn-sm" onclick="cierreCuentas()">⚙️ Cuentas por método</button>
+      <button class="btn btn-p btn-sm" id="cierre-btn" onclick="cierreRegistrar()">Registrar cobros</button>
+    </div>
+    <div id="cierre-body"></div>
   </div>
   <div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Método</th><th>Total</th><th>Dejó ese día</th><th>Días restantes</th><th>Estatus</th><th></th><th></th></tr></thead><tbody id="dia-body"></tbody></table></div>
   <div class="card" id="dia-cobros-card" style="display:none;margin-top:.875rem">
@@ -1691,7 +1702,7 @@ function go(id){
   document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
-  ({ped:rPed,cxc:rCxC,dia:rDia,cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
+  ({ped:rPed,cxc:rCxC,dia:()=>{cargarMapaCta().then(rDia);},cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
     lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:rCuadre
   })[id]?.();
@@ -2607,6 +2618,7 @@ function rDia(){
       document.getElementById('dia-cobros').innerHTML=abHoy.map(a=>`<tr><td class="mono" style="font-weight:600">${a.folio}</td><td>${a.cli||'—'}</td><td>${a.suc||'—'}</td><td><span class="badge ${a.tipo==='Liquidacion'?'bg':'by'}">${a.tipo==='Liquidacion'?'Liquidación':'Abono'}</span></td><td>${a.met||'—'}</td><td class="mono" style="text-align:right;font-weight:700;color:var(--green)">${fmt(a.monto)}</td><td style="text-align:right">${esAdmDia&&a.id?`<button onclick="openEditAbono(${a.id})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px">✏️</button>`:''}</td></tr>`).join('');
     }else cobCard.style.display='none';
   }
+  try{rCierre(dia,sucF);}catch(e){}
   const hoyD=new Date();
   const body=document.getElementById('dia-body');
   if(!list.length){body.innerHTML=`<tr><td colspan="9" class="tbl-empty">${esHoy?'Sin pedidos hoy · Crea uno desde el cotizador':'Sin pedidos ese día'}</td></tr>`;return;}
@@ -2623,6 +2635,140 @@ function rDia(){
     const metCell=(p.met||'—')+(dejoHoy<=0?((p.ant||0)>0?'<div style="font-size:10px;color:var(--text3)">💤 pagó otro día</div>':'<div style="font-size:10px;color:var(--text3)">sin pago aún</div>'):'');
     return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td>${p.cli}</td><td>${sucBadge(p.suc||'—')}</td><td>${metCell}</td><td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(dejoHoy)}${((p.ant||0)-dejoHoy)>0.5?'<div style="font-size:10px;color:var(--text3)">pagado a la fecha: '+fmt(p.ant)+'</div>':''}</td><td>${dl}</td><td>${badge}</td><td>${btn}</td><td>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
+}
+
+// ═══ CIERRE DEL DÍA: UN MOVIMIENTO POR COBRO ═══════════════════════════════
+// El banco deposita cobro por cobro. Si en Movimientos queda la venta del día
+// en un solo renglón, la conciliación nunca empata y hay que desglosar a mano.
+// Esto crea UNA entrada por cada cobro, con el nombre del cliente y su folio.
+var MAPA_CTA={};        // método -> cuenta, se guarda en la BD
+var CIERRE=[];          // cobros del día que se están mostrando
+
+function cargarMapaCta(){
+  return fetch('/api/config/mapa_cobros',{credentials:'include'}).then(function(r){return r.json();})
+    .then(function(d){if(d&&d.valor&&typeof d.valor==='object')MAPA_CTA=d.valor;}).catch(function(){});
+}
+// Cuenta sugerida cuando el método todavía no está mapeado
+function ctaSugerida(met,suc){
+  var k=(met||'').toLowerCase();
+  if(MAPA_CTA[met+'|'+suc])return MAPA_CTA[met+'|'+suc];
+  if(MAPA_CTA[met])return MAPA_CTA[met];
+  if(k.indexOf('efectivo')>=0)return suc==='Zibata'?'Efectivo Zibata':'Efectivo';
+  if(k.indexOf('inbursa')>=0)return 'INBURSA';
+  if(k.indexOf('hsbc')>=0)return 'HSBC';
+  if(k.indexOf('bzipay')>=0||k.indexOf('bz')===0)return 'Bzipay';
+  if(k.indexOf('patio')>=0)return 'El Patio';
+  if(k.indexOf('tarjeta')>=0||k.indexOf('terminal')>=0)return suc==='Zibata'?'Zibata':'INBURSA';
+  if(k.indexOf('transfer')>=0)return 'INBURSA';
+  return '';
+}
+function ctaDelCobro(c){
+  var sel=document.getElementById('cie-cta-'+c.key.replace(/[^a-z0-9]/gi,''));
+  return (sel&&sel.value)||ctaSugerida(c.met,c.suc);
+}
+// Ya registrado: el movimiento lleva la marca #ped:12 / #ab:34 en su descripción
+function yaRegistrado(c){
+  return movs.some(function(m){return String(m.desc||'').indexOf('#'+c.key)>=0;});
+}
+
+// Arma la lista de cobros de ese día: anticipos de pedidos nuevos + abonos
+function cobrosDelDia(dia,sucF){
+  var out=[];
+  var abDelPed=function(p){return ABONOS.filter(function(a){return (a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc);}).reduce(function(s,a){return s+a.monto;},0);};
+  pedidos.filter(function(p){return p.fecha===dia&&(sucF==='Ambas'||p.suc===sucF);}).forEach(function(p){
+    var v=Math.max(0,(p.ant||0)-abDelPed(p));
+    if(v>0.5)out.push({key:'ped:'+p.id,tipo:'anticipo',folio:p.folio,cli:p.cli||'',suc:p.suc||'',met:p.met||'Efectivo',monto:v});
+  });
+  ABONOS.filter(function(a){return a.fecha===dia&&(sucF==='Ambas'||a.suc===sucF);}).forEach(function(a){
+    out.push({key:'ab:'+a.id,tipo:(a.tipo==='Liquidacion'?'liquidación':'abono'),folio:a.folio,cli:a.cli||'',suc:a.suc||'',met:a.met||'Efectivo',monto:+a.monto});
+  });
+  return out.sort(function(x,y){return y.monto-x.monto;});
+}
+
+function rCierre(dia,sucF){
+  var card=document.getElementById('cierre-card');if(!card)return;
+  var u=_u()||{};
+  if(!(u.role==='admin'||u.role==='owner')){card.style.display='none';return;}
+  CIERRE=cobrosDelDia(dia,sucF);
+  if(!CIERRE.length){card.style.display='none';return;}
+  card.style.display='';
+  var pend=CIERRE.filter(function(c){return !yaRegistrado(c);});
+  var tot=CIERRE.reduce(function(a,b){return a+b.monto;},0);
+  var totPend=pend.reduce(function(a,b){return a+b.monto;},0);
+  document.getElementById('cierre-sub').innerHTML=
+    CIERRE.length+' cobro(s) ese día por <b class="mono">'+fmt(tot)+'</b> · '+
+    (pend.length?'<b style="color:#B0004E">'+pend.length+' sin registrar en Movimientos ('+fmt(totPend)+')</b>'
+                :'<b style="color:#12724C">todos registrados ✓</b>');
+  var btn=document.getElementById('cierre-btn');
+  btn.textContent=pend.length?('Registrar '+pend.length+' cobro(s)'):'Nada por registrar';
+  btn.disabled=!pend.length;btn.style.opacity=pend.length?1:.45;
+
+  var ctas=Object.keys(BANCOS_INIT);
+  document.getElementById('cierre-body').innerHTML=
+    '<div class="tw" style="margin:0;border:none;border-radius:0;box-shadow:none"><table class="tbl"><thead><tr>'+
+    '<th>Cliente</th><th>Nota</th><th>Tipo</th><th>Método</th><th>Sucursal</th><th style="text-align:right">Monto</th><th>Entra a la cuenta</th><th></th></tr></thead><tbody>'+
+    CIERRE.map(function(c){
+      var reg=yaRegistrado(c), id='cie-cta-'+c.key.replace(/[^a-z0-9]/gi,'');
+      var sug=ctaSugerida(c.met,c.suc);
+      return '<tr'+(reg?' style="opacity:.5"':'')+'><td>'+(c.cli||'—')+'</td>'+
+        '<td class="mono">'+(c.folio||'—')+'</td>'+
+        '<td style="font-size:11.5px;color:var(--text3)">'+c.tipo+'</td>'+
+        '<td>'+c.met+'</td><td>'+c.suc+'</td>'+
+        '<td class="mono" style="text-align:right;font-weight:700">'+fmt(c.monto)+'</td>'+
+        '<td>'+(reg?'—':'<select id="'+id+'" style="width:135px;font-size:12px;padding:3px 7px">'+
+          (sug?'':'<option value="">— elegir —</option>')+
+          ctas.map(function(x){return '<option'+(x===sug?' selected':'')+'>'+x+'</option>';}).join('')+'</select>')+'</td>'+
+        '<td>'+(reg?'<span class="badge bg">registrado</span>':'<span class="badge by">pendiente</span>')+'</td></tr>';
+    }).join('')+'</tbody></table></div>';
+}
+
+// Guarda el método → cuenta para no volver a elegirlo
+function cierreCuentas(){
+  var mets={};CIERRE.forEach(function(c){mets[c.met+'|'+c.suc]=true;});
+  var nuevo={};
+  Object.keys(mets).forEach(function(k){
+    var c=CIERRE.find(function(x){return x.met+'|'+x.suc===k;});
+    nuevo[k]=ctaDelCobro(c);
+  });
+  MAPA_CTA=Object.assign({},MAPA_CTA,nuevo);
+  fetch('/api/config/mapa_cobros',{method:'PUT',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:MAPA_CTA})})
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);
+    alert('✅ Guardado. La próxima vez cada método ya viene con su cuenta puesta.');})
+  .catch(function(e){alert('No se pudo guardar: '+e.message);});
+}
+
+// Crea un movimiento por cobro, uno por uno
+function cierreRegistrar(){
+  var pend=CIERRE.filter(function(c){return !yaRegistrado(c);});
+  if(!pend.length)return;
+  var faltaCta=pend.filter(function(c){return !ctaDelCobro(c);});
+  if(faltaCta.length){alert('Falta elegir la cuenta de '+faltaCta.length+' cobro(s).');return;}
+  var dia=(document.getElementById('dia-fecha')||{}).value||todayStr();
+  var tot=pend.reduce(function(a,b){return a+b.monto;},0);
+  if(!confirm('Se van a crear '+pend.length+' movimiento(s) de entrada del '+dia+
+      ',\nuno por cada cobro, por un total de '+fmt(tot)+'.\n\n¿Continuar?'))return;
+  var btn=document.getElementById('cierre-btn');btn.disabled=true;btn.textContent='Registrando…';
+  var hechos=0,errores=0;
+  var uno=function(i){
+    if(i>=pend.length){
+      btn.textContent='Registrar cobros';
+      alert('✅ '+hechos+' cobro(s) registrados'+(errores?'\n⚠️ '+errores+' fallaron':'')+'.');
+      rDia();return;
+    }
+    var c=pend[i],cta=ctaDelCobro(c);
+    var mv={tipo:'Entrada',concepto:cta.toUpperCase().indexOf('EFECTIVO')>=0?'EFECTIVO':(ER_CATS.ingresos.indexOf(cta.toUpperCase())>=0?cta.toUpperCase():'INGRESO POR TERMINAL'),
+      desc:'Nota '+(c.folio||'')+' · '+(c.cli||'')+' · '+c.tipo+' ('+c.met+') #'+c.key,
+      cuenta:cta,cta_destino:'',monto:Math.round(c.monto*100)/100,fecha:dia,
+      mes:parseInt(dia.split('-')[1],10)-1,suc:c.suc};
+    fetch('/api/movimientos',{method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(d){movs.unshift(d);hechos++;})
+    .catch(function(){errores++;})
+    .then(function(){uno(i+1);});
+  };
+  uno(0);
 }
 
 // ─── CATÁLOGO ─────────────────────────────────────────────────────────────────
