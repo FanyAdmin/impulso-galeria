@@ -7,25 +7,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Impulso — Sistema de Gestión</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  /* Todo blanco; el color entra solo donde tiene que decir algo */
-  --bg:#FFFFFF;--surface:#FFFFFF;--surface2:#F7F8FA;--border:#ECEEF2;--border2:#DDE1E8;
-  --text:#14181F;--text2:#58606E;--text3:#98A0AE;
-  --green:#1A5C3A;--green2:#2A8A56;--green-l:#F0F7F3;
-  --amber:#92400E;--amber-l:#FEF6E4;
-  --red:#991B1B;--red-l:#FDEEEE;
-  --blue:#1E3A8A;--blue-l:#F1F5FE;
-  /* Acentos de la casa: verde Impulso y el oro de la hoja membretada */
-  --oro:#E8A33D;--oro-l:#FEF7EA;
-  --lila:#6D28D9;--lila-l:#F6F3FE;
+  /* Blanco de base. Cuatro colores, cada uno con un significado fijo:
+     menta = entra / bien · rosa = sale / urge · azul = banco · mantequilla = espera */
+  --bg:#FFFFFF;--surface:#FFFFFF;--surface2:#FAFAFB;--border:#ECEEF2;--border2:#DFE2E8;
+  --text:#212636;--text2:#6B7280;--text3:#A3A9B5;
+  --rosa:#E8467C;--rosa-l:#FDEBF2;
+  --mant:#FFD84D;--mant-l:#FFF8DE;--mant-d:#9A7300;
+  --azul:#5B8DD9;--azul-l:#EDF3FC;
+  --menta:#22A98A;--menta-l:#E6F6F1;
+  /* nombres de siempre, apuntando a la paleta nueva (para no romper nada) */
+  --green:var(--menta);--green2:#1B8E74;--green-l:var(--menta-l);
+  --amber:var(--mant-d);--amber-l:var(--mant-l);
+  --red:var(--rosa);--red-l:var(--rosa-l);
+  --blue:var(--azul);--blue-l:var(--azul-l);
+  --oro:var(--mant);--oro-l:var(--mant-l);
+  --lila:#7C6BD8;--lila-l:#F2F0FD;
   --rad:8px;--rad-lg:14px;--rad-sm:6px;
   /* Sombras suaves en capas, nunca bordes duros */
   --sh1:0 1px 2px rgba(16,24,40,.05);
   --sh2:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
   --sh3:0 8px 24px rgba(16,24,40,.10),0 2px 6px rgba(16,24,40,.05);
-  --ui:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI','Inter',system-ui,sans-serif;
+  --ui:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --mano:'Caveat',cursive;
   --num:'SF Mono','JetBrains Mono',ui-monospace,Menlo,monospace;
 }
 html{-webkit-text-size-adjust:100%}
@@ -33,8 +39,8 @@ body{font-family:var(--ui);background:var(--bg);color:var(--text);font-size:13px
   -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;letter-spacing:-.005em}
 input,select,textarea{font-family:var(--ui);font-size:13.5px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--rad);padding:7px 11px;color:var(--text);width:100%;outline:none;transition:border-color .15s,box-shadow .15s}
 input::placeholder,textarea::placeholder{color:var(--text3)}
-input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 0 0 3px rgba(42,138,86,.13)}
-:focus-visible{outline:2px solid var(--green2);outline-offset:2px}
+input:focus,select:focus,textarea:focus{border-color:var(--rosa);box-shadow:0 0 0 3px rgba(232,70,124,.13)}
+:focus-visible{outline:2px solid var(--rosa);outline-offset:2px}
 .mono{font-family:var(--num);font-size:12.5px;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
 /* Etiquetas en minúscula: las mayúsculas apretadas ensucian la pantalla */
 [style*="uppercase"]{text-transform:none!important;letter-spacing:0!important}
@@ -54,15 +60,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 /* ── SIDEBAR ── */
 .sb-logo{padding:1.15rem 1.15rem .9rem;border-bottom:1px solid var(--border)}
-.sb-brand{background:linear-gradient(92deg,var(--green) 0%,#2A8A56 55%,var(--oro) 130%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sb-brand{color:var(--text);font-weight:800;letter-spacing:-.02em}
+.sb-brand::after{content:'.';color:var(--rosa)}
 .sb-brand{font-size:15.5px;font-weight:700;letter-spacing:.02em;color:var(--text)}
 .sb-sub{font-size:11px;color:var(--text3);margin-top:1px;letter-spacing:0}
 .sb-section{font-size:10.5px;font-weight:700;color:var(--text3);padding:12px 17px 4px;letter-spacing:.02em;display:flex;align-items:center;gap:6px}
 .sb-section::after{content:'';flex:1;height:1px;background:var(--border)}
 .sb-item{display:flex;align-items:center;gap:8px;padding:5px 10px;margin:1px 8px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--text2);cursor:pointer;transition:background .12s,color .12s}
 .sb-item:hover{background:rgba(20,24,31,.05);color:var(--text)}
-.sb-item.active{background:var(--green-l);color:var(--green);font-weight:700}
-.sb-item.active::before{content:'';width:3px;height:15px;border-radius:99px;background:var(--green);margin-left:-6px;margin-right:3px}
+.sb-item.active{background:var(--rosa-l);color:var(--rosa);font-weight:700}
+.sb-item.active::before{content:'';width:3px;height:15px;border-radius:99px;background:var(--rosa);margin-left:-6px;margin-right:3px}
 .sb-foot{margin-top:auto;padding:.9rem 1.15rem;border-top:1px solid var(--border)}
 .sb-user{font-size:13px;font-weight:600;margin-bottom:1px}
 .sb-role{font-size:11.5px;color:var(--text3)}
@@ -70,8 +77,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:7px 14px;border-radius:var(--rad);font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:background .12s,box-shadow .12s,transform .06s;font-family:var(--ui);white-space:nowrap;letter-spacing:-.01em}
 .btn:active{transform:translateY(.5px)}
-.btn-p{background:var(--green);color:#fff;box-shadow:var(--sh1)}.btn-p:hover{background:var(--green2)}
-.btn-s{background:var(--surface);color:var(--text);border-color:var(--border2);box-shadow:none}.btn-s:hover{background:var(--green-l);border-color:var(--green2);color:var(--green)}
+.btn-p{background:var(--rosa);color:#fff;box-shadow:none}.btn-p:hover{background:#D33A6E}
+.btn-s{background:var(--surface);color:var(--text);border-color:var(--border);box-shadow:none;font-weight:600}.btn-s:hover{background:var(--surface2);border-color:var(--border2)}
 .btn-d{background:var(--surface);color:var(--red);border-color:#F3C6C6;box-shadow:var(--sh1)}.btn-d:hover{background:var(--red-l)}
 .btn-sm{padding:5px 11px;font-size:12.5px}
 .btn-xs{padding:3px 9px;font-size:12px;font-weight:500}
@@ -83,7 +90,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 .tw{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);overflow:hidden;margin-bottom:.75rem;box-shadow:none}
 .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
 /* Encabezado blanco con una sola línea de pelo, pero apretado */
-.tbl th{font-size:11.5px;font-weight:600;color:var(--text3);padding:7px 10px;text-align:left;background:var(--surface);border-bottom:2px solid var(--green);letter-spacing:0;white-space:nowrap}
+.tbl th{font-size:11px;font-weight:700;color:var(--text3);padding:9px 11px;text-align:left;background:var(--surface2);border-bottom:1px solid var(--border);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
 .tbl td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:middle;font-variant-numeric:tabular-nums}
 /* Las columnas se pegan a su contenido; el sobrante se lo queda la última
    (la de los botones), en vez de repartirse como huecos entre Cliente y Vendedor */
@@ -92,20 +99,20 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 .tbl td.wrap,.tbl th.wrap{white-space:normal;width:auto}
 .tbl tr:last-child td{border-bottom:none}
 .tbl tbody tr{transition:background .1s}
-.tbl tbody tr:hover td{background:var(--green-l)}
+.tbl tbody tr:hover td{background:#FCFCFD}
 .tbl-empty{text-align:center;color:var(--text3);padding:2.5rem!important}
 
 /* ── METRICS ── */
 .metrics{display:grid;gap:.6rem;margin-bottom:.9rem}
 .m4{grid-template-columns:repeat(4,1fr)}.m3{grid-template-columns:repeat(3,1fr)}.m2{grid-template-columns:repeat(2,1fr)}
-.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);padding:.85rem 1rem;box-shadow:none;position:relative;overflow:hidden}
-/* El toque de color: una pincelada arriba de cada tarjeta */
-.metric::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--green);opacity:.85}
-.metric:nth-child(2)::before{background:var(--blue)}
-.metric:nth-child(3)::before{background:var(--oro)}
-.metric:nth-child(4)::before{background:var(--lila)}
-.m-label{font-size:12px;font-weight:500;color:var(--text3);letter-spacing:0;margin-bottom:5px}
-.m-val{font-size:24px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums;font-family:var(--num);letter-spacing:-.02em}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);padding:1rem 1.05rem;box-shadow:none;position:relative}
+.metric .m-val{color:var(--menta)}
+.metric:nth-child(2) .m-val{color:var(--rosa)}
+.metric:nth-child(3) .m-val{color:var(--azul)}
+.metric:nth-child(4) .m-val{color:var(--mant-d)}
+.metric:hover{border-color:var(--border2)}
+.m-label{font-size:12.5px;font-weight:600;color:var(--text2);letter-spacing:0;margin-bottom:6px}
+.m-val{font-size:25px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--ui);letter-spacing:-.03em}
 .m-sub{font-size:12px;color:var(--text3);margin-top:3px}
 
 /* ── BADGES ── */
@@ -164,8 +171,11 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 /* ── PAGE HEADER ── */
 .ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:.9rem;gap:10px;flex-wrap:wrap}
-.ph-title{font-size:22px;font-weight:700;letter-spacing:-.025em;display:inline-block;padding-bottom:3px;border-bottom:3px solid var(--oro)}
-.ph-sub{font-size:13px;color:var(--text3);margin-top:2px}
+.ph-title{font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1.2}
+/* la palabra que salta, cuando la haya: <span class="hl">…</span> */
+.hl{position:relative;z-index:1;padding:0 4px}
+.hl::after{content:'';position:absolute;left:0;right:0;bottom:2px;height:11px;background:var(--mant);z-index:-1;transform:rotate(-.6deg)}
+.ph-sub{font-family:var(--mano);font-size:18px;color:var(--rosa);margin-top:3px;letter-spacing:.01em}
 
 /* ── TABS ── */
 /* Pestañas tipo segmento de Mac: un riel gris con la activa en blanco */
@@ -173,13 +183,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 .tab{position:relative}
 .tab{padding:6px 15px;font-size:13px;font-weight:500;cursor:pointer;color:var(--text2);border-radius:7px;transition:background .12s,color .12s}
 .tab:hover{color:var(--text)}
-.tab.active{color:var(--green);background:var(--surface);font-weight:700;box-shadow:0 1px 2px rgba(16,24,40,.06)}
+.tab.active{color:var(--rosa);background:var(--surface);font-weight:700;box-shadow:0 1px 2px rgba(16,24,40,.06)}
 
 /* ── CHIPS ── */
 .chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:.875rem}
 .chip{padding:5px 13px;border:1px solid var(--border2);border-radius:99px;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--text2);background:var(--surface);box-shadow:none;transition:background .12s,color .12s,border-color .12s}
 .chip:hover{background:var(--surface2);color:var(--text)}
-.chip.active{background:var(--green);color:#fff;border-color:var(--green)}
+.chip.active{background:var(--rosa);color:#fff;border-color:var(--rosa)}
 
 /* ── ER TABLE ── */
 .er-sec td{font-weight:700;font-size:12px;padding:9px 11px!important}
@@ -611,7 +621,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · cobranza fija</div></div>
+  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · diseño nuevo</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
@@ -1095,7 +1105,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 <!-- BANCOS -->
 <div class="page" id="page-ban">
   <div class="ph">
-    <div><div class="ph-title">Bancos y Cuentas</div><div class="ph-sub" id="ban-periodo">—</div></div>
+    <div><div class="ph-title">Bancos <span class="hl">y cuentas</span></div><div class="ph-sub" id="ban-periodo">—</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <select id="ban-mes" onchange="rBancos()" style="width:145px;font-size:13px"></select>
       <button class="btn btn-s btn-sm" onclick="abrirEditorBancos()">⚙️ Cuentas</button>
@@ -1160,7 +1170,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 </div>
 <div class="page" id="page-cob">
   <div id="cob-fijo" style="position:sticky;top:0;z-index:20;background:var(--surface);padding-top:2px;margin:-2px -2px 0;box-shadow:0 6px 12px -8px rgba(16,24,40,.25)">
-  <div class="ph" style="margin-bottom:.7rem"><div><div class="ph-title">💵 Cobranza</div><div class="ph-sub">Todos los cobros día por día — anticipos, abonos y liquidaciones (tu control de Excel, vivo)</div></div>
+  <div class="ph" style="margin-bottom:.7rem"><div><div class="ph-title">Cobranza <span class="hl">día por día</span></div><div class="ph-sub">Todos los cobros día por día — anticipos, abonos y liquidaciones (tu control de Excel, vivo)</div></div>
     <div style="display:flex;gap:8px"><button class="btn btn-p admin-only" style="display:none" id="cob-cierre-btn" onclick="openCierre()">🌙 Cierre del día</button><button class="btn btn-s admin-only" style="display:none" id="cob-edo-btn" onclick="OM('mod-edocta')">📥 Subir estado de cuenta</button><button class="btn btn-s admin-only" style="display:none" id="cob-concil-btn" onclick="toggleConcilMode()">🧮 Conciliar manual</button><button class="btn btn-s" onclick="expCobXlsx()">📊 Excel</button></div>
   </div>
   <div id="cob-barra" style="display:none;position:sticky;top:0;z-index:5;background:#1F3864;color:#fff;border-radius:10px;padding:10px 16px;margin-bottom:.6rem;align-items:center;gap:14px;flex-wrap:wrap">
@@ -1183,7 +1193,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
   <div class="card" style="padding:0;overflow:hidden"><div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th><th>Vendedor</th><th>Sucursal</th><th>Ref/Factura</th></tr></thead><tbody id="cob-body"></tbody></table></div></div>
 </div>
 <div class="page" id="page-cxp">
-  <div class="ph"><div><div class="ph-title">📤 Cuentas por Pagar</div><div class="ph-sub">Facturas de proveedores: pendientes hasta que registres su pago — y el movimiento de salida se crea solo</div></div></div>
+  <div class="ph"><div><div class="ph-title">Cuentas <span class="hl">por pagar</span></div><div class="ph-sub">Facturas de proveedores: pendientes hasta que registres su pago — y el movimiento de salida se crea solo</div></div></div>
   <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
     <div class="chip active" id="chip-cxp-hoja" onclick="cxpVista('hoja',this)">📋 Seguimiento de pedidos</div>
     <div class="chip" id="chip-cxp-suelta" onclick="cxpVista('suelta',this)">📄 Facturas sueltas</div>
