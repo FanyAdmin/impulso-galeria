@@ -596,7 +596,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · bancos v3</div></div>
+  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · tablero de bancos</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
@@ -1080,16 +1080,40 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 <!-- BANCOS -->
 <div class="page" id="page-ban">
   <div class="ph">
-    <div><div class="ph-title">Bancos y Cuentas</div></div>
-    <button class="btn btn-s btn-sm" onclick="abrirEditorBancos()">⚙️ Cuentas</button>
+    <div><div class="ph-title">Bancos y Cuentas</div><div class="ph-sub" id="ban-periodo">—</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <select id="ban-mes" onchange="rBancos()" style="width:145px;font-size:13px"></select>
+      <button class="btn btn-s btn-sm" onclick="abrirEditorBancos()">⚙️ Cuentas</button>
+    </div>
   </div>
 
-  <!-- SALDOS: siempre visibles -->
-  <div class="metrics m3" id="ban-m"></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Cuenta</th><th>Saldo inicial</th><th>Entradas</th><th>Salidas</th><th>Saldo actual</th></tr></thead><tbody id="ban-body"></tbody></table></div>
+  <div id="ban-kpis" class="metrics m4"></div>
+  <div id="ban-reparto"></div>
+
+  <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">
+    <div class="card" style="flex:2 1 460px;min-width:320px">
+      <div class="card-title">Cómo se movió el dinero</div>
+      <div id="ban-flujo"></div>
+    </div>
+    <div class="card" style="flex:1 1 280px;min-width:260px">
+      <div class="card-title">A dónde se fue este mes</div>
+      <div id="ban-cats"></div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">
+    <div class="card" style="flex:1 1 340px;min-width:290px">
+      <div class="card-title">Los movimientos más grandes del mes</div>
+      <div id="ban-top"></div>
+    </div>
+    <div class="card" style="flex:1 1 340px;min-width:290px">
+      <div class="card-title">Cuenta por cuenta</div>
+      <div id="ban-tabla"></div>
+    </div>
+  </div>
 
   <!-- CONCILIACIÓN -->
-  <div class="card" style="padding:0;overflow:hidden;margin-top:1.1rem">
+  <div class="card" style="padding:0;overflow:hidden">
     <div style="padding:14px 17px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
       <div style="flex:1;min-width:230px">
         <div style="font-size:16px;font-weight:800">🏦 Conciliar con el banco</div>
@@ -6284,6 +6308,7 @@ function banLeerPDF(){
 }
 // Todos los renglones del banco, con su signo
 function banLineas(){
+  if(!BAN_EDO&&typeof CUA!=='undefined'&&CUA&&CUA.cargos)BAN_EDO=CUA;   // el que ya se leyó en Cuadre
   if(!BAN_EDO)return [];
   var L=(BAN_EDO.cargos||[]).map(function(b){return {f:b.fecha,monto:b.monto,det:b.det||b.tipo||'',signo:-1,com:!!b.comision};})
     .concat((BAN_EDO.depositos||[]).concat(BAN_EDO.otros_abonos||[]).map(function(b){return {f:b.fecha,monto:b.monto,det:b.det||b.tipo||'',signo:1,com:false};}));
@@ -6328,25 +6353,11 @@ function banOtros(l){
   }).slice(0,4);
 }
 
-function rBancos(){
-  var sel=document.getElementById('ban-cta');
-  if(sel&&!sel.options.length){
-    sel.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option>'+c+'</option>';}).join('');
-    if(Object.keys(BANCOS_INIT).indexOf('INBURSA')>=0)sel.value='INBURSA';
-  }
-  banPinta();
-  rBancosSaldos();
-}
-
 function banPinta(){
   var cont=document.getElementById('ban-lineas'),det=document.getElementById('ban-detalle');
   if(!cont)return;
   var L=banLineas();
-  if(!L.length){
-    document.getElementById('ban-resumen').innerHTML='';
-    cont.innerHTML='<div style="padding:26px 18px;text-align:center;color:var(--text3);font-size:13px">Sube el estado de cuenta del banco (PDF) para empezar.<br>Cada renglón aparece aquí y lo vas casando con tus movimientos.</div>';
-    det.innerHTML='';return;
-  }
+  if(!L.length){banMios();return;}
   var casados=L.filter(banCasado),pend=L.filter(function(l){return !banCasado(l);});
   var sumaB=L.reduce(function(a,b){return a+b.monto*b.signo;},0);
   var sumaP=pend.reduce(function(a,b){return a+b.monto*b.signo;},0);
@@ -6377,6 +6388,39 @@ function banPinta(){
   banDetalle();
 }
 window.__banVer=[];
+// Sin estado de cuenta: la lista son TUS movimientos de esa cuenta, con su
+// estado de conciliación. Así la pantalla siempre dice algo.
+function banMios(){
+  var cta=document.getElementById('ban-cta').value;
+  var cont=document.getElementById('ban-lineas'),det=document.getElementById('ban-detalle');
+  var mios=movs.filter(function(m){return m.cuenta===cta||m.cta_destino===cta;})
+    .sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha));}).slice(0,150);
+  var conc=mios.filter(function(m){return m.conciliado;});
+  var pend=mios.filter(function(m){return !m.conciliado;});
+  var ver=BAN_FIL==='pend'?pend:mios;
+  document.getElementById('ban-resumen').innerHTML=
+    '<div class="metric"><div class="m-label">Tus movimientos</div><div class="m-val">'+mios.length+'</div><div class="m-sub">últimos de '+cta+'</div></div>'+
+    '<div class="metric" style="background:var(--green-l)"><div class="m-label">Ya conciliados</div><div class="m-val" style="color:var(--green)">'+conc.length+'</div></div>'+
+    '<div class="metric" style="background:'+(pend.length?'#FDF2F7':'var(--surface)')+'"><div class="m-label">Sin conciliar</div><div class="m-val" style="color:'+(pend.length?'#B0004E':'var(--text)')+'">'+pend.length+'</div></div>'+
+    '<div class="metric"><div class="m-label">Estado de cuenta</div><div class="m-val" style="font-size:15px;font-family:var(--ui)">sin subir</div><div class="m-sub">súbelo para casar renglón por renglón</div></div>';
+  document.getElementById('ban-lin-info').textContent=ver.length+' movimiento(s) tuyos · sin estado de cuenta cargado';
+  cont.innerHTML=ver.map(function(m){
+    var sal=(m.tipo==='Salida'||m.tipo==='Retiro');
+    return '<div style="display:flex;align-items:center;gap:10px;padding:9px 15px;border-bottom:1px solid var(--border)">'+
+      '<div style="width:74px;font-size:11.5px;color:var(--text3)">'+String(m.fecha).slice(0,10)+'</div>'+
+      '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(m.concepto||'')+'</div>'+
+      '<div style="font-size:11.5px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(m.desc||'')+'</div></div>'+
+      '<div class="mono" style="font-weight:700;color:'+(sal?'var(--red)':'var(--green)')+'">'+(sal?'−':'')+fmt(m.monto)+'</div>'+
+      (m.conciliado?'<span style="background:#D8F0E0;color:#12724C;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700">✓</span>'
+                   :'<span style="background:#F0F2F5;color:#8A93A2;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700">?</span>')+
+    '</div>';
+  }).join('')||'<div style="padding:22px;text-align:center;color:var(--text3);font-size:13px">No hay movimientos en '+cta+'.</div>';
+  det.innerHTML='<div class="card" style="padding:20px 18px;text-align:center">'+
+    '<div style="font-size:13px;color:var(--text2);margin-bottom:10px">Estás viendo <b>tus</b> movimientos de '+cta+'.<br>'+
+    'Sube el estado de cuenta y aquí aparece, renglón por renglón, lo que dice el banco y con qué empata.</div>'+
+    '<button class="btn btn-p btn-sm" onclick="document.getElementById(\'ban-file\').click()">📥 Subir estado de cuenta</button></div>';
+}
+
 function banSel(i){
   var L=banLineas(),pend=L.filter(function(l){return !banCasado(l);});
   var ver=BAN_FIL==='pend'?pend:L;
@@ -6463,6 +6507,126 @@ function banCrear(){
   .catch(function(e){alert('No se pudo registrar: '+e.message);});
 }
 
+// ═══ TABLERO DE BANCOS ═════════════════════════════════════════════════════
+// No es un reporte contable: es responder de un vistazo cuánto hay, de dónde
+// vino y a dónde se fue. Las gráficas van en SVG, sin librerías.
+var BAN_COL=['#1A5C3A','#1D4ED8','#B45309','#6D28D9','#B0004E','#0E7490','#4B5563'];
+function banMesLista(){
+  var ms={};
+  (movs||[]).forEach(function(m){var f=String(m.fecha||'').slice(0,7);if(f)ms[f]=1;});
+  return Object.keys(ms).sort().reverse();
+}
+function banDatosMes(mes){
+  var e=0,sal=0,catsS={},catsE={},mov=[];
+  (movs||[]).forEach(function(m){
+    if(String(m.fecha||'').slice(0,7)!==mes)return;
+    if(m.tipo==='Traspaso')return;                       // no es dinero nuevo ni gasto
+    var v=+m.monto||0;
+    if(m.tipo==='Entrada'){e+=v;catsE[m.concepto||'—']=(catsE[m.concepto||'—']||0)+v;}
+    else{sal+=v;catsS[m.concepto||'—']=(catsS[m.concepto||'—']||0)+v;}
+    mov.push(m);
+  });
+  return {e:e,s:sal,neto:e-sal,catsS:catsS,catsE:catsE,mov:mov};
+}
+// Barras de entradas/salidas por mes, en SVG
+function banFlujoSVG(meses){
+  var D=meses.map(function(m){var d=banDatosMes(m);return {m:m,e:d.e,s:d.s};});
+  var max=Math.max(1,Math.max.apply(null,D.map(function(x){return Math.max(x.e,x.s);})));
+  var W=Math.max(420,D.length*86),H=190,base=H-26,esc=function(v){return (base-14)*v/max;};
+  var barras=D.map(function(x,i){
+    var cx=18+i*((W-30)/D.length), an=Math.min(26,(W-30)/D.length/2.6);
+    var he=esc(x.e),hs=esc(x.s);
+    var etq=x.m.slice(5)+'/'+x.m.slice(2,4);
+    return '<g>'+
+      '<rect x="'+cx+'" y="'+(base-he)+'" width="'+an+'" height="'+he+'" rx="3" fill="#1A5C3A" opacity=".9"><title>Entró '+fmt(x.e)+'</title></rect>'+
+      '<rect x="'+(cx+an+4)+'" y="'+(base-hs)+'" width="'+an+'" height="'+hs+'" rx="3" fill="#C2185B" opacity=".85"><title>Salió '+fmt(x.s)+'</title></rect>'+
+      '<text x="'+(cx+an)+'" y="'+(base+14)+'" font-size="10" fill="#8A93A2" text-anchor="middle">'+etq+'</text>'+
+    '</g>';
+  }).join('');
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:190px">'+
+    '<line x1="10" y1="'+base+'" x2="'+(W-10)+'" y2="'+base+'" stroke="#E4E7EC"/>'+barras+'</svg>'+
+    '<div style="display:flex;gap:14px;font-size:11.5px;color:var(--text3);margin-top:4px">'+
+    '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#1A5C3A"></span> entró</span>'+
+    '<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#C2185B"></span> salió</span></div>';
+}
+// Barra horizontal: cómo está repartido el dinero hoy
+function banRepartoHTML(){
+  var ctas=Object.keys(BANCOS_INIT),tot=0,d=[];
+  ctas.forEach(function(c,i){
+    var x=saldoCta(c),sal=(BANCOS_INIT[c]||0)+x.e-x.s;
+    if(sal>0.5){d.push({c:c,v:sal,col:BAN_COL[i%BAN_COL.length]});tot+=sal;}
+  });
+  if(!tot)return '';
+  d.sort(function(a,b){return b.v-a.v;});
+  return '<div class="card" style="padding:14px 17px">'+
+    '<div class="card-title" style="margin-bottom:9px">Dónde está el dinero ahora · '+fmt(tot)+'</div>'+
+    '<div style="display:flex;height:16px;border-radius:99px;overflow:hidden;gap:2px">'+
+      d.map(function(x){return '<div title="'+x.c+' '+fmt(x.v)+'" style="width:'+(x.v/tot*100)+'%;background:'+x.col+'"></div>';}).join('')+
+    '</div>'+
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px">'+
+      d.map(function(x){return '<div style="font-size:12px"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+x.col+';margin-right:5px"></span>'+
+        x.c+' <b class="mono">'+fmt(x.v)+'</b> <span style="color:var(--text3)">'+Math.round(x.v/tot*100)+'%</span></div>';}).join('')+
+    '</div></div>';
+}
+function banCatsHTML(cats,color){
+  var d=Object.keys(cats).map(function(k){return {k:k,v:cats[k]};}).sort(function(a,b){return b.v-a.v;}).slice(0,6);
+  if(!d.length)return '<div style="font-size:12.5px;color:var(--text3)">Sin movimientos ese mes.</div>';
+  var max=d[0].v;
+  return d.map(function(x){
+    return '<div style="margin-bottom:9px">'+
+      '<div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:3px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+x.k+'</span><b class="mono">'+fmt(x.v)+'</b></div>'+
+      '<div style="height:7px;background:var(--surface2);border-radius:99px;overflow:hidden"><div style="width:'+(x.v/max*100)+'%;height:100%;background:'+color+';border-radius:99px"></div></div>'+
+    '</div>';
+  }).join('');
+}
+
+function rBancos(){
+  var selM=document.getElementById('ban-mes');
+  var meses=banMesLista();
+  if(selM&&!selM.options.length&&meses.length){
+    selM.innerHTML=meses.slice(0,18).map(function(m){return '<option value="'+m+'">'+m+'</option>';}).join('');
+  }
+  var mes=(selM&&selM.value)||meses[0]||String(todayStr()).slice(0,7);
+  var d=banDatosMes(mes);
+  var ant=meses[meses.indexOf(mes)+1];
+  var dAnt=ant?banDatosMes(ant):null;
+  var tot=Object.keys(BANCOS_INIT).reduce(function(a,c){var x=saldoCta(c);return a+(BANCOS_INIT[c]||0)+x.e-x.s;},0);
+  var flecha=function(v,vAnt){
+    if(vAnt===null||vAnt===undefined||!vAnt)return '';
+    var p=Math.round((v-vAnt)/Math.abs(vAnt)*100);
+    return '<span style="color:'+(p>=0?'var(--green)':'var(--red)')+'">'+(p>=0?'▲':'▼')+' '+Math.abs(p)+'% vs mes anterior</span>';
+  };
+  document.getElementById('ban-periodo').textContent='Mes de '+mes+' · '+d.mov.length+' movimientos';
+  document.getElementById('ban-kpis').innerHTML=
+    '<div class="metric" style="background:var(--green-l)"><div class="m-label">Hay ahora en todas las cuentas</div><div class="m-val" style="color:var(--green)">'+fmtK(tot)+'</div></div>'+
+    '<div class="metric"><div class="m-label">Entró en el mes</div><div class="m-val" style="color:var(--green)">'+fmtK(d.e)+'</div><div class="m-sub">'+flecha(d.e,dAnt&&dAnt.e)+'</div></div>'+
+    '<div class="metric"><div class="m-label">Salió en el mes</div><div class="m-val" style="color:var(--red)">'+fmtK(d.s)+'</div><div class="m-sub">'+flecha(d.s,dAnt&&dAnt.s)+'</div></div>'+
+    '<div class="metric" style="background:'+(d.neto>=0?'var(--green-l)':'#FDF2F7')+'"><div class="m-label">Quedó del mes</div><div class="m-val" style="color:'+(d.neto>=0?'var(--green)':'var(--red)')+'">'+fmtK(d.neto)+'</div><div class="m-sub">entradas menos salidas</div></div>';
+
+  document.getElementById('ban-reparto').innerHTML=banRepartoHTML();
+  document.getElementById('ban-flujo').innerHTML=banFlujoSVG(meses.slice(0,8).reverse());
+  document.getElementById('ban-cats').innerHTML=banCatsHTML(d.catsS,'#C2185B')+
+    '<div class="card-title" style="margin:14px 0 8px">De dónde vino</div>'+banCatsHTML(d.catsE,'#1A5C3A');
+
+  var top=d.mov.slice().sort(function(a,b){return (+b.monto)-(+a.monto);}).slice(0,7);
+  document.getElementById('ban-top').innerHTML=top.map(function(m){
+    var sal=m.tipo!=='Entrada';
+    return '<div style="display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">'+
+      '<div style="width:66px;font-size:11.5px;color:var(--text3)">'+String(m.fecha).slice(5,10)+'</div>'+
+      '<div style="flex:1;min-width:0"><div style="font-size:12.5px;font-weight:600">'+(m.concepto||'')+'</div>'+
+      '<div style="font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(m.desc||'')+' · '+(m.cuenta||'')+'</div></div>'+
+      '<b class="mono" style="color:'+(sal?'var(--red)':'var(--green)')+'">'+(sal?'−':'')+fmt(m.monto)+'</b></div>';
+  }).join('')||'<div style="font-size:12.5px;color:var(--text3)">Sin movimientos ese mes.</div>';
+
+  rBancosSaldos();
+  var selC=document.getElementById('ban-cta');
+  if(selC&&!selC.options.length){
+    selC.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option>'+c+'</option>';}).join('');
+    if(Object.keys(BANCOS_INIT).indexOf('INBURSA')>=0)selC.value='INBURSA';
+  }
+  banPinta();
+}
+
 function rBancosSaldos(){
   const ctas=Object.keys(BANCOS_INIT);
   let total=0;
@@ -6471,13 +6635,9 @@ function rBancosSaldos(){
     const sal=(BANCOS_INIT[c]||0)+e-s;total+=sal;
     return `<tr><td style="font-weight:500">${c}</td><td class="mono">${fmt(BANCOS_INIT[c]||0)}</td><td class="mono" style="color:var(--green)">${fmt(e)}</td><td class="mono" style="color:var(--red)">${fmt(s)}</td><td class="mono" style="font-weight:700">${fmt(sal)}</td></tr>`;
   });
-  document.getElementById('ban-body').innerHTML=rows.join('');
-  // Mostrar solo cuentas con saldo o movimientos
-  const ctasActivas=ctas.filter(c=>{const {e,s}=saldoCta(c);return (BANCOS_INIT[c]||0)>0||e>0||s>0;});
-  document.getElementById('ban-m').innerHTML=ctasActivas.slice(0,3).map(c=>{
-    const {e,s}=saldoCta(c);
-    return `<div class="metric"><div class="m-label">${c}</div><div class="m-val">${fmtK((BANCOS_INIT[c]||0)+e-s)}</div></div>`;
-  }).join('')+`<div class="metric" style="background:var(--green-l)"><div class="m-label">Total en cuentas</div><div class="m-val" style="color:var(--green)">${fmtK(total)}</div></div>`;
+  document.getElementById('ban-tabla').innerHTML=
+    '<table class="tbl"><thead><tr><th>Cuenta</th><th>Inicial</th><th>Entradas</th><th>Salidas</th><th>Saldo</th></tr></thead><tbody>'+
+    rows.join('')+'</tbody></table>';
 }
 
 // ─── USUARIOS ─────────────────────────────────────────────────────────────────
