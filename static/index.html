@@ -596,7 +596,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · menú nuevo</div></div>
+  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · bancos v2</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
@@ -1079,9 +1079,42 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 <!-- BANCOS -->
 <div class="page" id="page-ban">
-  <div class="ph"><div><div class="ph-title">Bancos y Cuentas</div></div><button class="btn btn-s btn-sm" onclick="abrirEditorBancos()">⚙️ Cuentas</button></div>
-  <div class="metrics m3" id="ban-m"></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Cuenta</th><th>Saldo inicial</th><th>Entradas</th><th>Salidas</th><th>Saldo actual</th></tr></thead><tbody id="ban-body"></tbody></table></div>
+  <div class="ph">
+    <div><div class="ph-title">Bancos</div><div class="ph-sub">Renglón por renglón del banco: lo picas, ves con qué empata y lo validas.</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <select id="ban-cta" onchange="rBancos()" style="width:150px;font-size:13px"></select>
+      <input type="file" id="ban-file" accept="application/pdf" style="display:none" onchange="banLeerPDF()">
+      <button class="btn btn-p btn-sm" onclick="document.getElementById('ban-file').click()">📥 Estado de cuenta</button>
+      <button class="btn btn-s btn-sm" onclick="banVista('saldos')" id="ban-chip-saldos">💼 Saldos</button>
+      <button class="btn btn-s btn-sm" onclick="abrirEditorBancos()">⚙️ Cuentas</button>
+    </div>
+  </div>
+  <div id="ban-prog" style="display:none;font-size:12.5px;color:var(--text2);margin-bottom:8px"></div>
+
+  <!-- VISTA CONCILIACIÓN: dos columnas -->
+  <div id="ban-concil">
+    <div id="ban-resumen" class="metrics m4" style="margin-bottom:.8rem"></div>
+    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+      <div style="flex:1 1 380px;min-width:320px">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div style="padding:11px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <b style="font-size:14px">Movimientos del banco</b>
+            <span id="ban-lin-info" style="font-size:12px;color:var(--text3)"></span>
+            <span style="flex:1"></span>
+            <button class="btn btn-s btn-xs" id="ban-f-todos" onclick="banFiltro('pend')">Ver todos</button>
+          </div>
+          <div id="ban-lineas" style="max-height:62vh;overflow:auto"></div>
+        </div>
+      </div>
+      <div style="flex:1 1 380px;min-width:320px" id="ban-detalle"></div>
+    </div>
+  </div>
+
+  <!-- VISTA SALDOS: lo de siempre -->
+  <div id="ban-saldos" style="display:none">
+    <div class="metrics m3" id="ban-m"></div>
+    <div class="tw"><table class="tbl"><thead><tr><th>Cuenta</th><th>Saldo inicial</th><th>Entradas</th><th>Salidas</th><th>Saldo actual</th></tr></thead><tbody id="ban-body"></tbody></table></div>
+  </div>
 </div>
 <div class="page" id="page-cob">
   <div class="ph"><div><div class="ph-title">💵 Cobranza</div><div class="ph-sub">Todos los cobros día por día — anticipos, abonos y liquidaciones (tu control de Excel, vivo)</div></div>
@@ -1723,7 +1756,7 @@ function go(id){
   document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
-  ({ped:rPed,cxc:rCxC,dia:()=>{cargarMapaCta().then(rDia);},cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
+  ({ped:rPed,cxc:rCxC,dia:()=>{cargarMapaCta().then(rDia);},cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:()=>{cargarBcoOK().then(rBancos);},usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
     lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:()=>{cargarBcoOK().then(rCuadre);}
   })[id]?.();
@@ -6222,7 +6255,218 @@ function guardarBancos(){
   pintarCuentasSelects();
   try{rBancos();}catch(e){}
 }
+// ═══ BANCOS: conciliación renglón por renglón ══════════════════════════════
+// Izquierda: lo que dice el banco. Derecha: con qué empata y qué hacer con él.
+var BAN_EDO=null;        // estado de cuenta leído
+var BAN_SEL=null;        // renglón seleccionado
+var BAN_FIL='pend';      // 'pend' = solo lo que falta, 'todos'
+var BAN_VISTA='concil';
+
+function banVista(v){
+  BAN_VISTA=(BAN_VISTA===v?'concil':v);
+  document.getElementById('ban-concil').style.display=BAN_VISTA==='concil'?'':'none';
+  document.getElementById('ban-saldos').style.display=BAN_VISTA==='saldos'?'':'none';
+  rBancos();
+}
+function banFiltro(){
+  BAN_FIL=(BAN_FIL==='pend'?'todos':'pend');
+  document.getElementById('ban-f-todos').textContent=BAN_FIL==='pend'?'Ver todos':'Ver solo pendientes';
+  banPinta();
+}
+function banLeerPDF(){
+  var f=document.getElementById('ban-file').files[0];if(!f)return;
+  var pr=document.getElementById('ban-prog');pr.style.display='';pr.textContent='Leyendo el estado de cuenta…';
+  var fd=new FormData();fd.append('file',f);
+  fetch('/api/edocta',{method:'POST',credentials:'include',body:fd})
+    .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d;});})
+    .then(function(d){
+      if(!d.cargos)throw new Error('Ese PDF no trae los cargos. Usa el "Detalle de movimientos".');
+      BAN_EDO=d;BAN_SEL=null;pr.style.display='none';rBancos();
+    })
+    .catch(function(e){pr.style.display='none';alert('No se pudo leer: '+e.message);});
+}
+// Todos los renglones del banco, con su signo
+function banLineas(){
+  if(!BAN_EDO)return [];
+  var L=(BAN_EDO.cargos||[]).map(function(b){return {f:b.fecha,monto:b.monto,det:b.det||b.tipo||'',signo:-1,com:!!b.comision};})
+    .concat((BAN_EDO.depositos||[]).concat(BAN_EDO.otros_abonos||[]).map(function(b){return {f:b.fecha,monto:b.monto,det:b.det||b.tipo||'',signo:1,com:false};}));
+  return L.sort(function(a,b){return String(b.f).localeCompare(String(a.f));});
+}
+function banClave(l){return l.f+'|'+(+l.monto).toFixed(2)+'|'+String(l.det||'').slice(0,18);}
+// ¿Ya está conciliado? Por marca guardada o por movimiento conciliado que empate
+function banCasado(l){
+  var id=BCO_OK[banClave(l)];
+  if(id)return movs.find(function(m){return m.id===id;})||{id:id,desc:'(movimiento agrupado)'};
+  return null;
+}
+// Candidatos: mismo monto, misma cuenta, lado correcto, fecha cercana
+function banSugerencias(l){
+  var cta=document.getElementById('ban-cta').value;
+  var esS=l.signo<0;
+  return movs.filter(function(m){
+    if(m.cuenta!==cta&&m.cta_destino!==cta)return false;
+    if(Math.abs((+m.monto)-l.monto)>0.5)return false;
+    var lado=esS?(m.cuenta===cta&&(m.tipo==='Salida'||m.tipo==='Retiro'||m.tipo==='Traspaso'))
+                :((m.cuenta===cta&&m.tipo==='Entrada')||(m.cta_destino===cta&&m.tipo==='Traspaso'));
+    if(!lado)return false;
+    return true;
+  }).map(function(m){
+    var d=Math.round(Math.abs(new Date(String(m.fecha).slice(0,10))-new Date(l.f))/86400000);
+    return {m:m,dias:d};
+  }).sort(function(a,b){return a.dias-b.dias;}).slice(0,6);
+}
+
+// Cuando no hay coincidencia en la cuenta: buscar el mismo monto en otro lado.
+// Casi siempre es uno de dos errores: quedó en otra cuenta, o como Entrada/Salida al revés.
+function banOtros(l){
+  var cta=document.getElementById('ban-cta').value;
+  return movs.filter(function(m){
+    if(Math.abs((+m.monto)-l.monto)>0.5)return false;
+    var d=Math.abs(new Date(String(m.fecha).slice(0,10))-new Date(l.f))/86400000;
+    return d<=6;
+  }).map(function(m){
+    var otraCta=(m.cuenta!==cta&&m.cta_destino!==cta);
+    return {m:m,razon:otraCta?('está capturado en '+(m.cuenta||'—'))
+                            :('está capturado como '+m.tipo+', y el banco lo trae como '+(l.signo<0?'cargo':'abono'))};
+  }).slice(0,4);
+}
+
 function rBancos(){
+  var sel=document.getElementById('ban-cta');
+  if(sel&&!sel.options.length){
+    sel.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option>'+c+'</option>';}).join('');
+    if(Object.keys(BANCOS_INIT).indexOf('INBURSA')>=0)sel.value='INBURSA';
+  }
+  banPinta();
+  rBancosSaldos();
+}
+
+function banPinta(){
+  var cont=document.getElementById('ban-lineas'),det=document.getElementById('ban-detalle');
+  if(!cont)return;
+  var L=banLineas();
+  if(!L.length){
+    document.getElementById('ban-resumen').innerHTML='';
+    cont.innerHTML='<div style="padding:26px 18px;text-align:center;color:var(--text3);font-size:13px">Sube el estado de cuenta del banco (PDF) para empezar.<br>Cada renglón aparece aquí y lo vas casando con tus movimientos.</div>';
+    det.innerHTML='';return;
+  }
+  var casados=L.filter(banCasado),pend=L.filter(function(l){return !banCasado(l);});
+  var sumaB=L.reduce(function(a,b){return a+b.monto*b.signo;},0);
+  var sumaP=pend.reduce(function(a,b){return a+b.monto*b.signo;},0);
+  var pct=Math.round(casados.length/L.length*100);
+  document.getElementById('ban-resumen').innerHTML=
+    '<div class="metric"><div class="m-label">Renglones del banco</div><div class="m-val">'+L.length+'</div><div class="m-sub">'+BAN_EDO.desde+' al '+BAN_EDO.hasta+'</div></div>'+
+    '<div class="metric" style="background:var(--green-l)"><div class="m-label">Ya conciliados</div><div class="m-val" style="color:var(--green)">'+casados.length+'</div><div class="m-sub">'+pct+'% del estado de cuenta</div></div>'+
+    '<div class="metric" style="background:'+(pend.length?'#FDF2F7':'var(--surface)')+'"><div class="m-label">Por revisar</div><div class="m-val" style="color:'+(pend.length?'#B0004E':'var(--text)')+'">'+pend.length+'</div><div class="m-sub">'+fmt(sumaP)+'</div></div>'+
+    '<div class="metric"><div class="m-label">Neto del periodo</div><div class="m-val">'+fmt(sumaB)+'</div><div class="m-sub">según el banco</div></div>';
+
+  var ver=BAN_FIL==='pend'?pend:L;
+  document.getElementById('ban-lin-info').textContent=ver.length+' renglón(es)';
+  var fecha='';
+  cont.innerHTML=ver.map(function(l,i){
+    var cab='';
+    if(l.f!==fecha){fecha=l.f;cab='<div style="padding:5px 15px;background:var(--surface2);font-size:11.5px;font-weight:700;color:var(--text2);position:sticky;top:0">'+l.f+'</div>';}
+    var c=banCasado(l),act=BAN_SEL&&banClave(BAN_SEL)===banClave(l);
+    return cab+'<div onclick="banSel('+i+')" style="display:flex;align-items:center;gap:10px;padding:9px 15px;border-bottom:1px solid var(--border);cursor:pointer;background:'+(act?'#EFF6FF':'transparent')+'">'+
+      '<div style="flex:1;min-width:0">'+
+        '<div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+(l.det||'—')+'</div>'+
+        (c?'<div style="font-size:11.5px;color:var(--green)">✓ '+(c.concepto||'')+' '+(c.desc?('· '+String(c.desc).slice(0,42)):'')+'</div>':'')+
+      '</div>'+
+      '<div class="mono" style="font-weight:700;color:'+(l.signo<0?'var(--red)':'var(--green)')+'">'+(l.signo<0?'−':'')+fmt(l.monto)+'</div>'+
+      (c?'<span style="background:#D8F0E0;color:#12724C;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700">✓</span>'
+        :'<span style="background:#FBD3E0;color:#B0004E;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700">?</span>')+
+    '</div>';
+  }).join('');
+  banDetalle();
+}
+window.__banVer=[];
+function banSel(i){
+  var L=banLineas(),pend=L.filter(function(l){return !banCasado(l);});
+  var ver=BAN_FIL==='pend'?pend:L;
+  BAN_SEL=ver[i];banPinta();
+}
+
+function banDetalle(){
+  var det=document.getElementById('ban-detalle');if(!det)return;
+  var l=BAN_SEL;
+  if(!l){det.innerHTML='<div class="card" style="padding:26px 18px;text-align:center;color:var(--text3);font-size:13px">Pica un renglón de la izquierda para ver con qué empata.</div>';return;}
+  var c=banCasado(l),sug=banSugerencias(l),cta=document.getElementById('ban-cta').value;
+  var cats=(l.signo<0?ER_CATS.gastos_admin.concat(ER_CATS.costos,ER_CATS.gastos_venta):ER_CATS.ingresos);
+  det.innerHTML='<div class="card" style="padding:0;overflow:hidden">'+
+    '<div style="padding:14px 17px;background:'+(l.signo<0?'#FEF2F2':'#ECFDF3')+'">'+
+      '<div style="font-size:12px;color:var(--text3)">'+l.f+' · dice el banco</div>'+
+      '<div style="font-size:15px;font-weight:700;margin-top:2px">'+(l.det||'—')+'</div>'+
+      '<div class="mono" style="font-size:24px;font-weight:800;color:'+(l.signo<0?'var(--red)':'var(--green)')+'">'+(l.signo<0?'−':'')+fmt(l.monto)+'</div>'+
+    '</div>'+
+    (c
+      ? '<div style="padding:15px 17px"><div style="font-size:13px;color:var(--green);font-weight:700;margin-bottom:6px">✓ Conciliado</div>'+
+        '<div style="font-size:13px">'+(c.concepto||'')+'</div>'+
+        '<div style="font-size:12px;color:var(--text3)">'+(c.desc||'')+'</div>'+
+        '<button class="btn btn-s btn-sm" style="margin-top:10px" onclick="banDesCasar()">Deshacer</button></div>'
+      : '<div style="padding:15px 17px">'+
+        (sug.length
+          ? '<div style="font-size:12.5px;font-weight:700;margin-bottom:7px">Movimientos tuyos que empatan</div>'+
+            sug.map(function(x,k){
+              return '<div style="display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:9px;padding:8px 11px;margin-bottom:6px">'+
+                '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">'+(x.m.concepto||'')+'</div>'+
+                '<div style="font-size:11.5px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+String(x.m.fecha).slice(0,10)+' · '+(x.m.desc||'')+'</div></div>'+
+                (x.dias?'<span style="font-size:11px;color:var(--text3)">'+x.dias+' d</span>':'')+
+                '<button class="btn btn-p btn-xs" onclick="banCasar('+x.m.id+')">✓ Casar</button></div>';
+            }).join('')
+          : (function(){
+              var o=banOtros(l);
+              return '<div style="font-size:12.5px;color:#B0004E;font-weight:600;margin-bottom:8px">Ningún movimiento tuyo de esta cuenta empata con este renglón.</div>'+
+                (o.length
+                  ? '<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Pero encontré el mismo monto en otro lado:</div>'+
+                    o.map(function(x){
+                      return '<div style="border:1px solid #F7C0D8;background:#FDF2F7;border-radius:9px;padding:8px 11px;margin-bottom:6px">'+
+                        '<div style="font-size:13px;font-weight:600">'+(x.m.concepto||'')+' · '+fmt(x.m.monto)+'</div>'+
+                        '<div style="font-size:11.5px;color:var(--text3)">'+String(x.m.fecha).slice(0,10)+' · '+(x.m.desc||'')+'</div>'+
+                        '<div style="font-size:11.5px;color:#B0004E;font-weight:700;margin-top:2px">⚠️ '+x.razon+'</div>'+
+                        '<button class="btn btn-s btn-xs" style="margin-top:6px" onclick="banCasar('+x.m.id+')">Es este, cásalo igual</button></div>';
+                    }).join('')
+                  : '');
+            })())+
+        '<div style="border-top:1px solid var(--border);margin-top:10px;padding-top:11px">'+
+          '<div style="font-size:12.5px;font-weight:700;margin-bottom:7px">O regístralo como movimiento nuevo</div>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'+
+            '<div class="field" style="flex:1;min-width:150px;margin:0"><label>Categoría</label>'+
+              '<select id="ban-cat">'+cats.map(function(x){return '<option>'+x+'</option>';}).join('')+'</select></div>'+
+            '<button class="btn btn-p btn-sm" onclick="banCrear()">Registrar en '+cta+'</button>'+
+          '</div>'+
+        '</div></div>')+
+  '</div>';
+}
+
+function banCasar(id){
+  var l=BAN_SEL;if(!l)return;
+  BCO_OK[banClave(l)]=id;
+  guardarBcoOK().then(function(){
+    return fetch('/api/conciliar',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({fecha:todayStr(),items:[{id:id,ref:l.f+' '+String(l.det||'').slice(0,20)}]})});
+  }).then(function(){
+    var m=movs.find(function(x){return x.id===id;});if(m)m.conciliado=todayStr();
+    BAN_SEL=null;banPinta();
+  }).catch(function(e){alert('No se pudo casar: '+e.message);});
+}
+function banDesCasar(){
+  var l=BAN_SEL;if(!l)return;
+  delete BCO_OK[banClave(l)];
+  guardarBcoOK().then(function(){banPinta();});
+}
+function banCrear(){
+  var l=BAN_SEL;if(!l)return;
+  var cta=document.getElementById('ban-cta').value;
+  var cat=document.getElementById('ban-cat').value;
+  var mv={tipo:l.signo<0?'Salida':'Entrada',concepto:cat,desc:(l.det||'')+' (del estado de cuenta)',
+    cuenta:cta,cta_destino:'',monto:Math.round(l.monto*100)/100,fecha:l.f,mes:parseInt(l.f.split('-')[1],10)-1};
+  fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(d){movs.unshift(d);banCasar(d.id);})
+  .catch(function(e){alert('No se pudo registrar: '+e.message);});
+}
+
+function rBancosSaldos(){
   const ctas=Object.keys(BANCOS_INIT);
   let total=0;
   const rows=ctas.map(c=>{
