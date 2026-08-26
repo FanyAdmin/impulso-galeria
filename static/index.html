@@ -596,7 +596,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · bancos v2</div></div>
+  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · bancos v3</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
@@ -1080,40 +1080,43 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 <!-- BANCOS -->
 <div class="page" id="page-ban">
   <div class="ph">
-    <div><div class="ph-title">Bancos</div><div class="ph-sub">Renglón por renglón del banco: lo picas, ves con qué empata y lo validas.</div></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <select id="ban-cta" onchange="rBancos()" style="width:150px;font-size:13px"></select>
-      <input type="file" id="ban-file" accept="application/pdf" style="display:none" onchange="banLeerPDF()">
-      <button class="btn btn-p btn-sm" onclick="document.getElementById('ban-file').click()">📥 Estado de cuenta</button>
-      <button class="btn btn-s btn-sm" onclick="banVista('saldos')" id="ban-chip-saldos">💼 Saldos</button>
-      <button class="btn btn-s btn-sm" onclick="abrirEditorBancos()">⚙️ Cuentas</button>
-    </div>
+    <div><div class="ph-title">Bancos y Cuentas</div></div>
+    <button class="btn btn-s btn-sm" onclick="abrirEditorBancos()">⚙️ Cuentas</button>
   </div>
-  <div id="ban-prog" style="display:none;font-size:12.5px;color:var(--text2);margin-bottom:8px"></div>
 
-  <!-- VISTA CONCILIACIÓN: dos columnas -->
-  <div id="ban-concil">
-    <div id="ban-resumen" class="metrics m4" style="margin-bottom:.8rem"></div>
-    <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
-      <div style="flex:1 1 380px;min-width:320px">
-        <div class="card" style="padding:0;overflow:hidden">
-          <div style="padding:11px 15px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <b style="font-size:14px">Movimientos del banco</b>
-            <span id="ban-lin-info" style="font-size:12px;color:var(--text3)"></span>
-            <span style="flex:1"></span>
-            <button class="btn btn-s btn-xs" id="ban-f-todos" onclick="banFiltro('pend')">Ver todos</button>
-          </div>
-          <div id="ban-lineas" style="max-height:62vh;overflow:auto"></div>
-        </div>
+  <!-- SALDOS: siempre visibles -->
+  <div class="metrics m3" id="ban-m"></div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Cuenta</th><th>Saldo inicial</th><th>Entradas</th><th>Salidas</th><th>Saldo actual</th></tr></thead><tbody id="ban-body"></tbody></table></div>
+
+  <!-- CONCILIACIÓN -->
+  <div class="card" style="padding:0;overflow:hidden;margin-top:1.1rem">
+    <div style="padding:14px 17px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+      <div style="flex:1;min-width:230px">
+        <div style="font-size:16px;font-weight:800">🏦 Conciliar con el banco</div>
+        <div style="font-size:12.5px;color:var(--text2);margin-top:2px">Renglón por renglón del estado de cuenta: lo picas, ves con qué empata y lo validas.</div>
       </div>
-      <div style="flex:1 1 380px;min-width:320px" id="ban-detalle"></div>
+      <select id="ban-cta" onchange="banPinta()" style="width:150px;font-size:13px"></select>
+      <input type="file" id="ban-file" accept="application/pdf" style="display:none" onchange="banLeerPDF()">
+      <button class="btn btn-p btn-sm" onclick="document.getElementById('ban-file').click()">📥 Subir estado de cuenta</button>
     </div>
-  </div>
-
-  <!-- VISTA SALDOS: lo de siempre -->
-  <div id="ban-saldos" style="display:none">
-    <div class="metrics m3" id="ban-m"></div>
-    <div class="tw"><table class="tbl"><thead><tr><th>Cuenta</th><th>Saldo inicial</th><th>Entradas</th><th>Salidas</th><th>Saldo actual</th></tr></thead><tbody id="ban-body"></tbody></table></div>
+    <div style="padding:14px 17px">
+      <div id="ban-prog" style="display:none;font-size:12.5px;color:var(--text2);margin-bottom:8px"></div>
+      <div id="ban-resumen" class="metrics m4" style="margin-bottom:.8rem"></div>
+      <div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+        <div style="flex:1 1 360px;min-width:300px">
+          <div style="border:1px solid var(--border);border-radius:var(--rad-lg);overflow:hidden">
+            <div style="padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface2)">
+              <b style="font-size:13px">Movimientos del banco</b>
+              <span id="ban-lin-info" style="font-size:12px;color:var(--text3)"></span>
+              <span style="flex:1"></span>
+              <button class="btn btn-s btn-xs" id="ban-f-todos" onclick="banFiltro()">Ver todos</button>
+            </div>
+            <div id="ban-lineas" style="max-height:58vh;overflow:auto"></div>
+          </div>
+        </div>
+        <div style="flex:1 1 360px;min-width:300px" id="ban-detalle"></div>
+      </div>
+    </div>
   </div>
 </div>
 <div class="page" id="page-cob">
@@ -6262,12 +6265,6 @@ var BAN_SEL=null;        // renglón seleccionado
 var BAN_FIL='pend';      // 'pend' = solo lo que falta, 'todos'
 var BAN_VISTA='concil';
 
-function banVista(v){
-  BAN_VISTA=(BAN_VISTA===v?'concil':v);
-  document.getElementById('ban-concil').style.display=BAN_VISTA==='concil'?'':'none';
-  document.getElementById('ban-saldos').style.display=BAN_VISTA==='saldos'?'':'none';
-  rBancos();
-}
 function banFiltro(){
   BAN_FIL=(BAN_FIL==='pend'?'todos':'pend');
   document.getElementById('ban-f-todos').textContent=BAN_FIL==='pend'?'Ver todos':'Ver solo pendientes';
