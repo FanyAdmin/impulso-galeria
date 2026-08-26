@@ -596,7 +596,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 26-ago · bancos grande</div></div>
+  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · comisiones</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
@@ -1719,7 +1719,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:()=>{cargarMapaCta().then(rDia);},cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:rBancos,usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:rCuadre
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:()=>{cargarBcoOK().then(rCuadre);}
   })[id]?.();
 }
 
@@ -3155,6 +3155,26 @@ function cuaAnalizar(){
     .catch(function(e){pr.style.display='none';alert('No se pudo leer: '+e.message);});
 }
 
+// Renglones del banco que YA están cubiertos por un movimiento agrupado.
+// Se guardan en la BD para que no reaparezcan la próxima vez.
+var BCO_OK={};
+function kLinea(b){
+  var f=b.fecha||b.f||'';
+  return f+'|'+(+b.monto).toFixed(2)+'|'+String(b.det||b.tipo||'').slice(0,18);
+}
+function cargarBcoOK(){
+  return fetch('/api/config/bco_ok',{credentials:'include'}).then(function(r){return r.json();})
+    .then(function(d){var v=d&&d.valor;if(v&&typeof v==='object')BCO_OK=v;}).catch(function(){});
+}
+function guardarBcoOK(){
+  return fetch('/api/config/bco_ok',{method:'PUT',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:BCO_OK})});
+}
+function olvidarAgrupados(){
+  if(!confirm('Se van a "des-cubrir" todos los renglones del banco que habías juntado en movimientos agrupados.\n¿Continuar?'))return;
+  BCO_OK={};guardarBcoOK().then(function(){pintaCuadre(CUA);});
+}
+
 function pintaCuadre(d){
   var cta=document.getElementById('cua-cta').value;
   var $=fmt;
@@ -3186,9 +3206,16 @@ function pintaCuadre(d){
     return null;
   }
 
+  // Lo que ya quedó cubierto por un movimiento agrupado no se vuelve a pedir
+  var cubiertos=[],cubTot=0;
+  var vivo=function(b){
+    if(BCO_OK[kLinea(b)]){cubiertos.push(b);cubTot+=b.monto;return false;}
+    return true;
+  };
+
   // ── CARGOS del banco (salidas): sin retraso, deben estar el mismo día ─────
   var cOK=[],cOtra=[],cFalta=[];
-  (d.cargos||[]).forEach(function(b){
+  (d.cargos||[]).filter(vivo).forEach(function(b){
     if(buscar(mios,b.monto,b.fecha,esSalida,2)){cOK.push(b);return;}
     var o=buscar(miosOtros,b.monto,b.fecha,function(){return true;},2);
     if(o){cOtra.push({b:b,mio:o});return;}
@@ -3196,7 +3223,7 @@ function pintaCuadre(d){
   });
 
   // ── ABONOS del banco (entradas): pueden traer hasta 4 días de retraso ─────
-  var abonos=(d.depositos||[]).concat(d.otros_abonos||[]);
+  var abonos=(d.depositos||[]).concat(d.otros_abonos||[]).filter(vivo);
   var aOK=[],aOtra=[],aFalta=[];
   abonos.forEach(function(b){
     if(buscar(mios,b.monto,b.fecha,esEntrada,5)){aOK.push(b);return;}
@@ -3293,6 +3320,11 @@ function pintaCuadre(d){
       .concat(sobranS.map(function(x){return {m:x.m,signo:-1};}))
       .filter(function(x){return !x.m.conciliado;})
   };
+  if(cubiertos.length){
+    h+='<div style="background:#EBF4EF;border:1px solid #A7D7BC;border-radius:var(--rad);padding:9px 14px;margin-bottom:10px;font-size:12.5px;color:#12724C;display:flex;gap:10px;align-items:center;flex-wrap:wrap">'+
+      '<b>✓ '+cubiertos.length+' renglón(es) del banco por '+fmt(cubTot)+' ya están cubiertos</b> por movimientos agrupados, así que salen de la comparación.'+
+      '<span style="flex:1"></span><button class="btn btn-s btn-xs" onclick="olvidarAgrupados()">Deshacer</button></div>';
+  }
   h+=panelGrupos();
 
   h+='<div style="font-size:11.5px;color:var(--text3);margin-top:10px">Periodo leído: '+desde+' al '+hasta+
@@ -3538,7 +3570,9 @@ function cuaRegistrarCom(){
   });
   var tot=faltan.reduce(function(a,b){return a+b.monto;},0);
   if(!tot){alert('Ya no falta ninguna comisión.');return;}
-  var f=faltan[faltan.length-1].fecha;
+  // La fecha del cargo MÁS RECIENTE (la lista viene de nuevo a viejo, y antes
+  // se tomaba el último elemento: por eso el movimiento se iba a julio).
+  var f=faltan.map(function(b){return b.fecha;}).sort().pop();
   if(!confirm('Se va a registrar UNA salida de '+fmt(tot)+' en '+cta+'\ncon fecha '+f+', juntando '+faltan.length+' comisiones del banco.\n\n¿Continuar?'))return;
   var mv={tipo:'Salida',concepto:'Comisiones bancarias',
           desc:'Comisiones de terminal, cuotas e IVA del '+CUA.desde+' al '+CUA.hasta+' ('+faltan.length+' cargos)',
@@ -3546,7 +3580,20 @@ function cuaRegistrarCom(){
   fetch('/api/movimientos',{method:'POST',credentials:'include',
     headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
   .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
-  .then(function(d){movs.unshift(d);alert('Listo. Ojo: la comparación de abajo va a seguir marcando los cargos uno por uno, porque los juntaste en uno solo.');pintaCuadre(CUA);})
+  .then(function(d){
+    movs.unshift(d);
+    // Esas comisiones ya están cubiertas por este movimiento: que no las vuelva a pedir
+    faltan.forEach(function(b){BCO_OK[kLinea(b)]=d.id;});
+    return guardarBcoOK()
+      .then(function(){
+        return fetch('/api/conciliar',{method:'POST',credentials:'include',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({fecha:todayStr(),items:[{id:d.id,ref:'comisiones '+CUA.desde+' a '+CUA.hasta}]})});
+      })
+      .then(function(){d.conciliado=todayStr();
+        alert('✅ Listo: una salida de '+fmt(tot)+' con fecha '+f+',\ny los '+faltan.length+' cargos del banco quedan dados por vistos.');
+        pintaCuadre(CUA);});
+  })
   .catch(function(e){alert('No se pudo registrar: '+e.message);});
 }
 
