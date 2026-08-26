@@ -225,6 +225,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 #page-ban .tbl{font-size:15px}
 #page-ban .tbl th{font-size:13px;padding:11px 18px}
 #page-ban .tbl td{padding:12px 18px}
+/* Cobranza: encabezado de columnas pegado bajo el bloque fijo */
+#page-cob .tbl thead th{position:sticky;top:var(--cob-alto,132px);z-index:8;background:var(--surface);box-shadow:0 1px 0 var(--border)}
 
 /* ── ABONO ROW ── */
 .ab-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -609,7 +611,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · blanco y color</div></div>
+  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · cobranza fija</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
@@ -1157,7 +1159,8 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
   </div>
 </div>
 <div class="page" id="page-cob">
-  <div class="ph"><div><div class="ph-title">💵 Cobranza</div><div class="ph-sub">Todos los cobros día por día — anticipos, abonos y liquidaciones (tu control de Excel, vivo)</div></div>
+  <div id="cob-fijo" style="position:sticky;top:0;z-index:20;background:var(--surface);padding-top:2px;margin:-2px -2px 0;box-shadow:0 6px 12px -8px rgba(16,24,40,.25)">
+  <div class="ph" style="margin-bottom:.7rem"><div><div class="ph-title">💵 Cobranza</div><div class="ph-sub">Todos los cobros día por día — anticipos, abonos y liquidaciones (tu control de Excel, vivo)</div></div>
     <div style="display:flex;gap:8px"><button class="btn btn-p admin-only" style="display:none" id="cob-cierre-btn" onclick="openCierre()">🌙 Cierre del día</button><button class="btn btn-s admin-only" style="display:none" id="cob-edo-btn" onclick="OM('mod-edocta')">📥 Subir estado de cuenta</button><button class="btn btn-s admin-only" style="display:none" id="cob-concil-btn" onclick="toggleConcilMode()">🧮 Conciliar manual</button><button class="btn btn-s" onclick="expCobXlsx()">📊 Excel</button></div>
   </div>
   <div id="cob-barra" style="display:none;position:sticky;top:0;z-index:5;background:#1F3864;color:#fff;border-radius:10px;padding:10px 16px;margin-bottom:.6rem;align-items:center;gap:14px;flex-wrap:wrap">
@@ -1175,6 +1178,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--green2);box-shadow:0 
     <input id="cob-q" placeholder="🔍 Folio o cliente..." oninput="rCob()" style="width:170px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px">
     <button class="btn btn-s btn-xs" onclick="limpiarCob()">✕ Limpiar</button>
     <span id="cob-res" style="color:var(--text3);flex:0 0 auto"></span>
+  </div>
   </div>
   <div class="card" style="padding:0;overflow:hidden"><div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th><th>Vendedor</th><th>Sucursal</th><th>Ref/Factura</th></tr></thead><tbody id="cob-body"></tbody></table></div></div>
 </div>
@@ -5731,17 +5735,32 @@ function concilDe(k){
   return null;
 }
 function toggleConcilMode(){CONCIL_ON=!CONCIL_ON;CONCIL_SEL={};rCob();}
-function concilSel(k,monto){if(CONCIL_SEL[k])delete CONCIL_SEL[k];else CONCIL_SEL[k]=monto;rCobBarra();}
+function concilSel(k,monto,idx){
+  if(CONCIL_SEL[k])delete CONCIL_SEL[k];
+  else CONCIL_SEL[k]={monto:monto,ya:(idx!==undefined&&idx>=0)?idx:-1};
+  rCobBarra();
+}
+function concilSuma(){return Object.values(CONCIL_SEL).reduce((s,x)=>s+(typeof x==='object'?x.monto:x),0);}
+function concilYaCasados(){return Object.keys(CONCIL_SEL).filter(k=>typeof CONCIL_SEL[k]==='object'&&CONCIL_SEL[k].ya>=0);}
 function rCobBarra(){
-  const n=Object.keys(CONCIL_SEL).length,suma=Object.values(CONCIL_SEL).reduce((s,x)=>s+x,0);
+  const n=Object.keys(CONCIL_SEL).length,suma=concilSuma(),ya=concilYaCasados().length;
   const el=document.getElementById('cob-barra');if(!el)return;
   el.style.display=CONCIL_ON?'flex':'none';
-  document.getElementById('cob-barra-info').innerHTML=n?('Seleccionados: <b>'+n+'</b> · SUMA: <b style="font-size:16px">'+fmt(suma)+'</b>'):'Ve marcando cobros hasta que la suma iguale el depósito del banco…';
-  document.getElementById('cob-barra-btn').style.display=n?'':'none';
+  document.getElementById('cob-barra-info').innerHTML=n
+    ?('Seleccionados: <b>'+n+'</b> · SUMA: <b style="font-size:16px">'+fmt(suma)+'</b>'+
+      (ya?' <span style="opacity:.85;font-size:12px">· '+ya+' ya estaban casados (solo suman aquí)</span>':''))
+    :'Ve marcando cobros hasta que la suma iguale el depósito del banco…';
+  const btn=document.getElementById('cob-barra-btn');
+  btn.style.display=n?'':'none';
+  btn.textContent=(n-ya)>0?('✓ Casar '+(n-ya)+' con depósito'):'Todos estos ya están casados';
+  btn.style.opacity=(n-ya)>0?1:.5;
 }
 function concilGuardar(){
-  const keys=Object.keys(CONCIL_SEL);if(!keys.length)return;
-  const suma=Object.values(CONCIL_SEL).reduce((s,x)=>s+x,0);
+  const ya=concilYaCasados();
+  const keys=Object.keys(CONCIL_SEL).filter(k=>ya.indexOf(k)<0);   // los ya casados se quedan donde están
+  if(!keys.length){alert('Los cobros que marcaste ya están casados con otro depósito.\nMarcarlos aquí solo sirvió para volver a ver su suma.');return;}
+  if(ya.length&&!confirm(ya.length+' de los marcados ya estaban casados y se quedan en su depósito.\nSe van a casar solo los otros '+keys.length+'.\n\n¿Continuar?'))return;
+  const suma=keys.reduce((s,k)=>s+CONCIL_SEL[k].monto,0);
   const ref=prompt('✓ Casar estos '+keys.length+' cobro(s) que suman '+fmt(suma)+'\n\nReferencia del depósito del banco (ej. "Dep 30/07 $2,000" o el folio del estado de cuenta):','Dep '+new Date().toLocaleDateString('es-MX'));
   if(ref===null)return;
   CONCIL.grupos.push({ref:ref||('Dep '+fmt(suma)),monto:suma,keys:keys,fecha:dateStrLocal(new Date())});
@@ -6125,6 +6144,14 @@ function cobRows(){
   });
   return rows;
 }
+// El bloque fijo cambia de alto según los filtros; el encabezado de la tabla
+// se pega justo debajo, midiéndolo en vivo.
+function cobAjustaAlto(){
+  const f=document.getElementById('cob-fijo');if(!f)return;
+  document.getElementById('page-cob').style.setProperty('--cob-alto',f.offsetHeight+'px');
+}
+window.addEventListener('resize',function(){try{cobAjustaAlto();}catch(e){}});
+
 function rCob(){
   // Defaults: últimos 14 días
   const d1El=document.getElementById('cob-d1'),d2El=document.getElementById('cob-d2');
@@ -6159,12 +6186,16 @@ function rCob(){
     rs.forEach(r=>{
       const cz=concilDe(r.k);
       const fondo=cz?('background:'+cz.color+';'):'';
-      const chk=(CONCIL_ON&&r.k&&r.monto>0&&!cz)?'<input type="checkbox" '+(CONCIL_SEL[r.k]?'checked':'')+' onchange="concilSel(\''+r.k+'\','+r.monto+')" style="width:16px;height:16px;cursor:pointer;margin-right:6px">':'';
+      // También se marcan los YA casados: sirve para volver a ver su suma sin deshacer nada
+      const chk=(CONCIL_ON&&r.k&&r.monto>0)
+        ?'<input type="checkbox" '+(CONCIL_SEL[r.k]?'checked':'')+' onchange="concilSel(\''+r.k+'\','+r.monto+','+(cz?cz.idx:-1)+')" style="width:16px;height:16px;cursor:pointer;margin-right:6px"'+(cz?' title="Ya casado en '+String(cz.g.ref).replace(/"/g,'')+' — marcarlo solo suma, no lo mueve"':'')+'>'
+        :'';
       const tag=cz?'<span class="badge" style="background:#fff;border:1px solid #ccc;color:#333;cursor:pointer" title="Picar para deshacer" onclick="concilQuitar('+cz.idx+')">🔗 '+cz.g.ref+'</span>':(r.ref||'');
       h+='<tr style="'+fondo+(r.monto<=0?'opacity:.55':'')+'"><td class="mono" style="font-weight:600">'+chk+r.folio+'</td><td>'+r.cli+'</td><td style="font-size:11px;color:var(--text2)">'+r.tipo+'</td><td>'+metBadgeCob(r.met)+'</td><td class="mono" style="text-align:right;font-weight:600">'+fmt(r.monto)+'</td><td style="font-size:11px">'+r.vend+'</td><td style="font-size:11px">'+r.suc+'</td><td style="font-size:11px;color:var(--text3)">'+tag+'</td></tr>';
     });
   });
   document.getElementById('cob-body').innerHTML=h||'<tr><td colspan="8" class="tbl-empty">Sin cobros en el periodo</td></tr>';
+  setTimeout(cobAjustaAlto,0);
   const tot=rows.reduce((s,r)=>s+r.monto,0);
   let resTxt='→ '+rows.length+' registro'+(rows.length===1?'':'s')+' · '+fmt(tot);
   if(esAdm){
