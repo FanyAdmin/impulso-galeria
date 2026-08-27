@@ -12,7 +12,9 @@
 :root{
   /* Blanco de base. Cuatro colores, cada uno con un significado fijo:
      menta = entra / bien · rosa = sale / urge · azul = banco · mantequilla = espera */
-  --bg:#FFFFFF;--surface:#FFFFFF;--surface2:#FAFAFB;--border:#ECEEF2;--border2:#DFE2E8;
+  --bg:#FFFFFF;--surface:#FFFFFF;--surface2:#FBFAFB;/* Las líneas son ciruela rebajado sobre blanco (~16% y ~32%): se ven,
+     pero siguen siendo línea y no raya. Cambiar aquí las cambia en toda la app. */
+  --border:#E8DCE2;--border2:#D6C4CD;
   --text:#212636;--text2:#6B7280;--text3:#A3A9B5;
   --ciruela:#6E4157;--ciruela-l:#F4EFF2;--ciruela-d:#573044;
   --borgona:#A14257;--borgona-l:#F8EFF1;
@@ -59,6 +61,42 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
 /* Panel lateral tipo Finder: gris translúcido, sin líneas duras */
 .sidebar{width:222px;min-width:222px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding-bottom:6px}
 .content{flex:1;overflow-y:auto;background:var(--bg)}
+/* ── RIEL DE COBRO ────────────────────────────────────────────────────────
+   Va a la DERECHA a propósito: la izquierda ya es del menú y dos columnas
+   de navegación pelean. Máximo 3 al día; el resto callan hasta que les toca. */
+.riel{position:fixed;top:0;right:0;width:300px;height:100vh;background:var(--surface);
+  border-left:1px solid var(--border2);box-shadow:-4px 0 18px rgba(22,35,58,.07);
+  z-index:70;display:flex;flex-direction:column;transform:translateX(310px);
+  transition:transform .22s ease;font-family:'Outfit',var(--ui)}
+.riel.open{transform:translateX(0)}
+body.riel-on .content{margin-right:300px}
+.riel-h{background:var(--ciruela);padding:12px 15px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.riel-h b{color:#fff;font-size:13.5px;font-weight:700}
+.riel-h .n{background:var(--mant);color:var(--ciruela-d);font-size:12px;font-weight:800;padding:1px 9px;border-radius:99px}
+.riel-x{background:none;border:none;color:#E6D6DE;font-size:17px;cursor:pointer;line-height:1;padding:0 2px}
+.riel-b{flex:1;overflow-y:auto}
+.riel-it{padding:12px 15px;border-bottom:1px solid var(--border)}
+.riel-it.vieja{border-left:3px solid var(--ciruela)}
+.riel-t{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.riel-t b{font-size:13.5px;font-weight:700}
+.riel-t span{font-size:15px;font-weight:800;color:var(--ciruela);white-space:nowrap}
+.riel-s{font-size:11.5px;color:var(--text3);margin:2px 0 8px}
+.riel-nota{font-size:11.5px;color:var(--ciruela-d);background:var(--ciruela-l);padding:4px 8px;border-radius:6px;margin:0 0 8px}
+.riel-ax{display:flex;gap:6px}
+.riel-ax .btn{font-size:11.5px;padding:5px 10px}
+.riel-vacio{padding:26px 15px;text-align:center}
+.riel-vacio p{margin:0;font-size:13px}
+.riel-vacio small{font-size:11.5px;color:var(--text3)}
+.riel-pie{padding:9px 15px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+/* Botón flotante para volver a abrirlo */
+.riel-fab{position:fixed;bottom:22px;right:22px;z-index:69;background:var(--ciruela);color:#fff;border:none;
+  border-radius:99px;padding:11px 17px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Outfit',var(--ui);
+  box-shadow:0 5px 18px rgba(110,65,87,.32);display:none;align-items:center;gap:7px}
+.riel-fab .n{background:var(--mant);color:var(--ciruela-d);border-radius:99px;padding:0 7px;font-size:11.5px}
+@media(max-width:1100px){
+  .riel{width:100%;max-width:340px}
+  body.riel-on .content{margin-right:0}
+}
 .page{display:none;padding:1.15rem 1.35rem}.page.active{display:block}
 
 /* ── SIDEBAR ── */
@@ -751,6 +789,13 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
 
 <!-- CONTENT -->
 <div class="sb-overlay" id="sb-overlay" onclick="toggleSB(false)"></div>
+<aside class="riel" id="riel">
+  <div class="riel-h"><b>Por cobrar hoy</b><span><span class="n" id="riel-n">0</span>
+    <button class="riel-x" onclick="rielCerrar()" title="Ocultar">✕</button></span></div>
+  <div class="riel-b" id="riel-b"></div>
+  <div class="riel-pie" id="riel-pie"></div>
+</aside>
+<button class="riel-fab" id="riel-fab" onclick="rielAbrir()">💰 Por cobrar <span class="n" id="riel-fabn">0</span></button>
 <div class="content">
 <div class="mob-bar"><button class="mob-burger" onclick="toggleSB()">☰</button><span class="mob-title">IMPULSO</span></div>
 
@@ -1885,6 +1930,170 @@ function showLE(m){const e=document.getElementById('lerr');e.textContent=m;e.sty
 function logout(){CU=null;cart=[];molSel=null;document.getElementById('app').style.display='none';document.getElementById('login').style.display='flex';document.getElementById('pwd').value='';document.getElementById('lerr').style.display='none';document.querySelectorAll('.ucard').forEach(c=>c.classList.remove('sel'));try{go('cal');}catch(e){}}
 
 // ─── NAV ──────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+//  RIEL DE COBRO — lo que se entregó y no se ha pagado, pero de a poquito.
+//
+//  Por qué no es una lista de todo lo que deben: una lista que siempre trae
+//  40 renglones se vuelve tapiz y el ojo la apaga (como el globo de "Cambios
+//  recientes 200"). Aquí cada nota entregada trae su propia FECHA DE
+//  SEGUIMIENTO y solo salen las que vencen hoy, con tope de 3 al día.
+//
+//  Reloj acordado con Estefania (27/ago): toque a los 3 días de entregada,
+//  luego a los 10, luego a los 21, y de ahí en adelante cada mes.
+//
+//  Reparto acordado: cada vendedora ve SUS notas (las que traen su nombre) y
+//  Ana Belén se queda con las huérfanas — las que no traen vendedor o traen
+//  uno que ya no está activo. Admin y owner ven todo.
+// ═══════════════════════════════════════════════════════════════════════════
+var RIEL_TOPE=3;                 // nunca más de 3 al día, aunque haya 40 atrasadas
+var RIEL_GRACIA=3;               // días de cortesía tras entregar antes del primer toque
+var RIEL_SUGIERE=[7,11,30];      // días que propone el aplazo según cuántas veces ya se tocó
+var RIEL_HUERFANAS='Ana Belen';  // quién cubre lo que no trae vendedor
+var RIEL_SEG={};                 // folio|suc -> {next,nota,toques}
+var RIEL_OCULTO=false;           // lo cerró a mano en esta sesión
+
+function rielKey(p){return p.folio+'|'+(p.suc||'');}
+function cargarRielSeg(){
+  return fetch('/api/config/cobro_seg',{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){RIEL_SEG=(d&&d.valor)||{};return RIEL_SEG;})
+    .catch(function(){RIEL_SEG={};return RIEL_SEG;});
+}
+function guardarRielSeg(){
+  return fetch('/api/config/cobro_seg',{method:'PUT',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:RIEL_SEG})})
+    .catch(function(){});   // si falla, el riel sigue sirviendo: solo no recuerda el aplazo
+}
+function rielDias(a,b){return Math.round((new Date(b+'T12:00')-new Date(a+'T12:00'))/86400000);}
+function rielMasDias(f,n){var d=new Date(f+'T12:00');d.setDate(d.getDate()+n);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+
+// ¿Esta nota me toca a mí?
+function rielMia(p){
+  var u=_u(); if(!u)return false;
+  if(u.role==='admin'||u.role==='owner')return true;
+  var v=String(p.vend||'').trim().toLowerCase();
+  var yo=String(u.name||'').trim().toLowerCase();
+  if(v&&v===yo)return true;
+  // Huérfana: sin vendedor, o con uno que ya no está activo en el catálogo
+  var activa=VENDEDORES.some(function(x){
+    return x.estatus==='activo'&&String(x.nombre).trim().toLowerCase()===v;});
+  var huerfana=!v||!activa;
+  return huerfana&&yo===String(RIEL_HUERFANAS).trim().toLowerCase();
+}
+// Cuántos días propone el aplazo, según cuántas veces ya se tocó esta nota
+function rielSugiere(toques){
+  return RIEL_SUGIERE[Math.min(toques||0,RIEL_SUGIERE.length-1)];
+}
+// Una nota VENCE hoy si ya pasó la cortesía y nadie la aplazó a una fecha futura.
+// (La versión anterior calculaba el PRÓXIMO toque, que casi siempre cae adelante,
+//  así que entre un escalón y otro la nota se quedaba muda. Se corrigió.)
+function rielVence(c,hoy){
+  var g=RIEL_SEG[rielKey(c.p)];
+  if(g&&g.next)return g.next<=hoy;     // fue aplazada: manda la fecha que ella puso
+  return c.dias>=RIEL_GRACIA;          // nunca se ha tocado: vence pasada la cortesía
+}
+// Todas las entregadas que aún deben y son mías
+function rielCandidatas(){
+  var hoy=todayStr();
+  return (pedidos||[]).filter(function(p){
+    if(!(p.rest>0))return false;
+    if(String(p.est||'')!=='Entregado')return false;   // sin entregar no se cobra
+    return rielMia(p);
+  }).map(function(p){
+    var ent=p.entrega_real||p.entrega||p.fecha||hoy;
+    if(ent>hoy)ent=hoy;                                 // dedazos de fecha futura
+    var g=RIEL_SEG[rielKey(p)]||{};
+    return {p:p,ent:ent,dias:rielDias(ent,hoy),nota:g.nota||'',toques:g.toques||0};
+  });
+}
+// Lo que de verdad sale hoy: vencidas, las más viejas y las más grandes primero
+function rielHoy(){
+  var hoy=todayStr(),todas=rielCandidatas();
+  var v=todas.filter(function(c){return rielVence(c,hoy);});
+  v.sort(function(a,b){return (b.dias-a.dias)||(b.p.rest-a.p.rest);});   // las más viejas y grandes primero
+  return {vencen:v.slice(0,RIEL_TOPE),total:v.length,seguimiento:todas.length};
+}
+function rRiel(){
+  var el=document.getElementById('riel'); if(!el)return;
+  var d=rielHoy(),b=document.getElementById('riel-b');
+  document.getElementById('riel-n').textContent=d.vencen.length;
+  document.getElementById('riel-fabn').textContent=d.vencen.length;
+  if(!d.vencen.length){
+    b.innerHTML='<div class="riel-vacio"><p>Nada por hoy</p>'+
+      '<small>'+d.seguimiento+' nota'+(d.seguimiento===1?'':'s')+' en seguimiento, ninguna vence hoy</small></div>';
+  }else{
+    b.innerHTML=d.vencen.map(function(c){
+      var idx=pedidos.indexOf(c.p);
+      return '<div class="riel-it'+(c.dias>=21?' vieja':'')+'">'+
+        '<div class="riel-t"><b>'+(c.p.cli||'—')+'</b><span>'+fmt(c.p.rest)+'</span></div>'+
+        '<div class="riel-s">F.'+c.p.folio+' · entregado hace '+c.dias+' día'+(c.dias===1?'':'s')+'</div>'+
+        (c.nota?'<div class="riel-nota">'+c.nota+'</div>':'')+
+        '<div class="riel-ax">'+
+          '<button class="btn btn-p btn-xs" style="flex:1" onclick="rielCobrar('+idx+')">Se pagó</button>'+
+          '<button class="btn btn-s btn-xs" onclick="rielWA('+idx+')">WhatsApp</button>'+
+          '<button class="btn btn-s btn-xs" onclick="rielAplazar('+idx+')" title="Recordar después">🕐</button>'+
+        '</div></div>';
+    }).join('');
+  }
+  var pie=document.getElementById('riel-pie');
+  pie.textContent=d.total>d.vencen.length
+    ? (d.total+' vencidas · se muestran '+RIEL_TOPE+' al día para no saturar')
+    : (d.seguimiento+' en seguimiento en total');
+  // Se abre solo cuando hay algo y no lo cerraste a mano
+  if(d.vencen.length&&!RIEL_OCULTO)rielAbrir(); else rielCerrar(!d.vencen.length);
+}
+function rielAbrir(){
+  RIEL_OCULTO=false;
+  document.getElementById('riel').classList.add('open');
+  document.body.classList.add('riel-on');
+  document.getElementById('riel-fab').style.display='none';
+}
+function rielCerrar(sinNada){
+  RIEL_OCULTO=true;
+  document.getElementById('riel').classList.remove('open');
+  document.body.classList.remove('riel-on');
+  var f=document.getElementById('riel-fab');
+  f.style.display=sinNada?'none':'inline-flex';
+}
+// "Se pagó" NO inventa un estado nuevo: abre el abono de siempre en CxC.
+// Así el cobro se registra una sola vez y la nota sale del riel sola.
+function rielCobrar(idx){
+  var p=pedidos[idx]; if(!p)return;
+  go('cxc');
+  setTimeout(function(){
+    var l=misC(),i=l.findIndex(function(c){return c.folio===p.folio&&c.suc===p.suc;});
+    if(i<0){alert('Abre la nota '+p.folio+' desde Cuentas x cobrar.');return;}
+    openAbCxC(i);
+  },120);
+}
+function rielWA(idx){
+  var p=pedidos[idx]; if(!p)return;
+  var t='Hola '+(p.cli||'')+', le escribo de Impulso Galería. '+
+        'Su pedido '+p.folio+' ya fue entregado y queda un saldo de '+fmt(p.rest)+'. '+
+        '¿Nos ayuda con el pago? Gracias.';
+  window.open('https://wa.me/?text='+encodeURIComponent(t),'_blank');
+  rielAplazar(idx,'Le escribí por WhatsApp');
+}
+// Aplazar SIEMPRE pide fecha: ninguna nota se queda en el riel sin próxima cita
+function rielAplazar(idx,notaPrevia){
+  var p=pedidos[idx]; if(!p)return;
+  var g0=RIEL_SEG[rielKey(p)]||{};
+  var sug=rielSugiere(g0.toques);
+  var dias=prompt('¿En cuántos días te lo recuerdo?\n(escribe los días)',String(sug));
+  if(dias===null)return;
+  var n=parseInt(dias,10); if(!(n>0)){alert('Pon un número de días mayor a 0.');return;}
+  var razon=prompt('¿Qué pasó? (queda anotado en el riel)',notaPrevia||'');
+  if(razon===null)return;
+  var g=RIEL_SEG[rielKey(p)]||{toques:0};
+  g.next=rielMasDias(todayStr(),n);
+  g.nota=String(razon||'').slice(0,120);
+  g.toques=(g.toques||0)+1;
+  RIEL_SEG[rielKey(p)]=g;
+  guardarRielSeg().then(rRiel);
+  rRiel();
+}
+
 function go(id){
   if((id==='com'||id==='usr'||id==='audit')&&!esOwnerCU())return; // páginas exclusivas de la dueña
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1895,6 +2104,7 @@ function go(id){
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
     lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:()=>{cargarBcoOK().then(rCuadre);}
   })[id]?.();
+  try{rRiel();}catch(e){}
 }
 
 // ─── COTIZADOR ────────────────────────────────────────────────────────────────
@@ -7846,6 +8056,8 @@ function loadData(){
     ORDENES=ords||[];
     ABONOS=abns||[];
     cargarAuditOK().then(function(){try{correrAuditoria();badgeAudit();}catch(e){}}).catch(function(){});
+    // El riel de cobro se enciende al arrancar, no cuando alguien lo abre
+    cargarRielSeg().then(function(){try{rRiel();}catch(e){}}).catch(function(){});
     const uAct=USERS.find(x=>x.key===CU);
     if(uAct&&uAct.role==='taller'){go('ord');switchOrdTab('seguimiento',document.getElementById('chip-ord-seg'));}
     else go('cal');   // se entra al calendario
@@ -8187,7 +8399,7 @@ function rPend(){
     const abiertos=data.filter(p=>p.est!=='cerrado');
     const cerrados=data.filter(p=>p.est==='cerrado');
     let html=abiertos.map(p=>pendCard(p)).join('');
-    if(cerrados.length)html+=`<div style="margin-top:20px;padding:10px 0;border-top:1px solid #eee;color:#888;font-size:12px;font-weight:600">CERRADOS (${cerrados.length})</div>`+cerrados.map(p=>pendCard(p)).join('');
+    if(cerrados.length)html+=`<div style="margin-top:20px;padding:10px 0;border-top:1px solid var(--border2);color:var(--text3);font-size:12px;font-weight:600">CERRADOS (${cerrados.length})</div>`+cerrados.map(p=>pendCard(p)).join('');
     body.innerHTML=html;
   }).catch(()=>{document.getElementById('pend-body').innerHTML='<div style="padding:20px;color:#888">Cargando...</div>';});
 }
