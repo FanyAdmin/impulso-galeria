@@ -153,6 +153,23 @@ body.riel-on .content{margin-right:300px}
 /* Renglón seleccionado: gris claro tipo Excel. El color va en los td (no en el
    tr) para que gane sobre el fondo que ya traen los renglones casados. */
 .tbl tbody tr.sel td{background:#E9E9ED}
+/* ── Filtro de varias opciones, como el autofiltro de Excel ────────────── */
+.msel{position:relative;display:inline-block;flex:0 0 auto}
+.msel-b{font-size:12px;padding:4px 10px;border:1px solid var(--border2);border-radius:7px;background:var(--surface);
+  cursor:pointer;font-family:var(--ui);color:var(--text);white-space:nowrap}
+.msel-b:hover{border-color:var(--ciruela)}
+.msel.activo .msel-b{border-color:var(--ciruela);background:var(--ciruela-l);color:var(--ciruela-d);font-weight:700}
+.msel-d{position:absolute;left:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border2);
+  border-radius:10px;box-shadow:var(--sh3);z-index:60;min-width:200px;max-height:290px;overflow-y:auto;padding:5px;display:none}
+.msel-d.open{display:block}
+.msel-h{display:flex;gap:5px;padding:2px 4px 6px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.msel-h button{flex:1;font-size:11px;padding:4px;border:1px solid var(--border2);border-radius:6px;
+  background:var(--surface);cursor:pointer;font-family:var(--ui);color:var(--text2)}
+.msel-h button:hover{border-color:var(--ciruela);color:var(--ciruela)}
+.msel-o{display:flex;align-items:center;gap:7px;padding:5px 7px;border-radius:6px;font-size:12.5px;cursor:pointer}
+.msel-o:hover{background:var(--surface2)}
+.msel-o input{width:15px;height:15px;flex:0 0 auto;margin:0;accent-color:var(--ciruela)}
+.msel-vacio{padding:8px;font-size:12px;color:var(--text3)}
 .tbl tbody tr.sel:hover td{background:#E2E2E7}
 .tbl tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--ciruela)}
 /* Si además ya estaba casado, ese dato no se pierde: queda de guía a la izquierda */
@@ -1352,9 +1369,9 @@ body.riel-on .content{margin-right:300px}
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:.7rem;font-size:12px">
     <label style="color:var(--text3);flex:0 0 auto">Del</label><input type="date" id="cob-d1" onchange="rCob()" style="width:135px;flex:0 0 auto;font-size:12px;padding:4px 7px;border:1px solid var(--border);border-radius:7px">
     <label style="color:var(--text3);flex:0 0 auto">al</label><input type="date" id="cob-d2" onchange="rCob()" style="width:135px;flex:0 0 auto;font-size:12px;padding:4px 7px;border:1px solid var(--border);border-radius:7px">
-    <select id="cob-met" onchange="rCob()" style="width:170px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Método: todos</option></select>
-    <select id="cob-suc" onchange="rCob()" style="width:150px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Sucursal: todas</option></select>
-    <select id="cob-vend" onchange="rCob()" style="width:165px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface)"><option value="">Vendedor: todos</option></select>
+    <div class="msel" id="ms-met"><button class="msel-b" id="msb-met" onclick="mselTog(event,'met')">Método: todos ▾</button><div class="msel-d" id="msd-met" onclick="event.stopPropagation()"></div></div>
+    <div class="msel" id="ms-suc"><button class="msel-b" id="msb-suc" onclick="mselTog(event,'suc')">Sucursal: todas ▾</button><div class="msel-d" id="msd-suc" onclick="event.stopPropagation()"></div></div>
+    <div class="msel" id="ms-vend"><button class="msel-b" id="msb-vend" onclick="mselTog(event,'vend')">Vendedor: todos ▾</button><div class="msel-d" id="msd-vend" onclick="event.stopPropagation()"></div></div>
     <input id="cob-q" placeholder="🔍 Folio o cliente..." oninput="rCob()" style="width:170px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px">
     <button class="btn btn-s btn-xs" onclick="limpiarCob()">✕ Limpiar</button>
     <span id="cob-res" style="color:var(--text3);flex:0 0 auto"></span>
@@ -2845,7 +2862,7 @@ function menToggle(ev,id){
   if(d&&!ya)d.classList.add('open');
 }
 document.addEventListener('click',function(){
-  document.querySelectorAll('.men-d.open').forEach(function(x){x.classList.remove('open');});
+  document.querySelectorAll('.men-d.open,.msel-d.open').forEach(function(x){x.classList.remove('open');});
 });
 // ── Cancelar una nota ────────────────────────────────────────────────────
 // NO es borrar: la nota existió y queda el rastro de por qué se canceló.
@@ -6686,25 +6703,77 @@ function cobAjustaAlto(){
 }
 window.addEventListener('resize',function(){try{cobAjustaAlto();}catch(e){}});
 
+// ═══ FILTRO DE VARIAS OPCIONES (como el autofiltro de Excel) ═════════════
+// Antes eran <select> de una sola opción: no se podían ver juntas Tarjeta
+// INBURSA y Transferencia. Lista vacía = no filtra nada (todas).
+var COB_F={met:[],suc:[],vend:[]};
+var COB_OPC={met:[],suc:[],vend:[]};
+var COB_LBL={met:['Método','todos'],suc:['Sucursal','todas'],vend:['Vendedor','todos']};
+function mselLlenar(campo,vals){
+  COB_OPC[campo]=[...new Set(vals.filter(Boolean))].sort();
+  // Si una opción desapareció al cambiar de fechas, se suelta sola
+  COB_F[campo]=COB_F[campo].filter(function(v){return COB_OPC[campo].indexOf(v)>=0;});
+  mselPinta(campo);
+}
+function mselPinta(campo){
+  var d=document.getElementById('msd-'+campo); if(!d)return;
+  var sel=COB_F[campo],opc=COB_OPC[campo];
+  d.innerHTML='<div class="msel-h"><button onclick="mselTodos(\''+campo+'\',1)">Todos</button>'+
+    '<button onclick="mselTodos(\''+campo+'\',0)">Ninguno</button></div>'+
+    (opc.length?opc.map(function(v,i){
+      return '<label class="msel-o"><input type="checkbox"'+(sel.indexOf(v)>=0?' checked':'')+
+        ' onchange="mselPick(\''+campo+'\','+i+')">'+String(v).replace(/</g,'&lt;')+'</label>';
+    }).join(''):'<div class="msel-vacio">Sin opciones en este periodo</div>');
+  var b=document.getElementById('msb-'+campo);
+  if(b)b.textContent=COB_LBL[campo][0]+': '+
+    (!sel.length?COB_LBL[campo][1]:(sel.length===1?sel[0]:sel.length+' seleccionados'))+' ▾';
+  var w=document.getElementById('ms-'+campo);
+  if(w)w.classList.toggle('activo',sel.length>0);
+}
+function mselPick(campo,i){
+  var v=COB_OPC[campo][i]; if(v===undefined)return;
+  var a=COB_F[campo],j=a.indexOf(v);
+  if(j>=0)a.splice(j,1); else a.push(v);
+  mselPinta(campo); rCob();
+}
+function mselTodos(campo,todos){
+  // "Todos" y "Ninguno" filtran igual (no filtran). Se guarda la lista vacía en
+  // los dos casos para que el botón diga "todos" y no "4 seleccionados".
+  COB_F[campo]=[];
+  if(todos){var d=document.getElementById('msd-'+campo);
+    if(d)d.querySelectorAll('input[type=checkbox]').forEach(function(c){c.checked=true;});}
+  mselPinta(campo); rCob();
+}
+function mselTog(ev,campo){
+  ev.stopPropagation();
+  var d=document.getElementById('msd-'+campo),ya=d.classList.contains('open');
+  document.querySelectorAll('.msel-d.open,.men-d.open').forEach(function(x){x.classList.remove('open');});
+  if(!ya)d.classList.add('open');
+}
+// Aplica los tres filtros a la vez
+function cobFiltra(rows){
+  if(COB_F.met.length) rows=rows.filter(function(r){return COB_F.met.indexOf(r.met)>=0;});
+  if(COB_F.suc.length) rows=rows.filter(function(r){return COB_F.suc.indexOf(r.suc)>=0;});
+  if(COB_F.vend.length)rows=rows.filter(function(r){return COB_F.vend.indexOf(r.vend)>=0;});
+  return rows;
+}
+
 function rCob(){
   // Defaults: últimos 14 días
   const d1El=document.getElementById('cob-d1'),d2El=document.getElementById('cob-d2');
   if(!d1El.value){const h=new Date(),a=new Date();a.setDate(h.getDate()-13);d1El.value=dateStrLocal(a);d2El.value=dateStrLocal(h);}
   const u=USERS.find(x=>x.key===CU)||{};
   const esAdm=u.role==='admin'||u.role==='owner';
-  document.getElementById('cob-suc').style.display=esAdm?'':'none';
+  document.getElementById('ms-suc').style.display=esAdm?'':'none';
   const cbBtn=document.getElementById('cob-concil-btn');if(cbBtn)cbBtn.style.display=esAdm?'':'none';
   if(esAdm&&!rCob._concilLoaded){rCob._concilLoaded=true;loadConcil().then(()=>rCob());}
   let rows=cobRows();
   // Poblar selects dinámicos preservando selección
-  const llenar=(id,vals,pref)=>{const s=document.getElementById(id);if(!s)return;const prev=s.value;s.innerHTML='<option value="">'+pref+'</option>'+[...new Set(vals.filter(Boolean))].sort().map(v=>'<option>'+String(v).replace(/</g,'&lt;')+'</option>').join('');if([...s.options].some(o=>o.value===prev))s.value=prev;};
-  llenar('cob-met',rows.map(r=>r.met),'Método: todos');
-  llenar('cob-suc',rows.map(r=>r.suc),'Sucursal: todas');
-  llenar('cob-vend',rows.map(r=>r.vend),'Vendedor: todos');
-  const fm=document.getElementById('cob-met').value,fs=document.getElementById('cob-suc').value,fv=document.getElementById('cob-vend').value,q=(document.getElementById('cob-q').value||'').toLowerCase();
-  if(fm)rows=rows.filter(r=>r.met===fm);
-  if(fs)rows=rows.filter(r=>r.suc===fs);
-  if(fv)rows=rows.filter(r=>r.vend===fv);
+  mselLlenar('met',rows.map(r=>r.met));
+  mselLlenar('suc',rows.map(r=>r.suc));
+  mselLlenar('vend',rows.map(r=>r.vend));
+  const q=(document.getElementById('cob-q').value||'').toLowerCase();
+  rows=cobFiltra(rows);
   if(q)rows=rows.filter(r=>String(r.folio).toLowerCase().includes(q)||String(r.cli).toLowerCase().includes(q));
   rows.sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha))||String(b.folio).localeCompare(String(a.folio)));
   // Agrupar por día con subtotales por grupo de método
@@ -6716,7 +6785,7 @@ function rCob(){
     const subs={};rs.forEach(r=>{const g=metGrupoCob(r.met);subs[g]=(subs[g]||0)+r.monto;});
     const tot=rs.reduce((s,r)=>s+r.monto,0);
     const fbonita=new Date(f+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
-    h+='<tr><td colspan="8" style="background:var(--green-l);font-weight:700;color:var(--green);padding:7px 10px">📅 '+fbonita+' &nbsp;·&nbsp; '+fmt(tot)+' &nbsp;<span style="font-weight:400;font-size:11px;color:#3a6b52">'+Object.keys(subs).filter(g=>subs[g]>0).map(g=>g+': '+fmt(subs[g])).join(' · ')+'</span></td></tr>';
+    h+='<tr><td colspan="8" style="background:var(--ciruela);font-weight:800;color:#fff;padding:8px 10px;letter-spacing:.01em">📅 '+fbonita+' &nbsp;·&nbsp; '+fmt(tot)+' &nbsp;<span style="font-weight:400;font-size:11px;color:#E6D6DE">'+Object.keys(subs).filter(g=>subs[g]>0).map(g=>g+': '+fmt(subs[g])).join(' · ')+'</span></td></tr>';
     rs.forEach(r=>{
       const cz=concilDe(r.k);
       const fondo=cz?('background:'+cz.color+';'):'';
@@ -6743,16 +6812,14 @@ function rCob(){
   document.getElementById('cob-res').textContent=resTxt;
   rCobBarra();
 }
-function limpiarCob(){['cob-met','cob-suc','cob-vend','cob-q'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});rCob();}
+function limpiarCob(){COB_F={met:[],suc:[],vend:[]};const q=document.getElementById('cob-q');if(q)q.value='';['met','suc','vend'].forEach(mselPinta);rCob();}
 function expCobXlsx(){
   const rows=[['COBRANZA IMPULSO GALERIA'],['Fecha','Folio','Cliente','Tipo','Método','Monto','Vendedor','Sucursal','Ref']];
   // exporta exactamente lo filtrado y visible
   const d1=document.getElementById('cob-d1').value,d2=document.getElementById('cob-d2').value;
   let data=cobRows();
-  const fm=document.getElementById('cob-met').value,fs=document.getElementById('cob-suc').value,fv=document.getElementById('cob-vend').value,q=(document.getElementById('cob-q').value||'').toLowerCase();
-  if(fm)data=data.filter(r=>r.met===fm);
-  if(fs)data=data.filter(r=>r.suc===fs);
-  if(fv)data=data.filter(r=>r.vend===fv);
+  const q=(document.getElementById('cob-q').value||'').toLowerCase();
+  data=cobFiltra(data);
   if(q)data=data.filter(r=>String(r.folio).toLowerCase().includes(q)||String(r.cli).toLowerCase().includes(q));
   data.sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
   data.forEach(r=>rows.push([r.fecha,r.folio,r.cli,r.tipo,r.met,r.monto,r.vend,r.suc,r.ref]));
