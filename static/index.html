@@ -67,6 +67,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
 .sb-brand::after{content:'.';color:var(--rosa)}
 .sb-brand{font-size:15.5px;font-weight:700;letter-spacing:.02em;color:var(--text)}
 .sb-sub{font-size:11px;color:var(--text3);margin-top:1px;letter-spacing:0}
+/* Logo: si existe /static/logo-impulso.png se usa ese; si no, el nombre
+   dibujado con las fuentes que ya carga la página. Nunca se queda vacío. */
+.sb-mark{display:block;cursor:pointer;margin-bottom:5px}
+.sb-mark img{max-width:140px;max-height:46px;object-fit:contain;display:block}
+.sb-imp{font-size:15.5px;font-weight:400;letter-spacing:.3em;color:var(--text);line-height:1}
+.sb-gal{font-family:var(--mano);font-size:17px;font-weight:700;color:var(--ciruela);line-height:1;margin-top:1px;padding-left:36px}
+.sb-ver{font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:3px}
+.lg-mark img{max-width:150px;max-height:52px;object-fit:contain;margin:0 auto 4px;display:block}
+.lg-imp{font-size:19px;font-weight:400;letter-spacing:.32em;line-height:1}
+.lg-gal{font-family:var(--mano);font-size:21px;font-weight:700;color:var(--ciruela);line-height:1;margin-top:1px}
 .sb-section{font-size:10.5px;font-weight:700;color:var(--text3);padding:12px 17px 4px;letter-spacing:.02em;display:flex;align-items:center;gap:6px}
 .sb-section::after{content:'';flex:1;height:1px;background:var(--border)}
 .sb-item{display:flex;align-items:center;gap:8px;padding:5px 10px;margin:1px 8px;border-radius:7px;font-size:12.5px;font-weight:500;color:var(--text2);cursor:pointer;transition:background .12s,color .12s}
@@ -238,6 +248,30 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
 #page-ban .tbl th{font-size:13px;padding:11px 18px}
 #page-ban .tbl td{padding:12px 18px}
 
+/* ── COTIZADOR: las líneas se ven, el precio manda ────────────────────────
+   Borde a --border2 (un escalón más oscuro), barra ciruela por sección,
+   extras como chips y el total como el elemento más visible. */
+#page-cot .card{border-color:var(--border2);border-left:4px solid var(--ciruela);border-radius:0 var(--rad-lg) var(--rad-lg) 0}
+#page-cot input,#page-cot select,#page-cot textarea{border-color:var(--border2)}
+#page-cot .card-title{font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px}
+#page-cot .cot-n{background:var(--ciruela);color:#fff;width:20px;height:20px;border-radius:50%;font-size:11px;font-weight:700;
+  display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+#page-cot .cot-gl{font-size:10.5px;font-weight:700;color:var(--text3);letter-spacing:.05em;margin:0 0 6px}
+#page-cot .xgrid{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:.35rem}
+#page-cot .xbtn{border-radius:99px;padding:6px 14px;font-size:12.5px;border:1px solid var(--border2);background:var(--surface);color:var(--text2)}
+#page-cot .xbtn:hover{border-color:var(--ciruela)}
+#page-cot .xbtn.on{border:1.5px solid var(--ciruela);background:var(--ciruela-l);color:var(--ciruela-d);font-weight:700}
+#page-cot .xbtn.on::before{content:'✓ ';font-weight:800}
+#page-cot #x-mlcolor{width:100%;margin-top:9px}
+/* La barra del precio: lo único con fondo lleno en toda la pantalla */
+#page-cot .pbar{background:var(--ciruela);border-radius:var(--rad-lg);padding:15px 18px}
+#page-cot .pbar div{color:#E6D6DE!important}
+#page-cot .pbar .pval,#page-cot .pbar #p-con{color:var(--mant)!important;font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1}
+#page-cot .pbar #p-sin{color:#E6D6DE!important;font-size:12.5px}
+/* El botón suelta el color: ya no compite con el precio */
+#page-cot .card .btn.btn-p{background:var(--surface);color:var(--ciruela-d);border:1.5px solid var(--ciruela)}
+#page-cot .card .btn.btn-p:hover{background:var(--ciruela-l)}
+
 /* ── BANCOS: el puente. Blanco + ciruela; el ciruela SOLO en lo que no cuadra ── */
 #page-ban .ban-hero,#page-ban .ban-cta,#page-ban .ban-pu{font-family:'Outfit',var(--ui)}
 #page-ban .ban-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
@@ -365,7 +399,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
 <!-- LOGIN -->
 <div id="login" class="login-wrap">
 <div class="login-card">
-  <div style="font-size:20px;font-weight:700;letter-spacing:.08em;margin-bottom:2px">IMPULSO</div>
+  <div class="lg-mark" style="margin-bottom:4px">
+    <img src="/static/logo-impulso.png" alt="Impulso Galería" style="display:none"
+         onload="this.style.display='block';document.getElementById('lg-wm').style.display='none'"
+         onerror="this.remove()">
+    <div id="lg-wm"><div class="lg-imp">IMPULSO</div><div class="lg-gal">galería</div></div>
+  </div>
   <div style="font-size:11px;color:var(--text3);margin-bottom:1.75rem;letter-spacing:.05em;text-transform:uppercase">Sistema de gestión · Marcos & Galería</div>
   <div class="field"><label>Selecciona tu usuario</label><div class="u-grid" id="u-grid"></div></div>
   <div class="field"><label>Contraseña</label><input type="password" id="pwd" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"></div>
@@ -654,7 +693,16 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · ciruela v4</div></div>
+  <div class="sb-logo">
+    <div class="sb-mark" onclick="go('hoy')" title="Impulso Galería">
+      <img src="/static/logo-impulso.png" alt="Impulso Galería" style="display:none"
+           onload="this.style.display='block';document.getElementById('sb-wm').style.display='none'"
+           onerror="this.remove()">
+      <div id="sb-wm"><div class="sb-imp">IMPULSO</div><div class="sb-gal">galería</div></div>
+    </div>
+    <div class="sb-sub" id="sb-suc">—</div>
+    <div class="sb-ver">versión 27-ago · ciruela v4</div>
+  </div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
@@ -712,7 +760,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
   <div style="display:grid;grid-template-columns:1fr 380px;gap:1rem">
     <div>
       <div class="card">
-        <div class="card-title" style="display:flex;align-items:center;gap:6px">🖼️ Producto</div>
+        <div class="card-title" style="display:flex;align-items:center;gap:6px"><span class="cot-n">1</span>Producto</div>
         <div class="search-wrap">
           <input id="mol-q" placeholder="Escribe el nombre de la moldura..." oninput="searchMol(this.value)" autocomplete="off">
           <div class="search-drop" id="mol-drop"></div>
@@ -725,7 +773,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
       </div>
       <div class="card">
         <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-          <span>📐 Medidas del marco</span>
+          <span style="display:flex;align-items:center;gap:8px"><span class="cot-n">2</span>Medidas del marco</span>
           <span style="display:inline-flex;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;font-size:12px">
             <button id="u-cm" onclick="setUnit('cm')" style="padding:5px 16px;border:none;cursor:pointer;font-weight:700;background:var(--green);color:#fff">cm</button>
             <button id="u-in" onclick="setUnit('pulg')" style="padding:5px 12px;border:none;cursor:pointer;font-weight:700;background:transparent;color:var(--text2)">pulg</button>
@@ -738,22 +786,26 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
         </div>
       </div>
       <div class="card">
-        <div class="card-title">✨ Extras</div>
+        <div class="card-title"><span class="cot-n">3</span>Extras <span style="font-weight:400;color:var(--text3);font-size:12px">— pícale a lo que lleve</span></div>
+        <div class="cot-gl">vidrio</div>
         <div class="xgrid">
           <label class="xbtn" id="xb-va"><input type="checkbox" id="x-va" onchange="tX('va');calcP()"> Vid. Antireflex</label>
           <label class="xbtn" id="xb-vn"><input type="checkbox" id="x-vn" onchange="tX('vn');calcP()"> Vidrio Normal</label>
+          <label class="xbtn" id="xb-vm"><input type="checkbox" id="x-vm" onchange="tX('vm');calcP()"> Vid. Museo</label>
           <label class="xbtn" id="xb-v2"><input type="checkbox" id="x-v2" onchange="tX('v2');calcP()"> /2 Vidrio</label>
+        </div>
+        <div class="cot-gl" style="margin-top:12px">marialuisa</div>
+        <div class="xgrid">
           <label class="xbtn" id="xb-ml"><input type="checkbox" id="x-ml" onchange="tX('ml');calcP()"> ML</label>
           <label class="xbtn" id="xb-2m"><input type="checkbox" id="x-2m" onchange="tX('2m');calcP()"> 2ML</label>
           <label class="xbtn" id="xb-cj"><input type="checkbox" id="x-cj" onchange="tX('cj');calcP()"> Cama Justa</label>
-          <label class="xbtn" id="xb-vm"><input type="checkbox" id="x-vm" onchange="tX('vm');calcP()"> Vid. Museo</label>
-          <input id="x-mlcolor" placeholder="🎨 Color de la ML (ej. blanco, nogal, lino...)" style="grid-column:1/-1;font-size:12px" oninput="calcP()">
         </div>
+        <input id="x-mlcolor" placeholder="🎨 Color de la ML (ej. blanco, nogal, lino...)" style="font-size:12px;margin-bottom:.75rem" oninput="calcP()">
         <div class="pbar">
           <div><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Vista previa</div><div id="p-det" style="font-size:11px;color:var(--text3);margin-top:2px">Selecciona moldura y medidas</div></div>
-          <div><div id="p-sin" style="font-size:12px;color:var(--text3);text-align:right;font-weight:500">$0.00</div><div style="font-size:9px;color:var(--text3);text-align:right;margin-top:1px">sin IVA</div><div class="pval" id="p-con" style="color:var(--green)">$0.00</div><div style="font-size:9px;color:var(--green);text-align:right;margin-top:1px;font-weight:600">con IVA</div></div>
+          <div><div id="p-sin" style="font-size:12.5px;text-align:right;font-weight:500">$0.00</div><div style="font-size:10px;text-align:right;margin-top:1px">sin IVA</div><div class="pval" id="p-con">$0.00</div><div style="font-size:10.5px;text-align:right;margin-top:2px;font-weight:600">con IVA</div></div>
         </div>
-        <div style="margin-top:.9rem"><button class="btn btn-p" onclick="addCart()" style="width:100%;padding:13px;font-size:15px;border-radius:10px;justify-content:center">🛒 Agregar a cotización</button></div>
+        <div style="margin-top:.9rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="btn btn-p" onclick="addCart()" style="padding:10px 20px;font-size:14px;border-radius:10px">🛒 Agregar a cotización</button><span id="cot-cuantos" style="font-size:12px;color:var(--text3)"></span></div>
       </div>
       <!-- SERVICIO LIBRE -->
       <div class="card">
@@ -1940,6 +1992,9 @@ function addCart(){
 }
 function rCart(){
   const e=document.getElementById('c-empty'),it=document.getElementById('c-items');
+  // El botón ya no es de ancho completo: el conteo va a un lado para no perderlo de vista
+  const cn=document.getElementById('cot-cuantos');
+  if(cn)cn.textContent=cart.length?(cart.length+' artículo'+(cart.length>1?'s':'')+' en la cotización'):'';
   if(!cart.length){e.style.display='block';it.style.display='none';document.getElementById('cc-btn').style.display='none';return;}
   e.style.display='none';it.style.display='block';document.getElementById('cc-btn').style.display='inline-flex';
   document.getElementById('c-list').innerHTML=cart.map((x,i)=>`
