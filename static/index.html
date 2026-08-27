@@ -141,7 +141,9 @@ body.riel-on .content{margin-right:300px}
 .tw{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);overflow:hidden;margin-bottom:.75rem;box-shadow:none}
 .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
 /* Encabezado blanco con una sola línea de pelo, pero apretado */
-.tbl th{font-size:11px;font-weight:700;color:var(--text3);padding:9px 11px;text-align:left;background:var(--surface2);border-bottom:1px solid var(--border);letter-spacing:.04em;text-transform:uppercase;white-space:nowrap}
+.tbl th{font-size:11px;font-weight:700;color:#fff;padding:9px 11px;text-align:left;background:var(--ciruela);border-bottom:none;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.tbl thead tr:first-child th:first-child{border-top-left-radius:9px}
+.tbl thead tr:first-child th:last-child{border-top-right-radius:9px}
 .tbl td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:middle;font-variant-numeric:tabular-nums}
 /* La tabla ocupa todo el ancho: el sobrante se reparte entre las columnas de
    datos, y la última (la de los botones) se queda del tamaño de sus botones. */
@@ -411,7 +413,7 @@ body.riel-on .content{margin-right:300px}
 #page-ban .ban-pu-nota{font-size:11.5px;color:var(--text3)}
 @media(max-width:700px){#page-ban .ban-hero-v{font-size:34px}#page-ban .ban-ctas{grid-template-columns:1fr 1fr}}
 /* Cobranza: encabezado de columnas pegado bajo el bloque fijo */
-#page-cob .tbl thead th{position:sticky;top:var(--cob-alto,132px);z-index:8;background:var(--surface);box-shadow:0 1px 0 var(--border)}
+#page-cob .tbl thead th{position:sticky;top:var(--cob-alto,132px);z-index:8;background:var(--ciruela);box-shadow:0 2px 6px -2px rgba(16,24,40,.3)}
 
 /* ── ABONO ROW ── */
 .ab-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -1347,6 +1349,7 @@ body.riel-on .content{margin-right:300px}
               <span style="flex:1"></span>
               <button class="btn btn-s btn-xs" id="ban-f-todos" onclick="banFiltro()">Ver todos</button>
             </div>
+            <div id="ban-com-aviso"></div>
             <div id="ban-lineas" style="max-height:58vh;overflow:auto"></div>
           </div>
         </div>
@@ -4776,11 +4779,11 @@ function rFolios(){
   c.innerHTML=res+hres+
     '<div style="max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:10px">'+
     '<table style="width:100%;border-collapse:collapse;font-size:12px">'+
-    '<thead><tr style="position:sticky;top:0"><th style="background:var(--surface2);text-align:left;padding:7px">No. de nota</th>'+
-    '<th style="background:var(--surface2);text-align:left;padding:7px">Estado</th>'+
-    '<th style="background:var(--surface2);text-align:left;padding:7px">Fecha</th>'+
-    '<th style="background:var(--surface2);text-align:left;padding:7px">Cliente</th>'+
-    '<th style="background:var(--surface2);text-align:right;padding:7px">Total</th></tr></thead>'+
+    '<thead><tr style="position:sticky;top:0"><th style="background:var(--ciruela);color:#fff;text-align:left;padding:7px">No. de nota</th>'+
+    '<th style="background:var(--ciruela);color:#fff;text-align:left;padding:7px">Estado</th>'+
+    '<th style="background:var(--ciruela);color:#fff;text-align:left;padding:7px">Fecha</th>'+
+    '<th style="background:var(--ciruela);color:#fff;text-align:left;padding:7px">Cliente</th>'+
+    '<th style="background:var(--ciruela);color:#fff;text-align:right;padding:7px">Total</th></tr></thead>'+
     '<tbody>'+filas+'</tbody></table></div>'+
     '<div style="font-size:11.5px;color:var(--text3);margin-top:8px">Un hueco no siempre es un error: puede ser una nota cancelada o de otro talonario. Lo que justifiques deja de aparecer aquí y en la lista de abajo.</div>';
 }
@@ -6192,7 +6195,7 @@ function rER(){
   const mesesIdx=Array.from({length:6},(_,i)=>(mesAct-5+i+12)%12);
   const mesesVis=mesesIdx.map(i=>MESES_C[i]);
   const tbl=document.getElementById('er-tbl');
-  const head=`<thead><tr><th style="min-width:200px;position:sticky;left:0;z-index:2;background:var(--surface2)">Concepto</th>${mesesVis.map(m=>`<th style="text-align:right;min-width:95px">${m}</th>`).join('')}<th style="text-align:right;min-width:95px;background:#F0EFE9">Total</th></tr></thead>`;
+  const head=`<thead><tr><th style="min-width:200px;position:sticky;left:0;z-index:2;background:var(--ciruela)">Concepto</th>${mesesVis.map(m=>`<th style="text-align:right;min-width:95px">${m}</th>`).join('')}<th style="text-align:right;min-width:95px;background:#F0EFE9">Total</th></tr></thead>`;
 
   const sections=[
     {label:'(+) Ingresos & Ventas',cls:'er-ing',key:'ing',items:[...ER_CATS.ingresos,OTROS_ING],fn:getIngresoER},
@@ -6296,7 +6299,9 @@ function concilYaCasados(){return Object.keys(CONCIL_SEL).filter(k=>typeof CONCI
 function rCobBarra(){
   const n=Object.keys(CONCIL_SEL).length,suma=concilSuma(),ya=concilYaCasados().length;
   const el=document.getElementById('cob-barra');if(!el)return;
+  const antes=el.style.display;
   el.style.display=CONCIL_ON?'flex':'none';
+  if(antes!==el.style.display){try{cobAjustaAlto();}catch(e){}}
   document.getElementById('cob-barra-info').innerHTML=n
     ?('Seleccionados: <b>'+n+'</b> · SUMA: <b style="font-size:16px">'+fmt(suma)+'</b>'+
       (ya?' <span style="opacity:.85;font-size:12px">· '+ya+' ya estaban casados (solo suman aquí)</span>':''))
@@ -6702,6 +6707,20 @@ function cobAjustaAlto(){
   document.getElementById('page-cob').style.setProperty('--cob-alto',f.offsetHeight+'px');
 }
 window.addEventListener('resize',function(){try{cobAjustaAlto();}catch(e){}});
+// El alto de la barra fija cambia solo: al mostrarse la barra de conciliación,
+// al envolverse los filtros en dos renglones, al cambiar el zoom. Si no se
+// recalcula, el encabezado se planta a la altura vieja — a media lista.
+(function(){
+  function engancha(){
+    var f=document.getElementById('cob-fijo');
+    if(!f){setTimeout(engancha,400);return;}
+    if(window.ResizeObserver){new ResizeObserver(function(){cobAjustaAlto();}).observe(f);}
+    else{setInterval(cobAjustaAlto,700);}   // navegadores viejos
+    cobAjustaAlto();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',engancha);
+  else engancha();
+})();
 
 // ═══ FILTRO DE VARIAS OPCIONES (como el autofiltro de Excel) ═════════════
 // Antes eran <select> de una sola opción: no se podían ver juntas Tarjeta
@@ -6958,7 +6977,7 @@ function banLeerPDF(){
 function banLineas(){
   if(!BAN_EDO&&typeof CUA!=='undefined'&&CUA&&CUA.cargos)BAN_EDO=CUA;   // el que ya se leyó en Cuadre
   if(!BAN_EDO)return [];
-  var L=(BAN_EDO.cargos||[]).map(function(b){return {f:b.fecha,monto:b.monto,det:b.det||b.tipo||'',signo:-1,com:!!b.comision};})
+  var L=(BAN_EDO.cargos||[]).map(function(b){var d=b.det||b.tipo||'';return {f:b.fecha,monto:b.monto,det:d,signo:-1,com:banEsComision(d,b.comision)};})
     .concat((BAN_EDO.depositos||[]).concat(BAN_EDO.otros_abonos||[]).map(function(b){return {f:b.fecha,monto:b.monto,det:b.det||b.tipo||'',signo:1,com:false};}));
   return L.sort(function(a,b){return String(b.f).localeCompare(String(a.f));});
 }
@@ -7001,6 +7020,41 @@ function banOtros(l){
   }).slice(0,4);
 }
 
+// Las comisiones del banco (TASA DE DESCTO, CUOTA, y sus IVA) son decenas de
+// renglones chiquitos. Casarlos uno por uno es absurdo: van en UN movimiento.
+// El botón vive aquí, junto a la lista, y no solo dentro del puente — el
+// puente necesita el saldo final del estado de cuenta y no siempre lo trae.
+// Qué cuenta como comisión del banco. El servidor ya marca algunas al leer el
+// PDF, pero si no reconoce una etiqueta el renglón se queda suelto; esto lo
+// respalda leyendo el texto. Conservador a propósito: "TRANSFERENCIA - ENVIO -
+// SPEI" es la comisión por mandar, "TRANSFERENCIA SPEI" a secas es el pago real.
+function banEsComision(txt,yaMarcada){
+  if(yaMarcada)return true;
+  var t=String(txt||'').toUpperCase();
+  return t.indexOf('TASA DE DESCTO')>=0
+      || t.indexOf('COMISION')>=0
+      || t.indexOf('CUOTA')>=0
+      || t.indexOf('ENVIO - SPEI')>=0
+      || t.indexOf('ENVIO-SPEI')>=0
+      || t.indexOf('MANEJO DE CUENTA')>=0;
+}
+
+function banComAviso(pend){
+  var el=document.getElementById('ban-com-aviso'); if(!el)return;
+  var com=(pend||[]).filter(function(l){return l.com&&l.signo<0;});
+  if(!com.length){el.innerHTML='';return;}
+  var tot=com.reduce(function(a,l){return a+l.monto;},0);
+  el.innerHTML='<div style="background:var(--ciruela-l);border-bottom:1px solid var(--border);padding:10px 14px;'+
+    'display:flex;align-items:center;gap:11px;flex-wrap:wrap">'+
+    '<div style="flex:1;min-width:180px">'+
+      '<div style="font-size:12.5px;font-weight:700;color:var(--ciruela-d)">'+
+        com.length+' comisiones del banco sin capturar · '+fmt(tot)+'</div>'+
+      '<div style="font-size:11.5px;color:var(--ciruela)">Se registran juntas en un solo movimiento, no una por una</div>'+
+    '</div>'+
+    '<button class="btn btn-p btn-sm" onclick="banRegistrarCom()">Registrar las '+com.length+' juntas</button>'+
+    '</div>';
+}
+
 function banPinta(){
   var cont=document.getElementById('ban-lineas'),det=document.getElementById('ban-detalle');
   if(!cont)return;
@@ -7016,6 +7070,7 @@ function banPinta(){
     '<div class="metric" style="background:'+(pend.length?'#FDF2F7':'var(--surface)')+'"><div class="m-label">Por revisar</div><div class="m-val" style="color:'+(pend.length?'#B0004E':'var(--text)')+'">'+pend.length+'</div><div class="m-sub">'+fmt(sumaP)+'</div></div>'+
     '<div class="metric"><div class="m-label">Neto del periodo</div><div class="m-val">'+fmt(sumaB)+'</div><div class="m-sub">según el banco</div></div>';
 
+  banComAviso(pend);
   var ver=BAN_FIL==='pend'?pend:L;
   document.getElementById('ban-lin-info').textContent=ver.length+' renglón(es)';
   var fecha='';
@@ -7349,7 +7404,7 @@ function banPuenteHTML(){
 function banRegistrarCom(){
   if(!BAN_EDO){alert('Primero sube el estado de cuenta.');return;}
   var cta=document.getElementById('ban-cta').value;
-  var faltan=(BAN_EDO.cargos||[]).filter(function(b){return b.comision&&!BCO_OK[kLinea(b)];});
+  var faltan=(BAN_EDO.cargos||[]).filter(function(b){return banEsComision(b.det||b.tipo||'',b.comision)&&!BCO_OK[kLinea(b)];});
   var tot=faltan.reduce(function(a,b){return a+b.monto;},0);
   if(!tot){alert('Ya no falta ninguna comisión por capturar.');return;}
   var f=faltan.map(function(b){return b.fecha;}).sort().pop();
