@@ -237,6 +237,44 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
 #page-ban .tbl{font-size:15px}
 #page-ban .tbl th{font-size:13px;padding:11px 18px}
 #page-ban .tbl td{padding:12px 18px}
+
+/* ── BANCOS: el puente. Blanco + ciruela; el ciruela SOLO en lo que no cuadra ── */
+#page-ban .ban-hero,#page-ban .ban-cta,#page-ban .ban-pu{font-family:'Outfit',var(--ui)}
+#page-ban .ban-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+#page-ban .ban-hero-l{font-size:13.5px;color:var(--text2);margin-bottom:2px}
+#page-ban .ban-hero-v{font-size:44px;font-weight:800;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums}
+#page-ban .ban-hero-v span{font-size:25px;color:var(--text3);font-weight:600}
+#page-ban .ban-hero-r{text-align:right}
+#page-ban .ban-hero-f{font-size:12px;color:var(--text3);margin-top:6px}
+#page-ban .ban-chip{display:inline-block;background:var(--ciruela-l);color:var(--ciruela-d);font-size:12.5px;font-weight:700;padding:5px 13px;border-radius:99px}
+#page-ban .ban-chip.ok{background:var(--menta-l);color:#12724C}
+#page-ban .ban-ctas{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;margin-bottom:18px}
+#page-ban .ban-cta{background:var(--surface);border:2px solid var(--border);border-radius:16px;padding:14px 15px;cursor:pointer;transition:transform .12s,border-color .12s}
+#page-ban .ban-cta:hover{transform:translateY(-2px);border-color:var(--ciruela)}
+#page-ban .ban-cta.alerta{border-color:var(--ciruela);box-shadow:0 0 0 3px rgba(110,65,87,.13)}
+#page-ban .ban-cta-h{font-size:13px;font-weight:700;margin-bottom:9px}
+#page-ban .ban-cta-v{font-size:23px;font-weight:800;letter-spacing:-.03em;margin-bottom:2px}
+#page-ban .ban-cta-s{font-size:11.5px;color:var(--text3);margin-bottom:10px;min-height:15px}
+#page-ban .ban-cta-b{font-size:11.5px;font-weight:700;padding:5px 9px;border-radius:8px;display:inline-block}
+#page-ban .ban-cta-b.cir{background:var(--ciruela-l);color:var(--ciruela-d)}
+#page-ban .ban-cta-b.ok{background:var(--menta-l);color:#12724C}
+#page-ban .ban-cta-b.esp{background:var(--mant-l);color:var(--mant-d)}
+#page-ban .ban-pu{padding:16px 19px;margin-bottom:18px}
+#page-ban .ban-pu-t{font-size:17px;font-weight:800;letter-spacing:-.02em}
+#page-ban .ban-pu-s{font-size:12.5px;color:var(--text2);margin:3px 0 12px}
+#page-ban .ban-pu-r{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)}
+#page-ban .ban-pu-r.base{font-size:13px;color:var(--text2)}
+#page-ban .ban-pu-r.fin{border-bottom:none;padding-top:13px;font-size:14.5px;font-weight:800}
+#page-ban .ban-pu-r.fin .mono{font-size:17px;font-weight:800}
+#page-ban .ban-pu-r.foco{background:var(--ciruela-l);margin:0 -19px;padding:11px 19px;border-bottom-color:transparent}
+#page-ban .ban-pu-r.foco .ban-pu-rt{color:var(--ciruela-d)}
+#page-ban .ban-pu-r.foco .ban-pu-rs{color:var(--ciruela)}
+#page-ban .ban-pu-rt{font-size:13px;font-weight:600}
+#page-ban .ban-pu-rs{font-size:11.5px;color:var(--text3);margin-top:2px}
+#page-ban .ban-pu-n{background:var(--surface2);border-radius:6px;padding:1px 6px;font-size:10.5px;color:var(--text2);font-weight:700}
+#page-ban .ban-pu-pie{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+#page-ban .ban-pu-nota{font-size:11.5px;color:var(--text3)}
+@media(max-width:700px){#page-ban .ban-hero-v{font-size:34px}#page-ban .ban-ctas{grid-template-columns:1fr 1fr}}
 /* Cobranza: encabezado de columnas pegado bajo el bloque fijo */
 #page-cob .tbl thead th{position:sticky;top:var(--cob-alto,132px);z-index:8;background:var(--surface);box-shadow:0 1px 0 var(--border)}
 
@@ -295,13 +333,6 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
   display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:700px){#page-cal .cal-d{min-height:74px;padding:5px 6px}
   #page-cal .cal-e{font-size:9px;padding:1px 4px}#page-cal .cal-mes{font-size:22px}}
-  box-shadow:0 4px 14px rgba(22,35,58,.13);white-space:pre-wrap}
-  display:flex;align-items:center;gap:13px;box-shadow:0 4px 14px rgba(22,35,58,.13)}
-  align-items:center;justify-content:center;font-size:21px;flex-shrink:0}
-  opacity:.9;margin:4px 0 8px}
-  font-weight:700;color:#16233A;cursor:pointer;border:1.5px solid rgba(255,255,255,.6)}
-  box-shadow:0 6px 20px rgba(22,35,58,.16);align-items:center}
-  font-size:19px;cursor:pointer;flex-shrink:0}
 #page-hoy .hoy-wrap{background:#A9C8E3;margin:-1.25rem;padding:30px 28px 38px;min-height:calc(100vh - 60px)}
 #page-hoy .hoy-hdr{position:relative;text-align:center;margin-bottom:26px}
 #page-hoy .hoy-fec{font-size:18px;font-weight:600;color:#fff;opacity:.95}
@@ -650,7 +681,6 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
   <div class="sb-section">Auditoría</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('audit2')" id="nav-audit2">🔎 Revisión automática <span id="aud2-badge" style="background:#D81B60;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
   <div class="sb-item" onclick="go('rev')" id="nav-rev">📸 Revisión de notas</div>
-  <div class="sb-item owner-only" style="display:none" onclick="go('cuadre')" id="nav-cuadre">🏦 Cuadre de banco</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('audit')" id="nav-audit">🔍 Auditoría Efectivo</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('activity');clearActivityBadge()" id="nav-activity">🔔 Actividad <span id="activity-badge" style="background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
 
@@ -1114,8 +1144,9 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
     </div>
   </div>
 
-  <div id="ban-kpis" class="metrics m4"></div>
-  <div id="ban-reparto"></div>
+  <div id="ban-hero"></div>
+  <div id="ban-cuentas" class="ban-ctas"></div>
+  <div id="ban-puente"></div>
 
   <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">
     <div class="card" style="flex:2 1 460px;min-width:320px">
@@ -1133,10 +1164,6 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
       <div class="card-title">Los movimientos más grandes del mes</div>
       <div id="ban-top"></div>
     </div>
-    <div class="card" style="flex:1 1 340px;min-width:290px">
-      <div class="card-title">Cuenta por cuenta</div>
-      <div id="ban-tabla"></div>
-    </div>
   </div>
 
   <!-- CONCILIACIÓN -->
@@ -1146,7 +1173,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
         <div style="font-size:16px;font-weight:800">🏦 Conciliar con el banco</div>
         <div style="font-size:12.5px;color:var(--text2);margin-top:2px">Renglón por renglón del estado de cuenta: lo picas, ves con qué empata y lo validas.</div>
       </div>
-      <select id="ban-cta" onchange="banPinta()" style="width:150px;font-size:13px"></select>
+      <select id="ban-cta" onchange="banPinta();document.getElementById('ban-puente').innerHTML=banPuenteHTML()" style="width:150px;font-size:13px"></select>
       <input type="file" id="ban-file" accept="application/pdf" style="display:none" onchange="banLeerPDF()">
       <button class="btn btn-p btn-sm" onclick="document.getElementById('ban-file').click()">📥 Subir estado de cuenta</button>
     </div>
@@ -6383,6 +6410,7 @@ function guardarBancos(){
 // ═══ BANCOS: conciliación renglón por renglón ══════════════════════════════
 // Izquierda: lo que dice el banco. Derecha: con qué empata y qué hacer con él.
 var BAN_EDO=null;        // estado de cuenta leído
+var BAN_EDO_CTA='';      // para QUÉ cuenta se leyó (el puente solo aplica a esa)
 var BAN_SEL=null;        // renglón seleccionado
 var BAN_FIL='pend';      // 'pend' = solo lo que falta, 'todos'
 var BAN_VISTA='concil';
@@ -6400,7 +6428,7 @@ function banLeerPDF(){
     .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d;});})
     .then(function(d){
       if(!d.cargos)throw new Error('Ese PDF no trae los cargos. Usa el "Detalle de movimientos".');
-      BAN_EDO=d;BAN_SEL=null;pr.style.display='none';rBancos();
+      BAN_EDO=d;BAN_EDO_CTA=document.getElementById('ban-cta').value;BAN_SEL=null;pr.style.display='none';rBancos();
     })
     .catch(function(e){pr.style.display='none';alert('No se pudo leer: '+e.message);});
 }
@@ -6678,6 +6706,153 @@ function banCatsHTML(cats,color){
   }).join('');
 }
 
+// ═══ EL PUENTE: por qué mi saldo no es el del banco ═══════════════════════
+// Cada renglón es un ajuste que se SUMA al saldo de la plataforma. El último
+// ("sin identificar") sale por resta, así que el puente siempre cierra exacto.
+function banSaldoMio(c){var x=saldoCta(c);return (BANCOS_INIT[c]||0)+x.e-x.s;}
+function banUltimaConc(c){
+  var f='';
+  (movs||[]).forEach(function(m){
+    if(m.cuenta!==c&&m.cta_destino!==c)return;
+    var d=String(m.conciliado||'').slice(0,10);
+    if(d&&d>f)f=d;
+  });
+  return f;
+}
+function banSinConciliar(c){
+  return (movs||[]).filter(function(m){return (m.cuenta===c||m.cta_destino===c)&&!m.conciliado;}).length;
+}
+function banPuente(cta){
+  if(!BAN_EDO||BAN_EDO_CTA!==cta)return null;
+  var saldoBanco=BAN_EDO.saldo_final;
+  if(saldoBanco===null||saldoBanco===undefined)return null;
+  var saldoYo=banSaldoMio(cta);
+  var L=banLineas(),libres=L.filter(function(l){return !banCasado(l);});
+  var comis=libres.filter(function(l){return l.signo<0&&l.com;});
+  var cargos=libres.filter(function(l){return l.signo<0&&!l.com;});
+  var abonos=libres.filter(function(l){return l.signo>0;});
+  var sum=function(a){return a.reduce(function(x,l){return x+l.monto;},0);};
+  // Movimientos MÍOS del periodo que ninguna línea del banco reclamó
+  var ids={};L.forEach(function(l){var c=banCasado(l);if(c&&c.id)ids[c.id]=true;});
+  var mios=(movs||[]).filter(function(m){
+    var f=String(m.fecha||'').slice(0,10);
+    if(f<BAN_EDO.desde||f>BAN_EDO.hasta)return false;
+    if(m.cuenta!==cta&&m.cta_destino!==cta)return false;
+    return !ids[m.id]&&!m.conciliado;
+  });
+  var entra=function(m){return (m.cuenta===cta&&m.tipo==='Entrada')||(m.cta_destino===cta&&m.tipo==='Traspaso');};
+  var misEnt=mios.filter(entra),misSal=mios.filter(function(m){return !entra(m);});
+  var sm=function(a){return a.reduce(function(x,m){return x+(+m.monto||0);},0);};
+  var R=[];
+  if(comis.length)R.push({t:'Comisiones del banco sin capturar',s:'Esto sí es un error de captura',v:-sum(comis),acc:'com',n:comis.length});
+  if(cargos.length)R.push({t:'Otros cargos del banco sin capturar',s:'El banco los cobró y no están en Movimientos',v:-sum(cargos),acc:'ver',n:cargos.length});
+  if(abonos.length)R.push({t:'Depósitos del banco sin capturar',s:'Entró dinero que no quedó registrado',v:sum(abonos),acc:'ver',n:abonos.length});
+  if(misEnt.length)R.push({t:'Cobros tuyos que el banco aún no deposita',s:'Normal: la terminal deposita al día hábil siguiente',v:-sm(misEnt),n:misEnt.length});
+  if(misSal.length)R.push({t:'Salidas tuyas que el banco no ha cobrado',s:'Pagos que todavía no bajan de la cuenta',v:sm(misSal),n:misSal.length});
+  var explic=R.reduce(function(a,r){return a+r.v;},0);
+  var resto=Math.round((saldoBanco-saldoYo-explic)*100)/100;
+  if(Math.abs(resto)>=0.5)R.push({t:'Sin identificar',s:'Arrastre de periodos anteriores',v:resto,n:0});
+  return {cta:cta,mio:saldoYo,banco:saldoBanco,ren:R,desde:BAN_EDO.desde,hasta:BAN_EDO.hasta};
+}
+function banHeroHTML(){
+  var ctas=Object.keys(BANCOS_INIT);
+  var tot=ctas.reduce(function(a,c){return a+banSaldoMio(c);},0);
+  var mal=ctas.filter(function(c){return banSinConciliar(c)>0;}).length;
+  var e=fmt(tot).split('.');
+  return '<div class="ban-hero">'+
+    '<div><div class="ban-hero-l">Tienes disponible</div>'+
+    '<div class="ban-hero-v">'+e[0]+'<span>.'+(e[1]||'00')+'</span></div></div>'+
+    '<div class="ban-hero-r">'+
+      (mal?'<span class="ban-chip">'+mal+' cuenta'+(mal>1?'s':'')+' con movimientos sin conciliar</span>'
+          :'<span class="ban-chip ok">Todo conciliado</span>')+
+      '<div class="ban-hero-f">al '+todayStr()+'</div></div></div>';
+}
+function banCuentasHTML(){
+  return Object.keys(BANCOS_INIT).map(function(c){
+    var mio=banSaldoMio(c),p=banPuente(c),pend=banSinConciliar(c),uc=banUltimaConc(c);
+    var ico=c.toLowerCase().indexOf('efectivo')>=0?'💵':'🏦',sub,est;
+    if(p){
+      var d=Math.round((p.mio-p.banco)*100)/100;
+      sub='el banco dice '+fmt(p.banco);
+      est=Math.abs(d)>1?{cls:'cir',t:'Difieren '+fmt(Math.abs(d))}:{cls:'ok',t:'✓ Cuadra con el banco'};
+    }else{
+      sub=uc?('conciliado al '+uc):'sin conciliar nunca';
+      est=pend?{cls:'esp',t:pend+' sin conciliar'}:{cls:'ok',t:'✓ Al corriente'};
+    }
+    return '<div class="ban-cta'+(est.cls==='cir'?' alerta':'')+'" onclick="banIrCta('+JSON.stringify(c).replace(/"/g,'&quot;')+')">'+
+      '<div class="ban-cta-h">'+ico+' '+c+'</div>'+
+      '<div class="ban-cta-v mono">'+fmt(mio)+'</div>'+
+      '<div class="ban-cta-s">'+sub+'</div>'+
+      '<div class="ban-cta-b '+est.cls+'">'+est.t+'</div></div>';
+  }).join('');
+}
+function banIrCta(c){
+  var s=document.getElementById('ban-cta');
+  if(s){s.value=c;banPinta();}
+  var el=document.getElementById('ban-puente');
+  if(el){el.innerHTML=banPuenteHTML();el.scrollIntoView({behavior:'smooth',block:'center'});}
+}
+function banPuenteHTML(){
+  var sel=document.getElementById('ban-cta');
+  var cta=(sel&&sel.value)||'INBURSA';
+  var p=banPuente(cta);
+  if(!p){
+    return '<div class="card ban-pu">'+
+      '<div class="ban-pu-t">Cómo va '+cta+'</div>'+
+      '<div class="ban-pu-s">Todavía no hay estado de cuenta cargado para esta cuenta. Súbelo y aquí aparece, renglón por renglón, de dónde sale la diferencia contra el banco.</div>'+
+      '<div class="ban-pu-r base"><span>Saldo según la plataforma</span><b class="mono">'+fmt(banSaldoMio(cta))+'</b></div>'+
+      '<div class="ban-pu-pie"><button class="btn btn-p btn-sm" onclick="document.getElementById(\'ban-file\').click()">📥 Subir estado de cuenta</button>'+
+      '<span class="ban-pu-nota">PDF del estado de cuenta o del detalle de movimientos de Inbursa.</span></div></div>';
+  }
+  var d=Math.round((p.mio-p.banco)*100)/100;
+  var h='<div class="card ban-pu">'+
+    '<div class="ban-pu-t">'+(Math.abs(d)<1?('Por qué '+cta+' sí cuadra'):('Por qué '+cta+' no cuadra'))+'</div>'+
+    '<div class="ban-pu-s">Del '+p.desde+' al '+p.hasta+'. Cada renglón suma la diferencia; el que depende de ti trae botón.</div>'+
+    '<div class="ban-pu-r base"><span>Saldo según la plataforma</span><b class="mono">'+fmt(p.mio)+'</b></div>';
+  p.ren.forEach(function(r){
+    h+='<div class="ban-pu-r'+(r.acc==='com'?' foco':'')+'">'+
+      '<div><div class="ban-pu-rt">'+r.t+(r.n?(' <span class="ban-pu-n">'+r.n+'</span>'):'')+'</div>'+
+      '<div class="ban-pu-rs">'+r.s+'</div></div>'+
+      '<div style="display:flex;align-items:center;gap:10px;white-space:nowrap">'+
+        '<b class="mono">'+(r.v<0?'−':'+')+fmt(Math.abs(r.v))+'</b>'+
+        (r.acc==='com'?'<button class="btn btn-s btn-xs" onclick="event.stopPropagation();banRegistrarCom()">Registrar</button>':'')+
+      '</div></div>';
+  });
+  h+='<div class="ban-pu-r fin"><span>Saldo que debería tener el banco</span><b class="mono">'+fmt(p.banco)+'</b></div>'+
+     '<div class="ban-pu-pie"><button class="btn btn-s btn-sm" onclick="document.getElementById(\'ban-file\').click()">📥 Subir otro estado de cuenta</button>'+
+     '<span class="ban-pu-nota">El detalle renglón por renglón está más abajo.</span></div></div>';
+  return h;
+}
+// Todas las comisiones del periodo en UN solo movimiento (versión de Bancos)
+function banRegistrarCom(){
+  if(!BAN_EDO){alert('Primero sube el estado de cuenta.');return;}
+  var cta=document.getElementById('ban-cta').value;
+  var faltan=(BAN_EDO.cargos||[]).filter(function(b){return b.comision&&!BCO_OK[kLinea(b)];});
+  var tot=faltan.reduce(function(a,b){return a+b.monto;},0);
+  if(!tot){alert('Ya no falta ninguna comisión por capturar.');return;}
+  var f=faltan.map(function(b){return b.fecha;}).sort().pop();
+  if(!confirm('Se va a registrar UNA salida de '+fmt(tot)+' en '+cta+'\ncon fecha '+f+', juntando '+faltan.length+' comisiones del banco.\n\n¿Continuar?'))return;
+  var mv={tipo:'Salida',concepto:'Comisiones bancarias',
+          desc:'Comisiones de terminal, cuotas e IVA del '+BAN_EDO.desde+' al '+BAN_EDO.hasta+' ('+faltan.length+' cargos)',
+          cuenta:cta,cta_destino:'',monto:Math.round(tot*100)/100,fecha:f,mes:parseInt(f.split('-')[1],10)-1};
+  fetch('/api/movimientos',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(d){
+    movs.unshift(d);
+    faltan.forEach(function(b){BCO_OK[kLinea(b)]=d.id;});
+    return guardarBcoOK().then(function(){
+      return fetch('/api/conciliar',{method:'POST',credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({fecha:todayStr(),items:[{id:d.id,ref:'comisiones '+BAN_EDO.desde+' a '+BAN_EDO.hasta}]})});
+    }).then(function(){
+      d.conciliado=todayStr();
+      alert('✅ Listo: una salida de '+fmt(tot)+' con fecha '+f+',\ny los '+faltan.length+' cargos del banco quedan dados por vistos.');
+      rBancos();
+    });
+  }).catch(function(e){alert('No se pudo registrar: '+e.message);});
+}
+
 function rBancos(){
   var selM=document.getElementById('ban-mes');
   var meses=banMesLista();
@@ -6694,14 +6869,18 @@ function rBancos(){
     var p=Math.round((v-vAnt)/Math.abs(vAnt)*100);
     return '<span style="color:'+(p>=0?'var(--green)':'var(--red)')+'">'+(p>=0?'▲':'▼')+' '+Math.abs(p)+'% vs mes anterior</span>';
   };
-  document.getElementById('ban-periodo').textContent='Mes de '+mes+' · '+d.mov.length+' movimientos';
-  document.getElementById('ban-kpis').innerHTML=
-    '<div class="metric" style="background:var(--green-l)"><div class="m-label">Hay ahora en todas las cuentas</div><div class="m-val" style="color:var(--green)">'+fmtK(tot)+'</div></div>'+
-    '<div class="metric"><div class="m-label">Entró en el mes</div><div class="m-val" style="color:var(--green)">'+fmtK(d.e)+'</div><div class="m-sub">'+flecha(d.e,dAnt&&dAnt.e)+'</div></div>'+
-    '<div class="metric"><div class="m-label">Salió en el mes</div><div class="m-val" style="color:var(--red)">'+fmtK(d.s)+'</div><div class="m-sub">'+flecha(d.s,dAnt&&dAnt.s)+'</div></div>'+
-    '<div class="metric" style="background:'+(d.neto>=0?'var(--green-l)':'#FDF2F7')+'"><div class="m-label">Quedó del mes</div><div class="m-val" style="color:'+(d.neto>=0?'var(--green)':'var(--red)')+'">'+fmtK(d.neto)+'</div><div class="m-sub">entradas menos salidas</div></div>';
+  document.getElementById('ban-periodo').innerHTML='Mes de '+mes+' · '+d.mov.length+' movimientos · entró '+fmtK(d.e)+', salió '+fmtK(d.s)+' '+flecha(d.neto,dAnt&&dAnt.neto);
 
-  document.getElementById('ban-reparto').innerHTML=banRepartoHTML();
+  // El selector de cuenta se puebla ANTES: el puente lo necesita para saber
+  // de qué cuenta hablar.
+  var selC=document.getElementById('ban-cta');
+  if(selC&&!selC.options.length){
+    selC.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option>'+c+'</option>';}).join('');
+    if(Object.keys(BANCOS_INIT).indexOf('INBURSA')>=0)selC.value='INBURSA';
+  }
+  document.getElementById('ban-hero').innerHTML=banHeroHTML();
+  document.getElementById('ban-cuentas').innerHTML=banCuentasHTML();
+  document.getElementById('ban-puente').innerHTML=banPuenteHTML();
   document.getElementById('ban-flujo').innerHTML=banFlujoSVG(meses.slice(0,8).reverse());
   document.getElementById('ban-cats').innerHTML=banCatsHTML(d.catsS,'#C2185B')+
     '<div class="card-title" style="margin:14px 0 8px">De dónde vino</div>'+banCatsHTML(d.catsE,'#1A5C3A');
@@ -6717,15 +6896,11 @@ function rBancos(){
   }).join('')||'<div style="font-size:12.5px;color:var(--text3)">Sin movimientos ese mes.</div>';
 
   rBancosSaldos();
-  var selC=document.getElementById('ban-cta');
-  if(selC&&!selC.options.length){
-    selC.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option>'+c+'</option>';}).join('');
-    if(Object.keys(BANCOS_INIT).indexOf('INBURSA')>=0)selC.value='INBURSA';
-  }
   banPinta();
 }
 
 function rBancosSaldos(){
+  if(!document.getElementById('ban-tabla'))return;   // la reemplazaron las tarjetas de cuenta
   const ctas=Object.keys(BANCOS_INIT);
   let total=0;
   const rows=ctas.map(c=>{
