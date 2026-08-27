@@ -395,7 +395,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
       <div class="field" id="mp-suc-wrap" style="display:none"><label>Sucursal del pedido</label><select id="mp-suc" onchange="mpSucChange()"><option>Jardines</option><option>Zibata</option></select></div>
       <div class="field"><label>Método de pago</label><select id="mp-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field gc2"><label>Descuento</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px"><button type="button" onclick="applyDesc(0)" id="desc-0" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">Sin desc</button><button type="button" onclick="applyDesc(5)" id="desc-5" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">5%</button><button type="button" onclick="applyDesc(10)" id="desc-10" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">10%</button><button type="button" onclick="applyDesc(15)" id="desc-15" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">15%</button><button type="button" onclick="applyDesc(16)" id="desc-16" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">16%</button><button type="button" onclick="applyDesc(50)" id="desc-50" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">50%</button></div></div>
-      <div class="field"><label>Anticipo ($)</label><input type="number" id="mp-a" placeholder="0.00" oninput="calcMR()"></div>
+      <div class="field"><label>Anticipo ($) <span style="font-weight:400;color:var(--text3);font-size:11.5px">lo que deja hoy</span></label><input type="number" id="mp-a" placeholder="0.00" oninput="calcMR()"></div>
       <div class="field"><label>Total <span style="font-size:9px;color:var(--text3);font-weight:400">(editable)</span></label><input id="mp-tot" style="font-weight:700" oninput="onTotEdit(this)" placeholder="$0.00"></div>
       <div class="field"><label>Restante</label><input class="ro" id="mp-r" readonly style="font-weight:600"></div>
       <div class="field gc2"><label>Observaciones</label><input id="mp-o" placeholder="Notas del pedido..."></div>
@@ -511,7 +511,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
       <div class="field"><label>Teléfono</label><input id="ep-t" placeholder="(442)..."></div>
       <div class="field"><label>Vendedor</label><select id="ep-vend"></select></div>
       <div class="field"><label>Método de pago</label><select id="ep-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
-      <div class="field"><label>Anticipo ($)</label><input type="number" id="ep-a" placeholder="0.00"></div>
+      <div class="field"><label>Total pagado ($) <span style="font-weight:400;color:var(--text3);font-size:11.5px">anticipo + todos los abonos</span></label><input type="number" id="ep-a" placeholder="0.00" oninput="epSaldo()"><div id="ep-saldo" style="font-size:12px;margin-top:5px"></div></div>
       <div class="field"><label>Fecha del pedido</label><input type="date" id="ep-fecha"></div>
       <div class="field"><label>Entrega prometida</label><input type="date" id="ep-ent"></div>
       <div class="field gc2"><label>Observaciones</label><input id="ep-o" placeholder="Notas del pedido..."></div>
@@ -525,7 +525,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
       <div style="display:flex;justify-content:flex-end;gap:16px;align-items:center;margin-top:10px;font-size:12px;flex-wrap:wrap">
         <span>Suma artículos c/IVA: <strong class="mono" id="ep-sub-lbl">$0.00</strong></span>
         <label style="display:flex;align-items:center;gap:6px;font-weight:600">Total del pedido ($)
-          <input type="number" id="ep-total" step="0.01" style="width:130px" oninput="epTotalManual=true">
+          <input type="number" id="ep-total" step="0.01" style="width:130px" oninput="epTotalManual=true;epSaldo()">
         </label>
       </div>
       <div style="font-size:11px;color:var(--text3);margin-top:4px;text-align:right">Al cambiar un importe, el total se recalcula solo. Si el pedido tiene descuento, ajusta el total a mano al final.</div>
@@ -623,7 +623,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--ciruela);box-shadow:0
 
 <!-- SIDEBAR -->
 <div class="sidebar">
-  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · ciruela v2</div></div>
+  <div class="sb-logo"><div class="sb-brand">IMPULSO</div><div class="sb-sub" id="sb-suc">—</div><div style="font-size:9px;color:var(--text3);letter-spacing:.05em;margin-top:2px">versión 27-ago · ciruela v4</div></div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
   <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
@@ -2013,6 +2013,20 @@ function openModPed(){
   populateVendSel(); // siempre con la lista actual de la BD
   OM('mod-ped');
 }
+// Al editar una nota: decir en el momento cómo queda el saldo, para que no
+// haya que adivinar si ese campo era el anticipo o el total pagado.
+function epSaldo(){
+  var el=document.getElementById('ep-saldo');if(!el)return;
+  var tot=+((document.getElementById('ep-total')||{}).value||0);
+  var pag=+((document.getElementById('ep-a')||{}).value||0);
+  if(!tot){el.innerHTML='';return;}
+  var d=Math.round((tot-pag)*100)/100;
+  el.innerHTML=Math.abs(d)<0.01
+    ? '<b style="color:var(--menta)">✓ Nota pagada por completo</b>'
+    : (d>0 ? 'Quedaría un saldo de <b style="color:var(--borgona)">'+fmt(d)+'</b>'
+           : '<b style="color:var(--borgona)">⚠️ Pagó '+fmt(-d)+' de más</b> — revisa el total de la nota o los abonos');
+}
+
 function calcMR(){
   const sub=cart.reduce((a,b)=>a+b.sub,0),autoTotal=sub*1.16;
   const totEl=document.getElementById('mp-tot');
@@ -2534,6 +2548,26 @@ function guardarAb(){
 
 
 // ─── EDITAR COBROS (abonos registrados) ───────────────────────────────────────
+// Si corriges o borras un cobro, el "Total pagado" del pedido tiene que moverse
+// con él: si no, el saldo se queda como estaba y la nota sigue pareciendo deuda.
+function ajustaPagadoPedido(ab,delta,motivo){
+  if(!delta)return Promise.resolve();
+  const p=(pedidos||[]).find(x=>(ab.pedido_id&&x.id===ab.pedido_id)||(x.folio===ab.folio&&x.suc===ab.suc));
+  if(!p)return Promise.resolve();
+  const nuevo=Math.round(((+p.ant||0)+delta)*100)/100;
+  const tope=Math.round((+p.total||0)*100)/100;
+  const txt='El pedido '+p.folio+' tenía '+fmt(p.ant||0)+' pagados.\n'+motivo+
+    '\n\n¿Dejar el total pagado en '+fmt(nuevo)+'?'+
+    (nuevo>tope?'\n\n⚠️ Ojo: quedaría '+fmt(nuevo-tope)+' por ENCIMA del total de la nota.':'')+
+    (Math.abs(nuevo-tope)<0.01?'\n\n✓ Con eso la nota queda pagada por completo.':'');
+  if(!confirm(txt))return Promise.resolve();
+  return fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ant:nuevo,rest:Math.max(0,Math.round((tope-nuevo)*100)/100)})})
+    .then(r=>r.json()).then(d=>{
+      if(d&&!d.error){p.ant=nuevo;p.rest=Math.max(0,Math.round((tope-nuevo)*100)/100);}
+    }).catch(()=>{});
+}
 let _eaId=null;
 function openEditAbono(id){
   const a=ABONOS.find(x=>x.id===id);if(!a){alert('Cobro no encontrado; recarga la página');return;}
@@ -2550,25 +2584,33 @@ function guardarEditAbono(){
   const a=ABONOS.find(x=>x.id===_eaId);if(!a)return;
   const cambios={monto:parseFloat(document.getElementById('ea-monto').value)||0,met:document.getElementById('ea-met').value,fecha:document.getElementById('ea-fecha').value,tipo:document.getElementById('ea-tipo').value};
   if(!cambios.monto){alert('Ingresa el monto');return;}
+  const montoAntes=+a.monto||0;
   fetch('/api/abonos/'+_eaId,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(cambios)})
   .then(r=>r.json()).then(d=>{
     if(d.error){alert(d.error);return;}
     Object.assign(a,d);
     logActivity('Editó cobro','Folio '+a.folio+' — '+fmt(a.monto)+' ('+a.met+', '+a.fecha+')');
-    CM('mod-edit-ab');rDia();
-    if(document.getElementById('ep-cobros')&&document.getElementById('mod-edit-ped').style.display!=='none')pintarCobrosPed();
+    const delta=Math.round(((+a.monto||0)-montoAntes)*100)/100;
+    return ajustaPagadoPedido(a,delta,
+      'Corregiste el cobro de '+fmt(montoAntes)+' a '+fmt(a.monto)+'.').then(()=>{
+      CM('mod-edit-ab');rDia();try{rCxC();}catch(e){}
+      if(document.getElementById('ep-cobros')&&document.getElementById('mod-edit-ped').style.display!=='none')pintarCobrosPed();
+    });
   }).catch(()=>alert('Error de conexión'));
 }
 function delAbono(){
   const a=ABONOS.find(x=>x.id===_eaId);if(!a)return;
-  if(!confirm('¿Eliminar este cobro de '+fmt(a.monto)+' del folio '+a.folio+'?\nNota: esto solo borra el registro del cobro; el anticipo del pedido no cambia.'))return;
+  if(!confirm('¿Eliminar este cobro de '+fmt(a.monto)+' del folio '+a.folio+'?'))return;
+  const montoAntes=+a.monto||0;
   fetch('/api/abonos/'+_eaId,{method:'DELETE',credentials:'include'})
   .then(r=>r.json()).then(d=>{
     if(d.error){alert(d.error);return;}
     ABONOS=ABONOS.filter(x=>x.id!==_eaId);
     logActivity('Eliminó cobro','Folio '+a.folio+' — '+fmt(a.monto));
-    CM('mod-edit-ab');rDia();
-    if(document.getElementById('ep-cobros')&&document.getElementById('mod-edit-ped').style.display!=='none')pintarCobrosPed();
+    return ajustaPagadoPedido(a,-montoAntes,'Borraste ese cobro de '+fmt(montoAntes)+'.').then(()=>{
+      CM('mod-edit-ab');rDia();try{rCxC();}catch(e){}
+      if(document.getElementById('ep-cobros')&&document.getElementById('mod-edit-ped').style.display!=='none')pintarCobrosPed();
+    });
   }).catch(()=>alert('Error de conexión'));
 }
 // ─── COBRO MANUAL (retroactivo o correcciones) ────────────────────────────────
