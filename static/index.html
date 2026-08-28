@@ -412,8 +412,15 @@ body.riel-on .content{margin-right:300px}
 #page-ban .ban-pu-pie{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
 #page-ban .ban-pu-nota{font-size:11.5px;color:var(--text3)}
 @media(max-width:700px){#page-ban .ban-hero-v{font-size:34px}#page-ban .ban-ctas{grid-template-columns:1fr 1fr}}
-/* Cobranza: encabezado de columnas pegado bajo el bloque fijo */
-#page-cob .tbl thead th{position:sticky;top:var(--cob-alto,132px);z-index:8;background:var(--ciruela);box-shadow:0 2px 6px -2px rgba(16,24,40,.3)}
+/* Cobranza: la tabla tiene su PROPIA caja con scroll. Así el encabezado se pega
+   al borde de esa caja (top:0, sin cuentas) y nunca vuelve a aterrizar a media
+   lista. El alto de la barra de arriba solo decide qué tan alta es la caja:
+   si se equivoca por unos pixeles, se scrollea un poquito más y ya. */
+#page-cob .cob-caja{overflow:auto;max-height:calc(100vh - var(--cob-alto,132px) - 76px);min-height:260px;border:none;border-radius:0;margin:0}
+#page-cob .tbl thead th{position:sticky;top:0;z-index:8;background:var(--ciruela);box-shadow:0 2px 6px -2px rgba(16,24,40,.3)}
+/* La barra del día se queda pegada justo debajo del encabezado: al scrollear
+   siempre sabes de qué día es el renglón que estás viendo. */
+#page-cob tr.cob-dia td{position:sticky;top:31px;z-index:7}
 
 /* ── ABONO ROW ── */
 .ab-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -1380,7 +1387,7 @@ body.riel-on .content{margin-right:300px}
     <span id="cob-res" style="color:var(--text3);flex:0 0 auto"></span>
   </div>
   </div>
-  <div class="card" style="padding:0;overflow:hidden"><div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th><th>Vendedor</th><th>Sucursal</th><th>Ref/Factura</th></tr></thead><tbody id="cob-body"></tbody></table></div></div>
+  <div class="card" style="padding:0;overflow:hidden"><div class="tw cob-caja"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th><th>Vendedor</th><th>Sucursal</th><th>Ref/Factura</th></tr></thead><tbody id="cob-body"></tbody></table></div></div>
 </div>
 <div class="page" id="page-cxp">
   <div class="ph"><div><div class="ph-title">Cuentas <span class="hl">por pagar</span></div><div class="ph-sub">Facturas de proveedores: pendientes hasta que registres su pago — y el movimiento de salida se crea solo</div></div></div>
@@ -6700,11 +6707,13 @@ function cobRows(){
   });
   return rows;
 }
-// El bloque fijo cambia de alto según los filtros; el encabezado de la tabla
-// se pega justo debajo, midiéndolo en vivo.
+// El bloque fijo cambia de alto según los filtros. Esta medida YA NO posiciona
+// el encabezado (eso lo hace el top:0 dentro de .cob-caja): solo decide qué tan
+// alta es la caja de la tabla, donde un error de pixeles no rompe nada.
 function cobAjustaAlto(){
   const f=document.getElementById('cob-fijo');if(!f)return;
-  document.getElementById('page-cob').style.setProperty('--cob-alto',f.offsetHeight+'px');
+  const h=f.offsetHeight;if(!h)return;   // la página está oculta: no medir en cero
+  document.getElementById('page-cob').style.setProperty('--cob-alto',h+'px');
 }
 window.addEventListener('resize',function(){try{cobAjustaAlto();}catch(e){}});
 // El alto de la barra fija cambia solo: al mostrarse la barra de conciliación,
@@ -6804,7 +6813,7 @@ function rCob(){
     const subs={};rs.forEach(r=>{const g=metGrupoCob(r.met);subs[g]=(subs[g]||0)+r.monto;});
     const tot=rs.reduce((s,r)=>s+r.monto,0);
     const fbonita=new Date(f+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
-    h+='<tr><td colspan="8" style="background:var(--ciruela);font-weight:800;color:#fff;padding:8px 10px;letter-spacing:.01em">📅 '+fbonita+' &nbsp;·&nbsp; '+fmt(tot)+' &nbsp;<span style="font-weight:400;font-size:11px;color:#E6D6DE">'+Object.keys(subs).filter(g=>subs[g]>0).map(g=>g+': '+fmt(subs[g])).join(' · ')+'</span></td></tr>';
+    h+='<tr class="cob-dia"><td colspan="8" style="background:var(--ciruela);font-weight:800;color:#fff;padding:8px 10px;letter-spacing:.01em">📅 '+fbonita+' &nbsp;·&nbsp; '+fmt(tot)+' &nbsp;<span style="font-weight:400;font-size:11px;color:#E6D6DE">'+Object.keys(subs).filter(g=>subs[g]>0).map(g=>g+': '+fmt(subs[g])).join(' · ')+'</span></td></tr>';
     rs.forEach(r=>{
       const cz=concilDe(r.k);
       const fondo=cz?('background:'+cz.color+';'):'';
