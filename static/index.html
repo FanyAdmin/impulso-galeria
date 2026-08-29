@@ -423,6 +423,15 @@ body.riel-on .content{margin-right:300px}
 /* La barra del día se queda pegada justo debajo del encabezado: al scrollear
    siempre sabes de qué día es el renglón que estás viendo. */
 #page-cob tr.cob-dia td{position:sticky;top:31px;z-index:7}
+/* Nota por cobro: el "+ nota" y el botón VG solo aparecen al pasar el mouse,
+   para que 109 renglones no se llenen de botones que no estás usando. */
+#page-cob td.cob-nota{cursor:pointer;white-space:nowrap;font-size:11px}
+#page-cob .cob-nota-chip{background:var(--mant,#F0EFE9);color:var(--ciruela-d,#4A2B3A);border-radius:99px;padding:2px 8px;font-weight:700;font-size:11px}
+#page-cob .cob-nota-add{color:transparent;transition:color .12s}
+#page-cob tr:hover .cob-nota-add{color:var(--text3)}
+#page-cob .cob-vg{margin-left:6px;border:1px solid var(--border);background:#fff;color:var(--text3);border-radius:99px;padding:1px 7px;font-size:10px;font-weight:700;cursor:pointer;opacity:0;transition:opacity .12s;font-family:inherit}
+#page-cob tr:hover .cob-vg{opacity:1}
+#page-cob .cob-vg:hover{background:var(--ciruela);color:#fff;border-color:var(--ciruela)}
 
 /* ── ABONO ROW ── */
 .ab-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -1389,7 +1398,7 @@ body.riel-on .content{margin-right:300px}
     <span id="cob-res" style="color:var(--text3);flex:0 0 auto"></span>
   </div>
   </div>
-  <div class="card" style="padding:0;overflow:hidden"><div class="tw cob-caja"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th><th>Vendedor</th><th>Sucursal</th><th>Ref/Factura</th></tr></thead><tbody id="cob-body"></tbody></table></div></div>
+  <div class="card" style="padding:0;overflow:hidden"><div class="tw cob-caja"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th><th>Vendedor</th><th>Sucursal</th><th>Ref/Factura</th><th style="width:130px">Nota</th></tr></thead><tbody id="cob-body"></tbody></table></div></div>
 </div>
 <div class="page" id="page-cxp">
   <div class="ph"><div><div class="ph-title">Cuentas <span class="hl">por pagar</span></div><div class="ph-sub">Facturas de proveedores: pendientes hasta que registres su pago — y el movimiento de salida se crea solo</div></div></div>
@@ -6344,6 +6353,54 @@ function saveConcil(){
     .then(r=>{if(!r.ok)throw 0;})
     .catch(()=>alert('⚠️ No se pudo guardar la conciliación en el servidor'));
 }
+// ── NOTA POR COBRO (independiente de la conciliación) ───────────────────────
+// El texto del 🔗 pertenece al DEPÓSITO: es uno solo para todos los cobros que
+// casaste juntos, y para cambiárselo a uno hay que deshacer el grupo entero.
+// Esto es distinto: un comentario que le pertenece al renglón. Se edita sin
+// entrar a modo conciliación y sin tocar el grupo.
+let COBNOTAS={};
+function loadCobNotas(){
+  return fetch('/api/config/cob_notas_v1',{credentials:'include'}).then(r=>r.json()).then(d=>{
+    if(d&&d.valor&&typeof d.valor==='object')COBNOTAS=d.valor;
+  }).catch(()=>{});
+}
+function saveCobNotas(){
+  return fetch('/api/config/cob_notas_v1',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:COBNOTAS})})
+    .then(r=>{if(!r.ok)throw 0;})
+    .catch(()=>alert('⚠️ No se pudo guardar la nota en el servidor'));
+}
+// Pinta la celda al instante y guarda en segundo plano: escribir una nota no
+// debe redibujar toda la tabla ni perderte el lugar donde ibas leyendo.
+function cobNotaHTML(k){
+  if(!k)return '';
+  var v=COBNOTAS[k]||'';
+  var esc=String(k).replace(/'/g,"\\'");
+  var vg='<button class="cob-vg" title="Marcar/desmarcar Venta General" onclick="cobNotaVG(event,\''+esc+'\')">VG</button>';
+  return (v
+    ?'<span class="cob-nota-chip" title="Picar para editar · vaciar para borrar">'+v+'</span>'
+    :'<span class="cob-nota-add">+ nota</span>')+vg;
+}
+function cobNotaPinta(k){
+  var td=document.querySelector('#cob-body td[data-nota="'+String(k).replace(/"/g,'')+'"]');
+  if(td)td.innerHTML=cobNotaHTML(k);
+}
+function cobNotaEdit(k){
+  if(!k)return;
+  var actual=COBNOTAS[k]||'';
+  var v=prompt('Comentario de este cobro\n\nEs solo de este renglón: no toca el depósito ni a los demás cobros que casaste con él.\nDéjalo vacío para borrarlo.',actual);
+  if(v===null)return;
+  v=v.trim();
+  if(v)COBNOTAS[k]=v; else delete COBNOTAS[k];
+  cobNotaPinta(k);
+  saveCobNotas();
+}
+// Atajo para lo que se repite: marcar/desmarcar VG de un solo clic.
+function cobNotaVG(ev,k){
+  ev.stopPropagation();
+  if((COBNOTAS[k]||'')==='VG')delete COBNOTAS[k]; else COBNOTAS[k]='VG';
+  cobNotaPinta(k);
+  saveCobNotas();
+}
 function concilDe(k){
   if(!k)return null;
   for(let i=0;i<CONCIL.grupos.length;i++){if(CONCIL.grupos[i].keys.includes(k))return {g:CONCIL.grupos[i],color:CONCIL_COLORES[i%CONCIL_COLORES.length],idx:i};}
@@ -6755,7 +6812,7 @@ function cobRows(){
     if(!en(p.fecha))return;
     const ao=Math.max(0,(p.ant||0)-abDelPed(p));
     if(ao>0)rows.push({k:'p'+(p.id||p.folio),fecha:p.fecha,folio:p.folio,cli:p.cli,tipo:'Anticipo',met:p.met||'—',monto:ao,vend:p.vend||'—',suc:p.suc,ref:p.factura_num?('F.'+p.factura_num):'',fac:!!p.factura_num});
-    else rows.push({k:'',fecha:p.fecha,folio:p.folio,cli:p.cli,tipo:'Nota sin anticipo',met:'No dejó anticipo',monto:0,vend:p.vend||'—',suc:p.suc,ref:p.factura_num?('F.'+p.factura_num):'',fac:!!p.factura_num});
+    else rows.push({k:'p'+(p.id||p.folio),fecha:p.fecha,folio:p.folio,cli:p.cli,tipo:'Nota sin anticipo',met:'No dejó anticipo',monto:0,vend:p.vend||'—',suc:p.suc,ref:p.factura_num?('F.'+p.factura_num):'',fac:!!p.factura_num});
   });
   (ABONOS||[]).forEach(a=>{
     if(esVenta&&a.suc!==u.suc)return;
@@ -6853,6 +6910,7 @@ function rCob(){
   document.getElementById('ms-suc').style.display=esAdm?'':'none';
   const cbBtn=document.getElementById('cob-concil-btn');if(cbBtn)cbBtn.style.display=esAdm?'':'none';
   if(esAdm&&!rCob._concilLoaded){rCob._concilLoaded=true;loadConcil().then(()=>rCob());}
+  if(!rCob._notasLoaded){rCob._notasLoaded=true;loadCobNotas().then(()=>rCob());}
   let rows=cobRows();
   // Poblar selects dinámicos preservando selección
   mselLlenar('met',rows.map(r=>r.met));
@@ -6871,7 +6929,7 @@ function rCob(){
     const subs={};rs.forEach(r=>{const g=metGrupoCob(r.met);subs[g]=(subs[g]||0)+r.monto;});
     const tot=rs.reduce((s,r)=>s+r.monto,0);
     const fbonita=new Date(f+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
-    h+='<tr class="cob-dia"><td colspan="8" style="background:var(--ciruela);font-weight:800;color:#fff;padding:8px 10px;letter-spacing:.01em">📅 '+fbonita+' &nbsp;·&nbsp; '+fmt(tot)+' &nbsp;<span style="font-weight:400;font-size:11px;color:#E6D6DE">'+Object.keys(subs).filter(g=>subs[g]>0).map(g=>g+': '+fmt(subs[g])).join(' · ')+'</span></td></tr>';
+    h+='<tr class="cob-dia"><td colspan="9" style="background:var(--ciruela);font-weight:800;color:#fff;padding:8px 10px;letter-spacing:.01em">📅 '+fbonita+' &nbsp;·&nbsp; '+fmt(tot)+' &nbsp;<span style="font-weight:400;font-size:11px;color:#E6D6DE">'+Object.keys(subs).filter(g=>subs[g]>0).map(g=>g+': '+fmt(subs[g])).join(' · ')+'</span></td></tr>';
     rs.forEach(r=>{
       const cz=concilDe(r.k);
       const fondo=cz?('background:'+cz.color+';'):'';
@@ -6879,13 +6937,20 @@ function rCob(){
       const chk=(CONCIL_ON&&r.k&&r.monto>0)
         ?'<input type="checkbox" '+(CONCIL_SEL[r.k]?'checked':'')+' onchange="concilSel(\''+r.k+'\','+r.monto+','+(cz?cz.idx:-1)+')" style="width:16px;height:16px;cursor:pointer;margin-right:6px"'+(cz?' title="Ya casado en '+String(cz.g.ref).replace(/"/g,'')+' — marcarlo solo suma, no lo mueve"':'')+'>'
         :'';
-      const tag=cz?'<span class="badge" style="background:#fff;border:1px solid #ccc;color:#333;cursor:pointer" title="Picar para deshacer" onclick="concilQuitar('+cz.idx+')">🔗 '+cz.g.ref+'</span>':(r.ref||'');
+      // Banco y SAT son dos datos distintos: el 🔗 dice con qué depósito se casó
+      // el cobro, F.#### dice a qué factura pertenece la nota. Antes el chip de
+      // conciliación tapaba la factura y parecía que el anticipo se había quedado
+      // fuera de la factura. Ahora se ven los dos.
+      var chips=[];
+      if(cz)chips.push('<span class="badge" style="background:#fff;border:1px solid #ccc;color:#333;cursor:pointer" title="Conciliado con '+String(cz.g.ref).replace(/"/g,'')+' — picar para deshacer" onclick="concilQuitar('+cz.idx+')">🔗 '+cz.g.ref+'</span>');
+      if(r.ref)chips.push('<span title="Nota incluida en la factura '+String(r.ref).replace(/[F.]/,'').replace(/"/g,'')+'" style="color:var(--text3)">'+r.ref+'</span>');
+      const tag=chips.join(' ');
       var cls=(CONCIL_ON&&r.k&&CONCIL_SEL[r.k])?('sel'+(cz?' casado':'')):(cz?'casado':'');
       var selo=(r.k?(' data-k="'+String(r.k).replace(/"/g,'')+'"'):'')+(cls?(' class="'+cls+'"'):'');
-      h+='<tr'+selo+' style="'+fondo+(r.monto<=0?'opacity:.55':'')+'"><td class="mono" style="font-weight:600">'+chk+r.folio+'</td><td>'+r.cli+'</td><td style="font-size:11px;color:var(--text2)">'+r.tipo+'</td><td>'+metBadgeCob(r.met)+'</td><td class="mono" style="text-align:right;font-weight:600">'+fmt(r.monto)+'</td><td style="font-size:11px">'+r.vend+'</td><td style="font-size:11px">'+r.suc+'</td><td style="font-size:11px;color:var(--text3)">'+tag+'</td></tr>';
+      h+='<tr'+selo+' style="'+fondo+(r.monto<=0?'opacity:.55':'')+'"><td class="mono" style="font-weight:600">'+chk+r.folio+'</td><td>'+r.cli+'</td><td style="font-size:11px;color:var(--text2)">'+r.tipo+'</td><td>'+metBadgeCob(r.met)+'</td><td class="mono" style="text-align:right;font-weight:600">'+fmt(r.monto)+'</td><td style="font-size:11px">'+r.vend+'</td><td style="font-size:11px">'+r.suc+'</td><td style="font-size:11px;color:var(--text3)">'+tag+'</td>'+(r.k?('<td class="cob-nota" data-nota="'+String(r.k).replace(/"/g,'')+'" onclick="cobNotaEdit(\''+String(r.k).replace(/'/g,"\\'")+'\')">'+cobNotaHTML(r.k)+'</td>'):'<td></td>')+'</tr>';
     });
   });
-  document.getElementById('cob-body').innerHTML=h||'<tr><td colspan="8" class="tbl-empty">Sin cobros en el periodo</td></tr>';
+  document.getElementById('cob-body').innerHTML=h||'<tr><td colspan="9" class="tbl-empty">Sin cobros en el periodo</td></tr>';
   setTimeout(cobAjustaAlto,0);
   const tot=rows.reduce((s,r)=>s+r.monto,0);
   let resTxt='→ '+rows.length+' registro'+(rows.length===1?'':'s')+' · '+fmt(tot);
@@ -6900,7 +6965,7 @@ function rCob(){
 }
 function limpiarCob(){COB_F={met:[],suc:[],vend:[]};const q=document.getElementById('cob-q');if(q)q.value='';['met','suc','vend'].forEach(mselPinta);rCob();}
 function expCobXlsx(){
-  const rows=[['COBRANZA IMPULSO GALERIA'],['Fecha','Folio','Cliente','Tipo','Método','Monto','Vendedor','Sucursal','Ref']];
+  const rows=[['COBRANZA IMPULSO GALERIA'],['Fecha','Folio','Cliente','Tipo','Método','Monto','Vendedor','Sucursal','Ref','Nota']];
   // exporta exactamente lo filtrado y visible
   const d1=document.getElementById('cob-d1').value,d2=document.getElementById('cob-d2').value;
   let data=cobRows();
@@ -6908,7 +6973,7 @@ function expCobXlsx(){
   data=cobFiltra(data);
   if(q)data=data.filter(r=>String(r.folio).toLowerCase().includes(q)||String(r.cli).toLowerCase().includes(q));
   data.sort((a,b)=>String(b.fecha).localeCompare(String(a.fecha)));
-  data.forEach(r=>rows.push([r.fecha,r.folio,r.cli,r.tipo,r.met,r.monto,r.vend,r.suc,r.ref]));
+  data.forEach(r=>rows.push([r.fecha,r.folio,r.cli,r.tipo,r.met,r.monto,r.vend,r.suc,r.ref,(r.k&&COBNOTAS[r.k])||'']));
   xlsxExp(rows,'cobranza_'+d1+'_a_'+d2);
 }
 function rAudit(){
