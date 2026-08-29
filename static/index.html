@@ -90,8 +90,10 @@ body.riel-on .content{margin-right:300px}
 .riel-pie{padding:9px 15px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
 /* Botón flotante para volver a abrirlo */
 .riel-fab{position:fixed;bottom:22px;right:22px;z-index:69;background:var(--ciruela);color:#fff;border:none;
-  border-radius:99px;padding:11px 17px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Outfit',var(--ui);
-  box-shadow:0 5px 18px rgba(110,65,87,.32);display:none;align-items:center;gap:7px}
+  border-radius:99px;padding:11px 17px;font-size:13px;font-weight:700;cursor:grab;font-family:'Outfit',var(--ui);
+  box-shadow:0 5px 18px rgba(110,65,87,.32);display:none;align-items:center;gap:7px;
+  touch-action:none;-webkit-user-select:none;user-select:none}
+.riel-fab:active{cursor:grabbing}
 .riel-fab .n{background:var(--mant);color:var(--ciruela-d);border-radius:99px;padding:0 7px;font-size:11.5px}
 @media(max-width:1100px){
   .riel{width:100%;max-width:340px}
@@ -867,7 +869,7 @@ body.riel-on .content{margin-right:300px}
   <div class="riel-b" id="riel-b"></div>
   <div class="riel-pie" id="riel-pie"></div>
 </aside>
-<button class="riel-fab" id="riel-fab" onclick="rielAbrir()">💰 Por cobrar <span class="n" id="riel-fabn">0</span></button>
+<button class="riel-fab" id="riel-fab" title="Arrástrame si estorbo — me quedo donde me dejes. Clic derecho para regresarme a mi esquina." onclick="rielAbrir()">💰 Por cobrar <span class="n" id="riel-fabn">0</span></button>
 <div class="content">
 <div class="mob-bar"><button class="mob-burger" onclick="toggleSB()">☰</button><span class="mob-title">IMPULSO</span></div>
 
@@ -1707,11 +1709,14 @@ body.riel-on .content{margin-right:300px}
 <div class="page" id="page-fac">
   <div class="ph">
     <div><div class="ph-title">Facturacion</div><div class="ph-sub">Pedidos pendientes de facturar y facturas emitidas</div></div>
-    <div style="display:flex;gap:7px;align-items:center">
+    <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+      <input id="fac-q" placeholder="🔍 Nota, cliente, factura o RFC..." oninput="rFac()" title="Busca en TODOS los meses — el filtro de mes se ignora mientras escribes" style="width:230px;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:7px">
+      <button class="btn btn-s btn-xs" id="fac-limpiar" style="display:none" onclick="limpiarFac()">✕ Limpiar</button>
       <select id="fac-mes" onchange="rFac()" style="width:140px"></select>
       <button class="btn btn-s btn-sm" onclick="expFacXlsx()">Excel</button>
     </div>
   </div>
+  <div id="fac-aviso" style="display:none;margin:-.35rem 0 .7rem;font-size:12px;color:var(--ciruela);font-weight:600"></div>
   <div class="metrics m3">
     <div class="metric"><div class="m-label">Pedidos a facturar</div><div class="m-val" id="fac-n">0</div></div>
     <div class="metric"><div class="m-label">Monto pendiente</div><div class="m-val" id="fac-monto">$0</div></div>
@@ -2128,6 +2133,59 @@ function rielCerrar(sinNada){
   var f=document.getElementById('riel-fab');
   f.style.display=sinNada?'none':'inline-flex';
 }
+// ── El botón 💰 tapaba la última columna del Estado de Resultados. Ahora se
+//    arrastra a donde no estorbe y se queda ahí, también al volver a entrar.
+//    Clic derecho = regresa a su esquina de siempre.
+(function(){
+  var LLAVE='impulso.fabPos', arrastrando=false, movido=false, ax=0, ay=0, sx=0, sy=0;
+  function fab(){return document.getElementById('riel-fab');}
+  function pon(x,y){
+    var b=fab();if(!b)return;
+    var w=b.offsetWidth||150,h=b.offsetHeight||42;   // que nunca se salga de la pantalla
+    x=Math.max(6,Math.min(x,window.innerWidth-w-6));
+    y=Math.max(6,Math.min(y,window.innerHeight-h-6));
+    b.style.left=x+'px';b.style.top=y+'px';b.style.right='auto';b.style.bottom='auto';
+  }
+  function guardado(){try{return JSON.parse(localStorage.getItem(LLAVE)||'null');}catch(e){return null;}}
+  function restaura(){var g=guardado();if(g)pon(g.x,g.y);}
+  function inicia(){
+    var b=fab();if(!b){setTimeout(inicia,500);return;}
+    restaura();
+    b.addEventListener('pointerdown',function(e){
+      if(e.button)return;
+      var r=b.getBoundingClientRect();
+      arrastrando=true;movido=false;
+      ax=e.clientX-r.left;ay=e.clientY-r.top;sx=e.clientX;sy=e.clientY;
+      try{b.setPointerCapture(e.pointerId);}catch(err){}
+    });
+    b.addEventListener('pointermove',function(e){
+      if(!arrastrando)return;
+      // Menos de 5px es un clic tembloroso, no un arrastre
+      if(!movido&&Math.abs(e.clientX-sx)+Math.abs(e.clientY-sy)<5)return;
+      movido=true;pon(e.clientX-ax,e.clientY-ay);
+    });
+    function suelta(){
+      if(!arrastrando)return;arrastrando=false;
+      if(!movido)return;
+      var r=fab().getBoundingClientRect();
+      try{localStorage.setItem(LLAVE,JSON.stringify({x:r.left,y:r.top}));}catch(e){}
+    }
+    b.addEventListener('pointerup',suelta);
+    b.addEventListener('pointercancel',suelta);
+    // Si lo arrastraste, ese clic NO debe abrir el riel
+    b.addEventListener('click',function(e){
+      if(movido){e.stopImmediatePropagation();e.preventDefault();}
+    },true);
+    b.addEventListener('contextmenu',function(e){
+      e.preventDefault();
+      b.style.left='';b.style.top='';b.style.right='22px';b.style.bottom='22px';
+      try{localStorage.removeItem(LLAVE);}catch(err){}
+    });
+    window.addEventListener('resize',restaura);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',inicia);
+  else inicia();
+})();
 // "Se pagó" NO inventa un estado nuevo: abre el abono de siempre en CxC.
 // Así el cobro se registra una sola vez y la nota sale del riel sola.
 function rielCobrar(idx){
@@ -8215,26 +8273,68 @@ function facSaldo(f){
   (f.folios||[]).forEach(fo=>{const p=pedidos.find(x=>x.folio===fo);if(p)saldo+=Math.max(0,+p.rest||0);});
   return saldo;
 }
+// Resalta el pedazo que coincide con la búsqueda, para no tener que leer
+// folio por folio cuando una factura junta ocho notas.
+function facMarca(txt,q){
+  if(!q||normNom(txt).indexOf(q)<0)return txt;
+  return '<b style="background:#FDE68A;color:var(--text);padding:0 3px;border-radius:3px">'+txt+'</b>';
+}
+function limpiarFac(){var q=document.getElementById('fac-q');if(q)q.value='';rFac();}
 function rFac(){
   var mes=parseInt(document.getElementById('fac-mes').value);
+  // La búsqueda ignora el mes a propósito: si buscas una nota es justamente
+  // porque no sabes de qué mes es. El selector de mes vuelve a mandar al borrarla.
+  var qEl=document.getElementById('fac-q');
+  var qRaw=qEl?(qEl.value||'').trim():'';
+  var q=normNom(qRaw);
+  var btnL=document.getElementById('fac-limpiar');if(btnL)btnL.style.display=qRaw?'':'none';
   var u=null;for(var i=0;i<USERS.length;i++){if(USERS[i].key===CU){u=USERS[i];break;}}
   var pendAll=pedidos.filter(function(p){return p.tipo_venta==='factura'&&!p.factura_num&&((u.role==='admin'||u.role==='owner')||p.suc===u.suc);});
-  var pend=pedidos.filter(function(p){return p.tipo_venta==='factura'&&!p.factura_num&&((u.role==='admin'||u.role==='owner')||p.suc===u.suc);});
+  var pend=pendAll;
+  if(q)pend=pendAll.filter(function(p){return normNom(p.folio).indexOf(q)>=0||normNom(p.cli).indexOf(q)>=0;});
   document.getElementById('fac-n').textContent=pendAll.length;
   document.getElementById('fac-monto').textContent=fmtK(pendAll.reduce(function(a,b){return a+b.total;},0));
   document.getElementById('fac-emitidas').textContent=FACTURAS.length;
-  var ph='';for(var i=0;i<pend.length;i++){var p=pend[i];ph+='<tr><td><input type="checkbox" class="fac-cb" value="'+p.folio+'"></td><td class="mono" style="font-weight:600">'+p.folio+'</td><td>'+p.cli+'</td><td style="color:var(--text2)">'+p.fecha+'</td><td class="mono">'+fmt(p.total)+'</td></tr>';}
-  document.getElementById('fac-pend-body').innerHTML=ph||'<tr><td colspan="5" class="tbl-empty">Sin pedidos de factura en este mes</td></tr>';
+  var ph='';for(var i=0;i<pend.length;i++){var p=pend[i];ph+='<tr><td><input type="checkbox" class="fac-cb" value="'+p.folio+'"></td><td class="mono" style="font-weight:600">'+facMarca(p.folio,q)+'</td><td>'+facMarca(p.cli,q)+'</td><td style="color:var(--text2)">'+p.fecha+'</td><td class="mono">'+fmt(p.total)+'</td></tr>';}
+  document.getElementById('fac-pend-body').innerHTML=ph||'<tr><td colspan="5" class="tbl-empty">'+(q?'Ninguna nota pendiente coincide con «'+qRaw+'»':'Sin pedidos pendientes de facturar')+'</td></tr>';
   // Facturas por cobrar (todas, sin importar el mes): el enlace vivo factura↔cobros
   var pcTot=0,pcN=0;
   for(var i=0;i<FACTURAS.length;i++){var s=facSaldo(FACTURAS[i]);if(s>0.5){pcTot+=s;pcN++;}}
   var pcEl=document.getElementById('fac-porcobrar');if(pcEl){pcEl.textContent=fmtK(pcTot);document.getElementById('fac-porcobrar-n').textContent=pcN?(pcN+' factura'+(pcN===1?'':'s')+' con saldo'):'todas cobradas ✓';}
-  var eh='';var facsMes=FACTURAS.filter(function(f){return new Date(f.fecha).getMonth()===mes;});
+  var eh='';
+  var facsMes;
+  if(q){
+    // Buscando: todo el año, y también por el nombre del cliente de cada nota
+    // que la factura agrupa — así "Rosario" encuentra su factura aunque la
+    // factura solo guarde folios.
+    facsMes=FACTURAS.filter(function(f){
+      if(normNom(f.num).indexOf(q)>=0||normNom(f.rfc).indexOf(q)>=0)return true;
+      var fol=f.folios||[];
+      for(var k=0;k<fol.length;k++){
+        if(normNom(fol[k]).indexOf(q)>=0)return true;
+        for(var j=0;j<pedidos.length;j++){
+          if(pedidos[j].folio===fol[k]&&normNom(pedidos[j].cli).indexOf(q)>=0)return true;
+        }
+      }
+      return false;
+    });
+  } else {
+    facsMes=FACTURAS.filter(function(f){return new Date(f.fecha).getMonth()===mes;});
+  }
   for(var i=0;i<facsMes.length;i++){var f=facsMes[i],idx=FACTURAS.indexOf(f);
     var saldo=facSaldo(f);
     var cobro=saldo>0.5?'<span class="badge by">🕗 Por cobrar '+fmt(saldo)+'</span>':'<span class="badge bg">✔ Pagada</span>';
-    eh+='<tr><td class="mono" style="font-weight:600">'+f.num+'</td><td style="color:var(--text2)">'+f.rfc+'</td><td style="color:var(--text2)">'+f.fecha+'</td><td style="font-size:11px;color:var(--text2)">'+f.folios.join(', ')+'</td><td class="mono">'+fmt(f.total)+'</td><td>'+cobro+'</td><td><button class="btn btn-d btn-xs" onclick="delFac('+idx+')">&#128465;</button></td></tr>';}
-  document.getElementById('fac-emit-body').innerHTML=eh||'<tr><td colspan="7" class="tbl-empty">Sin facturas emitidas</td></tr>';
+    var folTxt=(f.folios||[]).map(function(fo){return facMarca(fo,q);}).join(', ');
+    eh+='<tr><td class="mono" style="font-weight:600">'+facMarca(f.num,q)+'</td><td style="color:var(--text2)">'+facMarca(f.rfc,q)+'</td><td style="color:var(--text2)">'+f.fecha+'</td><td style="font-size:11px;color:var(--text2)">'+folTxt+'</td><td class="mono">'+fmt(f.total)+'</td><td>'+cobro+'</td><td><button class="btn btn-d btn-xs" onclick="delFac('+idx+')">&#128465;</button></td></tr>';}
+  document.getElementById('fac-emit-body').innerHTML=eh||'<tr><td colspan="7" class="tbl-empty">'+(q?'Ninguna factura contiene «'+qRaw+'»':'Sin facturas emitidas en este mes')+'</td></tr>';
+  // Aviso: que quede claro que el mes dejó de mandar
+  var av=document.getElementById('fac-aviso');
+  if(av){
+    if(q){
+      av.style.display='';
+      av.innerHTML='🔎 Buscando <b>«'+qRaw+'»</b> en todos los meses · '+pend.length+' nota'+(pend.length===1?'':'s')+' pendiente'+(pend.length===1?'':'s')+' · '+facsMes.length+' factura'+(facsMes.length===1?'':'s')+' emitida'+(facsMes.length===1?'':'s')+' <span style="font-weight:400;color:var(--text3)">— el filtro de mes está en pausa</span>';
+    } else av.style.display='none';
+  }
 }
 function selAllFac(cb){var cbs=document.querySelectorAll('.fac-cb');for(var i=0;i<cbs.length;i++)cbs[i].checked=cb.checked;}
 function emitirFactura(){
