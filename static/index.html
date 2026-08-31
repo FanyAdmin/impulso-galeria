@@ -431,12 +431,13 @@ body.riel-on .content{margin-right:300px}
 #page-cob .cob-vg{margin-left:6px;border:1px solid var(--border);background:#fff;color:var(--text3);border-radius:99px;padding:1px 7px;font-size:10px;font-weight:700;cursor:pointer;opacity:0;transition:opacity .12s;font-family:inherit}
 #page-cob tr:hover .cob-vg{opacity:1}
 #page-cob .cob-vg:hover{background:var(--ciruela);color:#fff;border-color:var(--ciruela)}
-/* El chip del depósito: el texto abre la nota del renglón, la ✕ deshace el grupo.
-   Antes todo el chip deshacía, y un clic de curiosidad borraba la conciliación. */
-#page-cob .cz-chip{padding-right:3px}
-#page-cob .cz-txt{cursor:pointer}
-#page-cob .cz-x{cursor:pointer;margin-left:6px;padding:0 4px;border-radius:99px;color:#B91C1C;font-weight:700;opacity:.35}
-#page-cob .cz-x:hover{opacity:1;background:#FEE2E2}
+/* El chip del depósito abre un menú donde cada opción dice lo que hace. */
+#page-cob .cz-chip{background:#fff;border:1px solid #ccc;color:#333;cursor:pointer}
+#page-cob .cz-chip:hover{border-color:var(--ciruela)}
+#cz-menu .cz-op{display:block;width:100%;text-align:left;background:none;border:none;padding:9px 10px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12.5px;color:var(--text);line-height:1.4}
+#cz-menu .cz-op:hover{background:var(--mant,#F0EFE9)}
+#cz-menu .cz-op-d{color:#B91C1C}
+#cz-menu .cz-op-d:hover{background:#FEE2E2}
 
 /* ── ABONO ROW ── */
 .ab-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
@@ -6551,6 +6552,36 @@ function cobNotaVG(ev,k){
   cobNotaPinta(k);
   saveCobNotas();
 }
+// Antes este chip tenía una ✕ que deshacía TODA la conciliación. Se lee como
+// "quitar esta etiqueta" y no lo es, así que un clic de curiosidad desarmaba el
+// grupo. Ahora abre un menú donde cada opción dice con palabras lo que hace.
+function czMenu(ev,k,idx){
+  ev.stopPropagation();
+  czCerrarMenu();
+  var g=CONCIL.grupos[idx]||{ref:'',keys:[]};
+  var n=(g.keys||[]).length;
+  var d=document.createElement('div');
+  d.id='cz-menu';
+  d.style.cssText='position:fixed;z-index:5000;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px rgba(16,24,40,.18);padding:6px;min-width:290px;font-size:12.5px';
+  d.innerHTML=
+    '<div style="padding:7px 10px 9px;color:var(--text3);font-size:11px;line-height:1.5">Depósito <b style="color:var(--text)">'+g.ref+'</b><br>'+n+' cobro'+(n===1?'':'s')+' casado'+(n===1?'':'s')+' con él</div>'
+   +'<button class="cz-op" onclick="czCerrarMenu();cobNotaEdit(\''+String(k).replace(/'/g,"\\'")+'\')">✏️ Escribir la nota de <b>este</b> cobro</button>'
+   +'<button class="cz-op" onclick="czCerrarMenu();czRenombrar('+idx+')">🏷️ Cambiar el nombre del depósito <span style="color:var(--text3)">(afecta a los '+n+')</span></button>'
+   +'<button class="cz-op cz-op-d" onclick="czCerrarMenu();concilQuitar('+idx+')">↩️ Deshacer la conciliación <span style="color:var(--text3)">(los '+n+' vuelven a pendientes)</span></button>';
+  document.body.appendChild(d);
+  var x=Math.min(ev.clientX,window.innerWidth-320), y=ev.clientY+8;
+  if(y+d.offsetHeight>window.innerHeight-10)y=Math.max(10,ev.clientY-d.offsetHeight-8);
+  d.style.left=x+'px'; d.style.top=y+'px';
+  setTimeout(function(){document.addEventListener('click',czCerrarMenu,{once:true});},0);
+}
+function czCerrarMenu(){var m=document.getElementById('cz-menu');if(m)m.remove();}
+function czRenombrar(idx){
+  var g=CONCIL.grupos[idx];if(!g)return;
+  var v=prompt('Nombre del depósito del banco.\n\nEs el mismo para los '+(g.keys||[]).length+' cobros casados con él.\nPara escribir algo de un solo cobro, usa la columna Nota.',g.ref||'');
+  if(v===null)return;
+  g.ref=v.trim()||g.ref;
+  saveConcil().then(function(){rCob();});
+}
 function concilDe(k){
   if(!k)return null;
   for(let i=0;i<CONCIL.grupos.length;i++){if(CONCIL.grupos[i].keys.includes(k))return {g:CONCIL.grupos[i],color:CONCIL_COLORES[i%CONCIL_COLORES.length],idx:i};}
@@ -7132,9 +7163,7 @@ function rCob(){
       var chips=[];
       if(cz){
         var kEsc=String(r.k).replace(/'/g,"\\'");
-        chips.push('<span class="badge cz-chip" style="background:#fff;border:1px solid #ccc;color:#333">'
-          +'<span class="cz-txt" title="Este texto es del DEPÓSITO: es igual para todos los cobros que casaste con él. Picar aquí escribe una nota solo de este renglón." onclick="cobNotaEdit(\''+kEsc+'\')">🔗 '+cz.g.ref+'</span>'
-          +'<span class="cz-x" title="Deshacer la conciliación de todo el depósito" onclick="concilQuitar('+cz.idx+')">✕</span></span>');
+        chips.push('<span class="badge cz-chip" title="Picar para ver qué se puede hacer" onclick="czMenu(event,\''+kEsc+'\','+cz.idx+')">🔗 '+cz.g.ref+'</span>');
       }
       if(r.ref)chips.push('<span title="Nota incluida en la factura '+String(r.ref).replace(/[F.]/,'').replace(/"/g,'')+'" style="color:var(--text3)">'+r.ref+'</span>');
       const tag=chips.join(' ');
