@@ -655,6 +655,24 @@ body.riel-on .content{margin-right:300px}
 </div>
 </div>
 
+<div class="modal-bg" id="mod-cargaab" style="display:none;z-index:3000">
+<div class="modal" style="width:920px;max-width:96vw">
+  <div class="modal-hdr"><div class="modal-ttl">⬆️ Cargar abonos históricos</div><button class="modal-x" onclick="CM('mod-cargaab')">✕</button></div>
+  <div class="modal-body">
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Pega de Excel las columnas <b>Folio · Fecha · Monto · Método</b> (una fila por abono, sin encabezado). Primero se revisa: nada se guarda hasta que pique Cargar.</div>
+    <textarea id="ca-txt" placeholder="1&#9;07/01/2025&#9;1045&#9;Transferencia" style="width:100%;height:120px;font-family:var(--mono,monospace);font-size:12px;padding:8px;border:1px solid var(--border);border-radius:7px"></textarea>
+    <div style="display:flex;gap:8px;align-items:center;margin:10px 0">
+      <button class="btn btn-s" onclick="caRevisar()">🔍 Revisar</button>
+      <button class="btn btn-p" id="ca-btn-cargar" style="display:none" onclick="caCargar()">⬆️ Cargar los válidos</button>
+      <span id="ca-resumen" style="font-size:12px;color:var(--text2)"></span>
+    </div>
+    <div id="ca-tabla" style="max-height:340px;overflow:auto"></div>
+    <div id="ca-log" style="max-height:200px;overflow:auto;font-size:11.5px;font-family:var(--mono,monospace);margin-top:10px"></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-cargaab')">Cerrar</button></div>
+</div>
+</div>
+
 <div class="modal-bg" id="mod-ordman" style="display:none">
 <div class="modal" style="width:560px;max-width:94vw">
   <div class="modal-hdr"><div class="modal-ttl">➕ Orden manual por nota</div><button class="modal-x" onclick="CM('mod-ordman')">✕</button></div>
@@ -1379,7 +1397,7 @@ body.riel-on .content{margin-right:300px}
 <div class="page" id="page-cob">
   <div id="cob-fijo" style="position:sticky;top:0;z-index:20;background:var(--surface);padding-top:2px;margin:-2px -2px 0;box-shadow:0 6px 12px -8px rgba(16,24,40,.25)">
   <div class="ph" style="margin-bottom:.7rem"><div><div class="ph-title">Cobranza <span class="hl">día por día</span></div><div class="ph-sub">Todos los cobros día por día — anticipos, abonos y liquidaciones (tu control de Excel, vivo)</div></div>
-    <div style="display:flex;gap:8px"><button class="btn btn-p admin-only" style="display:none" id="cob-cierre-btn" onclick="openCierre()">🌙 Cierre del día</button><button class="btn btn-s admin-only" style="display:none" id="cob-edo-btn" onclick="OM('mod-edocta')">📥 Subir estado de cuenta</button><button class="btn btn-s admin-only" style="display:none" id="cob-concil-btn" onclick="toggleConcilMode()">🧮 Conciliar manual</button><button class="btn btn-s" onclick="expCobXlsx()">📊 Excel</button></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-p admin-only" style="display:none" id="cob-cierre-btn" onclick="openCierre()">🌙 Cierre del día</button><button class="btn btn-s admin-only" style="display:none" id="cob-edo-btn" onclick="OM('mod-edocta')">📥 Subir estado de cuenta</button><button class="btn btn-s admin-only" style="display:none" id="cob-concil-btn" onclick="toggleConcilMode()">🧮 Conciliar manual</button><button class="btn btn-s admin-only" style="display:none" id="cob-carga-btn" onclick="abrirCargaAbonos()">⬆️ Cargar abonos históricos</button><button class="btn btn-s" onclick="expCobXlsx()">📊 Excel</button></div>
   </div>
   <div id="cob-barra" style="display:none;position:sticky;top:0;z-index:5;background:#1F3864;color:#fff;border-radius:10px;padding:10px 16px;margin-bottom:.6rem;align-items:center;gap:14px;flex-wrap:wrap">
     <span id="cob-barra-info" style="font-size:13px"></span>
@@ -3149,6 +3167,104 @@ function openEditAbono(id){
   document.getElementById('ea-fecha').value=a.fecha||todayStr();
   document.getElementById('ea-tipo').value=a.tipo||'Abono';
   OM('mod-edit-ab');
+}
+// ═══ CARGA DE ABONOS HISTÓRICOS ═══════════════════════════════════════════
+// Los abonos anteriores a julio 2026 nunca se migraron: la carga inicial trajo
+// los pedidos pero no los cobros. Capturarlos a mano los fecharía HOY (así
+// funciona el cobro normal), y eso borraría la historia que queremos recuperar.
+// Esto los mete con su fecha real. Nunca guarda sin que revises antes.
+let CA_FILAS=[];
+function abrirCargaAbonos(){
+  CA_FILAS=[];
+  document.getElementById('ca-txt').value='';
+  document.getElementById('ca-tabla').innerHTML='';
+  document.getElementById('ca-log').innerHTML='';
+  document.getElementById('ca-resumen').textContent='';
+  document.getElementById('ca-btn-cargar').style.display='none';
+  OM('mod-cargaab');
+}
+function caFecha(s){
+  s=String(s||'').trim();
+  var m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);   // dd/mm/aaaa
+  if(m){var a=m[3].length===2?('20'+m[3]):m[3];
+    return a+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2);}
+  m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);                    // aaaa-mm-dd
+  if(m)return m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
+  return null;
+}
+function caRevisar(){
+  var lineas=(document.getElementById('ca-txt').value||'').split(/\r?\n/).filter(function(l){return l.trim();});
+  CA_FILAS=[];
+  var yaVistos={};
+  lineas.forEach(function(l,i){
+    var c=l.split(/\t|,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(function(x){return String(x).trim().replace(/^"|"$/g,'');});
+    var f={linea:i+1,folio:c[0],fecha:caFecha(c[1]),monto:parseFloat(String(c[2]||'').replace(/[$,\s]/g,'')),met:c[3]||'Efectivo',ok:false,motivo:''};
+    var p=null;
+    for(var k=0;k<pedidos.length;k++){if(String(pedidos[k].folio)===String(f.folio)){if(p){p='DUP';break;}p=pedidos[k];}}
+    if(!f.folio)                 f.motivo='Sin folio';
+    else if(p===null)            f.motivo='El folio no existe en la plataforma';
+    else if(p==='DUP')           f.motivo='El folio está repetido: hay que decidir a mano';
+    else if(!p.id)               f.motivo='El pedido no tiene id en la base (no se puede actualizar)';
+    else if(!f.fecha)            f.motivo='Fecha ilegible';
+    else if(!(f.monto>0))        f.motivo='Monto inválido';
+    else if(f.monto>(p.total-p.ant)+0.5) f.motivo='Se pasa del total: la nota vale '+fmt(p.total)+' y ya tiene '+fmt(p.ant);
+    else {
+      var llave=f.folio+'|'+f.fecha+'|'+f.monto.toFixed(2);
+      if(yaVistos[llave])         f.motivo='Repetida en lo que pegaste (línea '+yaVistos[llave]+')';
+      else if((ABONOS||[]).some(function(a){return String(a.folio)===String(f.folio)&&a.fecha===f.fecha&&Math.abs((+a.monto||0)-f.monto)<0.01;}))
+                                  f.motivo='Ya está cargado en la plataforma';
+      else {yaVistos[llave]=f.linea;f.ok=true;f.p=p;}
+    }
+    CA_FILAS.push(f);
+  });
+  var ok=CA_FILAS.filter(function(f){return f.ok;});
+  var suma=ok.reduce(function(a,b){return a+b.monto;},0);
+  document.getElementById('ca-resumen').innerHTML='<b>'+ok.length+'</b> listos ('+fmt(suma)+') · <b>'+(CA_FILAS.length-ok.length)+'</b> se van a saltar';
+  document.getElementById('ca-btn-cargar').style.display=ok.length?'':'none';
+  var h='<table class="tbl"><thead><tr><th>#</th><th>Folio</th><th>Cliente</th><th>Fecha</th><th style="text-align:right">Monto</th><th>Método</th><th>Estado</th></tr></thead><tbody>';
+  CA_FILAS.forEach(function(f){
+    h+='<tr style="background:'+(f.ok?'#F0FDF4':'#FEF2F2')+'"><td>'+f.linea+'</td><td class="mono">'+(f.folio||'')+'</td><td style="font-size:11px">'+(f.p?f.p.cli:'')+'</td><td>'+(f.fecha||'—')+'</td><td class="mono" style="text-align:right">'+(f.monto>0?fmt(f.monto):'—')+'</td><td style="font-size:11px">'+f.met+'</td><td style="font-size:11px;color:'+(f.ok?'var(--verde,#166534)':'#B91C1C')+'">'+(f.ok?'✓ listo':f.motivo)+'</td></tr>';
+  });
+  document.getElementById('ca-tabla').innerHTML=h+'</tbody></table>';
+}
+function caCargar(){
+  var ok=CA_FILAS.filter(function(f){return f.ok;});
+  if(!ok.length)return;
+  if(!confirm('Se van a registrar '+ok.length+' abonos con su fecha original.\n\nCada uno actualiza el anticipo y el restante de su nota.\nEsto se puede deshacer borrando el cobro desde Cobranza.\n\n¿Seguimos?'))return;
+  document.getElementById('ca-btn-cargar').style.display='none';
+  var log=document.getElementById('ca-log');
+  log.innerHTML='';
+  var i=0,bien=0,mal=0;
+  function linea(txt,color){log.innerHTML+='<div style="color:'+color+'">'+txt+'</div>';log.scrollTop=log.scrollHeight;}
+  // Uno por uno a propósito: si algo truena, truena solo y queda dicho cuál.
+  function paso(){
+    if(i>=ok.length){
+      linea('── Terminado: '+bien+' cargados, '+mal+' con error ──','var(--text2)');
+      rCob();try{rCxC();rPed();rDia();}catch(e){}
+      return;
+    }
+    var f=ok[i++],p=f.p;
+    var nuevoAnt=Math.round((p.ant+f.monto)*100)/100;
+    var nuevoRest=Math.round((p.total-nuevoAnt)*100)/100;
+    var ab={pedido_id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,monto:f.monto,met:f.met,fecha:f.fecha,tipo:nuevoRest>0.5?'Abono':'Liquidacion'};
+    fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(ab)})
+      .then(function(r){if(!r.ok)throw new Error('abono: el servidor respondió '+r.status);return r.json();})
+      .then(function(d){
+        if(d&&d.id)ABONOS.unshift(d);
+        var campos={ant:nuevoAnt,rest:nuevoRest};
+        if(nuevoRest<=0.5)campos.est='Entregado';
+        return fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(campos)})
+          .then(function(r){if(!r.ok)throw new Error('pedido: el servidor respondió '+r.status);return r.json();})
+          .then(function(x){
+            if(!x||typeof x.ant==='undefined')throw new Error('el servidor no confirmó el pedido');
+            p.ant=x.ant;p.rest=x.rest;if(x.est)p.est=x.est;
+            bien++;linea('✓ Folio '+p.folio+' · '+f.fecha+' · '+fmt(f.monto)+' — restante ahora '+fmt(x.rest),'#166534');
+          });
+      })
+      .catch(function(e){mal++;linea('✗ Folio '+f.folio+' · '+f.fecha+' · '+fmt(f.monto)+' — '+e.message,'#B91C1C');})
+      .then(function(){setTimeout(paso,60);});
+  }
+  paso();
 }
 function guardarEditAbono(){
   const a=ABONOS.find(x=>x.id===_eaId);if(!a)return;
