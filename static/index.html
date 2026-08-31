@@ -660,6 +660,22 @@ body.riel-on .content{margin-right:300px}
 </div>
 </div>
 
+<div class="modal-bg" id="mod-concilcierre" style="display:none;z-index:3000">
+<div class="modal" style="width:760px;max-width:96vw">
+  <div class="modal-hdr"><div class="modal-ttl">✓ Cerrar la conciliación</div><button class="modal-x" onclick="CM('mod-concilcierre')">✕</button></div>
+  <div class="modal-body">
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px"><b id="cc-n">0</b> cobros que suman <b id="cc-suma">$0.00</b></div>
+    <label style="font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.04em">REFERENCIA DEL DEPÓSITO <span style="font-weight:400;text-transform:none;letter-spacing:0">— igual para todos, es el movimiento del banco</span></label>
+    <input id="cc-ref" style="width:100%;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:7px;margin:4px 0 14px">
+    <label style="font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.04em">NOTA DE CADA COBRO <span style="font-weight:400;text-transform:none;letter-spacing:0">— cada uno el suyo, pueden ser todos distintos</span></label>
+    <div style="max-height:300px;overflow:auto;margin-top:4px">
+      <table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th style="text-align:right">Monto</th><th style="width:44%">Nota</th><th></th></tr></thead><tbody id="cc-body"></tbody></table>
+    </div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-concilcierre')">Cancelar</button><button class="btn btn-p" onclick="ccGuardar()">✓ Casar y guardar</button></div>
+</div>
+</div>
+
 <div class="modal-bg" id="mod-cargaab" style="display:none;z-index:3000">
 <div class="modal" style="width:920px;max-width:96vw">
   <div class="modal-hdr"><div class="modal-ttl">⬆️ Cargar abonos históricos</div><button class="modal-x" onclick="CM('mod-cargaab')">✕</button></div>
@@ -6572,12 +6588,50 @@ function concilGuardar(){
   const keys=Object.keys(CONCIL_SEL).filter(k=>ya.indexOf(k)<0);   // los ya casados se quedan donde están
   if(!keys.length){alert('Los cobros que marcaste ya están casados con otro depósito.\nMarcarlos aquí solo sirvió para volver a ver su suma.');return;}
   if(ya.length&&!confirm(ya.length+' de los marcados ya estaban casados y se quedan en su depósito.\nSe van a casar solo los otros '+keys.length+'.\n\n¿Continuar?'))return;
-  const suma=keys.reduce((s,k)=>s+CONCIL_SEL[k].monto,0);
-  const ref=prompt('✓ Casar estos '+keys.length+' cobro(s) que suman '+fmt(suma)+'\n\nReferencia del depósito del banco (ej. "Dep 30/07 $2,000" o el folio del estado de cuenta):','Dep '+new Date().toLocaleDateString('es-MX'));
-  if(ref===null)return;
-  CONCIL.grupos.push({ref:ref||('Dep '+fmt(suma)),monto:suma,keys:keys,fecha:dateStrLocal(new Date())});
-  CONCIL_SEL={};
-  saveConcil().then(()=>rCob());
+  abrirConcilCierre(keys);
+}
+// Un depósito puede juntar cobros que no tienen nada que ver entre sí: uno va a
+// una factura, otro a otra, otro fue venta de galería. Antes se pedía UN concepto
+// para todos y quedaban los tres diciendo lo mismo. Aquí cada uno trae el suyo.
+let CC_KEYS=[];
+function abrirConcilCierre(keys){
+  CC_KEYS=keys.slice();
+  var suma=keys.reduce(function(s,k){return s+CONCIL_SEL[k].monto;},0);
+  document.getElementById('cc-suma').textContent=fmt(suma);
+  document.getElementById('cc-n').textContent=keys.length;
+  document.getElementById('cc-ref').value='Dep '+new Date().toLocaleDateString('es-MX');
+  var filas=cobRows();
+  var h='';
+  keys.forEach(function(k,i){
+    var r=null;for(var j=0;j<filas.length;j++){if(filas[j].k===k){r=filas[j];break;}}
+    var prev=COBNOTAS[k]||(r&&r.ref?r.ref:'');
+    h+='<tr><td class="mono" style="font-weight:600">'+(r?r.folio:'')+'</td>'
+      +'<td style="font-size:11px">'+(r?r.cli:'')+'</td>'
+      +'<td class="mono" style="text-align:right;font-weight:600">'+fmt(CONCIL_SEL[k].monto)+'</td>'
+      +'<td><input class="cc-nota" data-k="'+String(k).replace(/"/g,'')+'" value="'+String(prev).replace(/"/g,'&quot;')+'" placeholder="Factura, venta galería, lo que sea…" style="width:100%;font-size:12px;padding:5px 8px;border:1px solid var(--border);border-radius:6px"></td>'
+      +'<td><button class="btn btn-s btn-xs" onclick="ccPone(this,\'VG\')">VG</button></td></tr>';
+  });
+  document.getElementById('cc-body').innerHTML=h;
+  OM('mod-concilcierre');
+  setTimeout(function(){var a=document.querySelector('#cc-body .cc-nota');if(a)a.focus();},80);
+}
+function ccPone(btn,txt){
+  var inp=btn.closest('tr').querySelector('.cc-nota');
+  inp.value=(inp.value===txt?'':txt);
+  inp.focus();
+}
+function ccGuardar(){
+  var suma=CC_KEYS.reduce(function(s,k){return s+CONCIL_SEL[k].monto;},0);
+  var ref=(document.getElementById('cc-ref').value||'').trim();
+  CONCIL.grupos.push({ref:ref||('Dep '+fmt(suma)),monto:suma,keys:CC_KEYS.slice(),fecha:dateStrLocal(new Date())});
+  var inps=document.querySelectorAll('#cc-body .cc-nota');
+  for(var i=0;i<inps.length;i++){
+    var k=inps[i].getAttribute('data-k'),v=(inps[i].value||'').trim();
+    if(v)COBNOTAS[k]=v; else delete COBNOTAS[k];
+  }
+  CONCIL_SEL={}; CC_KEYS=[];
+  CM('mod-concilcierre');
+  Promise.all([saveConcil(),saveCobNotas()]).then(function(){rCob();});
 }
 function concilQuitar(idx){
   const g=CONCIL.grupos[idx];if(!g)return;
