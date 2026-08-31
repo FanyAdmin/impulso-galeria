@@ -659,8 +659,8 @@ body.riel-on .content{margin-right:300px}
 <div class="modal" style="width:920px;max-width:96vw">
   <div class="modal-hdr"><div class="modal-ttl">⬆️ Cargar abonos históricos</div><button class="modal-x" onclick="CM('mod-cargaab')">✕</button></div>
   <div class="modal-body">
-    <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Pega de Excel las columnas <b>Folio · Fecha · Monto · Método</b> (una fila por abono, sin encabezado). Primero se revisa: nada se guarda hasta que pique Cargar.</div>
-    <textarea id="ca-txt" placeholder="1&#9;07/01/2025&#9;1045&#9;Transferencia" style="width:100%;height:120px;font-family:var(--mono,monospace);font-size:12px;padding:8px;border:1px solid var(--border);border-radius:7px"></textarea>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:8px">Pega de Excel las columnas <b>Folio · Fecha · Monto · Método · Sucursal</b> (una fila por abono, sin encabezado). Primero se revisa: nada se guarda hasta que pique Cargar.</div>
+    <textarea id="ca-txt" placeholder="1&#9;07/01/2025&#9;1045&#9;Transferencia&#9;Jardines" style="width:100%;height:120px;font-family:var(--mono,monospace);font-size:12px;padding:8px;border:1px solid var(--border);border-radius:7px"></textarea>
     <div style="display:flex;gap:8px;align-items:center;margin:10px 0">
       <button class="btn btn-s" onclick="caRevisar()">🔍 Revisar</button>
       <button class="btn btn-p" id="ca-btn-cargar" style="display:none" onclick="caCargar()">⬆️ Cargar los válidos</button>
@@ -3197,13 +3197,26 @@ function caRevisar(){
   CA_FILAS=[];
   var yaVistos={};
   lineas.forEach(function(l,i){
-    var c=l.split(/\t|,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(function(x){return String(x).trim().replace(/^"|"$/g,'');});
-    var f={linea:i+1,folio:c[0],fecha:caFecha(c[1]),monto:parseFloat(String(c[2]||'').replace(/[$,\s]/g,'')),met:c[3]||'Efectivo',ok:false,motivo:''};
-    var p=null;
-    for(var k=0;k<pedidos.length;k++){if(String(pedidos[k].folio)===String(f.folio)){if(p){p='DUP';break;}p=pedidos[k];}}
+    // Al pegar desde Excel las columnas vienen separadas por TABULADOR. Si además
+    // se parte por comas, un monto de $1,722.00 se rompe en "1" y "722.00" y se
+    // registraría un peso en vez de mil setecientos. Por eso: si hay tabulador,
+    // manda el tabulador y la coma se respeta como separador de miles.
+    var c=(l.indexOf('\t')>=0?l.split('\t'):l.split(';')).map(function(x){return String(x).trim().replace(/^"|"$/g,'');});
+    var f={linea:i+1,folio:c[0],fecha:caFecha(c[1]),monto:parseFloat(String(c[2]||'').replace(/[$,\s]/g,'')),met:c[3]||'Efectivo',suc:(c[4]||'').trim(),ok:false,motivo:''};
+    // Los folios se repiten entre sucursales (Zibata numera desde 1). Si la fila
+    // trae sucursal, se usa para desempatar; si no y el folio está en las dos, se para.
+    var cand=[];
+    for(var k=0;k<pedidos.length;k++){
+      if(String(pedidos[k].folio)!==String(f.folio))continue;
+      if(f.suc&&String(pedidos[k].suc||'').toLowerCase()!==f.suc.toLowerCase())continue;
+      cand.push(pedidos[k]);
+    }
+    var p=cand.length===1?cand[0]:(cand.length===0?null:'DUP');
     if(!f.folio)                 f.motivo='Sin folio';
+    else if(String(f.met).replace(/[$,\s]/g,'')!==''&&isFinite(String(f.met).replace(/[$,\s]/g,'')))
+                                 f.motivo='El método trae un número ('+f.met+'): las columnas se pegaron mal';
     else if(p===null)            f.motivo='El folio no existe en la plataforma';
-    else if(p==='DUP')           f.motivo='El folio está repetido: hay que decidir a mano';
+    else if(p==='DUP')           f.motivo='El folio existe en '+cand.length+' sucursales: agrega la columna Sucursal';
     else if(!p.id)               f.motivo='El pedido no tiene id en la base (no se puede actualizar)';
     else if(!f.fecha)            f.motivo='Fecha ilegible';
     else if(!(f.monto>0))        f.motivo='Monto inválido';
