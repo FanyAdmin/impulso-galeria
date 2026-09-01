@@ -432,6 +432,9 @@ body.riel-on .content{margin-right:300px}
 #page-cob tr:hover .cob-vg{opacity:1}
 #page-cob .cob-vg:hover{background:var(--ciruela);color:#fff;border-color:var(--ciruela)}
 /* El chip del depósito abre un menú donde cada opción dice lo que hace. */
+.ent-edit{display:block;margin-top:3px;background:none;border:none;padding:0;font-size:10px;color:var(--text3);cursor:pointer;font-family:inherit;opacity:0;transition:opacity .12s}
+tr:hover .ent-edit{opacity:1}
+.ent-edit:hover{color:var(--ciruela);text-decoration:underline}
 #page-cob .cz-chip{background:#fff;border:1px solid #ccc;color:#333;cursor:pointer}
 #page-cob .cz-chip:hover{border-color:var(--ciruela)}
 #cz-menu .cz-op{display:block;width:100%;text-align:left;background:none;border:none;padding:9px 10px;border-radius:7px;cursor:pointer;font-family:inherit;font-size:12.5px;color:var(--text);line-height:1.4}
@@ -658,6 +661,23 @@ body.riel-on .content{margin-right:300px}
     </div>
   </div>
   <div class="modal-foot"><button class="btn btn-d" onclick="delAbono()">🗑 Eliminar</button><button class="btn btn-s" onclick="CM('mod-edit-ab')">Cancelar</button><button class="btn btn-p" onclick="guardarEditAbono()">✓ Guardar</button></div>
+</div>
+</div>
+
+<div class="modal-bg" id="mod-entf" style="display:none;z-index:3000">
+<div class="modal" style="width:420px;max-width:94vw">
+  <div class="modal-hdr"><div class="modal-ttl">📅 Fechas de entrega</div><button class="modal-x" onclick="CM('mod-entf')">✕</button></div>
+  <div class="modal-body">
+    <div id="entf-tit" style="font-weight:700;margin-bottom:2px"></div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:14px">Estatus actual: <b id="entf-est"></b></div>
+    <label style="font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.04em">ENTREGA PROMETIDA <span style="font-weight:400;text-transform:none;letter-spacing:0">— la que se le dijo al cliente</span></label>
+    <input type="date" id="entf-prom" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;margin:4px 0 14px">
+    <label style="font-size:11px;color:var(--text3);font-weight:700;letter-spacing:.04em">SE ENTREGÓ EL <span style="font-weight:400;text-transform:none;letter-spacing:0">— el día que salió de verdad</span></label>
+    <input type="date" id="entf-real" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:7px;margin:4px 0 6px">
+    <div style="font-size:11px;color:var(--text3);line-height:1.5">Déjala vacía si todavía no se entrega. Esta fecha es la que decide si la nota salió a tiempo o tarde.</div>
+    <div id="entf-msg" style="font-size:12px;color:#B91C1C;margin-top:10px;min-height:16px"></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-entf')">Cancelar</button><button class="btn btn-p" onclick="guardarEntFechas()">Guardar</button></div>
 </div>
 </div>
 
@@ -2642,20 +2662,70 @@ function putPedidoVerificado(p,campos,prev){
 function colEntrega(p){
   var prom=p.entrega&&String(p.entrega).length>=8?p.entrega:'';
   var real=p.entrega_real||'';
-  if(!prom&&!real)return '<span style="color:var(--text3)">—</span>';
   var h='';
-  if(prom)h+='<div>'+prom+'</div>';
-  if(real){
-    var tarde=prom&&real>prom;
-    h+='<div style="font-size:11px;font-weight:700;color:'+(tarde?'#B45309':'var(--green)')+'">'+
-       '✓ '+real+(tarde?' (tarde)':'')+'</div>';
-  }else if(prom&&p.est==='Pendiente'){
-    var d=Math.floor((new Date().setHours(12,0,0,0)-new Date(prom+'T12:00:00'))/86400000);
-    if(d>0)h+='<div style="font-size:11px;font-weight:700;color:#991B1B">'+d+' día(s) tarde</div>';
-  }else if(!real&&p.est==='Entregado'){
-    h+='<div style="font-size:11px;color:var(--text3)">entregado (sin fecha)</div>';
+  if(!prom&&!real)h='<span style="color:var(--text3)">—</span>';
+  else{
+    if(prom)h+='<div>'+prom+'</div>';
+    if(real){
+      var tarde=prom&&real>prom;
+      h+='<div style="font-size:11px;font-weight:700;color:'+(tarde?'#B45309':'var(--green)')+'">'+
+         '✓ '+real+(tarde?' (tarde)':'')+'</div>';
+    }else if(prom&&p.est==='Pendiente'){
+      var d=Math.floor((new Date().setHours(12,0,0,0)-new Date(prom+'T12:00:00'))/86400000);
+      if(d>0)h+='<div style="font-size:11px;font-weight:700;color:#991B1B">'+d+' día(s) tarde</div>';
+    }
+  }
+  // Notas que ya salieron pero nadie anotó cuándo. Se ve siempre, para que no
+  // pase de largo; solo el dueño puede ponerle fecha.
+  if(!real&&p.est==='Entregado')
+    h+='<div style="font-size:11px;color:#B45309;font-weight:600">entregado (sin fecha)</div>';
+  if(esOwnerCU()){
+    var i=pedidos.indexOf(p);
+    h+='<button class="ent-edit" title="Corregir fechas de entrega" onclick="event.stopPropagation();abrirEntFechas('+i+')">✏️ fechas</button>';
   }
   return h;
+}
+// Corregir a mano las fechas de entrega. Solo el dueño: es un dato que cambia
+// los reportes de atraso, así que no se toca desde el mostrador.
+let ENTF_IDX=null;
+function abrirEntFechas(i){
+  if(!esOwnerCU()){alert('Solo el dueño puede corregir las fechas de entrega.');return;}
+  var p=pedidos[i];if(!p)return;
+  ENTF_IDX=i;
+  document.getElementById('entf-tit').textContent='Nota '+p.folio+' · '+p.cli;
+  document.getElementById('entf-prom').value=p.entrega||'';
+  document.getElementById('entf-real').value=p.entrega_real||'';
+  document.getElementById('entf-est').textContent=p.est||'—';
+  document.getElementById('entf-msg').textContent='';
+  OM('mod-entf');
+}
+function guardarEntFechas(){
+  if(!esOwnerCU())return;
+  var p=pedidos[ENTF_IDX];if(!p)return;
+  var prom=document.getElementById('entf-prom').value||'';
+  var real=document.getElementById('entf-real').value||'';
+  var msg=document.getElementById('entf-msg');
+  if(real&&p.fecha&&real<String(p.fecha)){
+    msg.textContent='La entrega no puede ser antes de la fecha de la nota ('+p.fecha+').';return;
+  }
+  if(real&&real>todayStr()){msg.textContent='La fecha de entrega no puede ser futura.';return;}
+  var campos={entrega:prom,entrega_real:real};
+  // Poner fecha de entrega implica que ya salió; quitarla la regresa a pendiente
+  // solo si no estaba liquidada, para no revivir notas ya cerradas por error.
+  if(real&&p.est!=='Entregado')campos.est='Entregado';
+  if(!real&&p.est==='Entregado'&&p.rest>0.5)campos.est='Pendiente';
+  msg.textContent='Guardando…';
+  fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(campos)})
+    .then(function(r){if(!r.ok)throw new Error('el servidor respondió '+r.status);return r.json();})
+    .then(function(x){
+      if(!x||typeof x.entrega==='undefined'&&typeof x.entrega_real==='undefined')throw new Error('el servidor no confirmó el cambio');
+      p.entrega=(typeof x.entrega!=='undefined')?x.entrega:prom;
+      p.entrega_real=(typeof x.entrega_real!=='undefined')?x.entrega_real:real;
+      if(campos.est)p.est=campos.est;
+      try{logActivity('Corrigió fechas de entrega','Nota '+p.folio+' — prometida '+(prom||'—')+' · entregada '+(real||'—'));}catch(e){}
+      CM('mod-entf');rPed();try{rCxC();rDia();}catch(e){}
+    })
+    .catch(function(e){msg.textContent='No se guardó: '+e.message;});
 }
 function confEnt(){
   if(entIdx===null)return;
