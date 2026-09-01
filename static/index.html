@@ -388,6 +388,9 @@ body.riel-on .content{margin-right:300px}
 #page-ban .ban-hero-f{font-size:12px;color:var(--text3);margin-top:6px}
 #page-ban .ban-chip{display:inline-block;background:var(--ciruela-l);color:var(--ciruela-d);font-size:12.5px;font-weight:700;padding:5px 13px;border-radius:99px}
 #page-ban .ban-chip.ok{background:var(--menta-l);color:#12724C}
+#page-er .er-clic{cursor:pointer}
+#page-er .er-clic:hover td{filter:brightness(.97)}
+#page-er .er-fl{display:inline-block;width:15px;color:var(--text3);font-size:10px}
 #page-ban .ban-ctas{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;margin-bottom:18px}
 #page-ban .ban-cta{background:var(--surface);border:2px solid var(--border);border-radius:16px;padding:14px 15px;cursor:pointer;transition:transform .12s,border-color .12s}
 #page-ban .ban-cta:hover{transform:translateY(-2px);border-color:var(--ciruela)}
@@ -1373,7 +1376,10 @@ tr:hover .ent-edit{opacity:1}
 <div class="page" id="page-er">
   <div class="ph">
     <div><div class="ph-title">Estado de Resultados 2026</div></div>
-    <div style="display:flex;gap:7px">
+    <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-s btn-sm" onclick="erTodas(true)">▾ Abrir todo</button>
+      <button class="btn btn-s btn-sm" onclick="erTodas(false)">▸ Cerrar todo</button>
+      <label style="font-size:11.5px;color:var(--text3);display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" onchange="erVacios(this)" style="width:14px;height:14px;cursor:pointer">ver los vacíos</label>
       <button class="btn btn-s btn-sm" onclick="abrirEditorER()">⚙️ Conceptos</button>
       <button class="btn btn-s btn-sm" onclick="OM('mod-conc')">+ Agregar concepto</button>
       <select id="er-yr" onchange="rER()" style="width:85px"><option>2026</option><option>2025</option></select>
@@ -6534,6 +6540,16 @@ function guardarERCats(){
   try{rMvCat();}catch(e){}
   try{rER();}catch(e){}
 }
+// Qué secciones del Estado de Resultados están abiertas. Empieza todo cerrado:
+// primero el panorama en 8 renglones, y abres lo que te llame la atención.
+let ER_ABIERTA={},ER_VACIOS=false;
+function erTog(k){ER_ABIERTA[k]=!ER_ABIERTA[k];rER();}
+function erTodas(abrir){
+  ER_ABIERTA={};
+  if(abrir)['ing','cos','gv','ga','ret'].forEach(function(k){ER_ABIERTA[k]=true;});
+  rER();
+}
+function erVacios(cb){ER_VACIOS=!!cb.checked;rER();}
 function rER(){
   const mesAct=new Date().getMonth();
   const mesesIdx=Array.from({length:6},(_,i)=>(mesAct-5+i+12)%12);
@@ -6563,16 +6579,26 @@ function rER(){
 
   let rows='';
   visSections.forEach(sec=>{
+    // Plegado: se abre mostrando solo las 8 líneas gruesas. El detalle está ahí,
+    // a un clic. Antes eran 48 renglones y no cabían ni achicando la letra.
+    const abierta=!!ER_ABIERTA[sec.key];
+    const flecha=sec.items&&sec.items.length
+      ? '<span class="er-fl">'+(abierta?'▾':'▸')+'</span>' : '<span class="er-fl" style="visibility:hidden">▸</span>';
     const vals=totals[sec.key]||Array(6).fill(0);
     const rowTotal=vals.reduce((a,b)=>a+b,0);
     const neg=sec.key==='un'?rowTotal<0:false;
-    rows+=`<tr class="er-sec ${sec.cls}"><td style="position:sticky;left:0;z-index:1">${sec.label}</td>${vals.map(v=>`<td style="text-align:right;font-variant-numeric:tabular-nums">${v>0||sec.total?fmt(v):'—'}</td>`).join('')}<td style="text-align:right;font-weight:700;background:#F0EFE9;${neg?'color:var(--red)':''}">${fmt(rowTotal)}</td></tr>`;
-    if(sec.items){
+    rows+=`<tr class="er-sec ${sec.cls}${sec.items&&sec.items.length?' er-clic':''}" ${sec.items&&sec.items.length?`onclick="erTog('${sec.key}')"`:''}><td style="position:sticky;left:0;z-index:1">${flecha}${sec.label}</td>${vals.map(v=>`<td style="text-align:right;font-variant-numeric:tabular-nums">${v>0||sec.total?fmt(v):'—'}</td>`).join('')}<td style="text-align:right;font-weight:700;background:#F0EFE9;${neg?'color:var(--red)':''}">${fmt(rowTotal)}</td></tr>`;
+    if(sec.items&&abierta){
+      let vacios=0;
       sec.items.forEach(item=>{
         const iVals=mesesIdx.map((mi)=>sec.fn(item,mi));
         const iTotal=iVals.reduce((a,b)=>a+b,0);
+        // Los conceptos sin un peso en los seis meses no se pintan: se cuentan
+        // abajo y se pueden mostrar con la casilla, por si buscas uno en concreto.
+        if(iTotal<=0&&!ER_VACIOS){vacios++;return;}
         rows+=`<tr class="er-item"><td style="position:sticky;left:0;z-index:1;background:var(--surface)">${item}</td>${iVals.map(v=>`<td style="text-align:right;font-variant-numeric:tabular-nums">${v>0?fmt(v):'—'}</td>`).join('')}<td style="text-align:right;background:var(--surface2);${iTotal>0?'':'color:var(--text3)'}">${iTotal>0?fmt(iTotal):'—'}</td></tr>`;
       });
+      if(vacios)rows+=`<tr class="er-item"><td colspan="8" style="font-size:11px;color:var(--text3);font-style:italic;padding-left:26px">${vacios} concepto(s) sin movimiento, ocultos</td></tr>`;
     }
   });
   tbl.innerHTML=head+`<tbody>${rows}</tbody>`;
