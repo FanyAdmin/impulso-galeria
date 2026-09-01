@@ -917,6 +917,7 @@ tr:hover .ent-edit{opacity:1}
   <div class="sb-item" onclick="go('fac')" id="nav-fac">📄 Facturacion</div>
 
   <div class="sb-section">Auditoría</div>
+  <div class="sb-item admin-only" style="display:none" onclick="go('conban')" id="nav-conban">🧮 Conciliación bancaria</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('audit2')" id="nav-audit2">🔎 Revisión automática <span id="aud2-badge" style="background:#D81B60;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
   <div class="sb-item" onclick="go('rev')" id="nav-rev">📸 Revisión de notas</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('audit')" id="nav-audit">🔍 Auditoría Efectivo</div>
@@ -1395,6 +1396,9 @@ tr:hover .ent-edit{opacity:1}
   <div id="ban-cuentas" class="ban-ctas"></div>
   <div id="ban-puente"></div>
 
+  <div class="tw"><div style="padding:11px 15px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Saldo por cuenta</div>
+    <div id="ban-tabla"></div></div>
+
   <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:stretch">
     <div class="card" style="flex:2 1 460px;min-width:320px">
       <div class="card-title">Cómo se movió el dinero</div>
@@ -1413,14 +1417,17 @@ tr:hover .ent-edit{opacity:1}
     </div>
   </div>
 
-  <!-- CONCILIACIÓN -->
+</div>
+<div class="page" id="page-conban">
+  <div class="ph"><div><div class="ph-title">Conciliación <span class="hl">bancaria</span></div><div class="ph-sub">Renglón por renglón del estado de cuenta, contra los movimientos capturados.</div></div></div>
+  
   <div class="card" style="padding:0;overflow:hidden">
     <div style="padding:14px 17px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
       <div style="flex:1;min-width:230px">
         <div style="font-size:16px;font-weight:800">🏦 Conciliar con el banco</div>
         <div style="font-size:12.5px;color:var(--text2);margin-top:2px">Renglón por renglón del estado de cuenta: lo picas, ves con qué empata y lo validas.</div>
       </div>
-      <select id="ban-cta" onchange="banPinta();document.getElementById('ban-puente').innerHTML=banPuenteHTML()" style="width:150px;font-size:13px"></select>
+      <select id="ban-cta" onchange="banPinta();var _p=document.getElementById('ban-puente');if(_p)_p.innerHTML=banPuenteHTML()" style="width:150px;font-size:13px"></select>
       <input type="file" id="ban-file" accept="application/pdf" style="display:none" onchange="banLeerPDF()">
       <button class="btn btn-p btn-sm" onclick="document.getElementById('ban-file').click()">📥 Subir estado de cuenta</button>
     </div>
@@ -2308,7 +2315,7 @@ function go(id){
   document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
-  ({ped:rPed,cxc:rCxC,dia:()=>{cargarMapaCta().then(rDia);},cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:()=>{cargarBcoOK().then(rBancos);},usr:rUsuarios,activity:rActivity,
+  ({ped:rPed,cxc:rCxC,dia:()=>{cargarMapaCta().then(rDia);},cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:()=>{cargarBcoOK().then(rBancos);},conban:()=>{cargarBcoOK().then(function(){banInitCta();banPinta();});},usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
     lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:()=>{cargarBcoOK().then(rCuadre);}
   })[id]?.();
@@ -7906,9 +7913,17 @@ function banCuentasHTML(){
 }
 function banIrCta(c){
   var s=document.getElementById('ban-cta');
-  if(s){s.value=c;banPinta();}
+  if(s)s.value=c;   // deja escogida la cuenta para cuando entre a Conciliación
   var el=document.getElementById('ban-puente');
   if(el){el.innerHTML=banPuenteHTML();el.scrollIntoView({behavior:'smooth',block:'center'});}
+}
+// El selector de cuenta vive ahora en la pantalla de Conciliación, así que se
+// puebla solo, sin depender de que se haya abierto Bancos antes.
+function banInitCta(){
+  var s=document.getElementById('ban-cta');
+  if(!s||s.options.length)return;
+  s.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option>'+c+'</option>';}).join('');
+  if(Object.keys(BANCOS_INIT).indexOf('INBURSA')>=0)s.value='INBURSA';
 }
 function banPuenteHTML(){
   var sel=document.getElementById('ban-cta');
@@ -8014,7 +8029,8 @@ function rBancos(){
   }).join('')||'<div style="font-size:12.5px;color:var(--text3)">Sin movimientos ese mes.</div>';
 
   rBancosSaldos();
-  banPinta();
+  // banPinta ya NO se llama aquí: la conciliación vive en su propia pantalla.
+  // Bancos es de consulta — saldos por cuenta y cómo se movió el dinero.
 }
 
 function rBancosSaldos(){
