@@ -665,6 +665,14 @@ tr:hover .ent-edit{opacity:1}
 </div>
 </div>
 
+<div class="modal-bg" id="mod-banauto" style="display:none;z-index:3000">
+<div class="modal" style="width:900px;max-width:96vw">
+  <div class="modal-hdr"><div class="modal-ttl">Renglones que empatan solos</div><button class="modal-x" onclick="CM('mod-banauto')">✕</button></div>
+  <div class="modal-body" id="ban-auto-body" style="font-size:13px"></div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-banauto')">Cerrar</button><button class="btn btn-p" onclick="banAutoCasar()">✓ Casarlos todos</button></div>
+</div>
+</div>
+
 <div class="modal-bg" id="mod-entf" style="display:none;z-index:3000">
 <div class="modal" style="width:420px;max-width:94vw">
   <div class="modal-hdr"><div class="modal-ttl">📅 Fechas de entrega</div><button class="modal-x" onclick="CM('mod-entf')">✕</button></div>
@@ -1428,7 +1436,7 @@ tr:hover .ent-edit{opacity:1}
               <span style="flex:1"></span>
               <button class="btn btn-s btn-xs" id="ban-f-todos" onclick="banFiltro()">Ver todos</button>
             </div>
-            <div id="ban-com-aviso"></div>
+            <div id="ban-com-aviso"></div><div id="ban-auto-aviso"></div>
             <div id="ban-lineas" style="max-height:58vh;overflow:auto"></div>
           </div>
         </div>
@@ -4121,8 +4129,8 @@ function cuaAnalizar(){
 // Se guardan en la BD para que no reaparezcan la próxima vez.
 var BCO_OK={};
 function kLinea(b){
-  var f=b.fecha||b.f||'';
-  return f+'|'+(+b.monto).toFixed(2)+'|'+String(b.det||b.tipo||'').slice(0,18);
+  var f=String(b.fecha||b.f||'').slice(0,10);
+  return f+'|'+(+b.monto).toFixed(2)+'|'+String(b.det||b.tipo||'').trim().replace(/\s+/g,' ').slice(0,18);
 }
 function cargarBcoOK(){
   return fetch('/api/config/bco_ok',{credentials:'include'}).then(function(r){return r.json();})
@@ -7439,7 +7447,12 @@ function banLineas(){
     .concat((BAN_EDO.depositos||[]).concat(BAN_EDO.otros_abonos||[]).map(function(b){return {f:b.fecha,monto:b.monto,det:b.det||b.tipo||'',signo:1,com:false};}));
   return L.sort(function(a,b){return String(b.f).localeCompare(String(a.f));});
 }
-function banClave(l){return l.f+'|'+(+l.monto).toFixed(2)+'|'+String(l.det||'').slice(0,18);}
+// La marca de conciliado se guarda con esta llave. Antes existían DOS versiones
+// distintas: una usaba det||tipo y la otra solo det. En los renglones que solo
+// traen tipo (CREDITO, DEBITO, TRANSFERENCIA SPEI) daban llaves diferentes, así
+// que lo casado por un lado no se veía por el otro y parecía perdido.
+// Ahora las dos apuntan a kLinea.
+function banClave(l){return kLinea(l);}
 // ¿Ya está conciliado? Por marca guardada o por movimiento conciliado que empate
 function banCasado(l){
   var id=BCO_OK[banClave(l)];
@@ -7497,6 +7510,75 @@ function banEsComision(txt,yaMarcada){
       || t.indexOf('MANEJO DE CUENTA')>=0;
 }
 
+// ── EMPATE AUTOMÁTICO ──────────────────────────────────────────────────────
+// La mayoría de los renglones del banco tienen un movimiento con el MISMO monto,
+// el mismo lado y la misma fecha o casi. Casarlos a mano de uno en uno es el
+// trabajo que sobra. Aquí se hace solo, pero con una regla estricta: se casa
+// únicamente cuando hay UN candidato y ningún otro renglón se lo pelea. Si hay
+// dos posibles, se queda para que tú decidas.
+function banAutoPares(pend,maxDias){
+  var usados={},pares=[],disputado={};
+  (banLineas()||[]).forEach(function(l){var c=banCasado(l);if(c&&c.id)usados[c.id]=1;});
+  var cand=pend.map(function(l){
+    var s=banSugerencias(l).filter(function(x){return x.dias<=maxDias&&!usados[x.m.id];});
+    return {l:l,s:s};
+  });
+  cand.forEach(function(c){
+    if(c.s.length===1)disputado[c.s[0].m.id]=(disputado[c.s[0].m.id]||0)+1;
+  });
+  cand.forEach(function(c){
+    if(c.s.length!==1)return;                 // ambiguo: lo decide ella
+    var id=c.s[0].m.id;
+    if(disputado[id]>1)return;                // dos renglones quieren el mismo movimiento
+    pares.push({l:c.l,m:c.s[0].m,dias:c.s[0].dias});
+  });
+  return pares;
+}
+function banAutoAviso(pend){
+  var el=document.getElementById('ban-auto-aviso'); if(!el)return;
+  var p=banAutoPares(pend,3);
+  if(!p.length){el.innerHTML='';return;}
+  var tot=p.reduce(function(a,x){return a+x.l.monto;},0);
+  el.innerHTML='<div style="background:var(--green-l);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:11px;flex-wrap:wrap">'+
+    '<div style="flex:1;min-width:200px">'+
+      '<div style="font-size:12.5px;font-weight:700;color:var(--green)">'+p.length+' renglones empatan solos · '+fmt(tot)+'</div>'+
+      '<div style="font-size:11.5px;color:var(--text2)">Mismo monto y misma fecha (o hasta 3 días). Solo los que tienen un único candidato.</div>'+
+    '</div>'+
+    '<button class="btn btn-s btn-sm" onclick="banAutoVer()">Ver cuáles</button>'+
+    '<button class="btn btn-p btn-sm" onclick="banAutoCasar()">Casar los '+p.length+'</button>'+
+    '</div>';
+}
+function banAutoVer(){
+  var pend=banLineas().filter(function(l){return !banCasado(l);});
+  var p=banAutoPares(pend,3);
+  var h='<div style="max-height:60vh;overflow:auto"><table class="tbl"><thead><tr><th>Fecha banco</th><th>Concepto del banco</th><th style="text-align:right">Monto</th><th>Movimiento con el que empata</th><th>Dif. días</th></tr></thead><tbody>'+
+    p.map(function(x){
+      return '<tr><td>'+x.l.f+'</td><td style="font-size:11px">'+String(x.l.det||x.l.tipo||'').slice(0,40)+'</td>'+
+             '<td class="mono" style="text-align:right">'+fmt(x.l.monto)+'</td>'+
+             '<td style="font-size:11px">'+String(x.m.fecha).slice(0,10)+' · '+(x.m.concepto||x.m.desc||'')+'</td>'+
+             '<td style="text-align:center">'+x.dias+'</td></tr>';
+    }).join('')+'</tbody></table></div>';
+  document.getElementById('ban-auto-body').innerHTML=h;
+  OM('mod-banauto');
+}
+function banAutoCasar(){
+  var pend=banLineas().filter(function(l){return !banCasado(l);});
+  var p=banAutoPares(pend,3);
+  if(!p.length)return;
+  if(!confirm('Se van a casar '+p.length+' renglones con su movimiento.\n\nSolo los que tienen un único candidato del mismo monto.\nCualquiera se puede deshacer después uno por uno.\n\n¿Seguimos?'))return;
+  p.forEach(function(x){BCO_OK[kLinea(x.l)]=x.m.id;});
+  guardarBcoOK().then(function(){
+    return fetch('/api/conciliar',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({fecha:todayStr(),items:p.map(function(x){return {id:x.m.id,ref:x.l.f+' '+String(x.l.det||x.l.tipo||'').slice(0,20)};})})});
+  }).then(function(){
+    p.forEach(function(x){var m=movs.find(function(y){return y.id===x.m.id;});if(m)m.conciliado=todayStr();});
+    CM('mod-banauto');banPinta();
+    alert('Listo: '+p.length+' renglones casados.');
+  }).catch(function(e){
+    p.forEach(function(x){delete BCO_OK[kLinea(x.l)];});
+    alert('No se pudo guardar: '+e.message);
+  });
+}
 function banComAviso(pend){
   var el=document.getElementById('ban-com-aviso'); if(!el)return;
   var com=(pend||[]).filter(function(l){return l.com&&l.signo<0;});
@@ -7529,6 +7611,7 @@ function banPinta(){
     '<div class="metric"><div class="m-label">Neto del periodo</div><div class="m-val">'+fmt(sumaB)+'</div><div class="m-sub">según el banco</div></div>';
 
   banComAviso(pend);
+  banAutoAviso(pend);
   var ver=BAN_FIL==='pend'?pend:L;
   document.getElementById('ban-lin-info').textContent=ver.length+' renglón(es)';
   var fecha='';
