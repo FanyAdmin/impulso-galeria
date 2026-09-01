@@ -347,6 +347,7 @@ body.riel-on .content{margin-right:300px}
 .men-d{position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border2);
   border-radius:10px;box-shadow:var(--sh3);z-index:50;min-width:160px;padding:4px;display:none}
 .men-d.open{display:block}
+.men-d[style*='fixed']{z-index:4000}
 .men-d button{display:block;width:100%;text-align:left;background:none;border:none;padding:7px 10px;border-radius:7px;
   font-size:12.5px;cursor:pointer;color:var(--text);font-family:var(--ui)}
 .men-d button:hover{background:var(--surface2)}
@@ -2601,7 +2602,7 @@ function rPed(f){
     return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}<br>${tpB} ${tpBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
-      <td style="color:var(--text2);font-size:12px">${colEntrega(p)}</td><td>${badge}</td><td>${btn}</td><td><button onclick="ticketPedido(pedidos[${idx}])" title="Imprimir nota (3 copias)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🧾</button><button onclick="insumosPed(${idx})" title="Insumos que ocupa este pedido" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">📋</button>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?`<button onclick="delPed(${idx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td style="color:var(--text2);font-size:12px">${colEntrega(p)}</td><td>${cxcCancelada(p)?'<span class="badge" style="background:#FEE2E2;color:#991B1B">🚫 Cancelada</span>':badge}</td><td>${btn}</td><td><button onclick="ticketPedido(pedidos[${idx}])" title="Imprimir nota (3 copias)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🧾</button><button onclick="insumosPed(${idx})" title="Insumos que ocupa este pedido" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">📋</button>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?(cxcCancelada(p)?`<button onclick="cxcReactivar(${idx})" title="Reactivar la nota" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">↩️</button>`:`<button onclick="cxcCancelar(${idx})" title="Cancelar la nota — conserva el folio y el motivo" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🚫</button>`)+`<button onclick="delPed(${idx})" title="Borrar — solo si fue error de captura" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
   document.getElementById('p-pag').innerHTML=total>1?
     `<span style="margin-right:4px;color:var(--text2)">Pág ${pedPage+1} de ${total} · ${list.length} pedidos</span>
@@ -3045,11 +3046,37 @@ function cxcEdadesHTML(list){
 function menToggle(ev,id){
   ev.stopPropagation();
   var d=document.getElementById(id),ya=d&&d.classList.contains('open');
-  document.querySelectorAll('.men-d.open').forEach(function(x){x.classList.remove('open');});
-  if(d&&!ya)d.classList.add('open');
+  document.querySelectorAll('.men-d.open').forEach(function(x){x.classList.remove('open');x.style.cssText='';});
+  if(!d||ya)return;
+  d.classList.add('open');
+  // El contenedor de la tabla recorta lo que se sale de su caja, así que el menú
+  // se dibujaba cortado en las últimas columnas. Con position:fixed sale del
+  // recorte; a cambio hay que colocarlo a mano y cerrarlo si la tabla se mueve.
+  var b=ev.currentTarget.getBoundingClientRect();
+  d.style.position='fixed';
+  d.style.top=''; d.style.right=''; d.style.left=''; d.style.bottom='';
+  var an=d.offsetWidth||190, al=d.offsetHeight||120;
+  var x=Math.max(8,Math.min(b.right-an,window.innerWidth-an-8));
+  var y=b.bottom+4;
+  if(y+al>window.innerHeight-8)y=Math.max(8,b.top-al-4);   // si no cabe abajo, arriba
+  d.style.left=x+'px'; d.style.top=y+'px';
+  menCierraAlMover();
+}
+// Si se scrollea o cambia el tamaño, el menú fijo se quedaría flotando lejos de
+// su botón. Más vale cerrarlo que dejarlo mal puesto.
+function menCierraAlMover(){
+  var f=function(){
+    document.querySelectorAll('.men-d.open').forEach(function(x){x.classList.remove('open');x.style.cssText='';});
+    window.removeEventListener('scroll',f,true);
+    window.removeEventListener('resize',f);
+  };
+  setTimeout(function(){
+    window.addEventListener('scroll',f,true);
+    window.addEventListener('resize',f);
+  },0);
 }
 document.addEventListener('click',function(){
-  document.querySelectorAll('.men-d.open,.msel-d.open').forEach(function(x){x.classList.remove('open');});
+  document.querySelectorAll('.men-d.open,.msel-d.open').forEach(function(x){x.classList.remove('open');x.style.cssText='';});
 });
 // ── Cancelar una nota ────────────────────────────────────────────────────
 // NO es borrar: la nota existió y queda el rastro de por qué se canceló.
@@ -3073,7 +3100,7 @@ function cxcCancelar(pedIdx){
                quien:(u&&u.name)||CU,saldo:p.rest,abonado:abonado};
   guardarCanceladas().then(function(){
     try{logActivity('Canceló nota','Folio '+p.folio+' — '+(p.cli||'')+' — '+motivo);}catch(e){}
-    rCxC();try{rRiel();}catch(e){}
+    rCxC();try{rRiel();rPed();}catch(e){}
   }).catch(function(e){
     delete CXC_CANC[k];
     alert('No se pudo guardar la cancelación: '+e.message);
@@ -3086,7 +3113,7 @@ function cxcReactivar(pedIdx){
   var g=CXC_CANC[k]; delete CXC_CANC[k];
   guardarCanceladas().then(function(){
     try{logActivity('Reactivó nota','Folio '+p.folio);}catch(e){}
-    rCxC();try{rRiel();}catch(e){}
+    rCxC();try{rRiel();rPed();}catch(e){}
   }).catch(function(e){CXC_CANC[k]=g;alert('No se pudo: '+e.message);});
 }
 
@@ -7179,7 +7206,7 @@ function mselTodos(campo,todos){
 function mselTog(ev,campo){
   ev.stopPropagation();
   var d=document.getElementById('msd-'+campo),ya=d.classList.contains('open');
-  document.querySelectorAll('.msel-d.open,.men-d.open').forEach(function(x){x.classList.remove('open');});
+  document.querySelectorAll('.msel-d.open,.men-d.open').forEach(function(x){x.classList.remove('open');x.style.cssText='';});
   if(!ya)d.classList.add('open');
 }
 // Aplica los tres filtros a la vez
