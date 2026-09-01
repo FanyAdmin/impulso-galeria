@@ -2787,6 +2787,9 @@ function setCxcVista(v,btn){
 // Todas las notas del cliente (pagadas y pendientes), respetando el rol
 function pedsDeCliente(claveCli){
   return (pedidos||[]).filter(function(p){
+    // Sin esto, el estado de cuenta que se le manda al cliente le cobra notas
+    // que ya cancelaste. Es el mismo filtro que la vista Por nota.
+    if(cxcCancelada(p))return false;
     return normNom(p.cli)===claveCli && edoVisible(p);
   }).sort(function(a,b){return String(a.fecha||'').localeCompare(String(b.fecha||''));});
 }
@@ -2830,6 +2833,10 @@ function clientesDeudores(){
   var G={};
   (pedidos||[]).forEach(function(p){
     if(!((p.rest||0)>0.5))return;
+    // Una nota cancelada ya no se le cobra a nadie. La vista Por nota las sacaba
+    // y esta no, así que el mismo cliente daba dos saldos distintos según dónde
+    // lo miraras. La cancelación manda en las dos.
+    if(cxcCancelada(p))return;
     if(!edoVisible(p))return;
     var k=normNom(p.cli);if(!k)return;
     if(!G[k])G[k]={clave:k,cli:p.cli||'',notas:0,saldo:0,total:0,abon:0,vieja:'',sucs:{},_peds:[]};
