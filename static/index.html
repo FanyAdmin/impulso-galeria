@@ -7992,6 +7992,85 @@ function comDesglose(v,mes){
   var cobA=todo.filter(function(x){return x.tp==='arte';}).reduce(function(s,x){return s+x.monto;},0);
   return {nuevos:nuevos,abonos:abonos,totNuevos:tN,totAbonos:tA,cobrado:tN+tA,cobMarcos:cobM,cobArte:cobA,porSuc:porSuc};
 }
+// ── ¿ES CLIENTE NUEVO O YA COMPRABA? ──────────────────────────────────────
+// Se decide por el nombre, comparando contra TODAS las notas de las dos
+// sucursales: si esta nota es la primera que aparece con ese nombre, es nuevo.
+// El nombre se normaliza (sin acentos, sin dobles espacios) porque el mismo
+// cliente se captura escrito de mil formas.
+let CLI_PRIMERA=null;
+function cliPrimeraCompra(){
+  if(CLI_PRIMERA)return CLI_PRIMERA;
+  CLI_PRIMERA={};
+  for(var i=0;i<pedidos.length;i++){
+    var p=pedidos[i]; if(!p.cli||!p.fecha)continue;
+    var n=normNom(p.cli); if(!n)continue;
+    if(!CLI_PRIMERA[n]||String(p.fecha)<CLI_PRIMERA[n].fecha)
+      CLI_PRIMERA[n]={fecha:String(p.fecha),folio:p.folio,suc:p.suc};
+  }
+  return CLI_PRIMERA;
+}
+function cliEsNuevo(cli,fecha,folio){
+  var m=cliPrimeraCompra()[normNom(cli||'')];
+  if(!m)return {nuevo:true,desde:null};
+  if(String(m.folio)===String(folio))return {nuevo:true,desde:null};
+  return {nuevo:false,desde:m.fecha,folio:m.folio,suc:m.suc};
+}
+function cliBadge(cli,fecha,folio){
+  var e=cliEsNuevo(cli,fecha,folio);
+  return e.nuevo
+    ?'<span class="badge" style="background:#DCFCE7;color:#166534;font-size:10px">Nuevo</span>'
+    :'<span class="badge" style="background:#F0EFE9;color:#6E4157;font-size:10px" title="Su primera nota fue la '+e.folio+' del '+e.desde+' en '+(e.suc||'—')+'">Ya compraba · '+String(e.desde).slice(0,7)+'</span>';
+}
+// El recibo traía solo el total. Si la vendedora no puede ver de dónde salió,
+// no tiene cómo revisarlo — y las dudas terminan en la oficina. Ahora lleva
+// el mismo desglose de la pantalla, nota por nota.
+function expComRecibo(vidx,mes){
+  var v=VENDEDORES[vidx];if(!v)return;
+  var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var d=comDesglose(v,mes),com=comisionDe(v,d);
+  var esc=function(t){return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+  var f=function(n){return fmt(n);};
+  var h='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Recibo '+esc(v.nombre)+'</title><style>'
+   +'body{font-family:Calibri,Candara,Optima,sans-serif;padding:26px;font-size:11px;color:#222}'
+   +'h1{font-size:17px;color:#6E4157;margin:0 0 2px}.sub{font-size:11px;color:#777;margin-bottom:14px}'
+   +'table{width:100%;border-collapse:collapse;margin-bottom:6px}'
+   +'th{background:#6E4157;color:#fff;padding:5px 7px;text-align:left;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em}'
+   +'td{padding:4px 7px;border-bottom:1px solid #E6E3DE;font-size:10.5px}'
+   +'.r{text-align:right}.st{font-weight:700;background:#F0EFE9}'
+   +'.sec{font-size:9.5px;font-weight:700;color:#777;text-transform:uppercase;letter-spacing:.05em;margin:14px 0 4px}'
+   +'.tot{margin-top:14px;border:1.5px solid #6E4157;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;display:flex;justify-content:space-between}'
+   +'.nv{background:#DCFCE7;color:#166534;padding:1px 6px;border-radius:99px;font-size:9px}'
+   +'.rc{background:#F0EFE9;color:#6E4157;padding:1px 6px;border-radius:99px;font-size:9px}'
+   +'.firma{margin-top:34px;display:flex;gap:40px}.firma div{flex:1;border-top:1px solid #999;padding-top:5px;font-size:10px;color:#666;text-align:center}'
+   +'.nota{font-size:9.5px;color:#888;margin-top:10px;line-height:1.5}'
+   +'</style></head><body>';
+  h+='<h1>Recibo de comisión — '+esc(v.nombre)+'</h1>';
+  h+='<div class="sub">'+M[mes]+' 2026 · '+esc(v.suc||'')+' · Marcos '+v.comision+'% · Arte '+pctArteDe(v)+'%<br>Impulso Galería</div>';
+  h+='<div class="sec">Pedidos nuevos del mes (comisiona el anticipo)</div>';
+  if(d.nuevos.length){
+    h+='<table><tr><th>Folio</th><th>Cliente</th><th>¿Nuevo?</th><th>Sucursal</th><th>Fecha</th><th class="r">Anticipo</th></tr>';
+    d.nuevos.forEach(function(x){
+      var e=cliEsNuevo(x.cli,x.fecha,x.folio);
+      h+='<tr><td>'+esc(x.folio)+'</td><td>'+esc(x.cli)+'</td><td>'+(e.nuevo?'<span class="nv">Nuevo</span>':'<span class="rc">Ya compraba desde '+esc(String(e.desde).slice(0,7))+'</span>')+'</td><td>'+esc(x.suc||'—')+'</td><td>'+esc(x.fecha||'—')+'</td><td class="r">'+f(x.monto)+'</td></tr>';
+    });
+    h+='<tr class="st"><td colspan="5">Subtotal pedidos nuevos</td><td class="r">'+f(d.totNuevos)+'</td></tr></table>';
+  } else h+='<div style="color:#999;padding:3px 0">Sin pedidos nuevos este mes.</div>';
+  h+='<div class="sec">Saldos cobrados de notas pasadas</div>';
+  if(d.abonos.length){
+    h+='<table><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Nota del</th><th>Cobrado el</th><th>Tipo</th><th class="r">Monto</th></tr>';
+    d.abonos.forEach(function(x){
+      h+='<tr><td>'+esc(x.folio)+'</td><td>'+esc(x.cli)+'</td><td>'+esc(x.suc||'—')+'</td><td>'+esc(x.fechaPed||'—')+'</td><td>'+esc(x.fecha)+'</td><td>'+esc(x.tipo)+'</td><td class="r">'+f(x.monto)+'</td></tr>';
+    });
+    h+='<tr class="st"><td colspan="6">Subtotal abonos del mes</td><td class="r">'+f(d.totAbonos)+'</td></tr></table>';
+  } else h+='<div style="color:#999;padding:3px 0">Sin abonos de notas pasadas este mes.</div>';
+  if(d.cobArte>0)h+='<div style="margin-top:10px;font-size:10.5px">Marcos '+f(d.cobMarcos)+' × '+v.comision+'% &nbsp;·&nbsp; Arte '+f(d.cobArte)+' × '+pctArteDe(v)+'%</div>';
+  h+='<div class="tot"><span>Total cobrado: '+f(d.cobrado)+'</span><span>Comisión a pagar: '+f(com)+'</span></div>';
+  h+='<div class="nota">Cada anticipo se cuenta sin los abonos ya registrados de esa nota, y cada abono comisiona una sola vez, en el mes en que se cobró. "Nuevo" quiere decir que es la primera nota de ese cliente en cualquiera de las dos sucursales.</div>';
+  h+='<div class="firma"><div>Recibí de conformidad — '+esc(v.nombre)+'</div><div>Entregó</div></div>';
+  h+='</body></html>';
+  var w=window.open(URL.createObjectURL(new Blob([h],{type:'text/html'})),'_blank');
+  if(!w)alert('Permite ventanas emergentes para abrir el recibo');
+}
 function pctArteDe(v){return (v.comision_arte!==undefined&&v.comision_arte!==null)?+v.comision_arte:10;}
 function comisionDe(v,d){return d.cobMarcos*((+v.comision||0)/100)+d.cobArte*(pctArteDe(v)/100);}
 function comCobradoDe(v,mes){return comDesglose(v,mes).cobrado;}
@@ -8004,9 +8083,9 @@ function detalleCom(vidx,mes){
   h+='<div style="background:#F3F4F6;border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px">👤 Comisiona solo por sus notas (campo Vendedor) · 🖼️ Marcos '+v.comision+'% · 🎨 Arte '+pctArteDe(v)+'%</div>';
   if(d.cobArte>0||d.cobMarcos>0)h+='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin-bottom:12px"><span>🖼️ Marcos: <b>'+fmt(d.cobMarcos)+'</b> × '+v.comision+'% = <b>'+fmt(d.cobMarcos*(v.comision/100))+'</b></span><span>🎨 Arte: <b>'+fmt(d.cobArte)+'</b> × '+pctArteDe(v)+'% = <b>'+fmt(d.cobArte*(pctArteDe(v)/100))+'</b></span><span style="color:var(--green);font-weight:700">Total comisión: '+fmt(com)+'</span></div>';
   h+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">🧾 Pedidos nuevos del mes (comisiona el anticipo)</div>';
-  h+=d.nuevos.length?'<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Vend. capturado</th><th>Fecha</th><th style="text-align:right">Anticipo</th></tr></thead><tbody>'+
-    d.nuevos.map(function(x){return '<tr><td class="mono" style="font-weight:600">'+x.folio+'</td><td>'+x.cli+'</td><td>'+(x.suc||'—')+'</td><td style="color:var(--text3)">'+x.vend+'</td><td style="color:var(--text3)">'+(x.fecha||'—')+'</td><td class="mono" style="text-align:right">'+fmt(x.monto)+'</td></tr>';}).join('')+
-    '<tr style="font-weight:700;background:var(--green-l)"><td colspan="5">Subtotal pedidos nuevos</td><td class="mono" style="text-align:right">'+fmt(d.totNuevos)+'</td></tr></tbody></table></div>'
+  h+=d.nuevos.length?'<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>¿Nuevo?</th><th>Sucursal</th><th>Vend. capturado</th><th>Fecha</th><th style="text-align:right">Anticipo</th></tr></thead><tbody>'+
+    d.nuevos.map(function(x){return '<tr><td class="mono" style="font-weight:600">'+x.folio+'</td><td>'+x.cli+'</td><td>'+cliBadge(x.cli,x.fecha,x.folio)+'</td><td>'+(x.suc||'—')+'</td><td style="color:var(--text3)">'+x.vend+'</td><td style="color:var(--text3)">'+(x.fecha||'—')+'</td><td class="mono" style="text-align:right">'+fmt(x.monto)+'</td></tr>';}).join('')+
+    '<tr style="font-weight:700;background:var(--green-l)"><td colspan="6">Subtotal pedidos nuevos</td><td class="mono" style="text-align:right">'+fmt(d.totNuevos)+'</td></tr></tbody></table></div>'
     :'<div style="color:var(--text3);padding:4px 0 10px">Sin pedidos nuevos este mes.</div>';
   h+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 5px">💵 Saldos cobrados de notas pasadas (abonos/liquidaciones del mes)</div>';
   h+=d.abonos.length?'<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Vend. capturado</th><th>Nota del</th><th>Cobrado el</th><th>Tipo</th><th style="text-align:right">Monto</th></tr></thead><tbody>'+
@@ -8017,6 +8096,7 @@ function detalleCom(vidx,mes){
      '<span>Total cobrado: <span class="mono">'+fmt(d.cobrado)+'</span></span>'+
      '<span>× '+v.comision+'% = Comisión: <span class="mono" style="color:var(--green)">'+fmt(com)+'</span></span></div>';
   h+='<div style="font-size:11px;color:var(--text3);margin-top:8px">Anti-duplicado: el anticipo de un pedido nuevo se cuenta sin los abonos ya registrados de esa nota, y cada abono comisiona una sola vez, en el mes en que se cobró.</div>';
+  h+='<div style="margin-top:14px;text-align:right"><button class="btn btn-p btn-s" onclick="expComRecibo('+vidx+','+mes+')">\ud83e\uddfe Recibo con este detalle</button></div>';
   document.getElementById('comdet-body').innerHTML=h;
   OM('mod-comdet');
 }
