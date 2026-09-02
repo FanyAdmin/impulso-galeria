@@ -1394,6 +1394,7 @@ tr:hover .ent-edit{opacity:1}
     </div>
   </div>
   <div style="overflow-x:auto"><div class="tw" style="margin:0"><table class="tbl" id="er-tbl" style="min-width:900px"></table></div></div>
+  <div id="er-puente" style="margin-top:.75rem"></div>
 </div>
 
 <!-- BANCOS -->
@@ -6634,6 +6635,10 @@ function rER(){
     }
   });
   tbl.innerHTML=head+`<tbody>${rows}</tbody>`;
+  // El puente no es ingreso ni gasto, pero mueve dinero real: va aparte,
+  // debajo del Estado de Resultados, para que no quede sin dueño.
+  var pz=document.getElementById('er-puente');
+  if(pz)pz.innerHTML=puenteHTML();
 }
 
 // ─── BANCOS ───────────────────────────────────────────────────────────────────
@@ -8086,6 +8091,57 @@ function banInitCta(){
   if(!s||s.options.length)return;
   s.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option>'+c+'</option>';}).join('');
   if(Object.keys(BANCOS_INIT).indexOf('INBURSA')>=0)s.value='INBURSA';
+}
+// ── PUENTE DE TERCEROS ─────────────────────────────────────────────────────
+// Dinero que cobras POR alguien más (Tranquilo) y luego le devuelves. Pasa por
+// tu banco pero no es tu venta, así que el Estado de Resultados no lo cuenta —
+// y por eso nadie lo vigila. Si entra más de lo que sale, traes dinero ajeno;
+// si sale más, pusiste de tu bolsa. Las dos cosas hay que saberlas.
+function puenteTerceros(anio){
+  var ent=[],sal=[];
+  (movs||[]).forEach(function(m){
+    var f=String(m.fecha||'').slice(0,10);
+    if(anio&&f.slice(0,4)!==String(anio))return;
+    var c=(m.concepto||'').trim();
+    if(c===PUENTE_IN)ent.push(m);
+    else if(c===PUENTE_OUT)sal.push(m);
+  });
+  var sm=function(a){return a.reduce(function(x,m){return x+(+m.monto||0);},0);};
+  return {ent:ent,sal:sal,tEnt:sm(ent),tSal:sm(sal),saldo:Math.round((sm(ent)-sm(sal))*100)/100};
+}
+function puenteHTML(){
+  var anio=(document.getElementById('er-yr')&&document.getElementById('er-yr').value)||String(new Date().getFullYear());
+  var p=puenteTerceros(anio);
+  if(!p.ent.length&&!p.sal.length)return '';
+  var s=p.saldo, col=Math.abs(s)<1?'var(--green)':(s>0?'#B45309':'#B91C1C');
+  var dice=Math.abs(s)<1?'Está a mano: cobraste y devolviste lo mismo.'
+    :(s>0?'Traes '+fmt(s)+' que cobraste por ellos y todavía no devuelves.'
+         :'Devolviste '+fmt(-s)+' de más: pusiste de tu bolsa.');
+  var meses=function(arr){
+    var g={};arr.forEach(function(m){var k=String(m.fecha).slice(0,7);g[k]=(g[k]||0)+(+m.monto||0);});
+    return g;
+  };
+  var ge=meses(p.ent),gs=meses(p.sal);
+  var ks=Object.keys(ge).concat(Object.keys(gs)).filter(function(v,i,a){return a.indexOf(v)===i;}).sort();
+  var acum=0;
+  var filas=ks.map(function(k){
+    var e=ge[k]||0,x=gs[k]||0;acum+=e-x;
+    return '<tr><td>'+k+'</td><td class="mono" style="text-align:right;color:var(--green)">'+(e?fmt(e):'—')+'</td>'+
+           '<td class="mono" style="text-align:right;color:var(--red)">'+(x?fmt(x):'—')+'</td>'+
+           '<td class="mono" style="text-align:right;font-weight:700">'+fmt(acum)+'</td></tr>';
+  }).join('');
+  return '<div class="tw" style="margin-bottom:.75rem">'+
+    '<div style="padding:12px 15px;border-bottom:1px solid var(--border)">'+
+      '<div style="font-size:13px;font-weight:700">🔁 Puente de terceros · '+anio+'</div>'+
+      '<div style="font-size:11.5px;color:var(--text3)">Cobros que haces por alguien más. Pasan por tu banco pero no son tu venta, así que no aparecen en el Estado de Resultados.</div>'+
+    '</div>'+
+    '<div style="padding:12px 15px;display:flex;gap:22px;flex-wrap:wrap;align-items:baseline">'+
+      '<div><div style="font-size:11px;color:var(--text3)">Cobraste por ellos</div><b class="mono" style="font-size:16px;color:var(--green)">'+fmt(p.tEnt)+'</b> <span style="font-size:11px;color:var(--text3)">'+p.ent.length+' mov.</span></div>'+
+      '<div><div style="font-size:11px;color:var(--text3)">Les devolviste</div><b class="mono" style="font-size:16px;color:var(--red)">'+fmt(p.tSal)+'</b> <span style="font-size:11px;color:var(--text3)">'+p.sal.length+' mov.</span></div>'+
+      '<div style="flex:1;min-width:220px"><div style="font-size:11px;color:var(--text3)">Saldo del puente</div><b class="mono" style="font-size:16px;color:'+col+'">'+fmt(p.saldo)+'</b><div style="font-size:11.5px;color:var(--text2)">'+dice+'</div></div>'+
+    '</div>'+
+    '<table class="tbl"><thead><tr><th>Mes</th><th style="text-align:right">Cobrado por ellos</th><th style="text-align:right">Devuelto</th><th style="text-align:right">Saldo acumulado</th></tr></thead><tbody>'+filas+'</tbody></table>'+
+    '</div>';
 }
 function banPuenteHTML(){
   var sel=document.getElementById('ban-cta');
