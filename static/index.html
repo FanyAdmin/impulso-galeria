@@ -668,6 +668,14 @@ tr:hover .ent-edit{opacity:1}
 </div>
 </div>
 
+<div class="modal-bg" id="mod-vg" style="display:none;z-index:3000">
+<div class="modal" style="width:620px;max-width:96vw">
+  <div class="modal-hdr"><div class="modal-ttl">🧾 De dónde sale la venta general</div><button class="modal-x" onclick="CM('mod-vg')">✕</button></div>
+  <div class="modal-body" id="vg-body"></div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-vg')">Cerrar</button></div>
+</div>
+</div>
+
 <div class="modal-bg" id="mod-banauto" style="display:none;z-index:3000">
 <div class="modal" style="width:900px;max-width:96vw">
   <div class="modal-hdr"><div class="modal-ttl">Renglones que empatan solos</div><button class="modal-x" onclick="CM('mod-banauto')">✕</button></div>
@@ -1477,7 +1485,7 @@ tr:hover .ent-edit{opacity:1}
     <div class="msel" id="ms-vend"><button class="msel-b" id="msb-vend" onclick="mselTog(event,'vend')">Vendedor: todos ▾</button><div class="msel-d" id="msd-vend" onclick="event.stopPropagation()"></div></div>
     <input id="cob-q" placeholder="🔍 Folio o cliente..." oninput="rCob()" style="width:170px;flex:0 0 auto;font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:7px">
     <button class="btn btn-s btn-xs" onclick="limpiarCob()">✕ Limpiar</button>
-    <span id="cob-res" style="color:var(--text3);flex:0 0 auto"></span>
+    <span id="cob-res" style="color:var(--text3);flex:0 0 auto"></span><span id="cob-res-extra" style="flex:0 0 auto"></span><span class="admin-only" style="display:none;flex:0 0 auto;font-size:11px;color:var(--text3)">global de: <select id="cob-vgcta" onchange="vgCambiaCuenta(this)" style="font-size:11px;padding:2px 6px;border:1px solid var(--border);border-radius:6px"></select></span>
   </div>
   </div>
   <div class="card" style="padding:0;overflow:hidden"><div class="tw cob-caja"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Tipo</th><th>Método</th><th style="text-align:right">Monto</th><th style="width:130px">Nota</th><th>Vendedor</th><th>Sucursal</th><th>Ref/Factura</th></tr></thead><tbody id="cob-body"></tbody></table></div></div>
@@ -2321,7 +2329,7 @@ function go(id){
   document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
-  ({ped:rPed,cxc:rCxC,dia:()=>{cargarMapaCta().then(rDia);},cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:()=>{cargarBcoOK().then(rBancos);},conban:()=>{cargarBcoOK().then(function(){banInitCta();banPinta();});},usr:rUsuarios,activity:rActivity,
+  ({ped:rPed,cxc:rCxC,dia:()=>{cargarMapaCta().then(rDia);},cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:()=>{cargarBcoOK().then(function(){banInitCta();return cargarEdoCta(vgCtaBan());}).then(rBancos);},conban:()=>{cargarBcoOK().then(function(){banInitCta();return cargarEdoCta(vgCtaBan());}).then(function(){rBancos();banPinta();});},usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
     lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:()=>{cargarBcoOK().then(rCuadre);}
   })[id]?.();
@@ -4145,9 +4153,33 @@ function kLinea(b){
   var f=String(b.fecha||b.f||'').slice(0,10);
   return f+'|'+(+b.monto).toFixed(2)+'|'+String(b.det||b.tipo||'').trim().replace(/\s+/g,' ').slice(0,18);
 }
+// Al unificar la llave de conciliado, lo guardado con el formato viejo quedó
+// huérfano: seguía en la base pero la pantalla lo buscaba con otro nombre y
+// parecía trabajo perdido. Esto lo vuelve a enlazar, una sola vez.
+function kLineaVieja(b){
+  var f=b.fecha||b.f||'';
+  return f+'|'+(+b.monto).toFixed(2)+'|'+String(b.det||'').slice(0,18);
+}
+function bcoRecupera(){
+  var rescatados=0;
+  try{
+    (banLineas()||[]).forEach(function(l){
+      var nueva=kLinea(l);
+      if(BCO_OK[nueva])return;
+      var vieja=kLineaVieja(l);
+      if(vieja!==nueva&&BCO_OK[vieja]){BCO_OK[nueva]=BCO_OK[vieja];rescatados++;}
+    });
+  }catch(e){}
+  return rescatados;
+}
 function cargarBcoOK(){
   return fetch('/api/config/bco_ok',{credentials:'include'}).then(function(r){return r.json();})
-    .then(function(d){var v=d&&d.valor;if(v&&typeof v==='object')BCO_OK=v;}).catch(function(){});
+    .then(function(d){var v=d&&d.valor;if(v&&typeof v==='object')BCO_OK=v;})
+    .then(function(){
+      var n=bcoRecupera();
+      if(n)return guardarBcoOK().then(function(){console.log('Conciliaciones recuperadas: '+n);});
+    })
+    .catch(function(){});
 }
 function guardarBcoOK(){
   return fetch('/api/config/bco_ok',{method:'PUT',credentials:'include',
@@ -7322,15 +7354,95 @@ function rCob(){
   const tot=rows.reduce((s,r)=>s+r.monto,0);
   let resTxt='→ '+rows.length+' registro'+(rows.length===1?'':'s')+' · '+fmt(tot);
   if(esAdm){
-    // La cifra para la FACTURA GLOBAL (venta al público): cobros validados/conciliados que NO tienen factura propia
-    const gral=rows.filter(r=>r.monto>0&&!r.fac&&concilDe(r.k)).reduce((s,r)=>s+r.monto,0);
-    const sinVal=rows.filter(r=>r.monto>0&&!concilDe(r.k)).length;
-    resTxt+=' · 🧾 VTA GRAL validada (para factura global): '+fmt(gral)+(sinVal?' · ⚪ sin validar: '+sinVal:' · ✓ todo validado');
+    // FACTURA GLOBAL: todo lo cobrado que NO tiene factura propia, sin importar
+    // el método ni la cuenta. Antes exigía además estar conciliado, y como el
+    // efectivo casi nunca se concilia, la global se quedaba corta: en los hechos
+    // solo contaba lo que caía en Inbursa. Conciliar es del banco, facturar es
+    // del SAT: ahora la conciliación se informa aparte, no filtra la cifra.
+    // La global se emite desde UNA cuenta fiscal. Por eso la cifra se acota a la
+    // cuenta escogida (INBURSA por defecto) y no revuelve lo de las demás.
+    const ctaG=vgCuenta();
+    const vg=rows.filter(r=>r.monto>0&&!r.fac&&(ctaG==='__todas'||ctaSugerida(r.met,r.suc)===ctaG));
+    const gral=vg.reduce((s,r)=>s+r.monto,0);
+    const sinVal=vg.filter(r=>!concilDe(r.k)).length;
+    resTxt+=' · 🧾 VENTA GENERAL '+(ctaG==='__todas'?'(todas las cuentas)':ctaG)+': '+fmt(gral);
+    vgInitSel();
+    document.getElementById('cob-res').textContent=resTxt;
+    var extra=document.getElementById('cob-res-extra');
+    if(extra)extra.innerHTML=' <button class="btn btn-s btn-xs" onclick="vgDesglose()">Ver de dónde sale</button>'+
+      (sinVal?'<span style="font-size:11px;color:var(--text3);margin-left:8px">'+sinVal+' de esos cobros aún no se concilian con el banco (no afecta la cifra)</span>':'');
+    rCobBarra();return;
   }
   document.getElementById('cob-res').textContent=resTxt;
   rCobBarra();
 }
 function limpiarCob(){COB_F={met:[],suc:[],vend:[]};const q=document.getElementById('cob-q');if(q)q.value='';['met','suc','vend'].forEach(mselPinta);rCob();}
+// La resta completa, para que el numero deje de ser un acto de fe:
+// todo lo cobrado - lo que ya tiene factura propia = lo que va a la global.
+// Desglosado por metodo y por sucursal, porque la global ampara efectivo,
+// HSBC, Bzipay, Zibata y todo lo demas, no nada mas lo que cae en Inbursa.
+// Cuenta desde la que se emite la factura global. Se recuerda en el navegador
+// para no tener que escogerla cada vez.
+function vgCuenta(){
+  var s=document.getElementById('cob-vgcta');
+  if(s&&s.value)return s.value;
+  try{return localStorage.getItem('impulso.vgCta')||'INBURSA';}catch(e){return 'INBURSA';}
+}
+function vgCambiaCuenta(sel){
+  try{localStorage.setItem('impulso.vgCta',sel.value);}catch(e){}
+  rCob();
+}
+function vgInitSel(){
+  var s=document.getElementById('cob-vgcta');
+  if(!s||s.options.length)return;
+  var ctas=Object.keys(BANCOS_INIT||{});
+  if(!ctas.length)ctas=['INBURSA','HSBC','Efectivo','Bzipay','El Patio','Zibata'];
+  s.innerHTML=ctas.map(function(c){return '<option value="'+c+'">'+c+'</option>';}).join('')+
+              '<option value="__todas">todas las cuentas</option>';
+  var g=vgCuenta();
+  s.value=(Array.prototype.some.call(s.options,function(o){return o.value===g;}))?g:'INBURSA';
+}
+function vgDesglose(){
+  var rows=cobFiltra(cobRows()).filter(function(r){return r.monto>0;});
+  var q=(document.getElementById('cob-q').value||'').toLowerCase();
+  if(q)rows=rows.filter(function(r){return String(r.folio).toLowerCase().includes(q)||String(r.cli).toLowerCase().includes(q);});
+  var tot=rows.reduce(function(s,r){return s+r.monto;},0);
+  var ctaG=vgCuenta();
+  var conFac=rows.filter(function(r){return r.fac;});
+  var fuera=rows.filter(function(r){return !r.fac&&ctaG!=='__todas'&&ctaSugerida(r.met,r.suc)!==ctaG;});
+  var vg=rows.filter(function(r){return !r.fac&&(ctaG==='__todas'||ctaSugerida(r.met,r.suc)===ctaG);});
+  var totFuera=fuera.reduce(function(s,r){return s+r.monto;},0);
+  var totFac=conFac.reduce(function(s,r){return s+r.monto;},0);
+  var totVG=vg.reduce(function(s,r){return s+r.monto;},0);
+  var agrupa=function(arr,f){
+    var g={};arr.forEach(function(r){var k=f(r)||'\u2014';if(!g[k])g[k]={n:0,m:0};g[k].n++;g[k].m+=r.monto;});
+    return Object.keys(g).sort(function(a,b){return g[b].m-g[a].m;}).map(function(k){return {k:k,n:g[k].n,m:g[k].m};});
+  };
+  var tabla=function(t,arr){
+    return '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 5px">'+t+'</div>'+
+      '<table class="tbl"><tbody>'+arr.map(function(x){
+        return '<tr><td>'+x.k+'</td><td style="text-align:right;color:var(--text3);font-size:11px">'+x.n+' cobro'+(x.n===1?'':'s')+'</td><td class="mono" style="text-align:right;font-weight:600">'+fmt(x.m)+'</td></tr>';
+      }).join('')+'</tbody></table>';
+  };
+  var sinCon=vg.filter(function(r){return !concilDe(r.k);});
+  var h='<div style="font-size:13px">'+
+    '<table class="tbl"><tbody>'+
+      '<tr><td>Todo lo cobrado en el periodo</td><td class="mono" style="text-align:right;font-weight:600">'+fmt(tot)+'</td></tr>'+
+      '<tr><td style="color:var(--text2)">\u2212 Cobros que ya tienen su factura propia ('+conFac.length+')</td><td class="mono" style="text-align:right;color:var(--text2)">\u2212'+fmt(totFac)+'</td></tr>'+
+      (ctaG==='__todas'?'':'<tr><td style="color:var(--text2)">\u2212 Cobros sin factura de OTRAS cuentas ('+fuera.length+')</td><td class="mono" style="text-align:right;color:var(--text2)">\u2212'+fmt(totFuera)+'</td></tr>')+
+      '<tr style="background:var(--mant,#F0EFE9);font-weight:800"><td>= VENTA GENERAL '+(ctaG==='__todas'?'':ctaG)+' \u00b7 va a la factura global</td><td class="mono" style="text-align:right">'+fmt(totVG)+'</td></tr>'+
+    '</tbody></table>'+
+    tabla('Venta general por m\u00e9todo de pago',agrupa(vg,function(r){return r.met;}))+
+    tabla('Venta general por sucursal',agrupa(vg,function(r){return r.suc;}))+
+    (fuera.length?tabla('Queda FUERA \u00b7 cobros sin factura de otras cuentas',agrupa(fuera,function(r){return ctaSugerida(r.met,r.suc)||'sin cuenta';})):'')+
+    '<div style="margin-top:14px;padding:10px 12px;background:var(--surface2,#FAFAF8);border-radius:8px;font-size:11.5px;color:var(--text2);line-height:1.6">'+
+      'De estos cobros, <b>'+sinCon.length+'</b> todav\u00eda no se concilian con el banco ('+fmt(sinCon.reduce(function(s,r){return s+r.monto;},0))+'). '+
+      'Eso <b>no cambia</b> la cifra de arriba: conciliar sirve para saber si el dinero cay\u00f3 en la cuenta, y la factura global se arma con lo que vendiste y cobraste. '+
+      'El efectivo, por ejemplo, casi nunca se concilia y s\u00ed va en la global.'+
+    '</div></div>';
+  document.getElementById('vg-body').innerHTML=h;
+  OM('mod-vg');
+}
 function expCobXlsx(){
   const rows=[['COBRANZA IMPULSO GALERIA'],['Fecha','Folio','Cliente','Tipo','Método','Monto','Vendedor','Sucursal','Ref','Nota']];
   // exporta exactamente lo filtrado y visible
@@ -7450,6 +7562,25 @@ function guardarBancos(){
 // ═══ BANCOS: conciliación renglón por renglón ══════════════════════════════
 // Izquierda: lo que dice el banco. Derecha: con qué empata y qué hacer con él.
 var BAN_EDO=null;        // estado de cuenta leído
+// El estado de cuenta vivía SOLO en memoria: al refrescar o al cambiar de
+// pantalla se perdía, y el desglose de la diferencia se quedaba en blanco
+// aunque ya lo hubieras subido. Ahora se guarda por cuenta.
+function guardarEdoCta(cta,d){
+  if(!cta||!d)return Promise.resolve();
+  return fetch('/api/config/edocta_'+String(cta).toLowerCase().replace(/[^a-z0-9]/g,''),
+    {method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:d})})
+    .catch(function(){});
+}
+function cargarEdoCta(cta){
+  if(!cta)return Promise.resolve(null);
+  if(BAN_EDO&&BAN_EDO_CTA===cta)return Promise.resolve(BAN_EDO);
+  return fetch('/api/config/edocta_'+String(cta).toLowerCase().replace(/[^a-z0-9]/g,''),{credentials:'include'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&d.valor&&d.valor.cargos){BAN_EDO=d.valor;BAN_EDO_CTA=cta;}
+      return BAN_EDO;
+    }).catch(function(){return null;});
+}
 var BAN_EDO_CTA='';      // para QUÉ cuenta se leyó (el puente solo aplica a esa)
 var BAN_SEL=null;        // renglón seleccionado
 var BAN_FIL='pend';      // 'pend' = solo lo que falta, 'todos'
@@ -7468,7 +7599,9 @@ function banLeerPDF(){
     .then(function(r){return r.json().then(function(d){if(!r.ok)throw new Error(d.error||('HTTP '+r.status));return d;});})
     .then(function(d){
       if(!d.cargos)throw new Error('Ese PDF no trae los cargos. Usa el "Detalle de movimientos".');
-      BAN_EDO=d;BAN_EDO_CTA=document.getElementById('ban-cta').value;BAN_SEL=null;pr.style.display='none';rBancos();
+      BAN_EDO=d;BAN_EDO_CTA=document.getElementById('ban-cta').value;BAN_SEL=null;pr.style.display='none';
+      guardarEdoCta(BAN_EDO_CTA,d);   // se guarda: subirlo una vez debe bastar
+      rBancos();banPinta();
     })
     .catch(function(e){pr.style.display='none';alert('No se pudo leer: '+e.message);});
 }
@@ -7692,10 +7825,12 @@ function banMios(){
                    :'<span style="background:var(--surface2);color:#8A93A2;border-radius:6px;padding:2px 7px;font-size:11px;font-weight:700">?</span>')+
     '</div>';
   }).join('')||'<div style="padding:22px;text-align:center;color:var(--text3);font-size:13px">No hay movimientos en '+cta+'.</div>';
+  // Aquí había un segundo botón de subir, idéntico al de arriba. Dos botones que
+  // hacen lo mismo hacen dudar cuál es cuál, así que este panel solo explica.
   det.innerHTML='<div class="card" style="padding:20px 18px;text-align:center">'+
-    '<div style="font-size:13px;color:var(--text2);margin-bottom:10px">Estás viendo <b>tus</b> movimientos de '+cta+'.<br>'+
-    'Sube el estado de cuenta y aquí aparece, renglón por renglón, lo que dice el banco y con qué empata.</div>'+
-    '<button class="btn btn-p btn-sm" onclick="document.getElementById(\'ban-file\').click()">📥 Subir estado de cuenta</button></div>';
+    '<div style="font-size:13px;color:var(--text2);line-height:1.6">Estás viendo <b>tus</b> movimientos de '+cta+', los que capturaste en la plataforma.<br><br>'+
+    'Cuando subas el estado de cuenta, esta columna se llena con lo que dice <b>el banco</b> y aquí a la derecha vas viendo con qué empata cada renglón.<br><br>'+
+    '<span style="color:var(--text3)">El botón para subirlo está arriba a la derecha.</span></div></div>';
 }
 
 function banSel(i){
@@ -7945,6 +8080,7 @@ function banIrCta(c){
 }
 // El selector de cuenta vive ahora en la pantalla de Conciliación, así que se
 // puebla solo, sin depender de que se haya abierto Bancos antes.
+function vgCtaBan(){var s=document.getElementById('ban-cta');return (s&&s.value)||'INBURSA';}
 function banInitCta(){
   var s=document.getElementById('ban-cta');
   if(!s||s.options.length)return;
@@ -7979,7 +8115,7 @@ function banPuenteHTML(){
   });
   h+='<div class="ban-pu-r fin"><span>Saldo que debería tener el banco</span><b class="mono">'+fmt(p.banco)+'</b></div>'+
      '<div class="ban-pu-pie"><button class="btn btn-s btn-sm" onclick="document.getElementById(\'ban-file\').click()">📥 Subir otro estado de cuenta</button>'+
-     '<span class="ban-pu-nota">El detalle renglón por renglón está más abajo.</span></div></div>';
+     '<span class="ban-pu-nota">El detalle renglón por renglón está en Conciliación bancaria.</span></div></div>';
   return h;
 }
 // Todas las comisiones del periodo en UN solo movimiento (versión de Bancos)
