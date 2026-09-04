@@ -2084,6 +2084,31 @@ function doLogin(){
     // owner-only: cosas que Estefania sí ve y admin no
     document.querySelectorAll('.owner-only').forEach(el=>el.style.display=(u.role==='owner')?'':'none');
     document.querySelectorAll('.owner-only').forEach(el=>el.style.display=u.role==='owner'?'':'none');
+    // ── MENÚ DEL ADMINISTRADOR (Andrea) ──────────────────────────────────
+    // Lista explícita en vez de reglas sueltas: se ve de un golpe a qué tiene
+    // acceso y qué no. Todo Ventas, todo Catálogo, todo Admin; de Auditoría
+    // solo Conciliación bancaria; de RH solo Asistencias y Nómina.
+    if(u.role==='admin'){
+      var ADMIN_MENU=[
+        'nav-cal','nav-cot','nav-ped','nav-cxc','nav-dia','nav-cob','nav-ord','nav-pend','nav-vip',  // Ventas
+        'nav-cat',                                                                                   // Catálogo
+        'nav-dash','nav-mov','nav-cxp','nav-er','nav-ban','nav-fac',                                 // Admin
+        'nav-conban',                                                                                // Auditoría
+        'nav-asist','nav-nom'                                                                        // Recursos Humanos
+      ];
+      document.querySelectorAll('.sb-item').forEach(function(el){
+        el.style.display=(ADMIN_MENU.indexOf(el.id)>=0)?'':'none';
+      });
+      // Una sección solo se muestra si le quedó al menos un renglón visible
+      document.querySelectorAll('.sb-section').forEach(function(sec){
+        var vis=false,n=sec.nextElementSibling;
+        while(n&&!n.classList.contains('sb-section')){
+          if(n.classList.contains('sb-item')&&n.style.display!=='none'){vis=true;break;}
+          n=n.nextElementSibling;
+        }
+        sec.style.display=vis?'':'none';
+      });
+    }
     if(u.role==='taller'){
       // Taller solo ve Pendientes y Órdenes de compra (con Seguimiento)
       document.querySelectorAll('.sb-item,.sb-sec,.sb-section').forEach(el=>el.style.display='none');
