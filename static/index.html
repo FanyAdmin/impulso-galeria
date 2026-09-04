@@ -9178,8 +9178,50 @@ function genReciboNom(empId,sv,ap,faltas,desc){
   h+='<div class="g2"><div><div class="lbl">Empleado</div><b>'+emp.nombre+'</b></div><div><div class="lbl">Puesto</div>'+emp.puesto+'</div>';
   h+='<div><div class="lbl">Periodo</div>'+si.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+' - '+sf.toLocaleDateString('es-MX',{day:'numeric',month:'short'})+'</div>';
   h+='<div><div class="lbl">Metodo pago</div>'+emp.metpago+'</div></div>';
-  h+='<div style="background:var(--surface2);padding:12px;border-radius:6px"><div class="r"><span>Salario semanal</span><span>'+fmt(emp.salario)+'</span></div>';
+  // ── HORARIO DE LA SEMANA ──────────────────────────────────────────────
+  // El recibo tiene que poder leerse solo: qué horario le tocaba, qué días
+  // trabajó, y si hay hora extra, QUÉ DÍA fue y por qué se paga a ese precio.
+  var pat=patronDe(emp),hs=horasSemana(pat),vh=salarioHora(emp);
+  var DN=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  var ETQ={true:'Trabajó',false:'Falta','inc':'Incapacidad','vac':'Vacaciones','desc':'Descanso programado'};
+  var filas='',totH=0,hxTot=0,detExtra=[],apl=0;
+  var dd=new Date(si);
+  for(var j=0;j<7;j++,dd.setDate(dd.getDate()+1)){
+    var dow=dd.getDay();
+    var fech=dd.toLocaleDateString('es-MX',{day:'numeric',month:'short'});
+    if(dow===0){filas+='<tr><td>'+DN[0]+' '+fech+'</td><td colspan="3" style="color:#999">Descanso semanal</td><td></td></tr>';continue;}
+    if(!diaAplica(emp,dd)){filas+='<tr style="color:#bbb"><td>'+DN[dow]+' '+fech+'</td><td colspan="4">No aplicaba — fuera de su relación laboral</td></tr>';continue;}
+    apl++;
+    var hor=(HORARIOS[pat]||HORARIOS.ventas).dias[dow];
+    var dk2=emp.id+'_'+dd.getFullYear()+'_'+dd.getMonth();
+    var est=(ASISTENCIAS[dk2]||{})[dd.getDate()];
+    var hd=horasDia(pat,dow);
+    var hx=extraDe(emp.id,dd.getFullYear(),dd.getMonth(),dd.getDate());
+    if(est===false||est==='desc')hd=0; else totH+=hd;
+    if(hx>0){hxTot+=hx;detExtra.push({d:DN[dow]+' '+fech,h:hx,sale:hor?hor[1]:''});}
+    filas+='<tr><td>'+DN[dow]+' '+fech+'</td>'+
+      '<td>'+(hor?hor[0]+' – '+hor[1]:'—')+(hor&&hor[2]?' <span style="color:#999">(−'+hor[2]+' h comida)</span>':'')+'</td>'+
+      '<td style="text-align:right">'+(hd?hd+' h':'—')+'</td>'+
+      '<td style="text-align:right;font-weight:700">'+(hx?'+'+hx+' h':'—')+'</td>'+
+      '<td>'+(ETQ[est]!==undefined?ETQ[est]:(est===undefined?'Trabajó':''))+'</td></tr>';
+  }
+  var px=pagoExtras(hxTot,vh);
+  h+='<div class="lbl" style="margin-top:14px">Horario y días de la semana</div>';
+  h+='<table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px">'+
+     '<tr style="background:#1A5C3A;color:#fff"><th style="text-align:left;padding:4px 6px">Día</th><th style="text-align:left;padding:4px 6px">Horario</th><th style="text-align:right;padding:4px 6px">Horas</th><th style="text-align:right;padding:4px 6px">Extra</th><th style="text-align:left;padding:4px 6px">Estatus</th></tr>'+
+     filas+
+     '<tr style="font-weight:700;background:#F2F5F2"><td colspan="2" style="padding:4px 6px">Jornada de la semana ('+(HORARIOS[pat]||{}).nombre+')</td><td style="text-align:right;padding:4px 6px">'+totH+' h</td><td style="text-align:right;padding:4px 6px">'+(hxTot||'—')+(hxTot?' h':'')+'</td><td></td></tr>'+
+     '</table>';
+  h+='<div style="background:var(--surface2);padding:12px;border-radius:6px"><div class="r"><span>Salario semanal'+(apl<6?' (proporcional: '+apl+' de 6 días)':'')+'</span><span>'+fmt(apl<6?Math.round(emp.salario/6*apl*100)/100:emp.salario)+'</span></div>';
   if(faltas>0)h+='<div class="r" style="color:#991B1B"><span>Descuento ('+faltas+' falta'+(faltas!==1?'s':'')+')</span><span>- '+fmt(desc)+'</span></div>';
+  if(hxTot>0){
+    h+='<div class="r"><span>Horas extra ('+hxTot+' h)</span><span>+ '+fmt(px.monto)+'</span></div>';
+    h+='<div style="font-size:10.5px;color:#666;padding:2px 0 6px;line-height:1.6">'+
+       'Valor de la hora: '+fmt(emp.salario)+' ÷ '+hs+' h de jornada semanal = <b>'+fmt(vh)+'</b>.<br>'+
+       detExtra.map(function(x){return x.d+': '+x.h+' h después de las '+x.sale;}).join('<br>')+'<br>'+
+       'Pago: '+px.dobles+' h al doble'+(px.triples?' y '+px.triples+' h al triple':'')+', conforme al artículo 68 de la Ley Federal del Trabajo (las primeras 9 horas extra de la semana al doble, de la décima en adelante al triple).'+
+       '</div>';
+  }
   h+='<div class="r t"><span>TOTAL A PAGAR</span><span style="color:#1A5C3A">'+fmt(ap)+'</span></div></div>';
   h+='<div style="display:flex;justify-content:space-between;margin-top:3rem;padding-top:12px;border-top:1px solid #eee"><div style="width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:#aaa">Firma autorizada</div><div style="width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:#aaa">Firma del empleado</div></div>';
   h+='<scr'+'ipt>window.onload=function(){window.print();}<'+'/scr'+'ipt></body></html>';
