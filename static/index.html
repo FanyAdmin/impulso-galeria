@@ -1746,6 +1746,7 @@ tr:hover .ent-edit{opacity:1}
     <div id="asist-cal" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>
   </div>
   <div id="asist-leyenda" style="margin:0 0 10px;display:flex;align-items:center;flex-wrap:wrap;gap:2px"></div>
+  <div id="asist-horario"></div>
   <div id="asist-met" class="metrics m3"></div>
 </div>
 <!-- NOMINA -->
@@ -8660,6 +8661,59 @@ function cfgSet(clave,valor){
     .then(function(r){if(!r.ok)throw 0;})
     .catch(function(){alert('⚠️ No se pudo guardar en el servidor. El cambio quedó solo en esta computadora.');});
 }
+// ── HORARIO LABORAL ────────────────────────────────────────────────────────
+// La jornada legal es 48 h en 2026 y baja sola: 46 en 2027, 44 en 2028,
+// 42 en 2029 y 40 en 2030 (reforma publicada en el DOF, aplicación gradual
+// desde el 1 de enero de cada año). El tope se calcula, no se escribe a mano,
+// para que en enero no se quede viejo sin que nadie se dé cuenta.
+function topeSemanal(anio){
+  var a=anio||new Date().getFullYear();
+  if(a<=2026)return 48; if(a===2027)return 46; if(a===2028)return 44;
+  if(a===2029)return 42; return 40;
+}
+var HORARIOS={
+  ventas:{nombre:'Ventas',dias:{1:['09:00','19:00',1],2:['09:00','19:00',1],3:['09:00','19:00',1],4:['09:00','19:00',1],5:['09:00','18:00',1],6:['09:00','14:30',0]}},
+  taller:{nombre:'Taller', dias:{1:['09:00','19:00',1],2:['09:00','19:00',1],3:['09:00','19:00',1],4:['09:00','19:00',1],5:['09:00','18:00',1],6:['09:00','13:00',0]}}
+};
+function hhmm(t){var p=String(t).split(':');return (+p[0])*60+(+p[1]||0);}
+function patronDe(e){
+  if(e&&e.patron)return e.patron;
+  var pu=(e&&e.puesto||'').toLowerCase();
+  return (pu.indexOf('enmarc')>=0||pu.indexOf('taller')>=0||pu.indexOf('produc')>=0)?'taller':'ventas';
+}
+// Horas EFECTIVAS de un día: presencia menos la hora de comida
+function horasDia(pat,dow){
+  var d=(HORARIOS[pat]||HORARIOS.ventas).dias[dow];
+  if(!d)return 0;
+  return Math.round(((hhmm(d[1])-hhmm(d[0]))/60-(d[2]||0))*100)/100;
+}
+function horasSemana(pat){
+  var t=0;for(var i=1;i<=6;i++)t+=horasDia(pat,i);
+  return Math.round(t*100)/100;
+}
+// El valor de la hora sale del sueldo semanal entre las horas de esa semana.
+// Es la cuenta más defendible y la que se puede enseñar sin explicar nada.
+function salarioHora(e){
+  var hs=horasSemana(patronDe(e));
+  return hs?Math.round(((+e.salario||0)/hs)*100)/100:0;
+}
+// Horas extra guardadas por día, aparte de la asistencia para no romperla
+var EXTRAS=JSON.parse(localStorage.getItem('impulso_extras')||'{}');
+function extraDe(empId,a,m,d){var k=empId+'_'+a+'_'+m;return (EXTRAS[k]&&EXTRAS[k][d])||0;}
+function setExtra(empId,a,m,d,h){
+  var k=empId+'_'+a+'_'+m;
+  if(!EXTRAS[k])EXTRAS[k]={};
+  h=Math.round((parseFloat(h)||0)*100)/100;
+  if(h>0)EXTRAS[k][d]=h; else delete EXTRAS[k][d];
+  localStorage.setItem('impulso_extras',JSON.stringify(EXTRAS));
+  cfgSet('extras_v1',EXTRAS);
+}
+// LFT art. 68: las primeras 9 horas extra de la semana se pagan al DOBLE,
+// de la décima en adelante al TRIPLE.
+function pagoExtras(horas,vh){
+  var d=Math.min(horas,9),t=Math.max(0,horas-9);
+  return {dobles:d,triples:t,monto:Math.round((d*vh*2+t*vh*3)*100)/100};
+}
 var ASISTENCIAS=JSON.parse(localStorage.getItem('impulso_asist')||'{}');
 var EMP_STATUS=JSON.parse(localStorage.getItem('impulso_emp_status')||'{}');
 var COM_PAGADAS=JSON.parse(localStorage.getItem('impulso_com_pagadas')||'{}');
@@ -8821,7 +8875,7 @@ function rAsist(){
     else{st+='cursor:pointer;';if(!fueraMes)lb++;}
     if(fueraMes)st+='opacity:.35;';
     var _t=esDom?'':(est===true?'presente':est===false?'falta (sí descuenta)':est==='desc'?'descanso programado — le tocaba libre, no es falta ni vacaciones':est==='inc'?'incapacidad (no descuenta)':est==='vac'?'vacaciones (no descuenta)':'sin marcar — clic para marcar');
-    ch+='<div title="'+_t+'" style="'+st+'"'+(esDom?'':' onclick="togAsistFecha('+empId+','+anio+','+mes+','+d+')"')+'>'+label+'<span>'+(esDom?'—':est===true?'✓':est===false?'✗':est==='desc'?'☕':est==='inc'?'🤒':est==='vac'?'🌴':'·')+'</span></div>';
+    ch+='<div title="'+_t+'" style="'+st+'"'+(esDom?'':' onclick="togAsistFecha('+empId+','+anio+','+mes+','+d+')"')+'>'+label+'<span>'+(esDom?'—':est===true?'✓':est===false?'✗':est==='desc'?'☕':est==='inc'?'🤒':est==='vac'?'🌴':'·')+'</span>'+(est===true&&!fueraMes?('<input type="number" min="0" step="0.5" value="'+(extraDe(empId,anio,mes,d)||'')+'" placeholder="+h" title="Horas extra de este día" onclick="event.stopPropagation()" onchange="setExtra('+empId+','+anio+','+mes+','+d+',this.value);rAsist()" style="width:44px;font-size:10px;padding:1px 3px;margin-top:2px;border:1px solid var(--border);border-radius:4px;text-align:center">'):'')+'</div>';
   }
   document.getElementById('asist-cal').innerHTML=ch;
   var desc=au*(emp.salario/6);   // solo la falta roja descuenta
@@ -8832,6 +8886,35 @@ function rAsist(){
     +'<button class="btn btn-s" onclick="asistNavMes(1)">Mes sig ›</button>'
     +'</div>';
   document.getElementById('asist-nav').innerHTML=semNav;
+  // Ficha del horario: qué jornada le toca, cuánto vale su hora y cómo van
+  // sus extras del mes. Sin esto hay que sacar la calculadora cada vez.
+  (function(){
+    var box=document.getElementById('asist-horario'); if(!box)return;
+    var pat=patronDe(emp),hs=horasSemana(pat),vh=salarioHora(emp);
+    var tope=topeSemanal(anio), exceso=Math.round((hs-tope)*100)/100;
+    var DN=['','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    var filas='';
+    for(var i=1;i<=6;i++){
+      var d=(HORARIOS[pat]||HORARIOS.ventas).dias[i];
+      filas+='<tr><td>'+DN[i]+'</td><td>'+(d?d[0]+' – '+d[1]:'—')+'</td>'+
+             '<td style="text-align:center;color:var(--text3)">'+(d&&d[2]?d[2]+' h':'—')+'</td>'+
+             '<td class="mono" style="text-align:right;font-weight:600">'+horasDia(pat,i)+' h</td></tr>';
+    }
+    // extras del mes
+    var kx=empId+'_'+anio+'_'+mesSel, ex=EXTRAS[kx]||{}, thx=0;
+    Object.keys(ex).forEach(function(d){thx+=+ex[d]||0;});
+    var pg=pagoExtras(thx,vh);
+    box.innerHTML='<div class="tw" style="margin-bottom:.75rem"><div style="padding:11px 15px;border-bottom:1px solid var(--border);display:flex;gap:18px;flex-wrap:wrap;align-items:baseline">'+
+      '<div style="font-size:13px;font-weight:700">🕐 Horario '+(HORARIOS[pat]||{}).nombre+'</div>'+
+      '<div style="font-size:12px;color:var(--text2)">Semana de <b>'+hs+' h</b> · tope legal '+anio+': <b>'+tope+' h</b>'+
+        (exceso>0?' <span style="color:#B45309;font-weight:700">(+'+exceso+' h)</span>':exceso<0?' <span style="color:var(--green)">('+exceso+' h)</span>':' ✓')+'</div>'+
+      '<div style="flex:1;min-width:180px;text-align:right;font-size:12px;color:var(--text2)">Sueldo semanal <b class="mono">'+fmt(emp.salario)+'</b> ÷ '+hs+' h = <b class="mono" style="color:var(--ciruela)">'+fmt(vh)+' por hora</b></div>'+
+      '</div>'+
+      '<table class="tbl"><thead><tr><th>Día</th><th>Horario</th><th style="text-align:center">Comida</th><th style="text-align:right">Horas efectivas</th></tr></thead><tbody>'+filas+
+      '<tr style="font-weight:800;background:var(--mant,#F0EFE9)"><td colspan="3">Total de la semana</td><td class="mono" style="text-align:right">'+hs+' h</td></tr></tbody></table>'+
+      (thx>0?'<div style="padding:10px 15px;border-top:1px solid var(--border);font-size:12.5px">⏱️ <b>'+thx+' h extra</b> este mes · '+pg.dobles+' al doble'+(pg.triples?' y '+pg.triples+' al triple':'')+' = <b class="mono" style="color:var(--ciruela)">'+fmt(pg.monto)+'</b> <span style="color:var(--text3);font-size:11px">· LFT art. 68: las primeras 9 de la semana al doble, de la 10 en adelante al triple</span></div>':'')+
+      '</div>';
+  })();
   document.getElementById('asist-met').innerHTML='<div class="metric"><div class="m-label">Dias laborables</div><div class="m-val">'+lb+'</div></div>'+
     '<div class="metric"><div class="m-label">Presentes</div><div class="m-val" style="color:var(--green)">'+pr+'</div></div>'+
     '<div class="metric"><div class="m-label">Justificados</div><div class="m-val" style="color:#B45309">'+ju+'</div><div class="m-sub">incapacidad o vacaciones · no descuentan</div></div>'+
