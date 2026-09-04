@@ -1763,7 +1763,7 @@ tr:hover .ent-edit{opacity:1}
     <div class="metric"><div class="m-label">Empleados</div><div class="m-val" id="nom-nem">0</div></div>
   </div>
   <div id="nom-avance" style="font-size:13px;margin:0 0 12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px"></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Empleado</th><th>Sucursal</th><th>Dias</th><th>Faltas</th><th>Salario</th><th>Descuento</th><th>A pagar</th><th>Se paga</th><th>¿Pagado?</th><th></th></tr></thead><tbody id="nom-body"></tbody></table></div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Empleado</th><th>Sucursal</th><th>Dias</th><th>Faltas</th><th>Salario</th><th>Descuento</th><th>Horas extra</th><th>A pagar</th><th>Se paga</th><th>¿Pagado?</th><th></th></tr></thead><tbody id="nom-body"></tbody></table></div>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:.875rem;flex-wrap:wrap">
     <span style="font-size:11.5px;color:var(--text3)">Cada pago se registra por persona con la casilla <b>¿Pagado?</b> y crea su salida en Movimientos.</span>
     <button class="btn btn-s" onclick="verBitacoraNom()">📋 Bitácora de pagos</button>
@@ -9068,11 +9068,11 @@ function rNom(){
   var sv=document.getElementById('nom-sem').value,si=new Date(sv),mes=si.getMonth();
   var body=document.getElementById('nom-body');
   var EMPS=empActivos();
-  if(!EMPS.length){body.innerHTML='<tr><td colspan="10" class="tbl-empty">Sin empleados</td></tr>';document.getElementById('nom-tot').textContent='$0';document.getElementById('nom-desc').textContent='$0';document.getElementById('nom-nem').textContent='0';return;}
-  var tp=0,td=0,h='',pagado=0,porPagar=0;
+  if(!EMPS.length){body.innerHTML='<tr><td colspan="11" class="tbl-empty">Sin empleados</td></tr>';document.getElementById('nom-tot').textContent='$0';document.getElementById('nom-desc').textContent='$0';document.getElementById('nom-nem').textContent='0';return;}
+  var tp=0,td=0,tx=0,h='',pagado=0,porPagar=0;
   for(var i=0;i<EMPS.length;i++){
     var e=EMPS[i],t=0,f=0,d=new Date(si);
-    var jus=0,apl=0,dsc=0;
+    var jus=0,apl=0,dsc=0,hx=0;
     for(var j=0;j<7;j++,d.setDate(d.getDate()+1)){var dow=d.getDay();if(dow===0)continue;
       if(!diaAplica(e,d))continue;            // aún no entraba, o ya salió
       apl++;
@@ -9080,15 +9080,23 @@ function rNom(){
       if(ed===false)f++;                      // falta: descuenta
       else if(ed==='inc'||ed==='vac'){jus++;t++;}  // justificada: NO descuenta
       else if(ed==='desc'){dsc++;t++;}        // le tocaba libre
-      else t++;}
+      else t++;
+      hx+=extraDe(e.id,d.getFullYear(),d.getMonth(),d.getDate());}
     // Semana incompleta: se paga la parte proporcional de los días que sí le
     // tocaban. Antes se pagaba la semana entera aunque hubiera entrado el jueves.
     var diario=e.salario/6;
     var base=(apl>=6)?e.salario:Math.round(diario*apl*100)/100;
-    var desc=f*diario,ap=base-desc;tp+=ap;td+=desc;
+    var desc=f*diario;
+    // Las extras se pagan por SEMANA, y la nómina es semanal: este es el lugar
+    // exacto donde aplica el art. 68 (9 al doble, de la 10 en adelante al triple).
+    var vh=salarioHora(e), px=pagoExtras(hx,vh);
+    var ap=base-desc+px.monto;tp+=ap;td+=desc;tx+=px.monto;
     h+='<tr><td style="font-weight:500">'+e.nombre+'</td><td>'+e.suc+'</td><td>'+t+(apl<6?'<div style="font-size:10px;color:#B45309;font-weight:700">semana parcial · '+apl+' de 6 días</div>':'')+'</td>';
     h+='<td>'+(f>0?'<span class="badge br">'+f+'</span>':'0')+(jus>0?' <span class="badge" style="background:var(--amber-l);color:#92400E">'+jus+' just.</span>':'')+'</td>';
     h+='<td class="mono">'+fmt(base)+(apl<6?'<div style="font-size:10px;color:var(--text3)">de '+fmt(e.salario)+'</div>':'')+'</td><td class="mono" style="'+(desc>0?'color:var(--red)':'')+'">'+( desc>0?fmt(desc):'-')+'</td>';
+    h+='<td class="mono">'+(hx>0
+        ?('<b style="color:var(--ciruela)">'+fmt(px.monto)+'</b><div style="font-size:10px;color:var(--text3)">'+hx+' h · '+px.dobles+' al doble'+(px.triples?' + '+px.triples+' al triple':'')+'<br>hora '+fmt(vh)+'</div>')
+        :'-')+'</td>';
     h+='<td class="mono" style="font-weight:700">'+fmt(ap)+'</td>';
     // Día de pago: se resalta cuando ese día es HOY
     var hoyNom=DIAS_SEM[new Date().getDay()];
