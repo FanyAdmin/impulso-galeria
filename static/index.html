@@ -8382,7 +8382,7 @@ function delVend(i){if(!confirm('Eliminar?'))return;
 
 // === COMISIONES ===
 function initComMes(){var s=document.getElementById('com-mes');if(!s)return;var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var h='';for(var i=0;i<12;i++)h+='<option value="'+i+'">'+M[i]+' 2026</option>';s.innerHTML=h;s.value=new Date().getMonth();}
-function comPagadas(){return JSON.parse(localStorage.getItem('impulso_com_pagadas')||'{}');}
+function comPagadas(){return COM_PAGADAS;}
 var comSucFil='Todas';
 function setComSuc(s,el){comSucFil=s;document.querySelectorAll('#page-com .chip').forEach(function(c){c.classList.remove('active');});if(el)el.classList.add('active');rCom();}
 function comDesglose(v,mes){
@@ -8548,7 +8548,7 @@ function pagarCom(vidx,mes,com){
   var mv={tipo:'Salida',concepto:'Comisiones',desc:'COMISION '+v.nombre+' — '+M[mes].toUpperCase()+' 2026',monto:com,fecha:todayStr(),mes:new Date().getMonth(),cuenta:'Efectivo',cta_destino:'',socio:''};
   fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
   .then(function(r){return r.json();}).then(function(d){movs.unshift(d&&d.id?d:mv);}).catch(function(){movs.unshift(mv);});
-  var pag=comPagadas();pag[v.nombre+'_'+mes]={fecha:todayStr(),monto:com};localStorage.setItem('impulso_com_pagadas',JSON.stringify(pag));
+  var pag=COM_PAGADAS;pag[v.nombre+'_'+mes]={fecha:todayStr(),monto:com};localStorage.setItem('impulso_com_pagadas',JSON.stringify(pag));cfgSet('com_pagadas_v1',pag);
   logActivity('Pagó comisión',v.nombre+' — '+M[mes]+' 2026 — '+fmt(com));
   rCom();
 }
@@ -8618,14 +8618,55 @@ function loadEmpleados(){
 }
 function refreshEmpUI(){if(document.getElementById('emp-body'))rEmps();initAsistSels();populateLFT();initNomSems();}
 var editEmpIdx=null,lftTabAct='vac';
+// ── LO QUE VIVÍA SOLO EN EL NAVEGADOR ───────────────────────────────────────
+// Asistencias, bajas de personal, comisiones pagadas y VIP se guardaban en
+// localStorage: solo existían en la compu donde se capturaron y se perdían al
+// limpiar el navegador. Ahora viven en la base, como todo lo demás. No hace
+// falta tocar app.py: el endpoint de configuración ya es genérico.
+// El localStorage se conserva como respaldo por si el servidor no responde.
+function cfgGet(clave,porDefecto){
+  return fetch('/api/config/'+clave,{credentials:'include'}).then(function(r){return r.json();})
+    .then(function(d){return (d&&typeof d.valor!=='undefined'&&d.valor!==null)?d.valor:porDefecto;})
+    .catch(function(){return porDefecto;});
+}
+function cfgSet(clave,valor){
+  return fetch('/api/config/'+clave,{method:'PUT',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:valor})})
+    .then(function(r){if(!r.ok)throw 0;})
+    .catch(function(){alert('⚠️ No se pudo guardar en el servidor. El cambio quedó solo en esta computadora.');});
+}
 var ASISTENCIAS=JSON.parse(localStorage.getItem('impulso_asist')||'{}');
+var EMP_STATUS=JSON.parse(localStorage.getItem('impulso_emp_status')||'{}');
+var COM_PAGADAS=JSON.parse(localStorage.getItem('impulso_com_pagadas')||'{}');
+// Al arrancar se trae lo del servidor; si el servidor viene vacío y aquí sí hay
+// algo, se sube una vez para no perder lo que ya estaba capturado.
+function cargarLocalesADB(){
+  return Promise.all([
+    cfgGet('asistencias_v1',null).then(function(v){
+      if(v&&Object.keys(v).length)ASISTENCIAS=v;
+      else if(Object.keys(ASISTENCIAS).length)return cfgSet('asistencias_v1',ASISTENCIAS);
+    }),
+    cfgGet('emp_status_v1',null).then(function(v){
+      if(v&&Object.keys(v).length)EMP_STATUS=v;
+      else if(Object.keys(EMP_STATUS).length)return cfgSet('emp_status_v1',EMP_STATUS);
+    }),
+    cfgGet('com_pagadas_v1',null).then(function(v){
+      if(v&&Object.keys(v).length)COM_PAGADAS=v;
+      else if(Object.keys(COM_PAGADAS).length)return cfgSet('com_pagadas_v1',COM_PAGADAS);
+    }),
+    cfgGet('vip_v1',null).then(function(v){
+      if(v&&v.length)VIP_CLIENTS=v;
+      else if(VIP_CLIENTS&&VIP_CLIENTS.length)return cfgSet('vip_v1',VIP_CLIENTS);
+    })
+  ]).then(function(){try{refreshEmpUI();}catch(e){}});
+}
 function antig(fi){var d=new Date(fi),h=new Date();var a=Math.floor((h-d)/(365.25*864e5)),m=Math.floor(((h-d)%(365.25*864e5))/(30.44*864e5));return{anos:a,meses:m,txt:a+' ano'+(a!==1?'s':'')+', '+m+' mes'+(m!==1?'es':'')};}
 function diasVac(a){if(a<1)return 0;if(a<2)return 12;if(a<3)return 14;if(a<4)return 16;if(a<5)return 18;if(a<10)return 20;if(a<15)return 22;return 24;}
 
 function empActivos(){return EMPLEADOS.filter(function(e){return (e.estatus||'activo')!=='baja';});}
 function rEmps(){var h='';for(var i=0;i<EMPLEADOS.length;i++){var e=EMPLEADOS[i],a=antig(e.ingreso);var esBaja=(e.estatus||'activo')==='baja';var badge=esBaja?'<span class="badge bgr">Baja'+(e.fecha_baja?' '+e.fecha_baja:'')+'</span>':'<span class="badge bg">Activo</span>';h+='<tr style="'+(esBaja?'opacity:.55':'')+'"><td style="font-weight:500">'+e.nombre+' '+badge+'</td><td>'+e.puesto+'</td><td>'+e.suc+'</td><td>'+e.ingreso+'</td><td class="mono">'+fmt(e.salario)+'</td><td>'+a.txt+'</td><td style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn btn-s btn-xs" onclick="editEmp('+i+')">Editar</button>'+(esBaja?'<button class="btn btn-s btn-xs" onclick="reactivarEmp('+i+')">↩️ Reactivar</button>':'<button class="btn btn-xs" style="border:1px solid #FCD34D;background:var(--amber-l);color:#92400E" onclick="bajaEmp('+i+')">📤 Dar de baja</button>')+'<button class="btn btn-d btn-xs" onclick="delEmp('+i+')">Eliminar</button></td></tr>';}document.getElementById('emp-body').innerHTML=h||'<tr><td colspan="7" class="tbl-empty">Sin empleados</td></tr>';}
-function empStatusOv(){return JSON.parse(localStorage.getItem('impulso_emp_status')||'{}');}
-function saveEmpStatus(id,st,f){var o=empStatusOv();if(st==='activo')delete o[id];else o[id]={estatus:st,fecha_baja:f};localStorage.setItem('impulso_emp_status',JSON.stringify(o));}
+function empStatusOv(){return EMP_STATUS;}
+function saveEmpStatus(id,st,f){var o=EMP_STATUS;if(st==='activo')delete o[id];else o[id]={estatus:st,fecha_baja:f};localStorage.setItem('impulso_emp_status',JSON.stringify(o));cfgSet('emp_status_v1',o);}
 function bajaEmp(i){
   var e=EMPLEADOS[i];if(!e)return;
   var f=prompt('Último día trabajado de '+e.nombre+' (AAAA-MM-DD):',todayStr());
@@ -8733,7 +8774,7 @@ function rAsist(){
   var finMes=new Date(anioSel,mesSel+1,0);var dayF=(finMes.getDay()+6)%7;
   var fin=new Date(finMes);fin.setDate(finMes.getDate()+(6-dayF)); // domingo de la última
   var ch='',ju=0;
-  var pr=0,au=0,lb=0;
+  var pr=0,au=0,lb=0,dsc=0;
   for(var f=new Date(ini);f<=fin;f.setDate(f.getDate()+1)){
     var fecha=new Date(f);
     var mes=fecha.getMonth(),d=fecha.getDate(),anio=fecha.getFullYear();
@@ -8748,11 +8789,14 @@ function rAsist(){
     if(esDom){st+='background:var(--surface2);color:var(--text3);';}
     else if(est===true){st+='background:var(--green-l);border-color:var(--green);color:var(--green);font-weight:600;cursor:pointer;';if(!fueraMes){lb++;pr++;}}
     else if(est===false){st+='background:var(--red-l);border-color:var(--red);color:var(--red);font-weight:600;cursor:pointer;';if(!fueraMes){lb++;au++;}}
+    // El descanso programado no es día laborable: se pinta como el domingo
+    // y no entra a la cuenta de días ni de faltas.
+    else if(est==='desc'){st+='background:var(--surface2);border-color:var(--border2);color:var(--text2);font-weight:600;cursor:pointer;';if(!fueraMes)dsc++;}
     else if(est==='inc'||est==='vac'){st+='background:var(--amber-l);border-color:#D97706;color:#92400E;font-weight:600;cursor:pointer;';if(!fueraMes){lb++;ju++;}}
     else{st+='cursor:pointer;';if(!fueraMes)lb++;}
     if(fueraMes)st+='opacity:.35;';
-    var _t=esDom?'':(est===true?'presente':est===false?'falta (sí descuenta)':est==='inc'?'incapacidad (no descuenta)':est==='vac'?'vacaciones (no descuenta)':'sin marcar — clic para marcar');
-    ch+='<div title="'+_t+'" style="'+st+'"'+(esDom?'':' onclick="togAsistFecha('+empId+','+anio+','+mes+','+d+')"')+'>'+label+'<span>'+(esDom?'—':est===true?'✓':est===false?'✗':est==='inc'?'🤒':est==='vac'?'🌴':'·')+'</span></div>';
+    var _t=esDom?'':(est===true?'presente':est===false?'falta (sí descuenta)':est==='desc'?'descanso programado — le tocaba libre, no es falta ni vacaciones':est==='inc'?'incapacidad (no descuenta)':est==='vac'?'vacaciones (no descuenta)':'sin marcar — clic para marcar');
+    ch+='<div title="'+_t+'" style="'+st+'"'+(esDom?'':' onclick="togAsistFecha('+empId+','+anio+','+mes+','+d+')"')+'>'+label+'<span>'+(esDom?'—':est===true?'✓':est===false?'✗':est==='desc'?'☕':est==='inc'?'🤒':est==='vac'?'🌴':'·')+'</span></div>';
   }
   document.getElementById('asist-cal').innerHTML=ch;
   var desc=au*(emp.salario/6);   // solo la falta roja descuenta
@@ -8766,12 +8810,14 @@ function rAsist(){
   document.getElementById('asist-met').innerHTML='<div class="metric"><div class="m-label">Dias laborables</div><div class="m-val">'+lb+'</div></div>'+
     '<div class="metric"><div class="m-label">Presentes</div><div class="m-val" style="color:var(--green)">'+pr+'</div></div>'+
     '<div class="metric"><div class="m-label">Justificados</div><div class="m-val" style="color:#B45309">'+ju+'</div><div class="m-sub">incapacidad o vacaciones · no descuentan</div></div>'+
-    '<div class="metric"><div class="m-label">Faltas</div><div class="m-val" style="color:var(--red)">'+au+'</div><div class="m-sub">Descuento: '+fmt(desc)+'</div></div>';
+    '<div class="metric"><div class="m-label">Faltas</div><div class="m-val" style="color:var(--red)">'+au+'</div><div class="m-sub">Descuento: '+fmt(desc)+'</div></div>'+
+    (dsc?'<div class="metric"><div class="m-label">Descansos</div><div class="m-val" style="color:var(--text2)">'+dsc+'</div><div class="m-sub">le tocaba libre · no cuenta como día laborable</div></div>':'');
   var ley=document.getElementById('asist-leyenda');
   if(ley){
     var pil=function(bg,col,txt){return '<span style="font-size:11px;font-weight:700;border-radius:99px;padding:3px 10px;margin-left:7px;background:'+bg+';color:'+col+'">'+txt+'</span>';};
     ley.innerHTML='<span style="font-size:11.5px;color:var(--text3)">Cada clic cambia el día:</span>'+
       pil('var(--green-l)','var(--green)','✓ presente')+
+      pil('var(--surface2)','var(--text2)','☕ descanso')+
       pil('var(--red-l)','var(--red)','✗ falta · sí descuenta')+
       pil('#FEF3C7','#92400E','🤒 incapacidad')+
       pil('#FEF3C7','#92400E','🌴 vacaciones')+
@@ -8783,12 +8829,16 @@ function togAsistFecha(empId,anio,mes,dia){
   if(!ASISTENCIAS[key])ASISTENCIAS[key]={};
   var a=ASISTENCIAS[key][dia];
   // ciclo: sin marcar → presente → falta → incapacidad → vacaciones → sin marcar
+  // El descanso va en tercer lugar porque es el más frecuente de los tres:
+  // les toca un sábado al mes y no es falta ni vacaciones.
   if(a===undefined)ASISTENCIAS[key][dia]=true;
   else if(a===true)ASISTENCIAS[key][dia]=false;
-  else if(a===false)ASISTENCIAS[key][dia]='inc';
+  else if(a===false)ASISTENCIAS[key][dia]='desc';
+  else if(a==='desc')ASISTENCIAS[key][dia]='inc';
   else if(a==='inc')ASISTENCIAS[key][dia]='vac';
   else delete ASISTENCIAS[key][dia];
   localStorage.setItem('impulso_asist',JSON.stringify(ASISTENCIAS));
+  cfgSet('asistencias_v1',ASISTENCIAS);
   rAsist();
 }
 // togAsist reemplazado por togAsistFecha
@@ -9291,6 +9341,7 @@ function loadData(){
     cargarAuditOK().then(function(){try{correrAuditoria();badgeAudit();}catch(e){}}).catch(function(){});
     // El riel de cobro se enciende al arrancar, no cuando alguien lo abre
     cargarCanceladas().then(cargarRielSeg).then(function(){try{rRiel();rCxC();}catch(e){}}).catch(function(){});
+    cargarLocalesADB();   // asistencias, bajas, comisiones pagadas y VIP
     const uAct=USERS.find(x=>x.key===CU);
     if(uAct&&uAct.role==='taller'){go('ord');switchOrdTab('seguimiento',document.getElementById('chip-ord-seg'));}
     else go('cal');   // se entra al calendario
@@ -9455,7 +9506,7 @@ function applyDesc(pct){
   if(rEl)rEl.value=fmt(Math.max(0,total-ant));
 }
 let VIP_CLIENTS=JSON.parse(localStorage.getItem('vip_clients')||'[]');
-function saveVIP(){localStorage.setItem('vip_clients',JSON.stringify(VIP_CLIENTS));}
+function saveVIP(){localStorage.setItem('vip_clients',JSON.stringify(VIP_CLIENTS));cfgSet('vip_v1',VIP_CLIENTS);}
 function checkVIP(nombre){
   const isVIP=VIP_CLIENTS.some(v=>v.toLowerCase()===nombre.toLowerCase().trim());
   const badge=document.getElementById('mp-vip-badge');
