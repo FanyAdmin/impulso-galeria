@@ -1822,7 +1822,17 @@ tr:hover .ent-edit{opacity:1}
     <div class="metric"><div class="m-label">Pedidos a facturar</div><div class="m-val" id="fac-n">0</div></div>
     <div class="metric"><div class="m-label">Monto pendiente</div><div class="m-val" id="fac-monto">$0</div></div>
     <div class="metric"><div class="m-label">Facturas emitidas</div><div class="m-val" id="fac-emitidas">0</div></div>
-    <div class="metric" style="border-left:3px solid var(--amber,#F59E0B)"><div class="m-label">🕗 Facturas por cobrar</div><div class="m-val" id="fac-porcobrar">$0</div><div style="font-size:10px;color:var(--text3)" id="fac-porcobrar-n"></div></div>
+  </div>
+  <div class="card" id="fac-pc-card" style="display:none;border-left:4px solid var(--ciruela);border-radius:0;margin-bottom:1rem">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:baseline;gap:10px">
+        <span style="font-size:17px;font-weight:700;color:var(--text)">🕗 Facturas por cobrar</span>
+        <span style="font-size:12px;color:var(--text2)" id="fac-pc-n"></span>
+      </div>
+      <span style="font-size:26px;font-weight:800;color:var(--mant-d)" id="fac-pc-tot">$0</span>
+    </div>
+    <div class="tw" style="margin:.7rem 0 0"><table class="tbl"><thead><tr><th>Factura</th><th>Cliente</th><th>Emitida</th><th style="text-align:right">Por cobrar</th><th></th></tr></thead><tbody id="fac-pc-body"></tbody></table></div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text3)">El saldo sale solo de las notas ligadas a cada factura. Al abonar en CxC, esta lista se actualiza sola.</div>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card">
@@ -9319,6 +9329,30 @@ function facMarca(txt,q){
   if(!q||normNom(txt).indexOf(q)<0)return txt;
   return '<b style="background:#FDE68A;color:var(--text);padding:0 3px;border-radius:3px">'+txt+'</b>';
 }
+// Facturas por cobrar: dias desde que se emitio, cliente detras de los folios,
+// y el salto al cobro real (que vive en CxC, para no tener dos verdades del saldo).
+function facDias(fecha){
+  if(!fecha)return 0;
+  var pz=String(fecha).slice(0,10).split('-');
+  if(pz.length<3)return 0;
+  var d=new Date(+pz[0],+pz[1]-1,+pz[2]);
+  var h=new Date();h=new Date(h.getFullYear(),h.getMonth(),h.getDate());
+  return Math.max(0,Math.round((h-d)/86400000));
+}
+function facCliente(f){
+  var nn=[];
+  (f.folios||[]).forEach(function(fo){
+    var p=pedidos.find(function(x){return x.folio===fo;});
+    if(p&&p.cli&&nn.indexOf(p.cli)<0)nn.push(p.cli);
+  });
+  if(!nn.length)return '<span style="color:var(--text3)">\u2014</span>';
+  if(nn.length===1)return nn[0];
+  return nn[0]+' <span style="color:var(--text3);font-size:11px">+'+(nn.length-1)+' cliente'+(nn.length===2?'':'s')+'</span>';
+}
+function facCobrar(fol){
+  var q=document.getElementById('cxc-q');if(q)q.value=fol||'';
+  go('cxc');
+}
 function limpiarFac(){var q=document.getElementById('fac-q');if(q)q.value='';rFac();}
 function rFac(){
   var mes=parseInt(document.getElementById('fac-mes').value);
@@ -9338,9 +9372,29 @@ function rFac(){
   var ph='';for(var i=0;i<pend.length;i++){var p=pend[i];ph+='<tr><td><input type="checkbox" class="fac-cb" value="'+p.folio+'"></td><td class="mono" style="font-weight:600">'+facMarca(p.folio,q)+'</td><td>'+facMarca(p.cli,q)+'</td><td style="color:var(--text2)">'+p.fecha+'</td><td class="mono">'+fmt(p.total)+'</td></tr>';}
   document.getElementById('fac-pend-body').innerHTML=ph||'<tr><td colspan="5" class="tbl-empty">'+(q?'Ninguna nota pendiente coincide con «'+qRaw+'»':'Sin pedidos pendientes de facturar')+'</td></tr>';
   // Facturas por cobrar (todas, sin importar el mes): el enlace vivo factura↔cobros
-  var pcTot=0,pcN=0;
-  for(var i=0;i<FACTURAS.length;i++){var s=facSaldo(FACTURAS[i]);if(s>0.5){pcTot+=s;pcN++;}}
-  var pcEl=document.getElementById('fac-porcobrar');if(pcEl){pcEl.textContent=fmtK(pcTot);document.getElementById('fac-porcobrar-n').textContent=pcN?(pcN+' factura'+(pcN===1?'':'s')+' con saldo'):'todas cobradas ✓';}
+  var pcTot=0,pcN=0,pcList=[];
+  for(var i=0;i<FACTURAS.length;i++){var sd=facSaldo(FACTURAS[i]);if(sd>0.5){pcTot+=sd;pcN++;pcList.push({f:FACTURAS[i],saldo:sd,dias:facDias(FACTURAS[i].fecha)});}}
+  pcList.sort(function(a,b){return b.dias-a.dias||b.saldo-a.saldo;});
+  var pcCard=document.getElementById('fac-pc-card');
+  if(pcCard){
+    pcCard.style.display=pcN?'':'none';
+    if(pcN){
+      document.getElementById('fac-pc-tot').textContent=fmt(pcTot);
+      document.getElementById('fac-pc-n').textContent=pcN+' factura'+(pcN===1?'':'s')+' emitida'+(pcN===1?'':'s')+' con saldo';
+      var pch='';
+      for(var i=0;i<pcList.length;i++){
+        var r=pcList[i],fol=(r.f.folios||[])[0]||'';
+        var col=r.dias>30?['var(--borgona-l)','var(--borgona)']:(r.dias>15?['var(--mant-l)','var(--mant-d)']:['var(--surface2)','var(--text2)']);
+        var tam=r.saldo>=10000?'17px':(r.saldo>=5000?'15px':'14px');
+        pch+='<tr><td class="mono" style="font-weight:700">'+r.f.num+'</td>'+
+          '<td>'+facCliente(r.f)+'</td>'+
+          '<td style="color:var(--text2);font-size:12px">'+r.f.fecha+'<br><span style="display:inline-block;margin-top:3px;background:'+col[0]+';color:'+col[1]+';font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px">'+r.dias+' día'+(r.dias===1?'':'s')+'</span></td>'+
+          '<td class="mono" style="text-align:right;font-weight:700;font-size:'+tam+'">'+fmt(r.saldo)+'</td>'+
+          '<td style="text-align:right">'+(fol?'<button class="btn btn-s btn-xs" onclick="facCobrar(\''+fol+'\')">Cobrar en CxC</button>':'')+'</td></tr>';
+      }
+      document.getElementById('fac-pc-body').innerHTML=pch;
+    }
+  }
   var eh='';
   var facsMes;
   if(q){
