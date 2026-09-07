@@ -382,28 +382,38 @@ body.riel-on .content{margin-right:300px}
 
 /* ── BANCOS: el puente. Blanco + ciruela; el ciruela SOLO en lo que no cuadra ── */
 #page-ban .ban-hero,#page-ban .ban-cta,#page-ban .ban-pu{font-family:'Outfit',var(--ui)}
-#page-ban .ban-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
-#page-ban .ban-hero-l{font-size:13.5px;color:var(--text2);margin-bottom:2px}
-#page-ban .ban-hero-v{font-size:44px;font-weight:800;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums}
-#page-ban .ban-hero-v span{font-size:25px;color:var(--text3);font-weight:600}
+#page-ban .ban-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;background:var(--menta);color:#fff;border-radius:20px;padding:20px 24px}
+#page-ban .ban-hero-l{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.88);margin-bottom:3px}
+#page-ban .ban-hero-v{font-size:46px;font-weight:900;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums}
+#page-ban .ban-hero-v span{font-size:25px;color:rgba(255,255,255,.7);font-weight:700}
 #page-ban .ban-hero-r{text-align:right}
-#page-ban .ban-hero-f{font-size:12px;color:var(--text3);margin-top:6px}
-#page-ban .ban-chip{display:inline-block;background:var(--ciruela-l);color:var(--ciruela-d);font-size:12.5px;font-weight:700;padding:5px 13px;border-radius:99px}
-#page-ban .ban-chip.ok{background:var(--menta-l);color:#12724C}
+#page-ban .ban-hero-f{font-size:12px;color:rgba(255,255,255,.8);margin-top:7px}
+#page-ban .ban-chip{display:inline-block;background:#fff;color:var(--ciruela-d);font-size:12.5px;font-weight:700;padding:5px 13px;border-radius:99px}
+#page-ban .ban-chip.ok{background:rgba(255,255,255,.22);color:#fff}
 #page-er .er-clic{cursor:pointer}
 #page-er .er-clic:hover td{filter:brightness(.97)}
 #page-er .er-fl{display:inline-block;width:15px;color:var(--text3);font-size:10px}
 #page-ban .ban-ctas{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;margin-bottom:18px}
-#page-ban .ban-cta{background:var(--surface);border:2px solid var(--border);border-radius:16px;padding:14px 15px;cursor:pointer;transition:transform .12s,border-color .12s}
-#page-ban .ban-cta:hover{transform:translateY(-2px);border-color:var(--ciruela)}
-#page-ban .ban-cta.alerta{border-color:var(--ciruela);box-shadow:0 0 0 3px rgba(110,65,87,.13)}
-#page-ban .ban-cta-h{font-size:13px;font-weight:700;margin-bottom:9px}
-#page-ban .ban-cta-v{font-size:23px;font-weight:800;letter-spacing:-.03em;margin-bottom:2px}
-#page-ban .ban-cta-s{font-size:11.5px;color:var(--text3);margin-bottom:10px;min-height:15px}
-#page-ban .ban-cta-b{font-size:11.5px;font-weight:700;padding:5px 9px;border-radius:8px;display:inline-block}
-#page-ban .ban-cta-b.cir{background:var(--ciruela-l);color:var(--ciruela-d)}
-#page-ban .ban-cta-b.ok{background:var(--menta-l);color:#12724C}
-#page-ban .ban-cta-b.esp{background:var(--mant-l);color:var(--mant-d)}
+#page-ban .ban-cta{background:var(--surface);border:2px solid transparent;border-radius:18px;padding:15px 17px;cursor:pointer;transition:transform .12s,box-shadow .12s;color:#fff}
+#page-ban .ban-cta:hover{transform:translateY(-3px);box-shadow:0 10px 22px rgba(16,24,40,.16)}
+/* un color fijo por cuenta, en el orden en que las tienes dadas de alta */
+#page-ban .ban-cta.k0{background:var(--azul)}
+#page-ban .ban-cta.k1{background:var(--ciruela)}
+#page-ban .ban-cta.k2{background:var(--mant);color:#5A4200}
+#page-ban .ban-cta.k3{background:var(--lila)}
+#page-ban .ban-cta.k4{background:var(--menta)}
+#page-ban .ban-cta.k5{background:#3E7A9E}
+/* la que no cuadra se sale del color: blanca con contorno borgoña, para que grite */
+#page-ban .ban-cta.alerta,#page-ban .ban-cta.alerta.k0,#page-ban .ban-cta.alerta.k1,#page-ban .ban-cta.alerta.k2,#page-ban .ban-cta.alerta.k3,#page-ban .ban-cta.alerta.k4,#page-ban .ban-cta.alerta.k5{background:var(--surface);color:var(--borgona);border-color:var(--borgona)}
+#page-ban .ban-cta-h{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px;opacity:.9}
+#page-ban .ban-cta-v{font-size:26px;font-weight:900;letter-spacing:-.03em;margin-bottom:3px}
+#page-ban .ban-cta-s{font-size:11.5px;margin-bottom:10px;min-height:15px;opacity:.82}
+#page-ban .ban-cta-b{font-size:11.5px;font-weight:700;padding:5px 9px;border-radius:9px;display:inline-block;background:rgba(255,255,255,.24)}
+#page-ban .ban-cta.k2 .ban-cta-b{background:rgba(90,66,0,.16)}
+#page-ban .ban-cta.alerta .ban-cta-b{background:var(--borgona-l);color:var(--borgona)}
+#page-ban .ban-cta-b.cir{}
+#page-ban .ban-cta-b.ok{}
+#page-ban .ban-cta-b.esp{}
 #page-ban .ban-pu{padding:16px 19px;margin-bottom:18px}
 #page-ban .ban-pu-t{font-size:17px;font-weight:800;letter-spacing:-.02em}
 #page-ban .ban-pu-s{font-size:12.5px;color:var(--text2);margin:3px 0 12px}
@@ -8097,7 +8107,7 @@ function banHeroHTML(){
       '<div class="ban-hero-f">al '+todayStr()+'</div></div></div>';
 }
 function banCuentasHTML(){
-  return Object.keys(BANCOS_INIT).map(function(c){
+  return Object.keys(BANCOS_INIT).map(function(c,ki){
     var mio=banSaldoMio(c),p=banPuente(c),pend=banSinConciliar(c),uc=banUltimaConc(c);
     var ico=c.toLowerCase().indexOf('efectivo')>=0?'💵':'🏦',sub,est;
     if(p){
@@ -8108,7 +8118,7 @@ function banCuentasHTML(){
       sub=uc?('conciliado al '+uc):'sin conciliar nunca';
       est=pend?{cls:'esp',t:pend+' sin conciliar'}:{cls:'ok',t:'✓ Al corriente'};
     }
-    return '<div class="ban-cta'+(est.cls==='cir'?' alerta':'')+'" onclick="banIrCta('+JSON.stringify(c).replace(/"/g,'&quot;')+')">'+
+    return '<div class="ban-cta k'+(ki%6)+(est.cls==='cir'?' alerta':'')+'" onclick="banIrCta('+JSON.stringify(c).replace(/"/g,'&quot;')+')">'+
       '<div class="ban-cta-h">'+ico+' '+c+'</div>'+
       '<div class="ban-cta-v mono">'+fmt(mio)+'</div>'+
       '<div class="ban-cta-s">'+sub+'</div>'+
