@@ -394,26 +394,25 @@ body.riel-on .content{margin-right:300px}
 #page-er .er-clic:hover td{filter:brightness(.97)}
 #page-er .er-fl{display:inline-block;width:15px;color:var(--text3);font-size:10px}
 #page-ban .ban-ctas{display:grid;grid-template-columns:repeat(auto-fit,minmax(178px,1fr));gap:12px;margin-bottom:18px}
-#page-ban .ban-cta{background:var(--surface);border:2px solid transparent;border-radius:18px;padding:15px 17px;cursor:pointer;transition:transform .12s,box-shadow .12s;color:#fff}
+#page-ban .ban-cta{background:var(--surface);border:2px solid transparent;border-radius:18px;padding:15px 17px;cursor:pointer;transition:transform .12s,box-shadow .12s;color:#fff;min-width:0}
 #page-ban .ban-cta:hover{transform:translateY(-3px);box-shadow:0 10px 22px rgba(16,24,40,.16)}
-/* un color fijo por cuenta, en el orden en que las tienes dadas de alta */
-#page-ban .ban-cta.k0{background:var(--azul)}
-#page-ban .ban-cta.k1{background:var(--ciruela)}
-#page-ban .ban-cta.k2{background:var(--mant);color:#5A4200}
-#page-ban .ban-cta.k3{background:var(--lila)}
-#page-ban .ban-cta.k4{background:var(--menta)}
-#page-ban .ban-cta.k5{background:#3E7A9E}
-/* la que no cuadra se sale del color: blanca con contorno borgoña, para que grite */
-#page-ban .ban-cta.alerta,#page-ban .ban-cta.alerta.k0,#page-ban .ban-cta.alerta.k1,#page-ban .ban-cta.alerta.k2,#page-ban .ban-cta.alerta.k3,#page-ban .ban-cta.alerta.k4,#page-ban .ban-cta.alerta.k5{background:var(--surface);color:var(--borgona);border-color:var(--borgona)}
+/* El color dice el ESTADO de la cuenta, no cual cuenta es. */
+#page-ban .ban-cta.st-ok{background:var(--menta)}
+#page-ban .ban-cta.st-esp{background:var(--mant);color:#5A4200}
+#page-ban .ban-cta.st-cus{background:var(--lila)}
+#page-ban .ban-cta.alerta{background:var(--surface);color:var(--borgona);border-color:var(--borgona)}
 #page-ban .ban-cta-h{font-size:11.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;margin-bottom:7px;opacity:.9}
-#page-ban .ban-cta-v{font-size:26px;font-weight:900;letter-spacing:-.03em;margin-bottom:3px}
-#page-ban .ban-cta-s{font-size:11.5px;margin-bottom:10px;min-height:15px;opacity:.82}
+#page-ban .ban-cta-v{font-weight:900;letter-spacing:-.035em;margin-bottom:3px;line-height:1.05;overflow-wrap:anywhere}
+#page-ban .ban-cta-s{font-size:11.5px;margin-bottom:10px;min-height:15px;opacity:.85}
 #page-ban .ban-cta-b{font-size:11.5px;font-weight:700;padding:5px 9px;border-radius:9px;display:inline-block;background:rgba(255,255,255,.24)}
-#page-ban .ban-cta.k2 .ban-cta-b{background:rgba(90,66,0,.16)}
+#page-ban .ban-cta.st-esp .ban-cta-b{background:rgba(90,66,0,.16)}
 #page-ban .ban-cta.alerta .ban-cta-b{background:var(--borgona-l);color:var(--borgona)}
-#page-ban .ban-cta-b.cir{}
-#page-ban .ban-cta-b.ok{}
-#page-ban .ban-cta-b.esp{}
+/* Las cuentas en cero no merecen un bloque: se van a un renglon flaco. */
+#page-ban .ban-vacias{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:9px 14px;margin-bottom:18px;font-size:12.5px;color:var(--text2)}
+#page-ban .ban-vacias b{font-weight:700;color:var(--text)}
+#page-ban .ban-vacias span.c{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:3px 10px;cursor:pointer}
+#page-ban .ban-vacias span.c:hover{border-color:var(--ciruela);color:var(--ciruela)}
+#page-ban .ban-cus{font-size:12.5px;color:rgba(255,255,255,.9);margin-top:8px;background:rgba(255,255,255,.18);border-radius:10px;padding:6px 11px;display:inline-block}
 #page-ban .ban-pu{padding:16px 19px;margin-bottom:18px}
 #page-ban .ban-pu-t{font-size:17px;font-weight:800;letter-spacing:-.02em}
 #page-ban .ban-pu-s{font-size:12.5px;color:var(--text2);margin:3px 0 12px}
@@ -1420,7 +1419,7 @@ tr:hover .ent-edit{opacity:1}
   </div>
 
   <div id="ban-hero"></div>
-  <div id="ban-cuentas" class="ban-ctas"></div>
+  <div id="ban-cuentas"></div>
   <div id="ban-puente"></div>
 
   <div class="tw"><div style="padding:11px 15px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Saldo por cuenta</div>
@@ -8095,8 +8094,9 @@ function banPuente(cta){
 }
 function banHeroHTML(){
   var ctas=Object.keys(BANCOS_INIT);
-  var tot=ctas.reduce(function(a,c){return a+banSaldoMio(c);},0);
-  var mal=ctas.filter(function(c){return banSinConciliar(c)>0;}).length;
+  var tot=ctas.reduce(function(a,c){return banEsCustodia(c)?a:a+banSaldoMio(c);},0);
+  var cus=ctas.reduce(function(a,c){return banEsCustodia(c)?a+banSaldoMio(c):a;},0);
+  var mal=ctas.filter(function(c){return !banEsCustodia(c)&&banSinConciliar(c)>0;}).length;
   var e=fmt(tot).split('.');
   return '<div class="ban-hero">'+
     '<div><div class="ban-hero-l">Tienes disponible</div>'+
@@ -8104,92 +8104,49 @@ function banHeroHTML(){
     '<div class="ban-hero-r">'+
       (mal?'<span class="ban-chip">'+mal+' cuenta'+(mal>1?'s':'')+' con movimientos sin conciliar</span>'
           :'<span class="ban-chip ok">Todo conciliado</span>')+
-      '<div class="ban-hero-f">al '+todayStr()+'</div></div></div>';
+      '<div class="ban-hero-f">al '+todayStr()+'</div></div>'+
+    (Math.abs(cus)>1?'<div class="ban-cus" style="flex-basis:100%">Aparte hay '+fmt(cus)+' en custodia que no es tuyo y no est\u00e1 sumado aqu\u00ed.</div>':'')+
+    '</div>';
+}
+// Cuentas que aparecen en la pantalla pero cuyo dinero NO es de Impulso:
+// se ven para saber que existen, pero no suman al "tienes disponible".
+var CTAS_CUSTODIA=['Tranquilo Zibata'];
+function banEsCustodia(c){
+  return CTAS_CUSTODIA.some(function(x){return String(x).toLowerCase()===String(c).toLowerCase();});
+}
+function banEstadoCta(c){
+  var p=banPuente(c),pend=banSinConciliar(c),uc=banUltimaConc(c);
+  if(banEsCustodia(c))return {cls:'st-cus',t:'No es dinero tuyo',sub:'lo resguarda Zibata'};
+  if(p){
+    var d=Math.round((p.mio-p.banco)*100)/100;
+    if(Math.abs(d)>1)return {cls:'alerta',t:'Difieren '+fmt(Math.abs(d)),sub:'el banco dice '+fmt(p.banco)};
+    return {cls:'st-ok',t:'\u2713 Cuadra con el banco',sub:'el banco dice '+fmt(p.banco)};
+  }
+  if(pend)return {cls:'st-esp',t:pend+' sin conciliar',sub:uc?('conciliado al '+uc):'sin conciliar nunca'};
+  return {cls:'st-ok',t:'\u2713 Al corriente',sub:uc?('conciliado al '+uc):'sin conciliar nunca'};
 }
 function banCuentasHTML(){
-  return Object.keys(BANCOS_INIT).map(function(c,ki){
-    var mio=banSaldoMio(c),p=banPuente(c),pend=banSinConciliar(c),uc=banUltimaConc(c);
-    var ico=c.toLowerCase().indexOf('efectivo')>=0?'💵':'🏦',sub,est;
-    if(p){
-      var d=Math.round((p.mio-p.banco)*100)/100;
-      sub='el banco dice '+fmt(p.banco);
-      est=Math.abs(d)>1?{cls:'cir',t:'Difieren '+fmt(Math.abs(d))}:{cls:'ok',t:'✓ Cuadra con el banco'};
-    }else{
-      sub=uc?('conciliado al '+uc):'sin conciliar nunca';
-      est=pend?{cls:'esp',t:pend+' sin conciliar'}:{cls:'ok',t:'✓ Al corriente'};
-    }
-    return '<div class="ban-cta k'+(ki%6)+(est.cls==='cir'?' alerta':'')+'" onclick="banIrCta('+JSON.stringify(c).replace(/"/g,'&quot;')+')">'+
+  var grandes='',vacias=[];
+  Object.keys(BANCOS_INIT).forEach(function(c){
+    var mio=banSaldoMio(c),est=banEstadoCta(c);
+    var ico=c.toLowerCase().indexOf('efectivo')>=0?'\ud83d\udcb5':'\ud83c\udfe6';
+    var arg=JSON.stringify(c).replace(/"/g,'&quot;');
+    // sin dinero y sin problema: no ocupa un bloque
+    if(Math.abs(mio)<1&&est.cls!=='alerta'&&est.cls!=='st-esp'){vacias.push({c:c,arg:arg});return;}
+    var txt=fmt(mio),tam=txt.length>11?'20px':(txt.length>9?'23px':'26px');
+    grandes+='<div class="ban-cta '+est.cls+'" onclick="banIrCta('+arg+')">'+
       '<div class="ban-cta-h">'+ico+' '+c+'</div>'+
-      '<div class="ban-cta-v mono">'+fmt(mio)+'</div>'+
-      '<div class="ban-cta-s">'+sub+'</div>'+
-      '<div class="ban-cta-b '+est.cls+'">'+est.t+'</div></div>';
-  }).join('');
-}
-function banIrCta(c){
-  var s=document.getElementById('ban-cta');
-  if(s)s.value=c;   // deja escogida la cuenta para cuando entre a Conciliación
-  var el=document.getElementById('ban-puente');
-  if(el){el.innerHTML=banPuenteHTML();el.scrollIntoView({behavior:'smooth',block:'center'});}
-}
-// El selector de cuenta vive ahora en la pantalla de Conciliación, así que se
-// puebla solo, sin depender de que se haya abierto Bancos antes.
-function vgCtaBan(){var s=document.getElementById('ban-cta');return (s&&s.value)||'INBURSA';}
-function banInitCta(){
-  var s=document.getElementById('ban-cta');
-  if(!s||s.options.length)return;
-  s.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option>'+c+'</option>';}).join('');
-  if(Object.keys(BANCOS_INIT).indexOf('INBURSA')>=0)s.value='INBURSA';
-}
-// ── PUENTE DE TERCEROS ─────────────────────────────────────────────────────
-// Dinero que cobras POR alguien más (Tranquilo) y luego le devuelves. Pasa por
-// tu banco pero no es tu venta, así que el Estado de Resultados no lo cuenta —
-// y por eso nadie lo vigila. Si entra más de lo que sale, traes dinero ajeno;
-// si sale más, pusiste de tu bolsa. Las dos cosas hay que saberlas.
-function puenteTerceros(anio){
-  var ent=[],sal=[];
-  (movs||[]).forEach(function(m){
-    var f=String(m.fecha||'').slice(0,10);
-    if(anio&&f.slice(0,4)!==String(anio))return;
-    var c=(m.concepto||'').trim();
-    if(c===PUENTE_IN)ent.push(m);
-    else if(c===PUENTE_OUT)sal.push(m);
+      '<div class="ban-cta-v mono" style="font-size:'+tam+'">'+txt+'</div>'+
+      '<div class="ban-cta-s">'+est.sub+'</div>'+
+      '<div class="ban-cta-b">'+est.t+'</div></div>';
   });
-  var sm=function(a){return a.reduce(function(x,m){return x+(+m.monto||0);},0);};
-  return {ent:ent,sal:sal,tEnt:sm(ent),tSal:sm(sal),saldo:Math.round((sm(ent)-sm(sal))*100)/100};
-}
-function puenteHTML(){
-  var anio=(document.getElementById('er-yr')&&document.getElementById('er-yr').value)||String(new Date().getFullYear());
-  var p=puenteTerceros(anio);
-  if(!p.ent.length&&!p.sal.length)return '';
-  var s=p.saldo, col=Math.abs(s)<1?'var(--green)':(s>0?'#B45309':'#B91C1C');
-  var dice=Math.abs(s)<1?'Está a mano: cobraste y devolviste lo mismo.'
-    :(s>0?'Traes '+fmt(s)+' que cobraste por ellos y todavía no devuelves.'
-         :'Devolviste '+fmt(-s)+' de más: pusiste de tu bolsa.');
-  var meses=function(arr){
-    var g={};arr.forEach(function(m){var k=String(m.fecha).slice(0,7);g[k]=(g[k]||0)+(+m.monto||0);});
-    return g;
-  };
-  var ge=meses(p.ent),gs=meses(p.sal);
-  var ks=Object.keys(ge).concat(Object.keys(gs)).filter(function(v,i,a){return a.indexOf(v)===i;}).sort();
-  var acum=0;
-  var filas=ks.map(function(k){
-    var e=ge[k]||0,x=gs[k]||0;acum+=e-x;
-    return '<tr><td>'+k+'</td><td class="mono" style="text-align:right;color:var(--green)">'+(e?fmt(e):'—')+'</td>'+
-           '<td class="mono" style="text-align:right;color:var(--red)">'+(x?fmt(x):'—')+'</td>'+
-           '<td class="mono" style="text-align:right;font-weight:700">'+fmt(acum)+'</td></tr>';
-  }).join('');
-  return '<div class="tw" style="margin-bottom:.75rem">'+
-    '<div style="padding:12px 15px;border-bottom:1px solid var(--border)">'+
-      '<div style="font-size:13px;font-weight:700">🔁 Puente de terceros · '+anio+'</div>'+
-      '<div style="font-size:11.5px;color:var(--text3)">Cobros que haces por alguien más. Pasan por tu banco pero no son tu venta, así que no aparecen en el Estado de Resultados.</div>'+
-    '</div>'+
-    '<div style="padding:12px 15px;display:flex;gap:22px;flex-wrap:wrap;align-items:baseline">'+
-      '<div><div style="font-size:11px;color:var(--text3)">Cobraste por ellos</div><b class="mono" style="font-size:16px;color:var(--green)">'+fmt(p.tEnt)+'</b> <span style="font-size:11px;color:var(--text3)">'+p.ent.length+' mov.</span></div>'+
-      '<div><div style="font-size:11px;color:var(--text3)">Les devolviste</div><b class="mono" style="font-size:16px;color:var(--red)">'+fmt(p.tSal)+'</b> <span style="font-size:11px;color:var(--text3)">'+p.sal.length+' mov.</span></div>'+
-      '<div style="flex:1;min-width:220px"><div style="font-size:11px;color:var(--text3)">Saldo del puente</div><b class="mono" style="font-size:16px;color:'+col+'">'+fmt(p.saldo)+'</b><div style="font-size:11.5px;color:var(--text2)">'+dice+'</div></div>'+
-    '</div>'+
-    '<table class="tbl"><thead><tr><th>Mes</th><th style="text-align:right">Cobrado por ellos</th><th style="text-align:right">Devuelto</th><th style="text-align:right">Saldo acumulado</th></tr></thead><tbody>'+filas+'</tbody></table>'+
-    '</div>';
+  var h='<div class="ban-ctas">'+grandes+'</div>';
+  if(vacias.length){
+    h+='<div class="ban-vacias"><b>Sin saldo:</b>'+vacias.map(function(v){
+      return '<span class="c" onclick="banIrCta('+v.arg+')">'+v.c+'</span>';
+    }).join('')+'</div>';
+  }
+  return h;
 }
 function banPuenteHTML(){
   var sel=document.getElementById('ban-cta');
