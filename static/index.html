@@ -142,7 +142,13 @@ body.riel-on .content{margin-right:300px}
 .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);padding:1rem 1.1rem;margin-bottom:.75rem;box-shadow:none}
 .card:hover{border-color:#E2E6EC}
 .card-title{font-size:12px;font-weight:600;color:var(--text3);letter-spacing:0;margin-bottom:.8rem}
-.tw{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);overflow:hidden;margin-bottom:.75rem;box-shadow:none}
+.tw{background:var(--surface);border:1px solid var(--border);border-radius:var(--rad-lg);overflow-x:auto;overflow-y:hidden;margin-bottom:.75rem;box-shadow:none;-webkit-overflow-scrolling:touch}
+/* La ultima columna (la de los botones) se queda clavada al borde derecho:
+   la tabla se desliza por debajo y nunca pierdes editar ni borrar. */
+.tw table.tbl tr>th:last-child,.tw table.tbl tr>td:last-child{position:sticky;right:0;z-index:3;background:var(--surface);box-shadow:-8px 0 10px -8px rgba(16,24,40,.22)}
+.tw table.tbl thead tr>th:last-child{background:var(--ciruela);z-index:4}
+.tw table.tbl tbody tr:hover>td:last-child{background:#FCFCFD}
+.tw table.tbl tr>td:last-child{white-space:nowrap}
 .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
 /* Encabezado blanco con una sola línea de pelo, pero apretado */
 .tbl th{font-size:11px;font-weight:700;color:#fff;padding:9px 11px;text-align:left;background:var(--ciruela);border-bottom:none;letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
@@ -4331,7 +4337,7 @@ function pintaCuadre(d){
     tar('Saldo conciliado',$(saldoConc),'#0369A1','#EFF6FF','solo lo visto en el banco')+
     tar('Dice el banco',saldoBanco!=null?$(saldoBanco):'—','#065F46','#ECFDF5','')+
     tar('Diferencia',brecha!=null?$(brecha):'—',Math.abs(brecha||0)<1?'#065F46':'#991B1B',Math.abs(brecha||0)<1?'#ECFDF5':'#FEF2F2',
-        noConc+' movimiento(s) sin conciliar')+
+        noConc+' movimiento(s) por conciliar')+
     '</div>';
 
   h+='<div class="card" style="padding:14px 16px;margin-bottom:14px">'+
@@ -8102,7 +8108,7 @@ function banHeroHTML(){
     '<div><div class="ban-hero-l">Tienes disponible</div>'+
     '<div class="ban-hero-v">'+e[0]+'<span>.'+(e[1]||'00')+'</span></div></div>'+
     '<div class="ban-hero-r">'+
-      (mal?'<span class="ban-chip">'+mal+' cuenta'+(mal>1?'s':'')+' con movimientos sin conciliar</span>'
+      (mal?'<span class="ban-chip">'+mal+' cuenta'+(mal>1?'s':'')+' con movimientos por conciliar</span>'
           :'<span class="ban-chip ok">Todo conciliado</span>')+
       '<div class="ban-hero-f">al '+todayStr()+'</div></div>'+
     (Math.abs(cus)>1?'<div class="ban-cus" style="flex-basis:100%">Aparte hay '+fmt(cus)+' en custodia que no es tuyo y no est\u00e1 sumado aqu\u00ed.</div>':'')+
@@ -8122,8 +8128,8 @@ function banEstadoCta(c){
     if(Math.abs(d)>1)return {cls:'alerta',t:'Difieren '+fmt(Math.abs(d)),sub:'el banco dice '+fmt(p.banco)};
     return {cls:'st-ok',t:'\u2713 Cuadra con el banco',sub:'el banco dice '+fmt(p.banco)};
   }
-  if(pend)return {cls:'st-esp',t:pend+' sin conciliar',sub:uc?('conciliado al '+uc):'sin conciliar nunca'};
-  return {cls:'st-ok',t:'\u2713 Al corriente',sub:uc?('conciliado al '+uc):'sin conciliar nunca'};
+  if(pend)return {cls:'st-esp',t:pend+' por conciliar',sub:uc?('conciliado al '+uc):'nunca se ha conciliado'};
+  return {cls:'st-ok',t:'\u2713 Al corriente',sub:uc?('conciliado al '+uc):'nunca se ha conciliado'};
 }
 function banCuentasHTML(){
   var grandes='',vacias=[];
