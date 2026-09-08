@@ -388,6 +388,47 @@ body.riel-on .content{margin-right:300px}
 
 /* ── BANCOS: el puente. Blanco + ciruela; el ciruela SOLO en lo que no cuadra ── */
 #page-ban .ban-hero,#page-ban .ban-cta,#page-ban .ban-pu{font-family:'Outfit',var(--ui)}
+#page-ban .ban-st{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px}
+#page-ban .ban-sec{margin-bottom:24px}
+#page-ban .ban-num{font-size:58px;font-weight:900;letter-spacing:-.045em;line-height:1;font-variant-numeric:tabular-nums}
+#page-ban .ban-num s{text-decoration:none;font-size:28px;color:var(--text3)}
+/* La barra de confianza: en verde lo que un banco confirmo, rayado lo que
+   solo esta capturado. Mientras nadie concilie, se ve rayada. */
+#page-ban .ban-trust{display:flex;height:16px;border-radius:20px;overflow:hidden;margin-top:13px;background:var(--surface2)}
+#page-ban .ban-trust .v{background:var(--menta)}
+#page-ban .ban-trust .n{background:repeating-linear-gradient(45deg,#E6DCE2,#E6DCE2 5px,#F4EFF2 5px,#F4EFF2 10px)}
+#page-ban .ban-tl{display:flex;justify-content:space-between;gap:12px;margin-top:8px;font-size:12.5px;color:var(--text2);flex-wrap:wrap}
+#page-ban .ban-ver{margin-top:15px;border-left:4px solid var(--borgona);background:var(--borgona-l);border-radius:0 12px 12px 0;padding:13px 17px;font-size:14.5px;line-height:1.5;color:var(--ciruela-d)}
+#page-ban .ban-ver.ok{border-left-color:var(--menta);background:var(--menta-l);color:#12724C}
+#page-ban .ban-ver b{color:var(--borgona)}
+#page-ban .ban-ver.ok b{color:#12724C}
+/* Una sola barra proporcional: el ancho ES el dinero. */
+#page-ban .ban-barra{display:flex;height:62px;border-radius:14px;overflow:hidden;gap:3px}
+#page-ban .ban-barra>div{display:flex;flex-direction:column;justify-content:center;padding:0 13px;color:#fff;cursor:pointer;min-width:0;transition:filter .12s}
+#page-ban .ban-barra>div:hover{filter:brightness(1.08)}
+#page-ban .ban-barra b{font-size:15px;font-weight:800;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-ban .ban-barra s{text-decoration:none;font-size:11px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#page-ban .ban-mini{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;font-size:12.5px;color:var(--text2);align-items:center}
+#page-ban .ban-mini span{background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:4px 12px;cursor:pointer}
+#page-ban .ban-mini span:hover{border-color:var(--ciruela);color:var(--ciruela)}
+/* Lo que falta: lista de tareas, no reporte. */
+#page-ban .ban-pend{border:1.5px solid var(--border);border-radius:14px;overflow:hidden}
+#page-ban .ban-p{display:flex;align-items:center;gap:13px;padding:14px 16px;border-bottom:1px solid #F1EAEE}
+#page-ban .ban-p:last-child{border:0}
+#page-ban .ban-p .ico{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:16px;flex:0 0 auto}
+#page-ban .ban-p .tx{flex:1;min-width:0}
+#page-ban .ban-p .tt{font-size:14.5px;font-weight:700}
+#page-ban .ban-p .ss{font-size:12.5px;color:var(--text2);margin-top:1px}
+#page-ban .ban-p .ac{border:1.5px solid var(--ciruela);color:var(--ciruela);background:var(--surface);border-radius:10px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+#page-ban .ban-p .ac:hover{background:var(--ciruela);color:#fff}
+#page-ban .i-mal{background:var(--borgona-l);color:var(--borgona)}
+#page-ban .i-esp{background:var(--mant-l);color:var(--mant-d)}
+#page-ban .i-ok{background:var(--menta-l);color:#12724C}
+#page-ban .ban-cus{display:flex;align-items:center;gap:13px;background:var(--lila-l);border-radius:14px;padding:14px 17px;flex-wrap:wrap}
+#page-ban .ban-cus .v{font-size:22px;font-weight:900;letter-spacing:-.03em;color:#4A3BA8;font-variant-numeric:tabular-nums}
+#page-ban .ban-cus .t{font-size:13px;color:#4A3BA8;line-height:1.45;flex:1;min-width:230px}
+@media(max-width:700px){#page-ban .ban-num{font-size:40px}#page-ban .ban-barra{height:auto;flex-direction:column}#page-ban .ban-barra>div{padding:10px 13px}}
+#page-ban .ban-pu{font-family:'Outfit',var(--ui)}
 #page-ban .ban-hero{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:14px;background:var(--menta);color:#fff;border-radius:20px;padding:20px 24px}
 #page-ban .ban-hero-l{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.88);margin-bottom:3px}
 #page-ban .ban-hero-v{font-size:46px;font-weight:900;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums}
@@ -919,7 +960,7 @@ tr:hover .ent-edit{opacity:1}
       <div id="sb-wm"><div class="sb-imp">IMPULSO</div><div class="sb-gal">galería</div></div>
     </div>
     <div class="sb-sub" id="sb-suc">—</div>
-    <div class="sb-ver">versión 27-ago · ciruela v4</div>
+    <div class="sb-ver">versión 7-sep · bancos confianza</div>
   </div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
@@ -1425,8 +1466,10 @@ tr:hover .ent-edit{opacity:1}
   </div>
 
   <div id="ban-hero"></div>
-  <div id="ban-cuentas"></div>
-  <div id="ban-puente"></div>
+  <div id="ban-barra"></div>
+  <div id="ban-falta"></div>
+  <div id="ban-custodia"></div>
+  <div id="ban-puente-wrap" style="display:none"><div id="ban-puente"></div></div>
 
   <div class="tw"><div style="padding:11px 15px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Saldo por cuenta</div>
     <div id="ban-tabla"></div></div>
@@ -8098,21 +8141,105 @@ function banPuente(cta){
   if(Math.abs(resto)>=0.5)R.push({t:'Sin identificar',s:'Arrastre de periodos anteriores',v:resto,n:0});
   return {cta:cta,mio:saldoYo,banco:saldoBanco,ren:R,desde:BAN_EDO.desde,hasta:BAN_EDO.hasta};
 }
+function banCtasReales(){
+  return Object.keys(BANCOS_INIT).filter(function(c){return !banEsCustodia(c);});
+}
+// Una cuenta esta "confirmada" solo si se comparo con su estado de cuenta y cuadro.
+function banConfirmada(c){
+  var p=banPuente(c);
+  return !!(p&&Math.abs(Math.round((p.mio-p.banco)*100)/100)<=1);
+}
 function banHeroHTML(){
-  var ctas=Object.keys(BANCOS_INIT);
-  var tot=ctas.reduce(function(a,c){return banEsCustodia(c)?a:a+banSaldoMio(c);},0);
-  var cus=ctas.reduce(function(a,c){return banEsCustodia(c)?a+banSaldoMio(c):a;},0);
-  var mal=ctas.filter(function(c){return !banEsCustodia(c)&&banSinConciliar(c)>0;}).length;
-  var e=fmt(tot).split('.');
-  return '<div class="ban-hero">'+
-    '<div><div class="ban-hero-l">Tienes disponible</div>'+
-    '<div class="ban-hero-v">'+e[0]+'<span>.'+(e[1]||'00')+'</span></div></div>'+
-    '<div class="ban-hero-r">'+
-      (mal?'<span class="ban-chip">'+mal+' cuenta'+(mal>1?'s':'')+' con movimientos por conciliar</span>'
-          :'<span class="ban-chip ok">Todo conciliado</span>')+
-      '<div class="ban-hero-f">al '+todayStr()+'</div></div>'+
-    (Math.abs(cus)>1?'<div class="ban-cus" style="flex-basis:100%">Aparte hay '+fmt(cus)+' en custodia que no es tuyo y no est\u00e1 sumado aqu\u00ed.</div>':'')+
-    '</div>';
+  var ctas=banCtasReales();
+  var tot=ctas.reduce(function(a,c){return a+banSaldoMio(c);},0);
+  var conf=ctas.reduce(function(a,c){return banConfirmada(c)?a+banSaldoMio(c):a;},0);
+  var pct=tot>0?Math.max(0,Math.min(100,conf/tot*100)):0;
+  var txt=fmt(tot),ent=txt.split('.')[0],dec=txt.indexOf('.')>=0?txt.slice(txt.indexOf('.')):'';
+  // el veredicto se arma con lo que de verdad pasa hoy, no con una frase fija
+  var difieren=ctas.filter(function(c){var p=banPuente(c);return p&&Math.abs(p.mio-p.banco)>1;});
+  var nunca=ctas.filter(function(c){return !banPuente(c);});
+  var ver,cls='';
+  if(!difieren.length&&!nunca.length){
+    cls=' ok';ver='Todas tus cuentas cuadran con su banco. Este n\u00famero est\u00e1 respaldado.';
+  }else if(difieren.length){
+    var d0=difieren[0],p0=banPuente(d0);
+    ver='La cuenta <b>'+d0+'</b> difiere en <b>'+fmt(Math.abs(p0.mio-p0.banco))+'</b> contra su estado de cuenta'+
+      (nunca.length?(', y '+(nunca.length===1?'la cuenta '+nunca[0]+' nunca se ha conciliado':nunca.length+' cuentas nunca se han conciliado')):'')+
+      '. Este n\u00famero sirve para operar, pero todav\u00eda no para cerrar un mes.';
+  }else{
+    ver=(nunca.length===1?'La cuenta <b>'+nunca[0]+'</b> nunca se ha conciliado':'<b>'+nunca.length+' cuentas</b> nunca se han conciliado')+
+      ' contra su estado de cuenta. Este n\u00famero es lo que ustedes anotaron, no lo que el banco confirma.';
+  }
+  return '<div class="ban-sec">'+
+    '<div class="ban-st">Tienes disponible</div>'+
+    '<div class="ban-num">'+ent+'<s>'+dec+'</s></div>'+
+    '<div class="ban-trust"><div class="v" style="flex:'+pct.toFixed(2)+'"></div><div class="n" style="flex:'+(100-pct).toFixed(2)+'"></div></div>'+
+    '<div class="ban-tl"><span><b style="color:var(--menta)">'+fmt(conf)+'</b> confirmado por un banco</span>'+
+    '<span>'+fmt(tot-conf)+' es lo que ustedes anotaron</span></div>'+
+    '<div class="ban-ver'+cls+'">'+ver+'</div></div>';
+}
+// El ancho de cada pedazo ES el dinero. Las cuentas en cero no merecen ancho:
+// se van a las pastillas de abajo.
+function banBarraHTML(){
+  var col=['var(--ciruela)','var(--azul)','var(--mant)','#7C6BD8','#3E7A9E','#B9A6B1'];
+  var ctas=banCtasReales().map(function(c){return {c:c,v:banSaldoMio(c)};});
+  ctas.sort(function(a,b){return b.v-a.v;});
+  var gordas=ctas.filter(function(x){return x.v>1;}),flacas=ctas.filter(function(x){return x.v<=1;});
+  var h='<div class="ban-sec"><div class="ban-st">D\u00f3nde est\u00e1 ese dinero</div>';
+  if(gordas.length){
+    h+='<div class="ban-barra">'+gordas.map(function(x,k){
+      var bg=col[k%col.length],fg=(bg==='var(--mant)')?'#5A4200':'#fff';
+      return '<div style="flex:'+Math.max(1,Math.round(x.v))+';background:'+bg+';color:'+fg+'" onclick="banIrCta('+JSON.stringify(x.c).replace(/"/g,'&quot;')+')">'+
+        '<b>'+fmt(x.v)+'</b><s>'+x.c+'</s></div>';
+    }).join('')+'</div>';
+  }else{
+    h+='<div style="font-size:13px;color:var(--text3)">Ninguna cuenta tiene saldo este momento.</div>';
+  }
+  if(flacas.length){
+    h+='<div class="ban-mini">'+flacas.map(function(x){
+      return '<span onclick="banIrCta('+JSON.stringify(x.c).replace(/"/g,'&quot;')+')">'+x.c+' \u00b7 '+fmt(x.v)+'</span>';
+    }).join('')+'</div>';
+  }
+  return h+'</div>';
+}
+// Lo que impide confiar en el numero, cada renglon con su salida.
+function banFaltaHTML(){
+  var f='';
+  banCtasReales().forEach(function(c){
+    var p=banPuente(c),pend=banSinConciliar(c),uc=banUltimaConc(c),arg=JSON.stringify(c).replace(/"/g,'&quot;');
+    if(p&&Math.abs(p.mio-p.banco)>1){
+      f+='<div class="ban-p"><div class="ico i-mal">\u26a0\ufe0f</div><div class="tx">'+
+        '<div class="tt">'+c+' difiere en '+fmt(Math.abs(p.mio-p.banco))+'</div>'+
+        '<div class="ss">T\u00fa dices '+fmt(p.mio)+' \u00b7 el banco dice '+fmt(p.banco)+(uc?(' \u00b7 comparado al '+uc):'')+'</div></div>'+
+        '<button class="ac" onclick="banVerPuente('+arg+')">Ver el puente</button></div>';
+    }else if(pend>0){
+      f+='<div class="ban-p"><div class="ico i-esp">\ud83d\udccb</div><div class="tx">'+
+        '<div class="tt">'+c+': '+pend+' movimiento'+(pend===1?'':'s')+' por conciliar</div>'+
+        '<div class="ss">'+(uc?('Conciliado al '+uc):'Nunca se ha conciliado esta cuenta')+'</div></div>'+
+        '<button class="ac" onclick="go(\'conban\')">Conciliar</button></div>';
+    }
+  });
+  if(!f){
+    f='<div class="ban-p"><div class="ico i-ok">\u2713</div><div class="tx">'+
+      '<div class="tt">No falta nada</div><div class="ss">Todas las cuentas cuadran y no hay movimientos por conciliar.</div></div></div>';
+  }
+  return '<div class="ban-sec"><div class="ban-st">Para poder confiar en \u00e9l, falta</div><div class="ban-pend">'+f+'</div></div>';
+}
+function banCustodiaHTML(){
+  var cus=Object.keys(BANCOS_INIT).filter(banEsCustodia);
+  if(!cus.length)return '';
+  return '<div class="ban-sec"><div class="ban-st">Dinero que no es tuyo</div>'+cus.map(function(c){
+    return '<div class="ban-cus"><div class="v">'+fmt(banSaldoMio(c))+'</div>'+
+      '<div class="t"><b>'+c+'.</b> Se lleva la cuenta aqu\u00ed para saber que existe, pero no est\u00e1 sumado a tu disponible.</div>'+
+      '<button class="ac" style="border:1.5px solid #4A3BA8;color:#4A3BA8;background:#fff;border-radius:10px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer" onclick="banIrCta('+JSON.stringify(c).replace(/"/g,'&quot;')+')">Ver movimientos</button></div>';
+  }).join('')+'</div>';
+}
+function banVerPuente(c){
+  var sel=document.getElementById('ban-cta');if(sel)sel.value=c;
+  var w=document.getElementById('ban-puente-wrap');
+  if(w){w.style.display='';w.innerHTML='<div id="ban-puente"></div>';
+    document.getElementById('ban-puente').innerHTML=banPuenteHTML();
+    w.scrollIntoView({behavior:'smooth',block:'start'});}
 }
 // Cuentas que aparecen en la pantalla pero cuyo dinero NO es de Impulso:
 // se ven para saber que existen, pero no suman al "tienes disponible".
@@ -8130,8 +8257,7 @@ function banEstadoCta(c){
   }
   if(pend)return {cls:'st-esp',t:pend+' por conciliar',sub:uc?('conciliado al '+uc):'nunca se ha conciliado'};
   return {cls:'st-ok',t:'\u2713 Al corriente',sub:uc?('conciliado al '+uc):'nunca se ha conciliado'};
-}
-function banCuentasHTML(){
+}function banCuentasHTML(){
   var grandes='',vacias=[];
   Object.keys(BANCOS_INIT).forEach(function(c){
     var mio=banSaldoMio(c),est=banEstadoCta(c);
@@ -8307,8 +8433,15 @@ function rBancos(){
     if(Object.keys(BANCOS_INIT).indexOf('INBURSA')>=0)selC.value='INBURSA';
   }
   document.getElementById('ban-hero').innerHTML=banHeroHTML();
-  document.getElementById('ban-cuentas').innerHTML=banCuentasHTML();
-  document.getElementById('ban-puente').innerHTML=banPuenteHTML();
+  document.getElementById('ban-barra').innerHTML=banBarraHTML();
+  document.getElementById('ban-falta').innerHTML=banFaltaHTML();
+  document.getElementById('ban-custodia').innerHTML=banCustodiaHTML();
+  // el puente ya no vive abierto: se abre desde el renglon de la cuenta que no cuadra
+  var pw=document.getElementById('ban-puente-wrap');
+  if(pw&&pw.style.display!=='none'){
+    var pd=document.getElementById('ban-puente');
+    if(pd)pd.innerHTML=banPuenteHTML();
+  }
   document.getElementById('ban-flujo').innerHTML=banFlujoSVG(meses.slice(0,8).reverse());
   document.getElementById('ban-cats').innerHTML=banCatsHTML(d.catsS,'#C2185B')+
     '<div class="card-title" style="margin:14px 0 8px">De dónde vino</div>'+banCatsHTML(d.catsE,'#1A5C3A');
