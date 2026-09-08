@@ -7094,7 +7094,6 @@ function rCierre(){
   const {porCta,sinCta}=cierreCalc(f);
   CIE_FALTANTES=[];
   let h='';
-  let totFalta=0;
   const grupos=Object.values(porCta);
   if(!grupos.length)h='<div class="tbl-empty">Sin cobros ni registros ese día</div>';
   ['Jardines','Zibata'].forEach(sucB=>{
@@ -7102,29 +7101,56 @@ function rCierre(){
     if(!filas.length)return;
     const subCob=filas.reduce((s,v)=>s+v.cob,0);
     h+='<div style="display:flex;align-items:center;gap:8px;margin:10px 0 4px"><span style="font-weight:800;color:var(--green);font-size:14px">'+(sucB==='Zibata'?'🔺 ZIBATA':'🌿 JARDINES')+'</span><span style="font-size:11px;color:var(--text3)">cobrado: '+fmt(subCob)+'</span></div>';
-    h+='<table class="tbl" style="font-size:12.5px;margin-bottom:4px"><thead><tr><th>Cuenta</th><th style="text-align:right">Cobrado (notas)</th><th style="text-align:right">Registrado (Movs)</th><th style="text-align:right">Diferencia</th><th>Estado</th></tr></thead><tbody>';
+    h+='<table class="tbl" style="font-size:12.5px;margin-bottom:4px"><thead><tr><th style="width:34px"></th><th>Cuenta</th><th style="text-align:right">Cobrado (notas)</th><th style="text-align:right">Registrado (Movs)</th><th style="text-align:right">Diferencia</th><th>Estado</th></tr></thead><tbody>';
     filas.forEach(v=>{
       const dif=v.cob-v.reg;
-      let est,fila='';
+      let est,fila='',idx=-1;
       if(Math.abs(dif)<=0.5){est='<span class="badge bg">✓ Cuadra</span>';}
-      else if(dif>0){est='<span class="badge by">falta registrar '+fmt(dif)+'</span>';CIE_FALTANTES.push({cuenta:v.cta,suc:v.suc,monto:+dif.toFixed(2)});totFalta+=dif;fila='background:var(--amber-l)';}
+      else if(dif>0){est='<span class="badge by">falta registrar '+fmt(dif)+'</span>';idx=CIE_FALTANTES.length;CIE_FALTANTES.push({cuenta:v.cta,suc:v.suc,monto:+dif.toFixed(2),sel:true});fila='background:var(--amber-l)';}
       else{est='<span class="badge br">registrado de más '+fmt(-dif)+'</span>';fila='background:var(--red-l)';}
-      h+='<tr style="'+fila+'"><td style="font-weight:600">'+v.cta+'</td><td class="mono" style="text-align:right">'+fmt(v.cob)+'<div style="font-size:10px;color:var(--text3)">'+v.dets.slice(0,8).join(', ')+(v.dets.length>8?' +'+(v.dets.length-8):'')+'</div></td><td class="mono" style="text-align:right">'+fmt(v.reg)+'</td><td class="mono" style="text-align:right;font-weight:700">'+fmt(dif)+'</td><td>'+est+'</td></tr>';
+      h+='<tr style="'+fila+'"><td style="text-align:center">'+(idx>=0?'<input type="checkbox" id="cie-ck-'+idx+'" checked onchange="cieTog('+idx+',this.checked)" style="width:16px;height:16px;cursor:pointer">':'')+'</td><td style="font-weight:600">'+v.cta+'</td><td class="mono" style="text-align:right">'+fmt(v.cob)+'<div style="font-size:10px;color:var(--text3)">'+v.dets.slice(0,8).join(', ')+(v.dets.length>8?' +'+(v.dets.length-8):'')+'</div></td><td class="mono" style="text-align:right">'+fmt(v.reg)+'</td><td class="mono" style="text-align:right;font-weight:700">'+fmt(dif)+'</td><td>'+est+'</td></tr>';
     });
     h+='</tbody></table>';
   });
   if(sinCta.length)h+='<div style="font-size:11.5px;color:#92400E;background:var(--amber-l);border-radius:8px;padding:7px 10px;margin-top:8px">⚠️ Cobros sin cuenta de banco clara (métodos como Tranquilo u otros): '+sinCta.join(' · ')+' — regístralos a mano si aplican.</div>';
   document.getElementById('cie-body').innerHTML=h;
+  cieBtnRefresh();
+}
+// Palomear/despalomear una cuenta del cierre. Lo que queda sin palomear
+// simplemente no se manda a Movimientos: se queda pendiente.
+function cieTog(i,v){
+  if(CIE_FALTANTES[i])CIE_FALTANTES[i].sel=v;
+  cieBtnRefresh();
+}
+function cieBtnRefresh(){
   const btn=document.getElementById('cie-btn'),msg=document.getElementById('cie-msg');
-  if(CIE_FALTANTES.length){btn.style.display='';btn.textContent='✍️ Registrar lo faltante ('+CIE_FALTANTES.length+' entrada'+(CIE_FALTANTES.length===1?'':'s')+' · '+fmt(totFalta)+')';msg.textContent='Un clic y las entradas del día quedan en Movimientos — adiós captura manual.';}
-  else{btn.style.display='none';msg.textContent=ctas.length?'🌙 Día cuadrado: Movimientos ya refleja todo lo cobrado. Nada que hacer.':'';}
+  if(!btn||!msg)return;
+  const sel=CIE_FALTANTES.filter(x=>x.sel);
+  const tot=sel.reduce((s,x)=>s+x.monto,0);
+  if(!CIE_FALTANTES.length){
+    btn.style.display='none';
+    msg.textContent=ctas.length?'🌙 Día cuadrado: Movimientos ya refleja todo lo cobrado. Nada que hacer.':'';
+    return;
+  }
+  btn.style.display='';
+  if(!sel.length){
+    btn.disabled=true;
+    btn.textContent='Selecciona al menos una cuenta';
+    msg.textContent='Las cuentas sin palomear se quedan pendientes.';
+    return;
+  }
+  btn.disabled=false;
+  btn.textContent='✍️ Registrar lo faltante ('+sel.length+' entrada'+(sel.length===1?'':'s')+' · '+fmt(tot)+')';
+  const fuera=CIE_FALTANTES.length-sel.length;
+  msg.textContent=fuera?'Quedan '+fuera+' cuenta(s) sin palomear — esas no se mandan a Movimientos.':'Un clic y las entradas del día quedan en Movimientos.';
 }
 function cierreRegistrar(){
   const f=document.getElementById('cie-fecha').value;
-  if(!CIE_FALTANTES.length)return;
+  const SEL=CIE_FALTANTES.filter(x=>x.sel);
+  if(!SEL.length)return;
   const btn=document.getElementById('cie-btn');btn.disabled=true;btn.textContent='Registrando…';
   const mes=parseInt(f.split('-')[1],10)-1;
-  const crear=CIE_FALTANTES.map(x=>{
+  const crear=SEL.map(x=>{
     const esZ=x.suc==='Zibata';
     const mv={tipo:'Entrada',concepto:esZ?'ZIBATA':x.cuenta.toUpperCase(),desc:(esZ?'Zibata ventas ':'VENTAS ')+f+' (cierre del día)',cuenta:x.cuenta,cta_destino:'',monto:x.monto,fecha:f,mes:mes};
     return fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
@@ -7132,7 +7158,7 @@ function cierreRegistrar(){
       .then(srv=>{if(srv&&srv.id)movs.unshift(srv);});
   });
   Promise.all(crear).then(()=>{
-    logActivity('Cierre del día',f+' — '+CIE_FALTANTES.length+' entrada(s) generadas');
+    logActivity('Cierre del día',f+' — '+SEL.length+' entrada(s) generadas');
     btn.disabled=false;rCierre();
     try{rMovsRe();}catch(e){}
     alert('🌙 Cierre registrado: las entradas del '+f+' ya están en Movimientos.\nBancos, ER y Auditoría quedaron alimentados solos.');
