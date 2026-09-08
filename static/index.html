@@ -1223,7 +1223,12 @@ tr:hover .ent-edit{opacity:1}
     <div class="chip" onclick="fEst('agotada',this)">Agotadas</div>
     <div class="chip" onclick="fEst('descontinuada',this)">Descontinuadas</div>
   </div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Moldura</th><th>Proveedor</th><th>Precio lista ($/ml)</th><th>Desp. cm</th><th>Estatus</th><th></th></tr></thead><tbody id="cat-body"></tbody></table></div>
+  <div class="tw"><table class="tbl"><thead><tr><th style="width:30px"><input type="checkbox" id="cat-selall" onchange="molSelAll(this.checked)" title="Seleccionar la página visible" style="width:15px;height:15px;cursor:pointer"></th><th>Moldura</th><th>Proveedor</th><th>Precio lista ($/ml)</th><th>Desp. cm</th><th>Estatus</th><th></th></tr></thead><tbody id="cat-body"></tbody></table></div>
+  <div id="cat-selbar" style="display:none;position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:60;background:#1F3864;color:#fff;border-radius:12px;padding:10px 18px;box-shadow:0 8px 24px rgba(0,0,0,.25);align-items:center;gap:14px;font-size:13px">
+    <span id="cat-selinfo" style="font-weight:600"></span>
+    <button class="btn btn-xs" style="background:#fff;color:#991B1B;font-weight:700;border:none" onclick="molSelBorrar()">🗑 Eliminar seleccionadas</button>
+    <button class="btn btn-xs" style="background:transparent;border:1px solid #ffffff66;color:#fff" onclick="molSelLimpiar()">✕ Quitar selección</button>
+  </div>
   <div id="cat-pag" style="display:flex;gap:5px;align-items:center;justify-content:flex-end;font-size:12px;color:var(--text2);margin-top:.5rem"></div>
 </div>
 
@@ -1435,7 +1440,12 @@ tr:hover .ent-edit{opacity:1}
       <span id="mv-res" style="font-size:11px;color:var(--text3)"></span>
     </div>
   </div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Cuenta</th><th>Monto</th></tr></thead><tbody id="mv-body"></tbody></table></div>
+  <div class="tw"><table class="tbl"><thead><tr><th style="width:30px"><input type="checkbox" id="mv-selall" onchange="movSelAll(this.checked)" title="Seleccionar todo lo visible" style="width:15px;height:15px;cursor:pointer"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Cuenta</th><th>Monto</th></tr></thead><tbody id="mv-body"></tbody></table></div>
+  <div id="mv-selbar" style="display:none;position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:60;background:#1F3864;color:#fff;border-radius:12px;padding:10px 18px;box-shadow:0 8px 24px rgba(0,0,0,.25);align-items:center;gap:14px;font-size:13px">
+    <span id="mv-selinfo" style="font-weight:600"></span>
+    <button id="mv-seldel" class="btn btn-xs" style="background:#fff;color:#991B1B;font-weight:700;border:none" onclick="movSelBorrar()">🗑 Eliminar seleccionados</button>
+    <button class="btn btn-xs" style="background:transparent;border:1px solid #ffffff66;color:#fff" onclick="movSelLimpiar()">✕ Quitar selección</button>
+  </div>
 </div>
 
 <!-- ESTADO DE RESULTADOS -->
@@ -3890,12 +3900,18 @@ function rCat(){
   const tot=Math.ceil(list.length/CPP);
   const pg=list.slice(catPage*CPP,(catPage+1)*CPP);
   const body=document.getElementById('cat-body');
-  if(!pg.length){body.innerHTML=`<tr><td colspan="6" class="tbl-empty">Sin resultados</td></tr>`;document.getElementById('cat-pag').innerHTML='';return;}
+  if(!pg.length){body.innerHTML=`<tr><td colspan="7" class="tbl-empty">Sin resultados</td></tr>`;document.getElementById('cat-pag').innerHTML='';return;}
   body.innerHTML=pg.map(m=>{
     const idx=MOLS.indexOf(m);
     const badge=m.estatus==='activa'?'<span class="badge bg">Activa</span>':m.estatus==='agotada'?'<span class="badge by">Agotada</span>':'<span class="badge bgr">Descontinuada</span>';
-    return `<tr><td style="font-weight:500">${m.nombre}</td><td style="color:var(--text2)">${PROVS[m.proveedor]||m.proveedor}</td><td class="mono">$${m.precio_lista.toFixed(4)}</td><td class="mono">${m.desp_cm}</td><td>${badge}</td><td style="white-space:nowrap"><button class="btn btn-s btn-xs" onclick="eMol(${idx})">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?` <button class="btn btn-xs" onclick="delMol(${idx})" style="border:1px solid #fca5a5;color:#991B1B;background:#fff">🗑</button>`:''}</td></tr>`;
+    const _adm=(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner');
+    const chk=(_adm&&m.id)?`<input type="checkbox" class="cat-sel" ${MOL_SEL.has(m.id)?'checked':''} onchange="molSelTog(${m.id},this.checked)" style="width:15px;height:15px;cursor:pointer">`:'';
+    return `<tr${MOL_SEL.has(m.id)?' style="background:#EFF6FF"':''}><td>${chk}</td><td style="font-weight:500">${m.nombre}</td><td style="color:var(--text2)">${PROVS[m.proveedor]||m.proveedor}</td><td class="mono">$${m.precio_lista.toFixed(4)}</td><td class="mono">${m.desp_cm}</td><td>${badge}</td><td style="white-space:nowrap"><button class="btn btn-s btn-xs" onclick="eMol(${idx})">✏️</button>${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?` <button class="btn btn-xs" onclick="delMol(${idx})" style="border:1px solid #fca5a5;color:#991B1B;background:#fff">🗑</button>`:''}</td></tr>`;
   }).join('');
+  window._catPg=pg;
+  try{molSelBarra();}catch(e){}
+  const _csa=document.getElementById('cat-selall');
+  if(_csa){const conId=pg.filter(m=>m.id);_csa.checked=conId.length>0&&conId.every(m=>MOL_SEL.has(m.id));}
   document.getElementById('cat-pag').innerHTML=tot>1?
     `<span style="margin-right:4px">Pág ${catPage+1} de ${tot}</span>
      <button class="btn btn-s btn-xs" onclick="catPage=Math.max(0,catPage-1);rCat()" ${catPage===0?'disabled':''}>‹</button>
@@ -3912,6 +3928,37 @@ function eMol(idx){
   document.getElementById('mm-e').value=m.estatus;
   document.getElementById('mm-ttl').textContent='Editar: '+m.nombre.substring(0,30);
   OM('mod-mol');
+}
+// ── Selección múltiple en Molduras (borrar en lote, p.ej. duplicados) ──
+let MOL_SEL=new Set();
+function molSelTog(id,on){if(on)MOL_SEL.add(id);else MOL_SEL.delete(id);rCat();}
+function molSelAll(on){(window._catPg||[]).forEach(m=>{if(!m.id)return;if(on)MOL_SEL.add(m.id);else MOL_SEL.delete(m.id);});rCat();}
+function molSelLimpiar(){MOL_SEL.clear();rCat();}
+function molSelBarra(){
+  const bar=document.getElementById('cat-selbar');if(!bar)return;
+  const n=MOL_SEL.size;
+  if(!n){bar.style.display='none';return;}
+  bar.style.display='flex';
+  document.getElementById('cat-selinfo').textContent=n+' moldura'+(n===1?'':'s')+' seleccionada'+(n===1?'':'s');
+}
+function molSelBorrar(){
+  const u=USERS.find(x=>x.key===CU);
+  if(!u||(u.role!=='admin'&&u.role!=='owner')){alert('Solo administración puede eliminar molduras.');return;}
+  const sel=MOLS.filter(m=>MOL_SEL.has(m.id));
+  if(!sel.length)return;
+  const nombres=sel.slice(0,8).map(m=>m.nombre).join(', ')+(sel.length>8?' +'+(sel.length-8)+' más':'');
+  if(!confirm('🗑 ¿Eliminar '+sel.length+' moldura'+(sel.length===1?'':'s')+'?\n'+nombres+'\n\nÚsalo para duplicados. Esta acción no se puede deshacer.'))return;
+  logActivity('Borró molduras en lote',sel.length+': '+nombres);
+  Promise.allSettled(sel.map(m=>fetch('/api/molduras/'+m.id,{method:'DELETE',credentials:'include'}).then(r=>{if(!r.ok)throw 0;return m.id;})))
+  .then(res=>{
+    const okIds=new Set(res.filter(x=>x.status==='fulfilled').map(x=>x.value));
+    const fallos=res.length-okIds.size;
+    MOLS=MOLS.filter(m=>!okIds.has(m.id));
+    okIds.forEach(id=>MOL_SEL.delete(id));
+    if(typeof _MD!=='undefined'&&Array.isArray(_MD)){/* _MD embebido queda; MOLS manda en pantalla */}
+    rCat();
+    if(fallos)alert('⚠️ '+fallos+' no se pudieron borrar en el servidor — siguen en la lista.');
+  });
 }
 function delMol(idx){
   const u=USERS.find(x=>x.key===CU);
@@ -6562,6 +6609,45 @@ function guardarEditMov(){
     .catch(()=>{alert('⚠️ Este movimiento era histórico (sin registro en el servidor) y no se pudo anclar — su cambio solo se verá en esta computadora.');});
   }
 }
+// ── Selección múltiple en Movimientos (estilo Excel: palomeas y ves la suma) ──
+let MOV_SEL=new Set();
+function movSelTog(id,on){if(on)MOV_SEL.add(id);else MOV_SEL.delete(id);rMovsRe();}
+function movSelAll(on){
+  (window._movLista||[]).forEach(m=>{if(!m.id)return;if(on)MOV_SEL.add(m.id);else MOV_SEL.delete(m.id);});
+  rMovsRe();
+}
+function movSelLimpiar(){MOV_SEL.clear();const a=document.getElementById('mv-selall');if(a)a.checked=false;rMovsRe();}
+function movSelBarra(){
+  const bar=document.getElementById('mv-selbar');if(!bar)return;
+  const sel=movs.filter(m=>MOV_SEL.has(m.id));
+  if(!sel.length){bar.style.display='none';return;}
+  bar.style.display='flex';
+  const suma=sel.reduce((s,m)=>s+(+m.monto||0),0);
+  document.getElementById('mv-selinfo').textContent=sel.length+' seleccionado'+(sel.length===1?'':'s')+' · SUMA: '+fmt(suma);
+  document.getElementById('mv-seldel').style.display=canEdit()?'':'none';
+}
+function movSelBorrar(){
+  let sel=movs.filter(m=>MOV_SEL.has(m.id));
+  if(!sel.length)return;
+  // Retiros de utilidades: solo la dueña puede borrarlos
+  if(!esOwnerCU()){
+    const prot=sel.filter(m=>esRetiroMov(m));
+    if(prot.length){alert(prot.length+' de los seleccionados son retiros que solo la dueña puede borrar — se quedan fuera.');sel=sel.filter(m=>!esRetiroMov(m));}
+    if(!sel.length){rMovsRe();return;}
+  }
+  const suma=sel.reduce((s,m)=>s+(+m.monto||0),0);
+  if(!confirm('🗑 ¿Eliminar '+sel.length+' movimiento'+(sel.length===1?'':'s')+' que suman '+fmt(suma)+'?\n\nEsta acción no se puede deshacer.'))return;
+  logActivity('Borró movimientos en lote',sel.length+' movs — '+fmt(suma));
+  Promise.allSettled(sel.map(m=>fetch('/api/movimientos/'+m.id,{method:'DELETE',credentials:'include'}).then(r=>{if(!r.ok)throw 0;return m.id;})))
+  .then(res=>{
+    const okIds=new Set(res.filter(x=>x.status==='fulfilled').map(x=>x.value));
+    const fallos=res.length-okIds.size;
+    movs=movs.filter(m=>!okIds.has(m.id));
+    okIds.forEach(id=>MOV_SEL.delete(id));
+    rMovsRe();
+    if(fallos)alert('⚠️ '+fallos+' no se pudieron borrar en el servidor — siguen en la lista.');
+  });
+}
 function borrarMov(idx){
   const m=movs[idx];
   if(m&&!esOwnerCU()&&esRetiroMov(m))return;
@@ -6614,8 +6700,13 @@ function rMovs(f=''){
   body.innerHTML=list.slice(0,100).length?list.slice(0,100).map(m=>{
     const bc=m.tipo.toLowerCase().includes('entrada')?'bg':m.tipo.toLowerCase().includes('salida')?'br':'bb';
     const midx=movs.indexOf(m);const canE=canEdit();
-    return `<tr><td style="color:var(--text2)">${m.fecha}</td><td><span class="badge ${bc}" style="font-size:10px">${m.tipo}</span></td><td style="color:var(--text2)">${m.concepto}</td><td>${m.desc}</td><td style="color:var(--text2)">${m.cuenta}${m.cta_destino?" → "+m.cta_destino:""}</td><td class="mono" style="font-weight:600">${fmt(m.monto)}</td><td style="white-space:nowrap">${canE?`<button onclick="editMov(${midx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button><button onclick="borrarMov(${midx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:'—'}</td></tr>`;
-  }).join(''):`<tr><td colspan="6" class="tbl-empty">Sin movimientos</td></tr>`;
+    const chk=m.id?`<input type="checkbox" class="mv-sel" ${MOV_SEL.has(m.id)?'checked':''} onchange="movSelTog(${m.id},this.checked)" style="width:15px;height:15px;cursor:pointer">`:'';
+    return `<tr${MOV_SEL.has(m.id)?' style="background:#EFF6FF"':''}><td>${chk}</td><td style="color:var(--text2)">${m.fecha}</td><td><span class="badge ${bc}" style="font-size:10px">${m.tipo}</span></td><td style="color:var(--text2)">${m.concepto}</td><td>${m.desc}</td><td style="color:var(--text2)">${m.cuenta}${m.cta_destino?" → "+m.cta_destino:""}</td><td class="mono" style="font-weight:600">${fmt(m.monto)}</td><td style="white-space:nowrap">${canE?`<button onclick="editMov(${midx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button><button onclick="borrarMov(${midx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:'—'}</td></tr>`;
+  }).join(''):`<tr><td colspan="8" class="tbl-empty">Sin movimientos</td></tr>`;
+  window._movLista=list;
+  try{movSelBarra();}catch(e){}
+  const _sa=document.getElementById('mv-selall');
+  if(_sa){const conId=list.filter(m=>m.id);_sa.checked=conId.length>0&&conId.every(m=>MOV_SEL.has(m.id));}
   const e=visibles.filter(m=>m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);
   const s=visibles.filter(m=>m.tipo.toLowerCase().includes('salida')).reduce((a,b)=>a+b.monto,0);
   const r=visibles.filter(m=>m.tipo.toLowerCase().includes('retiro')).reduce((a,b)=>a+b.monto,0);
