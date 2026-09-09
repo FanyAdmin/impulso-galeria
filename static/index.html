@@ -4643,6 +4643,11 @@ function gCasar(){
   .then(function(){
     mios.forEach(function(x){x.m.conciliado=todayStr();});
     bcos.forEach(function(b){CUA_CASADOS[claveBco(b)]=1;});
+    // CUA_CASADOS solo vive en esta pantalla y se pierde al recargar. BCO_OK es
+    // la marca que se guarda en la BD y que lee Conciliacion bancaria: sin esto,
+    // casar un grupo aqui no se entera alla y el renglon reaparece "por revisar".
+    bcos.forEach(function(b){BCO_OK[kLinea(b)]=mios[0].m.id;});
+    guardarBcoOK();
     if(Math.abs(dif)>=0.5){
       var f=bcos[bcos.length-1].f;
       var mv=dif>0
