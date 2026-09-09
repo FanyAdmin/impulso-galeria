@@ -1579,8 +1579,10 @@ tr:hover .ent-edit{opacity:1}
       <button class="btn btn-s" onclick="fpExcel()">📊 Excel</button>
     </div>
     <div id="fp-met" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div id="fp-selbar" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:var(--amber-l);border:1.5px solid #FCD34D;border-radius:11px;padding:10px 14px;margin-bottom:10px"></div>
     <div class="tw" style="max-height:65vh;overflow:auto"><table class="tbl" id="fp-tbl">
       <thead><tr>
+        <th style="width:34px"></th>
         <th>Fecha pedido</th><th>Pedido</th><th>Factura</th><th>Fecha factura</th>
         <th>Vence</th><th style="text-align:right">Monto</th><th style="text-align:right">Abonado</th>
         <th style="text-align:right">Pendiente</th><th style="text-align:center">Atraso</th>
@@ -4760,6 +4762,7 @@ function cuaRegistrarCom(){
 // La hoja que se llena, no un reporte. Una fila POR FACTURA (un pedido puede
 // traer dos). Nace de la orden de compra y ellas completan lo demás.
 var FP=[];
+var FPSEL=[];   // ids de facturas palomeadas para pagar juntas
 
 function cxpVista(t,el){
   document.querySelectorAll('#chip-cxp-hoja,#chip-cxp-suelta').forEach(function(c){c.classList.remove('active');});
@@ -4796,9 +4799,15 @@ function rFP(){
   var body=document.getElementById('fp-body');if(!body)return;
   var prov=fpProv();
   var lista=FP.filter(function(f){return f.prov===prov;})
-    .sort(function(a,b){return (b.fecha_ped||'').localeCompare(a.fecha_ped||'')||b.id-a.id;});
+    .sort(function(a,b){
+      var va=fpVence(a)||'9999-12-31', vb=fpVence(b)||'9999-12-31';
+      return va.localeCompare(vb)||(b.id-a.id);
+    });
+  // La seleccion solo vive para las facturas que siguen en pantalla
+  var visibles={};lista.forEach(function(f){visibles[f.id]=true;});
+  FPSEL=FPSEL.filter(function(id){return visibles[id];});
   if(!lista.length){
-    body.innerHTML='<tr><td colspan="12" class="tbl-empty">Sin pedidos de '+(PROVS[prov]||prov)+
+    body.innerHTML='<tr><td colspan="13" class="tbl-empty">Sin pedidos de '+(PROVS[prov]||prov)+
       '. Usa “⬇️ Traer pedidos que faltan” para bajar las órdenes de compra ya hechas.</td></tr>';
     document.getElementById('fp-met').innerHTML='';return;
   }
@@ -4819,7 +4828,9 @@ function rFP(){
         ' onchange="fpSet('+f.id+',\''+campo+'\',this.value)" '+
         'style="width:'+(ancho||90)+'px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;background:#fff"></td>';
     };
+    var selble=!pagada&&(f.monto||0)>0;
     return '<tr style="'+bg+'">'+
+      '<td style="text-align:center">'+(selble?'<input type="checkbox" '+(FPSEL.indexOf(f.id)>=0?'checked ':'')+'onchange="fpTog('+f.id+',this.checked)" style="width:16px;height:16px;cursor:pointer">':'')+'</td>'+
       '<td style="font-size:12px;color:var(--text2)">'+(f.fecha_ped||'—')+'</td>'+
       '<td style="font-size:12px;font-weight:700">'+(f.oc||'—')+'</td>'+
       ed('factura',f.factura,'',100)+
@@ -4850,6 +4861,69 @@ function rFP(){
     t('Vencido',fmt(venc),'#991B1B','#FEF2F2','')+
     t('Facturado total',fmt(totM),'#1F3864','#EEF2FA','')+
     t('Sin factura aún',sinFac,'#4B5563','#F3F4F6','pedidos por capturar');
+  fpSelBar();
+}
+
+// ── Seleccionar varias facturas y pagarlas de un solo movimiento ──────────
+function fpPend(f){return Math.round(((f.monto||0)-(f.abonado||0))*100)/100;}
+function fpSelList(){
+  return FP.filter(function(f){return FPSEL.indexOf(f.id)>=0&&(f.monto||0)>0&&fpPend(f)>0.5;});
+}
+function fpTog(id,v){
+  var i=FPSEL.indexOf(id);
+  if(v&&i<0)FPSEL.push(id);
+  if(!v&&i>=0)FPSEL.splice(i,1);
+  fpSelBar();
+}
+function fpSelLimpiar(){FPSEL=[];rFP();}
+function fpSelBar(){
+  var bar=document.getElementById('fp-selbar');if(!bar)return;
+  var sel=fpSelList();
+  if(!sel.length){bar.style.display='none';bar.innerHTML='';return;}
+  var tot=Math.round(sel.reduce(function(s,f){return s+fpPend(f);},0)*100)/100;
+  bar.style.display='flex';
+  bar.innerHTML=
+    '<div style="font-size:13px;color:#92400E"><b>'+sel.length+'</b> factura'+(sel.length===1?'':'s')+' seleccionada'+(sel.length===1?'':'s')+'</div>'+
+    '<div class="mono" style="font-size:20px;font-weight:800;color:#92400E">'+fmt(tot)+'</div>'+
+    '<button class="btn btn-p btn-xs" style="font-size:13px;padding:8px 14px" onclick="fpPagarSel()">💸 Pagar seleccionadas</button>'+
+    '<button class="btn btn-s btn-xs" onclick="fpSelLimpiar()">Limpiar</button>'+
+    '<span style="font-size:11px;color:#92400E;opacity:.85">Se crea UN solo movimiento de salida por el total.</span>';
+}
+function fpPagarSel(){
+  var sel=fpSelList();if(!sel.length)return;
+  var tot=Math.round(sel.reduce(function(s,f){return s+fpPend(f);},0)*100)/100;
+  var prov=PROVS[sel[0].prov]||sel[0].prov;
+  if(!confirm('Vas a pagar '+sel.length+' factura(s) de '+prov+' por '+fmt(tot)+'.\nSe registra UN movimiento de salida por el total y las facturas quedan saldadas.\n\n¿Continuar?'))return;
+  var cta=prompt('¿De qué cuenta sale?\n('+Object.keys(BANCOS_INIT).join(' · ')+')','INBURSA');
+  if(!cta||!BANCOS_INIT.hasOwnProperty(cta)){if(cta)alert('Esa cuenta no existe.');return;}
+  var fecha=prompt('¿Qué día se pagó?',todayStr());if(!fecha)return;
+  var facs=sel.map(function(f){return f.factura||'(s/n)';});
+  var lbl=facs.slice(0,6).join(', ')+(facs.length>6?' +'+(facs.length-6):'');
+  var mv={tipo:'Salida',concepto:'Molduras',
+          desc:'Pago '+prov+' — '+sel.length+' facturas: '+lbl,
+          cuenta:cta,cta_destino:'',monto:tot,fecha:fecha,mes:parseInt(fecha.split('-')[1],10)-1};
+  fetch('/api/movimientos',{method:'POST',credentials:'include',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+  .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+  .then(function(mvSrv){
+    if(mvSrv&&mvSrv.id)movs.unshift(mvSrv);
+    var movId=(mvSrv&&mvSrv.id)||null;
+    return Promise.all(sel.map(function(f){
+      var ab=Math.round(((f.abonado||0)+fpPend(f))*100)/100;
+      return fetch('/api/facprov/'+f.id,{method:'PUT',credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({abonado:ab,fecha_pago:fecha,mov_id:movId})})
+        .then(function(r){return r.json();})
+        .then(function(d){var i=FP.findIndex(function(x){return x.id===f.id;});if(i>=0)FP[i]=d;});
+    }));
+  })
+  .then(function(){
+    FPSEL=[];rFP();
+    if(typeof logActivity==='function')logActivity('Pagó a proveedor',prov+' — '+sel.length+' facturas por '+fmt(tot));
+    try{rMovsRe();}catch(e){}
+    alert('💸 Pago registrado: '+fmt(tot)+' a '+prov+'.\nUna sola salida en Movimientos y '+sel.length+' factura(s) saldada(s).');
+  })
+  .catch(function(e){rFP();alert('⚠️ '+e.message+'\nRevisa la hoja: puede que el movimiento sí se haya creado.');});
 }
 
 // Guardar una celda al salir de ella
