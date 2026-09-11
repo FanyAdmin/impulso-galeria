@@ -1873,7 +1873,7 @@ tr:hover .ent-edit{opacity:1}
       <div class="card-title">Tabla LFT</div>
       <div class="tw" style="margin-bottom:.875rem"><table class="tbl"><thead><tr><th>Años cumplidos</th><th>Días</th><th>Prima</th></tr></thead>
       <tbody><tr><td>1</td><td>12</td><td>25%</td></tr><tr><td>2</td><td>14</td><td>25%</td></tr><tr><td>3</td><td>16</td><td>25%</td></tr><tr><td>4</td><td>18</td><td>25%</td></tr><tr><td>5</td><td>20</td><td>25%</td></tr><tr><td>6-10</td><td>22</td><td>25%</td></tr><tr><td>11-15</td><td>24</td><td>25%</td></tr><tr><td>16-20</td><td>26</td><td>25%</td></tr><tr><td>21-25</td><td>28</td><td>25%</td></tr><tr><td>26-30</td><td>30</td><td>25%</td></tr><tr><td>31-35</td><td>32</td><td>25%</td></tr></tbody></table></div>
-      <div style="font-size:12px;color:var(--text2);line-height:1.9"><span class="badge bg">Finiquito</span> Empleado renuncia: partes proporcionales<br><br><span class="badge br">Liquidacion</span> Empresa despide: partes prop + 3 meses + 20 dias/ano<br><br><span class="badge by">Vacaciones</span> Solo cuentan días laborables: no domingos, festivos de ley ni su descanso. El sueldo de esos días va en la nómina; aparte se paga la prima del 25%.</div>
+      <div style="font-size:12px;color:var(--text2);line-height:1.9"><span class="badge bg">Finiquito</span> Empleado renuncia: partes proporcionales<br><br><span class="badge br">Liquidacion</span> Empresa despide: partes prop + 3 meses + 20 dias/ano<br><br><span class="badge by">Vacaciones</span> Impulso adelanta 6 días a los 6 meses, a cuenta de los 12 del primer año (política interna, no ley). Solo cuentan días laborables: no domingos, festivos de ley ni su descanso. El sueldo de esos días va en la nómina; aparte se paga la prima del 25%.</div>
     </div>
   </div>
 </div>
@@ -9660,14 +9660,17 @@ function lftVals(emp){
   var iniAgui=new Date(baja.getFullYear(),0,1,12);if(ing>iniAgui)iniAgui=new Date(ing);
   var dAgui=Math.max(0,lftDiasEntre(iniAgui,baja));
   var dvCurso=diasVac(anos+1); // días de vacaciones que corresponden al año en curso
-  var vacProp=dvCurso*(dAniv/365)*sd;
+  // Días ya disfrutados a cuenta de ese periodo (adelantos): ya se pagaron con su sueldo, se restan
+  var vAdel=0;try{if(VAC_OK)vAdel=vacSaldo(emp,baja).enCurso||0;}catch(e){}
+  var vacPropDias=Math.max(0,dvCurso*(dAniv/365)-vAdel);
+  var vacProp=vacPropDias*sd;
   var priProp=vacProp*0.25;
   var aguProp=15*(dAgui/365)*sd;
   var aguFull=15*sd;
   var aniosExactos=ms/(365.25*864e5);
   // Vacaciones ya ganadas y no tomadas: entran al finiquito (art. 79) solo si su saldo está capturado
-  var vpD=0,vpSup=0;try{if(VAC_OK){var _sv=vacSaldo(emp,baja);vpSup=Math.max(0,_sv.pend);if(_sv.conf)vpD=vpSup;}}catch(e){}
-  return {vacPendDias:vpD,vacPendSup:vpSup,vacPendMonto:vpD*sd,vacPendPrima:vpD*sd*0.25,baja:baja,sd:sd,anos:anos,meses:meses,txt:anos+' ano'+(anos!==1?'s':'')+', '+meses+' mes'+(meses!==1?'es':''),
+  var vpD=0,vpSup=0;try{if(VAC_OK){var _sv=vacSaldo(emp,baja);vpSup=Math.max(0,_sv.pendGan);if(_sv.conf)vpD=vpSup;}}catch(e){}
+  return {vacAdel:vAdel,vacPropDias:vacPropDias,vacPendDias:vpD,vacPendSup:vpSup,vacPendMonto:vpD*sd,vacPendPrima:vpD*sd*0.25,baja:baja,sd:sd,anos:anos,meses:meses,txt:anos+' ano'+(anos!==1?'s':'')+', '+meses+' mes'+(meses!==1?'es':''),
     dvCurso:dvCurso,dAniv:dAniv,dAgui:dAgui,vacProp:vacProp,priProp:priProp,aguProp:aguProp,aguFull:aguFull,aniosExactos:aniosExactos};
 }
 function calcLFT(){
@@ -9693,11 +9696,11 @@ function renderLFT(emp,v){
   }
   else if(lftTabAct==='fin'){
     var tot=v.vacProp+v.priProp+v.aguProp+v.vacPendMonto+v.vacPendPrima;
-    h='<div style="font-size:11px;padding:7px;background:var(--green-l);border-radius:4px;margin-bottom:.75rem">Empleado renuncia voluntariamente · '+v.dAniv+' dias trabajados desde ingreso/aniversario · ultimo dia '+v.baja.toLocaleDateString('es-MX')+'</div><div class="sbox"><div class="srow"><span>Vacaciones prop. ('+v.dvCurso+' dias × '+v.dAniv+'/365)</span><span class="mono">'+fmt(v.vacProp)+'</span></div><div class="srow"><span>Prima vacacional prop. 25%</span><span class="mono">'+fmt(v.priProp)+'</span></div><div class="srow"><span>Aguinaldo prop. (15 × '+v.dAgui+'/365)</span><span class="mono">'+fmt(v.aguProp)+'</span></div>'+vacFiniqRows(v)+'<div class="srow tot"><span>TOTAL FINIQUITO</span><span class="mono" style="color:var(--green)">'+fmt(tot)+'</span></div></div>';
+    h='<div style="font-size:11px;padding:7px;background:var(--green-l);border-radius:4px;margin-bottom:.75rem">Empleado renuncia voluntariamente · '+v.dAniv+' dias trabajados desde ingreso/aniversario · ultimo dia '+v.baja.toLocaleDateString('es-MX')+'</div><div class="sbox"><div class="srow"><span>Vacaciones prop. ('+v.dvCurso+' dias × '+v.dAniv+'/365'+(v.vacAdel>0?' − '+v.vacAdel+' ya tomados = '+v.vacPropDias.toFixed(2)+' dias':'')+')</span><span class="mono">'+fmt(v.vacProp)+'</span></div><div class="srow"><span>Prima vacacional prop. 25%</span><span class="mono">'+fmt(v.priProp)+'</span></div><div class="srow"><span>Aguinaldo prop. (15 × '+v.dAgui+'/365)</span><span class="mono">'+fmt(v.aguProp)+'</span></div>'+vacFiniqRows(v)+'<div class="srow tot"><span>TOTAL FINIQUITO</span><span class="mono" style="color:var(--green)">'+fmt(tot)+'</span></div></div>';
   }
   else{
     var t3=v.sd*90,t20=20*v.sd*v.aniosExactos,tot2=t3+t20+v.vacProp+v.priProp+v.aguProp+v.vacPendMonto+v.vacPendPrima;
-    h='<div style="font-size:11px;padding:7px;background:var(--red-l);border-radius:4px;margin-bottom:.75rem">Empresa despide sin causa · ultimo dia '+v.baja.toLocaleDateString('es-MX')+'</div><div class="sbox"><div class="srow" style="font-weight:600"><span>3 meses indemnizacion (90 dias)</span><span class="mono">'+fmt(t3)+'</span></div><div class="srow" style="font-weight:600"><span>20 dias/ano ('+v.aniosExactos.toFixed(2)+' anos)</span><span class="mono">'+fmt(t20)+'</span></div><div style="font-size:10px;color:var(--text3);padding:4px 0;font-weight:600">PARTES PROPORCIONALES</div><div class="srow"><span>Vacaciones</span><span class="mono">'+fmt(v.vacProp)+'</span></div><div class="srow"><span>Prima</span><span class="mono">'+fmt(v.priProp)+'</span></div><div class="srow"><span>Aguinaldo</span><span class="mono">'+fmt(v.aguProp)+'</span></div>'+vacFiniqRows(v)+'<div class="srow tot"><span>TOTAL LIQUIDACION</span><span class="mono" style="color:var(--green)">'+fmt(tot2)+'</span></div></div>';
+    h='<div style="font-size:11px;padding:7px;background:var(--red-l);border-radius:4px;margin-bottom:.75rem">Empresa despide sin causa · ultimo dia '+v.baja.toLocaleDateString('es-MX')+'</div><div class="sbox"><div class="srow" style="font-weight:600"><span>3 meses indemnizacion (90 dias)</span><span class="mono">'+fmt(t3)+'</span></div><div class="srow" style="font-weight:600"><span>20 dias/ano ('+v.aniosExactos.toFixed(2)+' anos)</span><span class="mono">'+fmt(t20)+'</span></div><div style="font-size:10px;color:var(--text3);padding:4px 0;font-weight:600">PARTES PROPORCIONALES</div><div class="srow"><span>Vacaciones'+(v.vacAdel>0?' ('+v.vacPropDias.toFixed(2)+' dias: ya se restan '+v.vacAdel+' tomados)':'')+'</span><span class="mono">'+fmt(v.vacProp)+'</span></div><div class="srow"><span>Prima</span><span class="mono">'+fmt(v.priProp)+'</span></div><div class="srow"><span>Aguinaldo</span><span class="mono">'+fmt(v.aguProp)+'</span></div>'+vacFiniqRows(v)+'<div class="srow tot"><span>TOTAL LIQUIDACION</span><span class="mono" style="color:var(--green)">'+fmt(tot2)+'</span></div></div>';
   }
   document.getElementById('lft-cont').innerHTML=h;
 }
@@ -9712,6 +9715,9 @@ function renderLFT(emp,v){
 // Los recibos sirven de prueba: el art. 784 fr. X y XI pone en el patrón la
 // carga de probar el disfrute de vacaciones y el pago de la prima.
 var VAC={},VAC_OK=false,VAC_PROM=null,VAC_PAGO=null;
+// POLÍTICA DE IMPULSO (no es ley): al cumplir 6 meses se liberan 6 días como
+// ADELANTO de su primer periodo. No son extra: al cumplir el año se completan los 12.
+var VAC_ADEL_DIAS=6,VAC_ADEL_MESES=6;
 function cargarVac(){
   if(VAC_OK)return Promise.resolve(VAC);
   if(!VAC_PROM)VAC_PROM=cfgGet('vacaciones_v1',{}).then(function(v){VAC=(v&&typeof v==='object'&&!Array.isArray(v))?v:{};VAC_OK=true;return VAC;});
@@ -9766,22 +9772,26 @@ function vacSaldo(emp,corte){
   var hastaCorte=!!corte;corte=corte||lftFecha(todayStr());
   var st=vacEmp(emp.id),n=vacCumplidos(emp.ingreso,corte),ini=st.ini,buckets=[],desde;
   if(ini){buckets.push({ini:true,lbl:'Pendientes al capturar su saldo ('+vacFF(ini.fecha)+')',dias:+ini.pend||0,lim:null});desde=ini.fecha;}
-  else desde=n>=1?dateStrLocal(vacSumaAnios(emp.ingreso,n)):String(emp.ingreso).slice(0,10);
+  // En el primer año todo lo que tome es a cuenta de su primer periodo: cuenta desde el ingreso
+  else desde=n>=2?dateStrLocal(vacSumaAnios(emp.ingreso,n)):String(emp.ingreso).slice(0,10);
   for(var k=1;k<=n;k++){
     var an=vacSumaAnios(emp.ingreso,k);
     if(ini&&dateStrLocal(an)<=ini.fecha)continue;
     if(!ini&&k<n)continue; // sin saldo capturado se asume que los periodos anteriores ya se tomaron
     buckets.push({k:k,lbl:'Periodo de su '+k+'º año',dias:diasVac(k),gan:an,lim:vacSumaMeses(an,6)});
   }
+  var m6=vacSumaMeses(lftFecha(emp.ingreso),VAC_ADEL_MESES);
+  if(n<1&&!ini&&m6<=corte)buckets.push({adel:true,lbl:'Adelanto a los '+VAC_ADEL_MESES+' meses (a cuenta de su 1er periodo)',dias:VAC_ADEL_DIAS,gan:m6,lim:null});
   var cs=dateStrLocal(corte),cuentan=[],hist=[];
   st.salidas.slice().sort(function(a,b){return a.del<b.del?-1:a.del>b.del?1:0;}).forEach(function(s){
     if(s.del>=desde&&(!hastaCorte||s.del<=cs))cuentan.push(s);else if(s.del<desde)hist.push(s);
   });
   var tom=0;cuentan.forEach(function(s){tom+=(+s.dias||0);});
-  var resto=tom,pend=0;
-  buckets.forEach(function(b){b.usados=Math.min(b.dias,resto);resto-=b.usados;b.quedan=b.dias-b.usados;pend+=b.quedan;});
+  var resto=tom,pend=0,pendGan=0;
+  buckets.forEach(function(b){b.usados=Math.min(b.dias,resto);resto-=b.usados;b.quedan=b.dias-b.usados;pend+=b.quedan;if(!b.adel)pendGan+=b.quedan;});
   var sig=vacSumaAnios(emp.ingreso,n+1);
-  return {n:n,buckets:buckets,pend:pend,adelantados:resto,tomados:tom,desde:desde,conf:!!ini,hist:hist,
+  // enCurso: días ya disfrutados a cuenta del periodo que AÚN no gana → se restan del proporcional del finiquito
+  return {n:n,buckets:buckets,pend:pend,pendGan:pendGan,enCurso:(n<1?tom:resto),m6:m6,adelantados:resto,tomados:tom,desde:desde,conf:!!ini,hist:hist,
     sigAniv:sig,sigDias:diasVac(n+1),sigLim:vacSumaMeses(sig,6)};
 }
 // Días marcados 🌴 en Asistencias que no pertenecen a ninguna salida registrada
@@ -9806,12 +9816,13 @@ function vacRender(emp,v){
   // tarjetas
   var lim=null;s.buckets.forEach(function(b){if(b.quedan>0&&b.lim&&(!lim||b.lim<lim))lim=b.lim;});
   var c2;
-  if(s.n<1)c2='<div class="m-label">Gana '+s.sigDias+' días el</div><div class="m-val">'+vacFC(s.sigAniv)+'</div><div class="m-sub">de '+s.sigAniv.getFullYear()+' · dárselos antes del '+vacFF(s.sigLim)+'</div>';
+  if(s.n<1&&s.m6>hoy)c2='<div class="m-label">Se le liberan '+VAC_ADEL_DIAS+' días el</div><div class="m-val">'+vacFC(s.m6)+'</div><div class="m-sub">de '+s.m6.getFullYear()+' · a cuenta de los '+s.sigDias+' que gana el '+vacFF(s.sigAniv)+'</div>';
+  else if(s.n<1)c2='<div class="m-label">Completa sus '+s.sigDias+' días el</div><div class="m-val">'+vacFC(s.sigAniv)+'</div><div class="m-sub">de '+s.sigAniv.getFullYear()+' · dárselos antes del '+vacFF(s.sigLim)+'</div>';
   else if(lim){var fal=Math.round((lim-hoy)/864e5);c2='<div class="m-label">Dárselos antes del</div><div class="m-val">'+vacFC(lim)+'</div><div class="m-sub"'+(fal<0?' style="color:var(--ciruela);font-weight:600"':'')+'>'+(fal>=0?lim.getFullYear()+' · faltan '+fal+' días':'venció hace '+(-fal)+' días (art. 81)')+'</div>';}
   else if(s.pend>0)c2='<div class="m-label">Pendientes de antes</div><div class="m-val">'+s.pend+'</div><div class="m-sub">de periodos anteriores</div>';
   else c2='<div class="m-label">Su siguiente periodo</div><div class="m-val">'+vacFC(s.sigAniv)+'</div><div class="m-sub">'+s.sigAniv.getFullYear()+' · gana '+s.sigDias+' días</div>';
   h+='<div class="metrics m3" style="margin-top:.2rem">'+
-    '<div class="metric"><div class="m-label">Días por dar</div><div class="m-val">'+Math.max(0,s.pend)+'</div><div class="m-sub">'+(s.n<1?'aún no cumple el año':'ya ganados, sin tomar')+'</div></div>'+
+    '<div class="metric"><div class="m-label">Días por dar</div><div class="m-val">'+Math.max(0,s.pend)+'</div><div class="m-sub">'+(s.n<1?(s.m6>hoy?'aún no cumple '+VAC_ADEL_MESES+' meses':'adelanto de su 1er periodo'):'ya ganados, sin tomar')+'</div></div>'+
     '<div class="metric">'+c2+'</div>'+
     '<div class="metric"><div class="m-label">Prima por esos días</div><div class="m-val">'+fmt(Math.max(0,s.pend)*sd*0.25)+'</div><div class="m-sub">'+fmt(sd*0.25)+' por día · su sueldo va en nómina</div></div></div>';
   // detalle por periodo
@@ -9819,12 +9830,15 @@ function vacRender(emp,v){
     h+='<div class="sbox">';
     s.buckets.forEach(function(b){
       var venc=b.lim&&b.quedan>0&&b.lim<hoy;
-      h+='<div class="srow"><span>'+b.lbl+(b.gan?' <span style="color:var(--text3)">· ganado el '+vacFF(b.gan)+'</span>':'')+'</span><span>'+b.dias+' · tomados '+b.usados+' · <b>quedan '+b.quedan+'</b></span></div>'+
+      h+='<div class="srow"><span>'+b.lbl+(b.gan?' <span style="color:var(--text3)">· '+(b.adel?'liberado':'ganado')+' el '+vacFF(b.gan)+'</span>':'')+'</span><span>'+b.dias+' · tomados '+b.usados+' · <b>quedan '+b.quedan+'</b></span></div>'+
         (b.lim&&b.quedan>0?'<div style="font-size:11px;margin:-3px 0 5px;'+(venc?'color:var(--ciruela);font-weight:600':'color:var(--text3)')+'">'+(venc?'Se pasó el plazo del '+vacFF(b.lim)+' para darlos (art. 81): conviene que los tome primero':'Dárselos antes del '+vacFF(b.lim))+'</div>':'');
     });
     h+='</div>';
   }
-  if(s.n<1)h+='<div style="font-size:12px;color:var(--text2);margin:.2rem 0 .6rem">Todavía no tiene vacaciones que tomar. Si se fuera al '+v.baja.toLocaleDateString('es-MX')+', llevaría '+(v.dvCurso*v.dAniv/365).toFixed(1)+' días acumulados que se pagan en su finiquito.</div>';
+  if(s.n<1)h+='<div style="font-size:12px;color:var(--text2);margin:.2rem 0 .6rem;line-height:1.5">'+(s.m6>hoy
+      ?'Todavía no tiene vacaciones. El '+vacFF(s.m6)+' se le liberan '+VAC_ADEL_DIAS+' días como adelanto y los otros '+(s.sigDias-VAC_ADEL_DIAS)+' al cumplir el año.'
+      :'Los '+VAC_ADEL_DIAS+' días de adelanto son política de Impulso, no de la ley: van a cuenta de los '+s.sigDias+' que gana el '+vacFF(s.sigAniv)+'.')+
+    ' Si se fuera al '+v.baja.toLocaleDateString('es-MX')+', su finiquito pagaría '+v.vacPropDias.toFixed(1)+' días proporcionales'+(v.vacAdel>0?' ('+(v.dvCurso*v.dAniv/365).toFixed(1)+' acumulados − '+v.vacAdel+' ya tomados)':'')+'.</div>';
   if(s.adelantados>0)h+='<div style="font-size:12px;padding:7px 9px;background:var(--amber-l);color:var(--amber);border-radius:6px;margin-bottom:.6rem">Tomó '+s.adelantados+' día'+(s.adelantados!==1?'s':'')+' por adelantado: se descuentan de los '+s.sigDias+' que gana el '+vacFF(s.sigAniv)+'.</div>';
   if(s.n>=1){
     if(!s.conf)h+='<div style="font-size:12px;padding:7px 9px;background:var(--surface2);border-radius:6px;margin-bottom:.6rem;color:var(--text2)">Saldo supuesto: se asume que sus periodos anteriores al actual ya los tomó completos. <a href="#" onclick="vacAjustar();return false" style="color:var(--ciruela);font-weight:600">Capturar su saldo real</a></div>';
@@ -9997,7 +10011,9 @@ function vacRecibo(empId,id){
   if(reg)c+='<div class="r"><span>Se presenta a trabajar el</span><b>'+vacFF(reg)+'</b></div>';
   c+='<div class="r"><span>Salario diario</span><span>'+fmt(x.sd)+'</span></div>';
   c+='<div class="r t"><span>Prima vacacional 25% ('+x.dias+' × '+fmt(x.sd)+' × 25%)</span><span style="color:#1A5C3A">'+fmt(x.prima)+'</span></div>';
-  c+='<p style="margin-top:1.2rem">Recibí de Impulso Galería el goce de '+x.dias+' día'+(x.dias!==1?'s':'')+' de vacaciones con pago de salario íntegro, del '+vacFF(x.del)+' al '+vacFF(x.al)+', conforme a los artículos 76 y 78 de la Ley Federal del Trabajo'+(x.pagada?', así como la cantidad de <b>'+fmt(x.prima)+'</b> por concepto de prima vacacional (art. 80 LFT), pagada el '+vacFF(x.fpago):'. La prima vacacional correspondiente, de <b>'+fmt(x.prima)+'</b> (art. 80 LFT), queda pendiente de pago')+'. Después de este periodo me quedan '+Math.max(0,s.pend)+' día'+(s.pend!==1?'s':'')+' de vacaciones ganados por disfrutar.</p>';
+  var an1=dateStrLocal(vacSumaAnios(emp.ingreso,1));
+  var txtAdel=x.del<an1?' Estos días son un adelanto a cuenta del periodo de '+diasVac(1)+' días de vacaciones que gano al cumplir un año de servicios, el '+vacFF(an1)+', y se descuentan de él.':'';
+  c+='<p style="margin-top:1.2rem">Recibí de Impulso Galería el goce de '+x.dias+' día'+(x.dias!==1?'s':'')+' de vacaciones con pago de salario íntegro, del '+vacFF(x.del)+' al '+vacFF(x.al)+', conforme a los artículos 76 y 78 de la Ley Federal del Trabajo'+(x.pagada?', así como la cantidad de <b>'+fmt(x.prima)+'</b> por concepto de prima vacacional (art. 80 LFT), pagada el '+vacFF(x.fpago):'. La prima vacacional correspondiente, de <b>'+fmt(x.prima)+'</b> (art. 80 LFT), queda pendiente de pago')+'.'+txtAdel+' Después de este periodo me quedan '+Math.max(0,s.pend)+' día'+(s.pend!==1?'s':'')+' de vacaciones por disfrutar.</p>';
   return vacDoc('Recibo de vacaciones y prima vacacional',c);
 }
 function vacConstancia(emp){
@@ -10024,7 +10040,7 @@ function genRecibo(){
   var total=0,det='';
   if(lftTabAct==='vac'){var dv=diasVac(v.anos),pv=dv*v.sd,pr=pv*.25;total=pv+pr;det='<div class="r"><span>'+dv+' dias</span><span>'+fmt(pv)+'</span></div><div class="r"><span>Prima 25%</span><span>'+fmt(pr)+'</span></div>';}
   else if(lftTabAct==='agu'){total=v.aguFull;det='<div class="r"><span>15 dias x '+fmt(v.sd)+'</span><span>'+fmt(total)+'</span></div>';}
-  else if(lftTabAct==='fin'){total=v.vacProp+v.priProp+v.aguProp+v.vacPendMonto+v.vacPendPrima;det='<div class="r"><span>Vacaciones prop. ('+v.dvCurso+' dias × '+v.dAniv+'/365)</span><span>'+fmt(v.vacProp)+'</span></div><div class="r"><span>Prima vacacional prop. 25%</span><span>'+fmt(v.priProp)+'</span></div><div class="r"><span>Aguinaldo prop. (15 × '+v.dAgui+'/365)</span><span>'+fmt(v.aguProp)+'</span></div>'+(v.vacPendDias>0?'<div class="r"><span>Vacaciones ganadas sin tomar ('+v.vacPendDias+' dias)</span><span>'+fmt(v.vacPendMonto)+'</span></div><div class="r"><span>Prima de esas vacaciones 25%</span><span>'+fmt(v.vacPendPrima)+'</span></div>':'');}
+  else if(lftTabAct==='fin'){total=v.vacProp+v.priProp+v.aguProp+v.vacPendMonto+v.vacPendPrima;det='<div class="r"><span>Vacaciones prop. ('+v.dvCurso+' dias × '+v.dAniv+'/365'+(v.vacAdel>0?' − '+v.vacAdel+' ya tomados':'')+')</span><span>'+fmt(v.vacProp)+'</span></div><div class="r"><span>Prima vacacional prop. 25%</span><span>'+fmt(v.priProp)+'</span></div><div class="r"><span>Aguinaldo prop. (15 × '+v.dAgui+'/365)</span><span>'+fmt(v.aguProp)+'</span></div>'+(v.vacPendDias>0?'<div class="r"><span>Vacaciones ganadas sin tomar ('+v.vacPendDias+' dias)</span><span>'+fmt(v.vacPendMonto)+'</span></div><div class="r"><span>Prima de esas vacaciones 25%</span><span>'+fmt(v.vacPendPrima)+'</span></div>':'');}
   else{var t3=v.sd*90,t20=20*v.sd*v.aniosExactos;total=t3+t20+v.vacProp+v.priProp+v.aguProp+v.vacPendMonto+v.vacPendPrima;det='<div class="r"><span>3 meses (90 dias)</span><span>'+fmt(t3)+'</span></div><div class="r"><span>20 dias/ano ('+v.aniosExactos.toFixed(2)+' anos)</span><span>'+fmt(t20)+'</span></div><div class="r"><span>Partes prop.</span><span>'+fmt(v.vacProp+v.priProp+v.aguProp)+'</span></div>'+(v.vacPendDias>0?'<div class="r"><span>Vacaciones ganadas sin tomar + prima ('+v.vacPendDias+' dias)</span><span>'+fmt(v.vacPendMonto+v.vacPendPrima)+'</span></div>':'');}
   var f=(lftTabAct==='fin'||lftTabAct==='liq')?v.baja.toLocaleDateString('es-MX'):new Date().toLocaleDateString('es-MX');
   var h='<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:Calibri,Candara,Optima,sans-serif;padding:40px;font-size:13px}.r{display:flex;justify-content:space-between;padding:3px 0}.t{font-weight:700;border-top:1px solid #ddd;margin-top:5px;padding-top:6px}.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem}.lbl{font-size:10px;text-transform:uppercase;color:#888;font-weight:600}</style></head><body>';
