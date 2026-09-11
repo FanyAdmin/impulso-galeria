@@ -201,6 +201,28 @@ body.riel-on .content{margin-right:300px}
 .m-val{font-size:25px;font-weight:800;font-variant-numeric:tabular-nums;font-family:var(--ui);letter-spacing:-.03em}
 .m-sub{font-size:12px;color:var(--text3);margin-top:3px}
 
+/* ── VACACIONES: fichas de días (propuesta B) ── */
+.vac-hero{background:#fff;border:1px solid var(--border);border-radius:var(--rad-lg);padding:18px 20px;margin:.3rem 0 .9rem}
+.vac-hero-top{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start}
+.vac-hand{font-family:'Caveat',cursive;font-weight:700;font-size:22px;color:var(--ciruela);line-height:1.1}
+.vac-big{font-family:'Outfit',var(--ui);font-weight:800;font-size:27px;letter-spacing:-.02em;line-height:1.15;margin:2px 0 12px;color:var(--text)}
+.vac-mk{background:linear-gradient(transparent 58%,var(--mant) 58%);padding:0 4px}
+.vac-toks{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.vac-tok{width:38px;height:38px;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:700;line-height:1.1}
+.vac-tok.t{background:var(--borgona);color:#fff}
+.vac-tok.l{background:var(--mant);color:var(--ciruela)}
+.vac-tok.l.u{box-shadow:inset 0 0 0 2.5px var(--ciruela)}
+.vac-tok.f{border:2px dashed var(--border2);color:var(--text3)}
+.vac-tok.a{background:var(--borgona);color:#fff;box-shadow:inset 0 0 0 2px var(--mant)}
+.vac-sep{width:1px;height:32px;background:var(--border2);margin:0 5px}
+.vac-sub{font-size:12px;color:var(--text2);margin-top:9px;line-height:1.5}
+.vac-prima{background:var(--ciruela);border-radius:var(--rad-lg);padding:15px 18px;min-width:180px}
+.vac-prima .l1{font-size:12px;color:var(--ciruela-l)}
+.vac-prima .n{font-family:'Outfit',var(--ui);font-weight:800;font-size:30px;letter-spacing:-.02em;color:var(--mant);line-height:1.15}
+.vac-prima .l2{font-size:11px;color:var(--ciruela-l);margin-top:3px}
+.vac-urge{display:inline-flex;border:1.5px solid var(--ciruela);color:var(--ciruela);font-weight:700;font-size:11.5px;padding:2px 10px;border-radius:99px;white-space:nowrap}
+@media (max-width:600px){.vac-big{font-size:22px}.vac-tok{width:32px;height:32px}.vac-prima{min-width:0;flex:1}}
+
 /* ── BADGES ── */
 .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:600;white-space:nowrap;letter-spacing:0}
 .bg{background:var(--green-l);color:var(--green)}
@@ -9791,7 +9813,7 @@ function vacSaldo(emp,corte){
   buckets.forEach(function(b){b.usados=Math.min(b.dias,resto);resto-=b.usados;b.quedan=b.dias-b.usados;pend+=b.quedan;if(!b.adel)pendGan+=b.quedan;});
   var sig=vacSumaAnios(emp.ingreso,n+1);
   // enCurso: días ya disfrutados a cuenta del periodo que AÚN no gana → se restan del proporcional del finiquito
-  return {n:n,buckets:buckets,pend:pend,pendGan:pendGan,enCurso:(n<1?tom:resto),m6:m6,adelantados:resto,tomados:tom,desde:desde,conf:!!ini,hist:hist,
+  return {cuentan:cuentan,n:n,buckets:buckets,pend:pend,pendGan:pendGan,enCurso:(n<1?tom:resto),m6:m6,adelantados:resto,tomados:tom,desde:desde,conf:!!ini,hist:hist,
     sigAniv:sig,sigDias:diasVac(n+1),sigLim:vacSumaMeses(sig,6)};
 }
 // Días marcados 🌴 en Asistencias que no pertenecen a ninguna salida registrada
@@ -9813,28 +9835,58 @@ function vacSueltos(emp,desde){
 function vacRender(emp,v){
   if(!VAC_OK){cargarVac().then(function(){if(lftTabAct==='vac')renderLFT(emp,lftVals(emp));});return '<div class="sbox" style="color:var(--text3)">Cargando vacaciones…</div>';}
   var s=vacSaldo(emp),sd=v.sd,st=vacEmp(emp.id),hoy=lftFecha(todayStr()),h='';
-  // tarjetas
+  // ── fichas: cada día de vacaciones es una ficha ──
+  // ciruela = ya lo tomó · mantequilla = listo para usar (con contorno si ya se pasó el plazo)
+  // punteada = todavía no lo gana · ciruela con borde = tomado por adelantado
+  var MC=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var mesDe=function(f){return MC[parseInt(String(f).slice(5,7),10)-1]||'';};
+  var tomadas=[];s.cuentan.forEach(function(x){(x.fechas||[]).forEach(function(f){tomadas.push(f);});});tomadas.sort();
+  var fichas=[],ti=0,MAXF=36;
   var lim=null;s.buckets.forEach(function(b){if(b.quedan>0&&b.lim&&(!lim||b.lim<lim))lim=b.lim;});
-  var c2;
-  if(s.n<1&&s.m6>hoy)c2='<div class="m-label">Se le liberan '+VAC_ADEL_DIAS+' días el</div><div class="m-val">'+vacFC(s.m6)+'</div><div class="m-sub">de '+s.m6.getFullYear()+' · a cuenta de los '+s.sigDias+' que gana el '+vacFF(s.sigAniv)+'</div>';
-  else if(s.n<1)c2='<div class="m-label">Completa sus '+s.sigDias+' días el</div><div class="m-val">'+vacFC(s.sigAniv)+'</div><div class="m-sub">de '+s.sigAniv.getFullYear()+' · dárselos antes del '+vacFF(s.sigLim)+'</div>';
-  else if(lim){var fal=Math.round((lim-hoy)/864e5);c2='<div class="m-label">Dárselos antes del</div><div class="m-val">'+vacFC(lim)+'</div><div class="m-sub"'+(fal<0?' style="color:var(--ciruela);font-weight:600"':'')+'>'+(fal>=0?lim.getFullYear()+' · faltan '+fal+' días':'venció hace '+(-fal)+' días (art. 81)')+'</div>';}
-  else if(s.pend>0)c2='<div class="m-label">Pendientes de antes</div><div class="m-val">'+s.pend+'</div><div class="m-sub">de periodos anteriores</div>';
-  else c2='<div class="m-label">Su siguiente periodo</div><div class="m-val">'+vacFC(s.sigAniv)+'</div><div class="m-sub">'+s.sigAniv.getFullYear()+' · gana '+s.sigDias+' días</div>';
-  h+='<div class="metrics m3" style="margin-top:.2rem">'+
-    '<div class="metric"><div class="m-label">Días por dar</div><div class="m-val">'+Math.max(0,s.pend)+'</div><div class="m-sub">'+(s.n<1?(s.m6>hoy?'aún no cumple '+VAC_ADEL_MESES+' meses':'adelanto de su 1er periodo'):'ya ganados, sin tomar')+'</div></div>'+
-    '<div class="metric">'+c2+'</div>'+
-    '<div class="metric"><div class="m-label">Prima por esos días</div><div class="m-val">'+fmt(Math.max(0,s.pend)*sd*0.25)+'</div><div class="m-sub">'+fmt(sd*0.25)+' por día · su sueldo va en nómina</div></div></div>';
-  // detalle por periodo
-  if(s.buckets.length){
-    h+='<div class="sbox">';
-    s.buckets.forEach(function(b){
-      var venc=b.lim&&b.quedan>0&&b.lim<hoy;
-      h+='<div class="srow"><span>'+b.lbl+(b.gan?' <span style="color:var(--text3)">· '+(b.adel?'liberado':'ganado')+' el '+vacFF(b.gan)+'</span>':'')+'</span><span>'+b.dias+' · tomados '+b.usados+' · <b>quedan '+b.quedan+'</b></span></div>'+
-        (b.lim&&b.quedan>0?'<div style="font-size:11px;margin:-3px 0 5px;'+(venc?'color:var(--ciruela);font-weight:600':'color:var(--text3)')+'">'+(venc?'Se pasó el plazo del '+vacFF(b.lim)+' para darlos (art. 81): conviene que los tome primero':'Dárselos antes del '+vacFF(b.lim))+'</div>':'');
-    });
-    h+='</div>';
+  var hayVenc=false;
+  s.buckets.forEach(function(b,bi){
+    if(bi>0)fichas.push('<div class="vac-sep"></div>');
+    var venc=b.lim&&b.quedan>0&&b.lim<hoy;if(venc)hayVenc=true;
+    for(var k=0;k<b.dias;k++){
+      if(k<b.usados){fichas.push('<div class="vac-tok t" title="Tomado">✓<span>'+mesDe(tomadas[ti++]||'')+'</span></div>');}
+      else fichas.push('<div class="vac-tok l'+(venc?' u':'')+'" title="'+(venc?'Se pasó el plazo para darlo':'Listo para usar')+'">libre</div>');
+    }
+  });
+  for(var a=0;a<s.adelantados;a++)fichas.push('<div class="vac-tok a" title="Tomado por adelantado">✓<span>'+mesDe(tomadas[ti++]||'')+'</span></div>');
+  if(s.n<1){
+    // primer año: siempre 12 fichas; las que aún no gana van punteadas con el mes en que llegan
+    var liberados=(s.m6<=hoy)?VAC_ADEL_DIAS:0,faltan=Math.max(0,s.sigDias-liberados-s.adelantados);
+    var deMayo=Math.max(0,VAC_ADEL_DIAS-liberados-s.adelantados);
+    if(s.buckets.length||s.adelantados)fichas.push('<div class="vac-sep"></div>');
+    for(var q=0;q<faltan;q++)fichas.push('<div class="vac-tok f" title="Todavía no lo gana">'+MC[(q<deMayo?s.m6:s.sigAniv).getMonth()]+'</div>');
   }
+  var extra=0;var fvis=fichas.filter(function(x){return x.indexOf('vac-sep')<0;}).length;
+  if(fvis>MAXF){extra=fvis-MAXF;var c=0;fichas=fichas.filter(function(x){if(x.indexOf('vac-sep')>=0)return true;return ++c<=MAXF;});}
+  // encabezado
+  var pend=Math.max(0,s.pend),t1,t2,sub;
+  if(s.n<1){
+    t1='Los '+s.sigDias+' días de su primer año';
+    if(s.m6>hoy){t2='Sus primeros <span class="vac-mk">'+VAC_ADEL_DIAS+' días</span> llegan el '+vacFC(s.m6);
+      sub='El '+vacFF(s.m6)+' se le liberan '+VAC_ADEL_DIAS+' días de adelanto · los otros '+(s.sigDias-VAC_ADEL_DIAS)+' llegan el '+vacFF(s.sigAniv);}
+    else{t2=pend?'Tiene <span class="vac-mk">'+pend+' listo'+(pend!==1?'s':'')+'</span> para usar':'Ya usó <span class="vac-mk">su adelanto</span>';
+      sub='Adelanto liberado el '+vacFF(s.m6)+' · los otros '+(s.sigDias-VAC_ADEL_DIAS)+' llegan el '+vacFF(s.sigAniv)+' · se le deben dar antes del '+vacFF(s.sigLim);}
+  }else{
+    var ult=s.buckets.filter(function(b){return !b.ini;}).slice(-1)[0];
+    t1=ult?'Sus '+ult.dias+' días de su '+ult.k+'º año':'Sus días de vacaciones';
+    t2=pend?'Tiene <span class="vac-mk">'+pend+' listo'+(pend!==1?'s':'')+'</span> para usar':'Por ahora <span class="vac-mk">no le quedan</span> días';
+    if(lim){var fal=Math.round((lim-hoy)/864e5);
+      sub=(hayVenc?'<b style="color:var(--ciruela)">Se pasó el plazo del '+vacFF(lim)+' para darle '+(s.buckets.filter(function(b){return b.lim&&b.quedan>0&&b.lim<hoy;}).reduce(function(t,b){return t+b.quedan;},0))+' de sus días (art. 81): conviene que los tome primero.</b>'
+        :'se le deben dar antes del '+vacFF(lim)+' · faltan '+fal+' días');}
+    else sub=pend?'Pendientes de periodos anteriores':'Su siguiente periodo: '+s.sigDias+' días el '+vacFF(s.sigAniv);
+    if(ult&&ult.gan)sub='Ganados el '+vacFF(ult.gan)+' · '+sub;
+    sub=sub.charAt(0).toUpperCase()+sub.slice(1);
+  }
+  h+='<div class="vac-hero"><div class="vac-hero-top"><div style="flex:1;min-width:240px">'+
+    '<div class="vac-hand">'+t1+'</div><div class="vac-big" style="margin-bottom:0">'+t2+'</div></div>'+
+    '<div class="vac-prima"><div class="l1">'+(pend?'Prima si toma sus '+pend:'Prima por día de vacaciones')+'</div><div class="n">'+fmt(pend?pend*sd*0.25:sd*0.25)+'</div><div class="l2">'+(pend?fmt(sd*0.25)+' por día · ':'')+'su sueldo va en nómina</div></div>'+
+    '</div>'+
+    '<div class="vac-toks" style="margin-top:14px">'+fichas.join('')+(extra?'<span style="font-size:12px;color:var(--text2);margin-left:4px">+'+extra+' más</span>':'')+'</div>'+
+    '<div class="vac-sub">'+sub+'</div></div>';
   if(s.n<1)h+='<div style="font-size:12px;color:var(--text2);margin:.2rem 0 .6rem;line-height:1.5">'+(s.m6>hoy
       ?'Todavía no tiene vacaciones. El '+vacFF(s.m6)+' se le liberan '+VAC_ADEL_DIAS+' días como adelanto y los otros '+(s.sigDias-VAC_ADEL_DIAS)+' al cumplir el año.'
       :'Los '+VAC_ADEL_DIAS+' días de adelanto son política de Impulso, no de la ley: van a cuenta de los '+s.sigDias+' que gana el '+vacFF(s.sigAniv)+'.')+
@@ -9861,7 +9913,7 @@ function vacRender(emp,v){
     lista.forEach(function(x){
       var enHist=x.del<s.desde;
       h+='<tr'+(enHist?' style="opacity:.6"':'')+'><td>'+vacFC(x.del)+' – '+vacFF(x.al)+(enHist?'<div style="font-size:10.5px;color:var(--text3)">historial · no descuenta del saldo</div>':'')+'</td><td>'+x.dias+'</td><td class="mono">'+fmt(x.prima)+'</td><td>'+
-        (x.pagada?'<span class="badge bg">Pagada '+vacFC(x.fpago)+(x.cuenta?' · '+x.cuenta:'')+'</span>':'<span class="badge by">Prima por pagar</span>')+'</td><td style="white-space:nowrap;text-align:right">'+
+        (x.pagada?'<span class="badge bg">Pagada '+vacFC(x.fpago)+(x.cuenta?' · '+x.cuenta:'')+'</span>':'<span class="vac-urge">prima por pagar</span>')+'</td><td style="white-space:nowrap;text-align:right">'+
         '<button class="btn btn-s btn-xs" title="Recibo para firma" onclick="vacRecibo('+emp.id+','+x.id+')">🖨</button> '+
         (x.pagada?'<button class="btn btn-s btn-xs" title="Deshacer pago" onclick="vacDeshacerPago('+x.id+')">↩️</button> ':'<button class="btn btn-s btn-xs" title="Pagar prima" onclick="VAC_PAGO='+x.id+';renderLFT(vacEmpSel(),lftVals(vacEmpSel()))">💸</button> ')+
         '<button class="btn btn-s btn-xs" title="Borrar salida" onclick="vacBorrar('+x.id+')">🗑</button></td></tr>';
