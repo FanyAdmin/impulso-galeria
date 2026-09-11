@@ -700,10 +700,7 @@ tr:hover .ent-edit{opacity:1}
       <div class="field"><label>Método de pago</label><select id="cb-met"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>Intercambio Galería</option></select></div>
       <div class="field"><label>Tipo</label><select id="cb-tipo" onchange="avisoCobroManual()"><option value="Liquidacion">Liquidación</option><option value="Abono">Abono</option></select></div>
     </div>
-    <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;margin-top:8px;cursor:pointer">
-      <input type="checkbox" id="cb-sumar" style="width:auto;margin-top:2px" onchange="avisoCobroManual()">
-      <span>También <strong>sumar al anticipo</strong> del pedido y descontar del restante.<br><span style="color:var(--text3)">Se enciende sola cuando el pedido todavía debe (dinero que entra hoy). Apágala SOLO si el dinero ya está reflejado en el pedido y nada más quieres dejar la fecha y el método (cobros viejos).</span></span>
-    </label>
+    <div style="font-size:12px;color:var(--text3);margin-top:8px">Todo cobro se suma solo al pagado de la nota.</div>
     <div id="cb-aviso" style="display:none;font-size:12px;margin-top:10px;padding:8px 10px;border-radius:8px;line-height:1.45"></div>
   </div>
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-cobro')">Cancelar</button><button class="btn btn-p" onclick="guardarCobroManual()">✓ Registrar</button></div>
@@ -840,7 +837,7 @@ tr:hover .ent-edit{opacity:1}
       <div class="field"><label>Teléfono</label><input id="ep-t" placeholder="(442)..."></div>
       <div class="field"><label>Vendedor</label><select id="ep-vend"></select></div>
       <div class="field"><label>Método de pago</label><select id="ep-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
-      <div class="field"><label>Total pagado ($) <span style="font-weight:400;color:var(--text3);font-size:11.5px">anticipo + todos los abonos</span></label><input type="number" id="ep-a" placeholder="0.00" oninput="epSaldo()"><div id="ep-saldo" style="font-size:12px;margin-top:5px"></div></div>
+      <div class="field"><label>Anticipo al abrir la nota ($) <span style="font-weight:400;color:var(--text3);font-size:11.5px">lo que dejó el día del pedido</span></label><input type="number" id="ep-a" placeholder="0.00" oninput="epSaldo()"><div id="ep-conf"></div><div id="ep-saldo" style="font-size:12px;margin-top:5px"></div></div>
       <div class="field"><label>Fecha del pedido</label><input type="date" id="ep-fecha"></div>
       <div class="field"><label>Entrega prometida</label><input type="date" id="ep-ent"></div>
       <div class="field gc2"><label>Observaciones</label><input id="ep-o" placeholder="Notas del pedido..."></div>
@@ -1130,6 +1127,7 @@ tr:hover .ent-edit{opacity:1}
 
 <!-- PEDIDOS -->
 <div class="page" id="page-ped">
+  <div id="ped-revpag"></div>
   <div class="ph"><div><div class="ph-title">Pedidos</div></div>
     <div style="display:flex;gap:7px">
       <button class="btn btn-s btn-sm" onclick="expPedXlsx()">&#128202; Excel</button>
@@ -2648,14 +2646,19 @@ function openModPed(){
 // haya que adivinar si ese campo era el anticipo o el total pagado.
 function epSaldo(){
   var el=document.getElementById('ep-saldo');if(!el)return;
+  var p=pedidos[editPedIdx];
   var tot=+((document.getElementById('ep-total')||{}).value||0);
-  var pag=+((document.getElementById('ep-a')||{}).value||0);
+  var ini=+((document.getElementById('ep-a')||{}).value||0);
+  var cob=p?cobrosDe(p).reduce(function(t,a){return t+(a.monto||0);},0):0;
+  var porConf=p&&p.pagado_ok===false&&!((document.getElementById('ep-conf-ok')||{}).checked);
+  if(porConf){el.innerHTML='Mientras no la confirmes, la nota se queda con pagado '+fmt(p.ant||0)+' y restante '+fmt(p.rest||0)+'.';return;}
+  var pag=Math.round((ini+cob)*100)/100;
   if(!tot){el.innerHTML='';return;}
   var d=Math.round((tot-pag)*100)/100;
-  el.innerHTML=Math.abs(d)<0.01
+  el.innerHTML='Total pagado <b>'+fmt(pag)+'</b> <span style="color:var(--text3)">(anticipo '+fmt(ini)+' + cobros '+fmt(cob)+')</span><br>'+(Math.abs(d)<0.01
     ? '<b style="color:var(--menta)">✓ Nota pagada por completo</b>'
-    : (d>0 ? 'Quedaría un saldo de <b style="color:var(--borgona)">'+fmt(d)+'</b>'
-           : '<b style="color:var(--borgona)">⚠️ Pagó '+fmt(-d)+' de más</b> — revisa el total de la nota o los abonos');
+    : (d>0 ? 'Restante <b style="color:var(--borgona)">'+fmt(d)+'</b>'
+           : '<b style="color:var(--borgona)">⚠️ Pagó '+fmt(-d)+' de más</b> — revisa el total de la nota o los cobros'));
 }
 
 function calcMR(){
@@ -2720,6 +2723,7 @@ function limpiarFiltrosPed(){
 }
 function rPed(f){
   if(f!==undefined){pedFilter=f;pedPage=0;}
+  try{pintarAvisoPagado();}catch(e){}
   pintarFiltrosPed();
   let list=pedListFiltrada();
   const resEl=document.getElementById('pf-res');
@@ -2771,6 +2775,82 @@ function calcES(){
   document.getElementById('me-s').value=fmt(s);
   document.getElementById('me-av').style.display=s>0?'block':'none';
 }
+// ─── TOTAL PAGADO CALCULADO ───────────────────────────────────────────────────
+// El pagado de una nota (p.ant) ya no lo suma ninguna pantalla: lo calcula el
+// servidor = lo que dejó al abrir la nota (p.ant_ini) + todos sus cobros.
+// Aquí solo se registra el cobro y se copia cómo quedó la nota.
+// p.pagado_ok===false: nota vieja cuyos cobros suman más que su pagado (ej. la
+// 95); queda así hasta que alguien confirme cuánto dejó al abrir.
+function syncPedido(p,d){
+  if(!p||!d)return;
+  p.ant=d.ant;p.rest=d.rest;if(d.est)p.est=d.est;
+  if('ant_ini' in d)p.ant_ini=d.ant_ini;
+  if('pagado_ok' in d)p.pagado_ok=d.pagado_ok;
+}
+function cobrosDe(p){return (ABONOS||[]).filter(function(a){return a.pedido_id?a.pedido_id===p.id:(a.folio===p.folio&&a.suc===p.suc);});}
+function antIni(p){
+  if(!p)return 0;
+  if(p.ant_ini!=null&&p.pagado_ok!==false)return +p.ant_ini||0;
+  return Math.max(0,(p.ant||0)-cobrosDe(p).reduce(function(t,a){return t+(a.monto||0);},0));
+}
+function registrarCobro(p,ab){
+  return fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(ab)})
+    .then(function(r){if(!r.ok)throw new Error('el servidor respondió '+r.status+(r.status===403?' (sin permiso)':''));return r.json();})
+    .then(function(d){
+      if(!d||!d.id)throw new Error('el servidor no confirmó el cobro');
+      var pe=d.pedido;delete d.pedido;
+      ABONOS.unshift(d);
+      if(pe){var q=(pedidos||[]).find(function(x){return x.id===pe.id;})||p;syncPedido(q,pe);if(q!==p)syncPedido(p,pe);}
+      return d;
+    });
+}
+// Notas viejas cuyos cobros suman más que su pagado: se confirman una por una
+function pintarAvisoPagado(){
+  const el=document.getElementById('ped-revpag');if(!el)return;
+  const u=USERS.find(x=>x.key===CU);
+  const n=(u&&(u.role==='admin'||u.role==='owner'))?(pedidos||[]).filter(p=>p.pagado_ok===false).length:0;
+  el.innerHTML=n?'<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;margin-bottom:12px;border:1.5px solid var(--ciruela);border-radius:10px;background:var(--ciruela-l);font-size:13px"><span><b>'+n+' nota'+(n!==1?'s tienen':' tiene')+' cobros que nunca se sumaron a su pagado.</b> Hay que confirmar cuánto dejaron al abrir la nota para que su restante salga bien.</span><button class="btn btn-p btn-sm" onclick="openRevPagado()">Revisar</button></div>':'';
+}
+let REVPAG=[];
+function openRevPagado(){
+  let m=document.getElementById('mod-revpag');
+  if(!m){
+    m=document.createElement('div');m.className='modal-bg';m.id='mod-revpag';m.style.cssText='display:none;z-index:2500';
+    m.innerHTML='<div class="modal" style="width:760px;max-width:96vw"><div class="modal-hdr"><div class="modal-ttl">Notas por confirmar su pagado</div><button class="modal-x" onclick="CM(\'mod-revpag\')">✕</button></div><div class="modal-body" id="revpag-body" style="max-height:70vh;overflow:auto"></div><div class="modal-foot"><button class="btn btn-s" onclick="CM(\'mod-revpag\')">Cerrar</button></div></div>';
+    document.body.appendChild(m);
+  }
+  document.getElementById('revpag-body').innerHTML='<div style="color:var(--text3)">Cargando…</div>';
+  OM('mod-revpag');
+  fetch('/api/pagado/revisar',{credentials:'include'}).then(r=>{if(!r.ok)throw new Error('el servidor respondió '+r.status);return r.json();})
+    .then(d=>{REVPAG=d||[];pintarRevPagado();})
+    .catch(e=>{document.getElementById('revpag-body').innerHTML='<div style="color:var(--red)">No se pudo cargar: '+e.message+'</div>';});
+}
+function pintarRevPagado(){
+  const b=document.getElementById('revpag-body');if(!b)return;
+  if(!REVPAG.length){b.innerHTML='<div style="color:var(--menta);font-weight:600">✓ Todas las notas cuadran.</div>';return;}
+  b.innerHTML='<div style="font-size:12.5px;color:var(--text2);margin-bottom:10px;line-height:1.5">En estas notas los cobros registrados suman más que su pagado: algún cobro nunca se sumó. Escribe cuánto dejó el cliente <b>al abrir la nota</b> (por lo general es el pagado de hoy) y confirma. El pagado queda como ese anticipo más todos sus cobros.</div>'+
+    REVPAG.map((x,i)=>{const p=x.pedido;return '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px">'+
+      '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Folio '+p.folio+' · '+(p.suc||'—')+' · '+(p.cli||'')+'</b><span style="color:var(--text3);font-size:12px">'+(p.fecha||'')+' · total '+fmt(p.total)+'</span></div>'+
+      '<div style="font-size:12px;color:var(--text2);margin:4px 0 8px">Pagado registrado '+fmt(p.ant)+' · cobros: '+x.cobros.map(a=>(a.fecha||'—')+' '+fmt(a.monto)+' '+(a.tipo==='Liquidacion'?'liquidación':'abono')).join(', ')+'</div>'+
+      '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label style="font-size:12px">Dejó al abrir la nota $</label><input type="number" id="rp-ini-'+i+'" value="'+(p.ant||0)+'" style="width:120px" oninput="rpPrev('+i+')"><span id="rp-prev-'+i+'" style="font-size:12.5px"></span><button class="btn btn-p btn-xs" style="margin-left:auto" onclick="rpConfirmar('+i+')">Confirmar</button></div></div>';}).join('');
+  REVPAG.forEach((x,i)=>rpPrev(i));
+}
+function rpPrev(i){
+  const x=REVPAG[i];if(!x)return;const el=document.getElementById('rp-prev-'+i);if(!el)return;
+  const ini=+(document.getElementById('rp-ini-'+i).value||0),pag=Math.round((ini+x.suma)*100)/100,rest=Math.max(0,Math.round((x.pedido.total-pag)*100)/100);
+  el.innerHTML='→ pagado <b>'+fmt(pag)+'</b> · restante <b style="color:'+(rest>0.009?'var(--borgona)':'var(--menta)')+'">'+fmt(rest)+'</b>'+(pag>x.pedido.total+0.009?' <span style="color:var(--borgona)">(pagó '+fmt(pag-x.pedido.total)+' de más)</span>':'');
+}
+function rpConfirmar(i){
+  const x=REVPAG[i];if(!x)return;const ini=+(document.getElementById('rp-ini-'+i).value||0);
+  fetch('/api/pedidos/'+x.pedido.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({ant_ini:ini})})
+    .then(r=>{if(!r.ok)throw new Error('el servidor respondió '+r.status);return r.json();})
+    .then(d=>{
+      if(!d||d.pagado_ok!==true)throw new Error('el servidor no confirmó la nota');
+      const p=(pedidos||[]).find(q=>q.id===d.id);if(p)syncPedido(p,d);
+      logActivity('Confirmó pagado de nota','Folio '+d.folio+' ('+(d.suc||'')+') — anticipo inicial '+fmt(ini)+' → pagado '+fmt(d.ant)+', restante '+fmt(d.rest));
+      REVPAG.splice(i,1);pintarRevPagado();rPed();try{rCxC();}catch(e){}
+    }).catch(e=>alert('No se confirmó: '+e.message));
+}
 // ─── GUARDADO VERIFICADO DEL PEDIDO ───────────────────────────────────────────
 // Antes: se registraba el abono y el PUT del pedido se mandaba "a ciegas"
 // (.catch vacio / sin revisar r.ok). Si fallaba, quedaba el cobro registrado y
@@ -2787,8 +2867,8 @@ function putPedidoVerificado(p,campos,prev){
     .then(r=>{if(!r.ok)throw new Error('el servidor respondio '+r.status+(r.status===403?' (sin permiso)':''));return r.json();})
     .then(d=>{
       if(!d||typeof d.ant==='undefined')throw new Error('respuesta vacia del servidor');
-      if(Math.abs((d.ant||0)-(campos.ant||0))>0.01)throw new Error('se pidio guardar '+fmt(campos.ant)+' y el servidor dejo '+fmt(d.ant));
-      p.ant=d.ant;p.rest=d.rest;if(d.est)p.est=d.est;   // sincronizar con la BD
+      if(('ant' in campos)&&Math.abs((d.ant||0)-(campos.ant||0))>0.01)throw new Error('se pidio guardar '+fmt(campos.ant)+' y el servidor dejo '+fmt(d.ant));
+      syncPedido(p,d);   // sincronizar con la BD
       return true;
     })
     .catch(err=>{
@@ -2871,17 +2951,15 @@ function confEnt(){
   if(entIdx===null)return;
   const p=pedidos[entIdx],c=parseFloat(document.getElementById('me-monto').value)||0,s=Math.max(0,p.rest-c);
   const met=document.getElementById('me-m').value;
-  const prevEnt={ant:p.ant,rest:p.rest,est:p.est};
-  p.ant+=c;p.rest=s;p.est='Entregado';p.entregaF=todayStr();
+  const estAntes=p.est;
+  p.est='Entregado';p.entregaF=todayStr();
   p.entrega_real=todayStr();   // CUÁNDO se entregó de verdad (antes solo vivía en pantalla)
-  // Persistir la entrega en la BD — VERIFICADO (antes fallaba en silencio)
-  putPedidoVerificado(p,{ant:p.ant,rest:p.rest,est:'Entregado',entrega_real:p.entrega_real},prevEnt).then(()=>{rPed();rCxC();rDia();});
-  // Registrar el cobro de hoy como abono con fecha (para Mi Día)
-  if(c>0){
-    const ab={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:c,met:met,fecha:todayStr(),tipo:s>0?'Abono':'Liquidacion'};
-    fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(ab)})
-    .then(r=>r.json()).then(d=>{if(d&&d.id)ABONOS.unshift(d);rDia();}).catch(()=>{ABONOS.unshift(ab);rDia();});
-  }
+  // 1) el cobro de hoy (el servidor lo suma al pagado)  2) la entrega — ambos VERIFICADOS
+  const ab={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:c,met:met,fecha:todayStr(),tipo:s>0?'Abono':'Liquidacion'};
+  (c>0?registrarCobro(p,ab):Promise.resolve())
+    .catch(e=>{alert('🔴 NO SE REGISTRÓ EL COBRO de '+fmt(c)+'\n\nFolio '+p.folio+' · '+(p.cli||'')+'\nMotivo: '+e.message+'\n\nLa nota sí se marca como entregada. Registra el cobro desde CxC.');})
+    .then(()=>putPedidoVerificado(p,{est:'Entregado',entrega_real:p.entrega_real},{ant:p.ant,rest:p.rest,est:estAntes}))
+    .then(()=>{rPed();rCxC();rDia();});
   logActivity('Entregó pedido','Folio '+p.folio+(c>0?' — cobró '+fmt(c)+' ('+met+')':''));
   if(s>0){const ex=cuentas.findIndex(x=>x.folio===p.folio);
     if(ex>=0)cuentas[ex].saldo=s;
@@ -2949,7 +3027,7 @@ function mejorNombre(peds){
 }
 function abonosDePed(p){
   return (ABONOS||[]).filter(function(a){
-    return (a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc);
+    return (a.pedido_id?a.pedido_id===p.id:(a.folio===p.folio&&a.suc===p.suc));
   });
 }
 function diasDe(f){
@@ -3374,19 +3452,14 @@ function guardarAb(){
     const c=_cxcList[abIdx];
     const p=pedidos.find(x=>x.id===c.id||(x.folio===c.folio&&x.suc===c.suc));
     if(p){
-      const prevAb={ant:p.ant,rest:p.rest,est:p.est};
-      p.ant=(p.ant||0)+m;
-      p.rest=Math.max(0,(p.rest||0)-m);
-      if(p.rest<=0)p.rest=0;
       const metAb=document.getElementById('ab-m')?document.getElementById('ab-m').value:'Efectivo';
-      const abReg={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:m,met:metAb,fecha:fechaAb,tipo:p.rest<=0?'Liquidacion':'Abono'};
-      fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(abReg)})
-      .then(r=>r.json()).then(d=>{if(d&&d.id)ABONOS.unshift(d);}).catch(()=>{ABONOS.unshift(abReg);});
-      logActivity('Abonó a cuenta','Folio '+p.folio+' — '+fmt(m)+' ('+metAb+', '+fechaAb+')');
-      // VERIFICADO: si el pedido no se actualiza, avisa (antes se iba al
-      // fallback de cuentas[] y el saldo solo cambiaba en la pantalla)
-      putPedidoVerificado(p,{ant:p.ant,rest:p.rest,est:p.rest<=0?'Entregado':p.est},prevAb)
-        .then(()=>{CM('mod-ab');rPed();rCxC();rDia();});
+      const abReg={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:m,met:metAb,fecha:fechaAb,tipo:(p.rest||0)-m<=0.009?'Liquidacion':'Abono'};
+      // El servidor suma el cobro al pagado de la nota y devuelve cómo quedó
+      registrarCobro(p,abReg).then(()=>{
+        logActivity('Abonó a cuenta','Folio '+p.folio+' — '+fmt(m)+' ('+metAb+', '+fechaAb+')');
+        if((p.rest||0)<=0.009&&p.est!=='Entregado')return putPedidoVerificado(p,{est:'Entregado'},{ant:p.ant,rest:p.rest,est:p.est});
+      }).then(()=>{CM('mod-ab');rPed();rCxC();rDia();})
+      .catch(e=>alert('🔴 No se registró el cobro\n\nFolio '+p.folio+' · '+(p.cli||'')+'\nMotivo: '+e.message+'\n\nLa nota sigue igual; intenta de nuevo.'));
       return;
     }
   }
@@ -3401,26 +3474,8 @@ function guardarAb(){
 
 
 // ─── EDITAR COBROS (abonos registrados) ───────────────────────────────────────
-// Si corriges o borras un cobro, el "Total pagado" del pedido tiene que moverse
-// con él: si no, el saldo se queda como estaba y la nota sigue pareciendo deuda.
-function ajustaPagadoPedido(ab,delta,motivo){
-  if(!delta)return Promise.resolve();
-  const p=(pedidos||[]).find(x=>(ab.pedido_id&&x.id===ab.pedido_id)||(x.folio===ab.folio&&x.suc===ab.suc));
-  if(!p)return Promise.resolve();
-  const nuevo=Math.round(((+p.ant||0)+delta)*100)/100;
-  const tope=Math.round((+p.total||0)*100)/100;
-  const txt='El pedido '+p.folio+' tenía '+fmt(p.ant||0)+' pagados.\n'+motivo+
-    '\n\n¿Dejar el total pagado en '+fmt(nuevo)+'?'+
-    (nuevo>tope?'\n\n⚠️ Ojo: quedaría '+fmt(nuevo-tope)+' por ENCIMA del total de la nota.':'')+
-    (Math.abs(nuevo-tope)<0.01?'\n\n✓ Con eso la nota queda pagada por completo.':'');
-  if(!confirm(txt))return Promise.resolve();
-  return fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ant:nuevo,rest:Math.max(0,Math.round((tope-nuevo)*100)/100)})})
-    .then(r=>r.json()).then(d=>{
-      if(d&&!d.error){p.ant=nuevo;p.rest=Math.max(0,Math.round((tope-nuevo)*100)/100);}
-    }).catch(()=>{});
-}
+// Corregir o borrar un cobro ya no pide mover el pagado a mano: el servidor
+// recalcula la nota (anticipo al abrir + cobros) y la devuelve.
 let _eaId=null;
 function openEditAbono(id){
   const a=ABONOS.find(x=>x.id===id);if(!a){alert('Cobro no encontrado; recarga la página');return;}
@@ -3522,22 +3577,17 @@ function caCargar(){
       return;
     }
     var f=ok[i++],p=f.p;
-    var nuevoAnt=Math.round((p.ant+f.monto)*100)/100;
-    var nuevoRest=Math.round((p.total-nuevoAnt)*100)/100;
-    var ab={pedido_id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,monto:f.monto,met:f.met,fecha:f.fecha,tipo:nuevoRest>0.5?'Abono':'Liquidacion'};
-    fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(ab)})
-      .then(function(r){if(!r.ok)throw new Error('abono: el servidor respondió '+r.status);return r.json();})
-      .then(function(d){
-        if(d&&d.id)ABONOS.unshift(d);
-        var campos={ant:nuevoAnt,rest:nuevoRest};
-        if(nuevoRest<=0.5)campos.est='Entregado';
-        return fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(campos)})
+    var ab={pedido_id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,monto:f.monto,met:f.met,fecha:f.fecha,tipo:(p.rest||0)-f.monto>0.5?'Abono':'Liquidacion'};
+    // El servidor suma el cobro al pagado de la nota; aquí solo se marca entregada si quedó pagada
+    registrarCobro(p,ab)
+      .then(function(){
+        if((p.rest||0)>0.5||p.est==='Entregado')return;
+        return fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({est:'Entregado'})})
           .then(function(r){if(!r.ok)throw new Error('pedido: el servidor respondió '+r.status);return r.json();})
-          .then(function(x){
-            if(!x||typeof x.ant==='undefined')throw new Error('el servidor no confirmó el pedido');
-            p.ant=x.ant;p.rest=x.rest;if(x.est)p.est=x.est;
-            bien++;linea('✓ Folio '+p.folio+' · '+f.fecha+' · '+fmt(f.monto)+' — restante ahora '+fmt(x.rest),'#166534');
-          });
+          .then(function(x){syncPedido(p,x);});
+      })
+      .then(function(){
+        bien++;linea('✓ Folio '+p.folio+' · '+f.fecha+' · '+fmt(f.monto)+' — restante ahora '+fmt(p.rest),'#166534');
       })
       .catch(function(e){mal++;linea('✗ Folio '+f.folio+' · '+f.fecha+' · '+fmt(f.monto)+' — '+e.message,'#B91C1C');})
       .then(function(){setTimeout(paso,60);});
@@ -3548,34 +3598,31 @@ function guardarEditAbono(){
   const a=ABONOS.find(x=>x.id===_eaId);if(!a)return;
   const cambios={monto:parseFloat(document.getElementById('ea-monto').value)||0,met:document.getElementById('ea-met').value,fecha:document.getElementById('ea-fecha').value,tipo:document.getElementById('ea-tipo').value};
   if(!cambios.monto){alert('Ingresa el monto');return;}
-  const montoAntes=+a.monto||0;
   fetch('/api/abonos/'+_eaId,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(cambios)})
   .then(r=>r.json()).then(d=>{
     if(d.error){alert(d.error);return;}
+    const pe=d.pedido;delete d.pedido;
     Object.assign(a,d);
+    if(pe){const p=(pedidos||[]).find(x=>x.id===pe.id);if(p)syncPedido(p,pe);}
     logActivity('Editó cobro','Folio '+a.folio+' — '+fmt(a.monto)+' ('+a.met+', '+a.fecha+')');
-    const delta=Math.round(((+a.monto||0)-montoAntes)*100)/100;
-    return ajustaPagadoPedido(a,delta,
-      'Corregiste el cobro de '+fmt(montoAntes)+' a '+fmt(a.monto)+'.').then(()=>{
-      CM('mod-edit-ab');rDia();try{rCxC();}catch(e){}
-      if(document.getElementById('ep-cobros')&&document.getElementById('mod-edit-ped').style.display!=='none')pintarCobrosPed();
-    });
+    cobroCambiado();
   }).catch(()=>alert('Error de conexión'));
 }
 function delAbono(){
   const a=ABONOS.find(x=>x.id===_eaId);if(!a)return;
-  if(!confirm('¿Eliminar este cobro de '+fmt(a.monto)+' del folio '+a.folio+'?'))return;
-  const montoAntes=+a.monto||0;
+  if(!confirm('¿Eliminar este cobro de '+fmt(a.monto)+' del folio '+a.folio+'?\n\nEl pagado de la nota baja solo.'))return;
   fetch('/api/abonos/'+_eaId,{method:'DELETE',credentials:'include'})
   .then(r=>r.json()).then(d=>{
     if(d.error){alert(d.error);return;}
     ABONOS=ABONOS.filter(x=>x.id!==_eaId);
+    if(d.pedido){const p=(pedidos||[]).find(x=>x.id===d.pedido.id);if(p)syncPedido(p,d.pedido);}
     logActivity('Eliminó cobro','Folio '+a.folio+' — '+fmt(a.monto));
-    return ajustaPagadoPedido(a,-montoAntes,'Borraste ese cobro de '+fmt(montoAntes)+'.').then(()=>{
-      CM('mod-edit-ab');rDia();try{rCxC();}catch(e){}
-      if(document.getElementById('ep-cobros')&&document.getElementById('mod-edit-ped').style.display!=='none')pintarCobrosPed();
-    });
+    cobroCambiado();
   }).catch(()=>alert('Error de conexión'));
+}
+function cobroCambiado(){
+  CM('mod-edit-ab');rDia();try{rCxC();rPed();}catch(e){}
+  if(document.getElementById('ep-cobros')&&document.getElementById('mod-edit-ped').style.display!=='none'){pintarCobrosPed();epSaldo();}
 }
 // ─── COBRO MANUAL (retroactivo o correcciones) ────────────────────────────────
 let _cbPedido=null;
@@ -3584,7 +3631,6 @@ function openCobroManual(){
   document.getElementById('cb-folio').value='';
   document.getElementById('cb-monto').value='';
   document.getElementById('cb-fecha').value=todayStr();
-  document.getElementById('cb-sumar').checked=false;
   document.getElementById('cb-info').textContent='Escribe el folio para buscar el pedido';
   const cbAv=document.getElementById('cb-aviso');if(cbAv)cbAv.style.display='none';
   OM('mod-cobro');
@@ -3600,8 +3646,6 @@ function buscarFolioCobro(){
   info.innerHTML='✓ <strong>'+_cbPedido.cli+'</strong> · '+_cbPedido.suc+' · Total '+fmt(_cbPedido.total)+' · Abonado '+fmt(_cbPedido.ant)+' · Resta <strong>'+fmt(_cbPedido.rest)+'</strong>'+(matches.length>1?' <span style="color:var(--amber,#B45309)">(hay '+matches.length+' pedidos con este folio; se usará el de '+_cbPedido.suc+')</span>':'');
   // EL PEDIDO DECIDE EL DEFAULT: si todavia debe, este cobro SI debe bajarle el saldo.
   // Antes la casilla nacia apagada y una liquidacion podia dejar el pedido intacto.
-  const chkS=document.getElementById('cb-sumar');
-  if(chkS)chkS.checked=(_cbPedido.rest||0)>0.009;
   avisoCobroManual();
 }
 // Aviso en vivo: dice EXACTAMENTE como va a quedar el pedido antes de registrar
@@ -3610,20 +3654,15 @@ function avisoCobroManual(){
   const p=_cbPedido;
   if(!p){av.style.display='none';return;}
   const m=parseFloat(document.getElementById('cb-monto').value)||0;
-  const sumar=document.getElementById('cb-sumar').checked;
-  const tipo=document.getElementById('cb-tipo').value;
   const rest=p.rest||0;
   av.style.display='block';
-  if(sumar){
+  if(rest>0.009||m>0){
     const nAnt=(p.ant||0)+m,nRest=Math.max(0,rest-m);
     av.style.background='#ECFDF5';av.style.color='#065F46';av.style.border='1px solid #A7F3D0';
-    av.innerHTML='✅ El pedido quedará así: anticipo '+fmt(p.ant)+' → <strong>'+fmt(nAnt)+'</strong> · restante '+fmt(rest)+' → <strong>'+fmt(nRest)+'</strong>'+(m>0&&nRest<=0.009?' <strong>(LIQUIDADO)</strong>':'');
-  }else if(rest>0.009){
-    av.style.background='#FEF2F2';av.style.color='#991B1B';av.style.border='1px solid #FCA5A5';
-    av.innerHTML='🔴 <strong>Aguas:</strong> con la casilla apagada se registra el cobro pero el folio '+p.folio+' va a seguir debiendo '+fmt(rest)+' en CxC'+(tipo==='Liquidacion'?' — y lo marcaste como <strong>Liquidación</strong>':'')+'. Enciéndela si el cliente está pagando ahora.';
+    av.innerHTML='✅ La nota quedará así: pagado '+fmt(p.ant)+' → <strong>'+fmt(nAnt)+'</strong> · restante '+fmt(rest)+' → <strong>'+fmt(nRest)+'</strong>'+(m>0&&nRest<=0.009?' <strong>(LIQUIDADA)</strong>':'')+(m>rest+0.009?'<br>⚠️ Es '+fmt(m-rest)+' más de lo que debe.':'');
   }else{
     av.style.background='#F8FAFC';av.style.color='var(--text3)';av.style.border='1px solid var(--border)';
-    av.innerHTML='Este pedido ya no tiene saldo: solo se va a registrar la fecha y el método del cobro.';
+    av.innerHTML='Esta nota ya no tiene saldo.';
   }
 }
 function guardarCobroManual(){
@@ -3633,29 +3672,14 @@ function guardarCobroManual(){
   const fecha=document.getElementById('cb-fecha').value||todayStr();
   const met=document.getElementById('cb-met').value;
   const tipo=document.getElementById('cb-tipo').value;
-  const sumar=document.getElementById('cb-sumar').checked;
   const p=_cbPedido;
-  // CANDADO: no dejar registrar un cobro que deja al pedido debiendo sin querer
-  if(!sumar&&(p.rest||0)>0.009){
-    const msg=(tipo==='Liquidacion')
-      ? 'Marcaste el cobro como LIQUIDACIÓN pero la casilla "sumar al anticipo" está APAGADA.\n\nEl folio '+p.folio+' ('+(p.cli||'')+') va a seguir apareciendo con saldo de '+fmt(p.rest)+' en CxC y en el ticket.\n\n¿Registrarlo así de todos modos?'
-      : 'La casilla "sumar al anticipo" está APAGADA y el folio '+p.folio+' todavía debe '+fmt(p.rest)+'.\n\nSu saldo NO va a bajar con este cobro.\n\n¿Registrarlo así de todos modos?';
-    if(!confirm(msg))return;
-  }
+  if(m>(p.rest||0)+0.009&&!confirm('El folio '+p.folio+' debe '+fmt(p.rest||0)+' y vas a registrar '+fmt(m)+'.\n\nQuedaría '+fmt(m-(p.rest||0))+' pagado de más. ¿Registrarlo así?'))return;
   const ab={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:m,met:met,fecha:fecha,tipo:tipo};
-  fetch('/api/abonos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(ab)})
-  .then(r=>r.json()).then(d=>{
-    if(d.error){alert(d.error);return;}
-    ABONOS.unshift(d);
-    if(sumar){
-      const prevCM={ant:p.ant,rest:p.rest,est:p.est};
-      p.ant=(p.ant||0)+m;p.rest=Math.max(0,(p.rest||0)-m);
-      putPedidoVerificado(p,{ant:p.ant,rest:p.rest,est:p.rest<=0?'Entregado':p.est},prevCM)
-        .then(()=>{rPed();if(document.querySelector('#page-cxc.active'))rCxC();rDia();});
-    }
+  registrarCobro(p,ab).then(()=>{
     logActivity('Registró cobro manual','Folio '+p.folio+' — '+fmt(m)+' ('+met+', '+fecha+')');
-    CM('mod-cobro');rDia();if(document.querySelector('#page-cxc.active'))rCxC();
-  }).catch(()=>alert('Error de conexión'));
+    if((p.rest||0)<=0.009&&p.est!=='Entregado')return putPedidoVerificado(p,{est:'Entregado'},{ant:p.ant,rest:p.rest,est:p.est});
+  }).then(()=>{CM('mod-cobro');rPed();rDia();if(document.querySelector('#page-cxc.active'))rCxC();})
+  .catch(e=>alert('🔴 No se registró el cobro: '+e.message));
 }
 let diaSuc='Ambas';
 function setDiaSuc(s,el){diaSuc=s;document.querySelectorAll('#dia-suc-chips .chip').forEach(c=>c.classList.remove('active'));if(el)el.classList.add('active');rDia();}
@@ -3677,8 +3701,8 @@ function rDia(){
   // Abonos/liquidaciones registrados ese día (visibles según rol)
   const abHoy=ABONOS.filter(a=>a.fecha===dia&&(esAdm||u.role==='taller'||a.suc===u.suc)&&(sucF==='Ambas'||a.suc===sucF));
   // Anticipo original de los pedidos del día = ant actual menos los abonos posteriores de ese pedido
-  const abDelPed=p=>ABONOS.filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc)).reduce((s,a)=>s+a.monto,0);
-  const antOrig=p=>Math.max(0,(p.ant||0)-abDelPed(p));
+  const abDelPed=p=>ABONOS.filter(a=>(a.pedido_id?a.pedido_id===p.id:(a.folio===p.folio&&a.suc===p.suc))).reduce((s,a)=>s+a.monto,0);
+  const antOrig=p=>antIni(p);
   const cobradoHoy=list.reduce((s,p)=>s+antOrig(p),0)+abHoy.reduce((s,a)=>s+a.monto,0);
   document.getElementById('d-n').textContent=list.length;
   document.getElementById('d-v').textContent=fmt(list.reduce((a,b)=>a+b.total,0));
@@ -3790,9 +3814,9 @@ function yaRegistrado(c){
 // Arma la lista de cobros de ese día: anticipos de pedidos nuevos + abonos
 function cobrosDelDia(dia,sucF){
   var out=[];
-  var abDelPed=function(p){return ABONOS.filter(function(a){return (a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc);}).reduce(function(s,a){return s+a.monto;},0);};
+  var abDelPed=function(p){return ABONOS.filter(function(a){return (a.pedido_id?a.pedido_id===p.id:(a.folio===p.folio&&a.suc===p.suc));}).reduce(function(s,a){return s+a.monto;},0);};
   pedidos.filter(function(p){return p.fecha===dia&&(sucF==='Ambas'||p.suc===sucF);}).forEach(function(p){
-    var v=Math.max(0,(p.ant||0)-abDelPed(p));
+    var v=antIni(p);
     if(v>0.5)out.push({key:'ped:'+p.id,tipo:'anticipo',folio:p.folio,cli:p.cli||'',suc:p.suc||'',met:p.met||'Efectivo',monto:v});
   });
   ABONOS.filter(function(a){return a.fecha===dia&&(sucF==='Ambas'||a.suc===sucF);}).forEach(function(a){
@@ -4187,7 +4211,7 @@ function revComparar(lec){
   const tot=lec.total!=null?lec.total:lec.subtotal;
   if(dif$(tot,p.total))difs.push({campo:'💰 total',nota:fmt(tot),sistema:fmt(p.total)});
   // anticipo: en la nota es "A CUENTA"; en el pedido es lo pagado original
-  const antOrig=(p.ant||0)-(ABONOS||[]).filter(a=>String(a.folio)===folio).reduce((x,a)=>x+(a.monto||0),0);
+  const antOrig=antIni(p);
   if(dif$(lec.anticipo,antOrig))
     difs.push({campo:'💰 anticipo',nota:fmt(lec.anticipo),sistema:fmt(antOrig)});
   if(dif$(lec.resta,p.rest))difs.push({campo:'💰 resta',nota:fmt(lec.resta),sistema:fmt(p.rest)});
@@ -5170,19 +5194,25 @@ function correrAuditoria(){
         (p.cli||'')+' · debe '+fmt(p.rest)+' de '+fmt(p.total),'cxc');
   });
 
-  // ── 6) ABONOS QUE NO CUADRAN CON EL PEDIDO ───────────────────────────────
-  var abPorFolio={};
-  (ABONOS||[]).forEach(function(a){(abPorFolio[String(a.folio)]=abPorFolio[String(a.folio)]||[]).push(a);});
-  Object.keys(abPorFolio).forEach(function(f){
-    var p=(pedidos||[]).find(function(x){return String(x.folio)===f;});
-    if(!p)return;
-    var suma=abPorFolio[f].reduce(function(t,a){return t+(a.monto||0);},0);
-    if(suma>(p.ant||0)+0.5)
-      add('abono','abono:'+f,1,'Cobrado más de lo que dice el pedido · folio '+f,
-        (p.cli||'')+' · '+fmt(suma)+' en abonos contra '+fmt(p.ant)+' de anticipo','cxc');
-    var liq=abPorFolio[f].filter(function(a){return a.tipo==='Liquidacion';});
-    if(liq.length&&(p.rest||0)>0.5)
-      add('abono','liq:'+f,1,'Liquidado pero el pedido sigue con saldo · folio '+f,
+  // ── 6) PAGADO DE LA NOTA ──────────────────────────────────────────────────
+  // Los cobros se ligan a SU nota (pedido_id, o folio+sucursal): antes se
+  // juntaban solo por folio y un folio bajo de Zibata se comparaba contra Jardines.
+  var abPorPed={};
+  (pedidos||[]).forEach(function(p){if(p.id)abPorPed[p.id]=[];});
+  var pedPorFS={};(pedidos||[]).forEach(function(p){(pedPorFS[p.folio+'|'+p.suc]=pedPorFS[p.folio+'|'+p.suc]||[]).push(p);});
+  (ABONOS||[]).forEach(function(a){
+    var pid=a.pedido_id;
+    if(!pid){var c=pedPorFS[a.folio+'|'+a.suc]||[];if(c.length===1)pid=c[0].id;}
+    if(pid&&abPorPed[pid])abPorPed[pid].push(a);
+  });
+  (pedidos||[]).forEach(function(p){
+    var abs=abPorPed[p.id]||[];
+    var suma=abs.reduce(function(t,a){return t+(a.monto||0);},0);
+    if(p.pagado_ok===false)
+      add('abono','pag:'+p.id,1,'Cobros sin sumar al pagado · folio '+p.folio+' ('+(p.suc||'—')+')',
+        (p.cli||'')+' · cobros '+fmt(suma)+' contra '+fmt(p.ant)+' de pagado — confírmala en Pedidos','ped');
+    if(abs.some(function(a){return a.tipo==='Liquidacion';})&&(p.rest||0)>0.5)
+      add('abono','liq:'+p.folio+(p.suc==='Zibata'?'@Z':''),1,'Liquidada pero sigue con saldo · folio '+p.folio+' ('+(p.suc||'—')+')',
         (p.cli||'')+' · restante '+fmt(p.rest),'cxc');
   });
 
@@ -7135,7 +7165,7 @@ function ctaDeMetodo(met,suc){
   return best;
 }
 function cierreCalc(f){
-  const abDelPed=p=>(ABONOS||[]).filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc)).reduce((s,a)=>s+(a.monto||0),0);
+  const abDelPed=p=>(ABONOS||[]).filter(a=>(a.pedido_id?a.pedido_id===p.id:(a.folio===p.folio&&a.suc===p.suc))).reduce((s,a)=>s+(a.monto||0),0);
   // Clave por CUENTA + SUCURSAL — Zibata se ve y se registra APARTE (como su ER de siempre)
   const K='␟';
   const sucG=s=>String(s||'').toLowerCase().includes('zibata')?'Zibata':'Jardines';
@@ -7143,7 +7173,7 @@ function cierreCalc(f){
   const add=(cta,suc,monto,det)=>{if(!cta){sinCta.push(det+' '+fmt(monto));return;}const k=cta+K+sucG(suc);(porCta[k]=porCta[k]||{cta:cta,suc:sucG(suc),cob:0,dets:[]}).cob+=monto;porCta[k].dets.push(det);};
   pedidos.forEach(p=>{
     if(p.fecha!==f)return;
-    const ao=Math.max(0,(p.ant||0)-abDelPed(p));
+    const ao=antIni(p);
     if(ao>0)add(ctaDeMetodo(p.met,p.suc),p.suc,ao,'F.'+p.folio);
   });
   (ABONOS||[]).forEach(a=>{
@@ -7499,12 +7529,12 @@ function cobRows(){
   const esVenta=u.role!=='admin'&&u.role!=='owner';
   const d1=document.getElementById('cob-d1').value,d2=document.getElementById('cob-d2').value;
   const en=(f)=>f&&(!d1||f>=d1)&&(!d2||f<=d2);
-  const abDelPed=p=>(ABONOS||[]).filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc)).reduce((s,a)=>s+(a.monto||0),0);
+  const abDelPed=p=>(ABONOS||[]).filter(a=>(a.pedido_id?a.pedido_id===p.id:(a.folio===p.folio&&a.suc===p.suc))).reduce((s,a)=>s+(a.monto||0),0);
   const rows=[];
   pedidos.forEach(p=>{
     if(esVenta&&p.suc!==u.suc)return;
     if(!en(p.fecha))return;
-    const ao=Math.max(0,(p.ant||0)-abDelPed(p));
+    const ao=antIni(p);
     if(ao>0)rows.push({k:'p'+(p.id||p.folio),fecha:p.fecha,folio:p.folio,cli:p.cli,tipo:'Anticipo',met:p.met||'—',monto:ao,vend:p.vend||'—',suc:p.suc,ref:p.factura_num?('F.'+p.factura_num):'',fac:!!p.factura_num});
     else rows.push({k:'p'+(p.id||p.folio),fecha:p.fecha,folio:p.folio,cli:p.cli,tipo:'Nota sin anticipo',met:'No dejó anticipo',monto:0,vend:p.vend||'—',suc:p.suc,ref:p.factura_num?('F.'+p.factura_num):'',fac:!!p.factura_num});
   });
@@ -7759,13 +7789,13 @@ function rAudit(){
   if(d2El&&!d2El.value)d2El.value=todayStr();
   const d1=d1El.value,d2=d2El.value;
   const enRango=f=>f&&f>=d1&&f<=d2;
-  const abDelPed=p=>ABONOS.filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc)).reduce((s,a)=>s+(a.monto||0),0);
+  const abDelPed=p=>ABONOS.filter(a=>(a.pedido_id?a.pedido_id===p.id:(a.folio===p.folio&&a.suc===p.suc))).reduce((s,a)=>s+(a.monto||0),0);
   // Cobros en EFECTIVO por día y sucursal (lo que capturaron las sucursales)
   const dias={}; // fecha -> {J:0,Z:0,mov:0}
   const reg=f=>{if(!dias[f])dias[f]={J:0,Z:0,mov:0};return dias[f];};
   pedidos.forEach(p=>{
     if(!enRango(p.fecha)||!esEfectivoMet(p.met))return;
-    const v=Math.max(0,(p.ant||0)-abDelPed(p));
+    const v=antIni(p);
     if(v<=0)return;
     const r=reg(p.fecha);
     if(p.suc==='Zibata')r.Z+=v;else r.J+=v;
@@ -8797,13 +8827,13 @@ function comDesglose(v,mes){
   // ÚNICAMENTE por las notas donde su nombre quedó capturado como Vendedor.
   // (Yesica es la única de Zibata: debe poner su nombre en todos sus pedidos.)
   var porSuc=false;
-  var abDelPed=function(p){return ABONOS.filter(function(a){return (a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc);}).reduce(function(s,a){return s+(a.monto||0);},0);};
+  var abDelPed=function(p){return ABONOS.filter(function(a){return (a.pedido_id?a.pedido_id===p.id:(a.folio===p.folio&&a.suc===p.suc));}).reduce(function(s,a){return s+(a.monto||0);},0);};
   var nuevos=[],abonos=[];
   for(var j=0;j<pedidos.length;j++){
     var p=pedidos[j];
     if(parseInt(p.mes)!==mes)continue;
     if(porSuc?(p.suc!==v.suc):(p.vend!==v.nombre))continue;
-    var antOrig=Math.max(0,(p.ant||0)-abDelPed(p));
+    var antOrig=antIni(p);
     if(antOrig>0)nuevos.push({folio:p.folio,cli:p.cli,suc:p.suc,vend:p.vend||'—',fecha:p.fecha,monto:antOrig,tp:(p.tipo_prod==='arte'?'arte':'marcos')});
   }
   for(var j=0;j<ABONOS.length;j++){
@@ -10319,7 +10349,7 @@ function guardarPed(){
   fetch('/api/pedidos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(newPed)})
   .then(r=>r.json()).then(data=>{
-    const pedGuardado={...newPed,id:data.id};
+    const pedGuardado={...newPed,id:data.id,ant_ini:(data&&data.ant_ini!=null)?data.ant_ini:newPed.ant,pagado_ok:true};
     pedidos.unshift(pedGuardado);
     cart=[];molSel=null;
     CM('mod-ped');rPed();rCart();
@@ -10505,15 +10535,16 @@ function pintarCobrosPed(){
   const cont=document.getElementById('ep-cobros');if(cont===null)return;
   const p=pedidos[editPedIdx];if(!p){cont.innerHTML='';return;}
   const u=USERS.find(x=>x.key===CU);const esAdm=u&&(u.role==='admin'||u.role==='owner');
-  const abs=ABONOS.filter(a=>(a.pedido_id&&a.pedido_id===p.id)||(a.folio===p.folio&&a.suc===p.suc));
+  const abs=ABONOS.filter(a=>(a.pedido_id?a.pedido_id===p.id:(a.folio===p.folio&&a.suc===p.suc)));
   if(!abs.length){cont.innerHTML='<div style="color:var(--text3)">Sin cobros registrados con fecha. El anticipo inicial vive en el campo de arriba.</div>';return;}
   const sumAbs=abs.reduce((s,a)=>s+(a.monto||0),0);
-  const inicial=Math.max(0,(p.ant||0)-sumAbs);
+  const porConf=p.pagado_ok===false;
+  const inicial=antIni(p);
   cont.innerHTML=
     `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
       <div><span class="badge bgr" style="font-size:10px">Anticipo inicial</span>
-      <span style="margin-left:6px;color:var(--text2)">${p.fecha||'—'} · al abrir la nota · ${p.met||'—'} <span style="opacity:.6">(calculado: pagado total − abonos)</span></span></div>
-      <span class="mono" style="font-weight:700">${fmt(inicial)}</span>
+      <span style="margin-left:6px;color:var(--text2)">${p.fecha||'—'} · al abrir la nota · ${p.met||'—'}</span></div>
+      <span class="mono" style="font-weight:700">${porConf?'por confirmar':fmt(inicial)}</span>
     </div>`+
     abs.map(a=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
@@ -10525,8 +10556,8 @@ function pintarCobrosPed(){
       </div>
     </div>`).join('')+
     `<div style="display:flex;justify-content:space-between;padding:7px 0;font-weight:700">
-      <span>= Total pagado (el campo "Anticipo" de arriba)</span>
-      <span class="mono" style="color:var(--green)">${fmt(p.ant||0)}</span>
+      <span>${porConf?'Pagado registrado (no cuadra con los cobros)':'= Total pagado (anticipo + cobros)'}</span>
+      <span class="mono" style="color:${porConf?'var(--ciruela)':'var(--green)'}">${fmt(p.ant||0)}</span>
     </div>`;
 }
 function editPed(idx){
@@ -10540,7 +10571,17 @@ function editPed(idx){
   document.getElementById('ep-c').value=p.cli||'';
   document.getElementById('ep-t').value=p.tel||'';
   document.getElementById('ep-m').value=p.met||'Efectivo';
-  document.getElementById('ep-a').value=p.ant||'';
+  // Anticipo al abrir: el real si la nota ya está confirmada; si no, se propone
+  // el pagado de hoy (lo más común: el campo se quedó en el anticipo)
+  document.getElementById('ep-a').value=(p.pagado_ok===false?(p.ant||0):antIni(p))||'';
+  const epConf=document.getElementById('ep-conf');
+  if(epConf){
+    if(p.pagado_ok===false){
+      const cob=cobrosDe(p).reduce((t,a)=>t+(a.monto||0),0);
+      epConf.innerHTML='<div style="margin-top:6px;padding:8px 10px;border:1px solid var(--ciruela);border-radius:6px;font-size:12px;line-height:1.45">Esta nota tiene cobros por '+fmt(cob)+' pero su pagado dice '+fmt(p.ant||0)+': algún cobro nunca se sumó. Escribe arriba cuánto dejó al abrir la nota.'+
+        '<label style="display:flex;gap:6px;align-items:center;margin-top:6px;font-weight:600;cursor:pointer"><input type="checkbox" id="ep-conf-ok" style="width:auto" onchange="epSaldo()"> Confirmar la nota con ese anticipo</label></div>';
+    }else epConf.innerHTML='';
+  }
   document.getElementById('ep-o').value=p.obs||'';
   document.getElementById('ep-ent').value=p.entrega||'';
   const epF=document.getElementById('ep-fecha');if(epF)epF.value=p.fecha||'';
@@ -10560,6 +10601,7 @@ function editPed(idx){
   const totEl=document.getElementById('ep-total');if(totEl)totEl.value=(p.total!=null?+p.total:0).toFixed(2);
   pintarItemsEP();
   pintarCobrosPed();
+  epSaldo();
   OM('mod-edit-ped');
 }
 function guardarEditPed(){
@@ -10581,20 +10623,25 @@ function guardarEditPed(){
     tel:document.getElementById('ep-t').value.trim(),
     vend:document.getElementById('ep-vend').value,
     met:document.getElementById('ep-m').value,
-    ant:ant,
     items:items,
     sub:sub,
     total:total,
-    rest:Math.max(0,total-ant),
     obs:document.getElementById('ep-o').value.trim(),
     entrega:document.getElementById('ep-ent').value
   };
   const epFv=document.getElementById('ep-fecha')?document.getElementById('ep-fecha').value:'';
   if(epFv){updates.fecha=epFv;updates.mes=parseInt(epFv.split('-')[1])-1;}
+  // Lo que dejó al abrir la nota. En una nota por confirmar solo se manda si se palomeó confirmar.
+  const confirma=p.pagado_ok===false&&!!(document.getElementById('ep-conf-ok')||{}).checked;
+  if(p.pagado_ok!==false||confirma)updates.ant_ini=ant;
   Object.assign(p,updates);
   if(p.id){
     fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)})
-    .then(r=>r.json()).then(()=>{logActivity('Editó pedido','Folio '+p.folio+' — '+updates.cli+' — '+fmt(total));CM('mod-edit-ped');rPed();if(document.querySelector('#page-ord.active'))rOrd();});
+    .then(r=>{if(!r.ok)throw new Error('el servidor respondió '+r.status);return r.json();}).then(d=>{
+      syncPedido(p,d);   // pagado y restante los calculó el servidor
+      logActivity(confirma?'Confirmó pagado de nota':'Editó pedido','Folio '+p.folio+' — '+updates.cli+' — '+fmt(total)+(confirma?' — anticipo inicial '+fmt(ant):''));
+      CM('mod-edit-ped');rPed();try{rCxC();}catch(e){}if(document.querySelector('#page-ord.active'))rOrd();
+    }).catch(e=>alert('🔴 No se guardó el pedido: '+e.message));
   } else {CM('mod-edit-ped');rPed();}
 }
 function misC(){
