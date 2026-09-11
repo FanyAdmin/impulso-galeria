@@ -36,8 +36,9 @@ class Pedido(db.Model):
     sub        = db.Column(db.Float, default=0)
     total      = db.Column(db.Float, default=0)
     met        = db.Column(db.String(30))
-    ant        = db.Column(db.Float, default=0)
+    ant        = db.Column(db.Float, default=0)   # TOTAL PAGADO — ya no se escribe a mano: ant_ini + cobros
     rest       = db.Column(db.Float, default=0)
+    ant_ini    = db.Column(db.Float)              # lo que dejó al abrir la nota (NULL = nota por confirmar)
     obs        = db.Column(db.String(300))
     est        = db.Column(db.String(30), default='Pendiente')
     entrega    = db.Column(db.String(20))   # la PROMETIDA al cliente
@@ -354,6 +355,10 @@ def crear_pedido():
         obs=d.get('obs'), est=d.get('est','Pendiente'), entrega=d.get('entrega'),
         taller_est=d.get('taller_est','Por pedir'), casillero=d.get('casillero','')
     )
+    # Lo que deja al abrir la nota es su anticipo inicial; el pagado sale de ahí
+    p.ant_ini = _num(d.get('ant_ini', d.get('ant', 0)))
+    p.ant = round(p.ant_ini, 2)
+    p.rest = round(max(0.0, _num(p.total) - p.ant), 2)
     db.session.add(p)
     db.session.commit()
     return jsonify(p_dict(p)), 201
@@ -363,11 +368,20 @@ def crear_pedido():
 def actualizar_pedido(pid):
     p = Pedido.query.get_or_404(pid)
     d = request.json or {}
-    for campo in ['folio','tipo_venta','tipo_prod','cli','tel','suc','vend','fecha','mes','sub','total','met','ant','rest','obs','est','entrega','entrega_real','taller_est','casillero','factura_num']:
+    for campo in ['folio','tipo_venta','tipo_prod','cli','tel','suc','vend','fecha','mes','sub','total','met','obs','est','entrega','entrega_real','taller_est','casillero','factura_num']:
         if campo in d:
             setattr(p, campo, d[campo])
     if 'items' in d:
         p.items = json.dumps(d['items'])
+    if 'ant_ini' in d and d['ant_ini'] is not None:
+        # Corregir lo que dejó al abrir la nota (o confirmar una nota por revisar)
+        p.ant_ini = _num(d['ant_ini'])
+    if p.ant_ini is None:
+        # Nota por confirmar: se conserva el comportamiento anterior hasta que alguien la confirme
+        if 'ant' in d:  p.ant = d['ant']
+        if 'rest' in d: p.rest = d['rest']
+    # Con anticipo inicial conocido, 'ant' y 'rest' que manden se ignoran: se calculan aquí
+    recalc_pagado(p)
     db.session.commit()
     return jsonify(p_dict(p))
 
@@ -387,6 +401,7 @@ def p_dict(p):
         'items':json.loads(p.items) if p.items else [],
         'sub':p.sub,'total':p.total,'met':p.met,
         'ant':p.ant,'rest':p.rest,'obs':p.obs,
+        'ant_ini':p.ant_ini,'pagado_ok':p.ant_ini is not None,
         'est':p.est,'entrega':p.entrega,'entrega_real':p.entrega_real or '',
         'factura_num':p.factura_num or '',
         'taller_est':p.taller_est,'casillero':p.casillero
@@ -720,7 +735,7 @@ def import_pedidos():
                 fecha=d.get('fecha'), mes=d.get('mes'),
                 items=_json.dumps(d.get('items',[])),
                 sub=d.get('sub',0), total=d.get('total',0),
-                met=d.get('met','Efectivo'), ant=d.get('ant',0),
+                met=d.get('met','Efectivo'), ant=d.get('ant',0), ant_ini=d.get('ant',0),
                 rest=d.get('rest',0), obs=d.get('obs',''),
                 est=d.get('est','Pendiente'), entrega=d.get('entrega','')
             )
@@ -823,41 +838,100 @@ def ab_dict(a):
     return {'id':a.id,'pedido_id':a.pedido_id,'folio':a.folio,'cli':a.cli,'suc':a.suc,
             'monto':a.monto,'met':a.met,'fecha':a.fecha,'tipo':a.tipo}
 
+# ── TOTAL PAGADO CALCULADO ────────────────────────────────────────────────────
+# Antes el pagado (ant) era un número que cada pantalla sumaba a mano; si una
+# suma fallaba (nota 95: liquidación de $1,725 que nunca se sumó), el saldo
+# quedaba mal para siempre. Ahora: pagado = lo que dejó al abrir + sus cobros,
+# y lo calcula SOLO el servidor cada vez que cambia un cobro o la nota.
+def _num(v):
+    try: return round(float(v or 0), 2)
+    except (TypeError, ValueError): return 0.0
+
+def _pedido_de_abono(a):
+    """La nota a la que pertenece un cobro: por pedido_id, o por folio+sucursal si es única."""
+    if a.pedido_id:
+        return Pedido.query.get(a.pedido_id)
+    c = Pedido.query.filter_by(folio=str(a.folio or ''), suc=a.suc).all()
+    return c[0] if len(c) == 1 else None
+
+def recalc_pagado(p, delta_legacy=0):
+    if p is None:
+        return
+    if p.ant_ini is None:
+        # Nota por confirmar: suma/resta como antes, sin adivinar su anticipo inicial
+        if delta_legacy:
+            p.ant = round(_num(p.ant) + delta_legacy, 2)
+            p.rest = round(max(0.0, _num(p.total) - p.ant), 2)
+        return
+    suma = sum(_num(a.monto) for a in Abono.query.filter_by(pedido_id=p.id).all())
+    p.ant = round(_num(p.ant_ini) + suma, 2)
+    p.rest = round(max(0.0, _num(p.total) - p.ant), 2)
+
+def _con_pedido(a, p):
+    r = ab_dict(a)
+    r['pedido'] = p_dict(p) if p else None
+    return r
+
 @app.route('/api/abonos', methods=['GET'])
 @requiere_login
 def get_abonos():
-    abonos = Abono.query.order_by(Abono.id.desc()).limit(1000).all()
+    abonos = Abono.query.order_by(Abono.id.desc()).limit(10000).all()
     return jsonify([ab_dict(a) for a in abonos])
 
 @app.route('/api/abonos', methods=['POST'])
 @requiere_login
 def crear_abono():
     d = request.json or {}
-    a = Abono(pedido_id=d.get('pedido_id'), folio=d.get('folio',''), cli=d.get('cli',''),
+    a = Abono(pedido_id=d.get('pedido_id') or None, folio=d.get('folio',''), cli=d.get('cli',''),
               suc=d.get('suc',''), monto=d.get('monto',0), met=d.get('met',''),
               fecha=d.get('fecha',''), tipo=d.get('tipo','Abono'))
+    p = _pedido_de_abono(a)
+    if p and not a.pedido_id:
+        a.pedido_id = p.id
     db.session.add(a)
+    db.session.flush()
+    recalc_pagado(p, _num(a.monto))
     db.session.commit()
-    return jsonify(ab_dict(a)), 201
+    return jsonify(_con_pedido(a, p)), 201
 
 @app.route('/api/abonos/<int:aid>', methods=['PUT'])
 @requiere_admin
 def actualizar_abono(aid):
     a = Abono.query.get_or_404(aid)
     d = request.json or {}
+    antes = _num(a.monto)
     for campo in ['monto', 'met', 'fecha', 'tipo']:
         if campo in d:
             setattr(a, campo, d[campo])
+    db.session.flush()
+    p = _pedido_de_abono(a)
+    recalc_pagado(p, _num(a.monto) - antes)
     db.session.commit()
-    return jsonify(ab_dict(a))
+    return jsonify(_con_pedido(a, p))
 
 @app.route('/api/abonos/<int:aid>', methods=['DELETE'])
 @requiere_admin
 def borrar_abono(aid):
     a = Abono.query.get_or_404(aid)
+    p = _pedido_de_abono(a)
+    monto = _num(a.monto)
     db.session.delete(a)
+    db.session.flush()
+    recalc_pagado(p, -monto)
     db.session.commit()
-    return jsonify({'ok': True})
+    return jsonify({'ok': True, 'pedido': p_dict(p) if p else None})
+
+
+@app.route('/api/pagado/revisar', methods=['GET'])
+@requiere_admin
+def pagado_por_revisar():
+    """Notas cuyos cobros suman MÁS que su pagado: no se adivina cuál fue su anticipo, se confirma a mano."""
+    out = []
+    for p in Pedido.query.filter(Pedido.ant_ini.is_(None)).order_by(Pedido.fecha).all():
+        abs_ = Abono.query.filter_by(pedido_id=p.id).order_by(Abono.fecha).all()
+        out.append({'pedido': p_dict(p), 'suma': round(sum(_num(a.monto) for a in abs_), 2),
+                    'cobros': [ab_dict(a) for a in abs_]})
+    return jsonify(out)
 
 
 # ── ÓRDENES DE COMPRA (lotes pedidos a proveedores) ───────────────────────────
@@ -1080,6 +1154,7 @@ def migrar_columnas():
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS entrega_real VARCHAR(20)",
         "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS conciliado VARCHAR(20) DEFAULT ''",
         "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS banco_ref VARCHAR(40) DEFAULT ''",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS ant_ini FLOAT",
     ]:
         try:
             db.session.execute(text(stmt)); db.session.commit()
@@ -1458,9 +1533,44 @@ def conciliar_movs():
     db.session.commit()
     return jsonify({'ok': True, 'actualizados': n})
 
+def migrar_pagado():
+    """Separa, una sola vez por nota, lo que dejó al abrir (ant_ini) de sus cobros.
+    - Liga a su nota los cobros viejos sin pedido_id cuando folio+sucursal apunta a UNA sola nota.
+    - Si el pagado de hoy cubre sus cobros: ant_ini = pagado - cobros. La nota queda IDÉNTICA
+      (mismo pagado, mismo restante), así que cobranza y comisiones pasadas no se mueven.
+    - Si los cobros suman MÁS que el pagado (cobros que nunca se sumaron, como la nota 95),
+      no se adivina: ant_ini queda NULL y la nota sale en /api/pagado/revisar para confirmarla.
+    Es idempotente: solo toca notas que aún no tienen ant_ini."""
+    try:
+        peds = Pedido.query.filter(Pedido.ant_ini.is_(None)).all()
+        if not peds:
+            return
+        idx = {}
+        for p in Pedido.query.all():
+            idx.setdefault((str(p.folio or ''), p.suc), []).append(p.id)
+        from sqlalchemy import or_
+        for a in Abono.query.filter(or_(Abono.pedido_id.is_(None), Abono.pedido_id == 0)).all():
+            c = idx.get((str(a.folio or ''), a.suc), [])
+            if len(c) == 1:
+                a.pedido_id = c[0]
+        db.session.commit()
+        sumas = {}
+        for a in Abono.query.all():
+            if a.pedido_id:
+                sumas[a.pedido_id] = sumas.get(a.pedido_id, 0) + _num(a.monto)
+        for p in peds:
+            s = round(sumas.get(p.id, 0), 2)
+            ant = _num(p.ant)
+            if ant + 0.01 >= s:
+                p.ant_ini = round(max(0.0, ant - s), 2)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
 with app.app_context():
     db.create_all()
     migrar_columnas()
+    migrar_pagado()
     seed_usuarios()
 
 if __name__ == '__main__':
