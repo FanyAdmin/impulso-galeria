@@ -212,6 +212,7 @@ body.riel-on .content{margin-right:300px}
 .vac-tok.t{background:var(--borgona);color:#fff}
 .vac-tok.l{background:var(--mant);color:var(--ciruela)}
 .vac-tok.l.u{box-shadow:inset 0 0 0 2.5px var(--ciruela)}
+.vac-tok.l.au{background:var(--mant-l);box-shadow:inset 0 0 0 2px var(--mant);color:var(--mant-d)}
 .vac-tok.f{border:2px dashed var(--border2);color:var(--text3)}
 .vac-tok.a{background:var(--borgona);color:#fff;box-shadow:inset 0 0 0 2px var(--mant)}
 .vac-sep{width:1px;height:32px;background:var(--border2);margin:0 5px}
@@ -9756,7 +9757,7 @@ function guardarAsistVac(){
     headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:ASISTENCIAS})})
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);});
 }
-function vacEmp(id){if(!VAC[id])VAC[id]={ini:null,salidas:[]};if(!VAC[id].salidas)VAC[id].salidas=[];return VAC[id];}
+function vacEmp(id){if(!VAC[id])VAC[id]={ini:null,salidas:[]};if(!VAC[id].salidas)VAC[id].salidas=[];if(!VAC[id].adel)VAC[id].adel=[];return VAC[id];}
 function vacEmpSel(){var id=parseInt((document.getElementById('lft-emp')||{}).value);for(var i=0;i<EMPLEADOS.length;i++)if(EMPLEADOS[i].id===id)return EMPLEADOS[i];return null;}
 // ── fechas (siempre a mediodía para no brincar de día) ──
 function vacSumaAnios(s,n){var d=lftFecha(s),m=d.getMonth();var r=new Date(d.getFullYear()+n,m,d.getDate(),12);if(r.getMonth()!==m)r=new Date(d.getFullYear()+n,m+1,0,12);return r;}
@@ -9804,6 +9805,9 @@ function vacSaldo(emp,corte){
   }
   var m6=vacSumaMeses(lftFecha(emp.ingreso),VAC_ADEL_MESES);
   if(n<1&&!ini&&m6<=corte)buckets.push({adel:true,lbl:'Adelanto a los '+VAC_ADEL_MESES+' meses (a cuenta de su 1er periodo)',dias:VAC_ADEL_DIAS,gan:m6,lim:null});
+  // Adelantos que tú autorizaste: días a cuenta del periodo que aún no gana
+  var autos=(st.adel||[]).filter(function(a){return a.fecha<=dateStrLocal(corte)&&(!ini||a.fecha>ini.fecha);});
+  autos.forEach(function(a){buckets.push({auto:true,id:a.id,lbl:'Adelanto autorizado'+(a.motivo?': '+a.motivo:''),dias:+a.dias||0,gan:a.fecha,lim:null});});
   var cs=dateStrLocal(corte),cuentan=[],hist=[];
   st.salidas.slice().sort(function(a,b){return a.del<b.del?-1:a.del>b.del?1:0;}).forEach(function(s){
     if(s.del>=desde&&(!hastaCorte||s.del<=cs))cuentan.push(s);else if(s.del<desde)hist.push(s);
@@ -9813,7 +9817,7 @@ function vacSaldo(emp,corte){
   buckets.forEach(function(b){b.usados=Math.min(b.dias,resto);resto-=b.usados;b.quedan=b.dias-b.usados;pend+=b.quedan;if(!b.adel)pendGan+=b.quedan;});
   var sig=vacSumaAnios(emp.ingreso,n+1);
   // enCurso: días ya disfrutados a cuenta del periodo que AÚN no gana → se restan del proporcional del finiquito
-  return {cuentan:cuentan,n:n,buckets:buckets,pend:pend,pendGan:pendGan,enCurso:(n<1?tom:resto),m6:m6,adelantados:resto,tomados:tom,desde:desde,conf:!!ini,hist:hist,
+  return {autos:autos,cuentan:cuentan,n:n,buckets:buckets,pend:pend,pendGan:pendGan,enCurso:(n<1?tom:resto),m6:m6,adelantados:resto,tomados:tom,desde:desde,conf:!!ini,hist:hist,
     sigAniv:sig,sigDias:diasVac(n+1),sigLim:vacSumaMeses(sig,6)};
 }
 // Días marcados 🌴 en Asistencias que no pertenecen a ninguna salida registrada
@@ -9843,20 +9847,22 @@ function vacRender(emp,v){
   var tomadas=[];s.cuentan.forEach(function(x){(x.fechas||[]).forEach(function(f){tomadas.push(f);});});tomadas.sort();
   var fichas=[],ti=0,MAXF=36;
   var lim=null;s.buckets.forEach(function(b){if(b.quedan>0&&b.lim&&(!lim||b.lim<lim))lim=b.lim;});
-  var hayVenc=false;
+  var hayVenc=false,dAutoTot=(s.autos||[]).reduce(function(t,a){return t+(+a.dias||0);},0);
   s.buckets.forEach(function(b,bi){
     if(bi>0)fichas.push('<div class="vac-sep"></div>');
     var venc=b.lim&&b.quedan>0&&b.lim<hoy;if(venc)hayVenc=true;
     for(var k=0;k<b.dias;k++){
       if(k<b.usados){fichas.push('<div class="vac-tok t" title="Tomado">✓<span>'+mesDe(tomadas[ti++]||'')+'</span></div>');}
+      else if(b.auto)fichas.push('<div class="vac-tok l au" title="Adelanto que autorizaste'+(b.lbl.indexOf(':')>0?' — '+b.lbl.split(': ')[1]:'')+'">libre<span>adel</span></div>');
       else fichas.push('<div class="vac-tok l'+(venc?' u':'')+'" title="'+(venc?'Se pasó el plazo para darlo':'Listo para usar')+'">libre</div>');
     }
   });
   for(var a=0;a<s.adelantados;a++)fichas.push('<div class="vac-tok a" title="Tomado por adelantado">✓<span>'+mesDe(tomadas[ti++]||'')+'</span></div>');
   if(s.n<1){
     // primer año: siempre 12 fichas; las que aún no gana van punteadas con el mes en que llegan
-    var liberados=(s.m6<=hoy)?VAC_ADEL_DIAS:0,faltan=Math.max(0,s.sigDias-liberados-s.adelantados);
-    var deMayo=Math.max(0,VAC_ADEL_DIAS-liberados-s.adelantados);
+    var dAuto=(s.autos||[]).reduce(function(t,a){return t+(+a.dias||0);},0);
+    var liberados=(s.m6<=hoy)?VAC_ADEL_DIAS:0,faltan=Math.max(0,s.sigDias-liberados-s.adelantados-dAuto);
+    var deMayo=Math.max(0,VAC_ADEL_DIAS-liberados-s.adelantados-dAuto);
     if(s.buckets.length||s.adelantados)fichas.push('<div class="vac-sep"></div>');
     for(var q=0;q<faltan;q++)fichas.push('<div class="vac-tok f" title="Todavía no lo gana">'+MC[(q<deMayo?s.m6:s.sigAniv).getMonth()]+'</div>');
   }
@@ -9871,14 +9877,15 @@ function vacRender(emp,v){
     else{t2=pend?'Tiene <span class="vac-mk">'+pend+' listo'+(pend!==1?'s':'')+'</span> para usar':'Ya usó <span class="vac-mk">su adelanto</span>';
       sub='Adelanto liberado el '+vacFF(s.m6)+' · los otros '+(s.sigDias-VAC_ADEL_DIAS)+' llegan el '+vacFF(s.sigAniv)+' · se le deben dar antes del '+vacFF(s.sigLim);}
   }else{
-    var ult=s.buckets.filter(function(b){return !b.ini;}).slice(-1)[0];
-    t1=ult?'Sus '+ult.dias+' días de su '+ult.k+'º año':'Sus días de vacaciones';
+    var ult=s.buckets.filter(function(b){return !b.ini&&!b.auto&&!b.adel;}).slice(-1)[0];
+    t1=ult?'Sus '+ult.dias+' días de su '+ult.k+'º año'+(dAutoTot?' + '+dAutoTot+' de adelanto':''):'Sus días de vacaciones';
     t2=pend?'Tiene <span class="vac-mk">'+pend+' listo'+(pend!==1?'s':'')+'</span> para usar':'Por ahora <span class="vac-mk">no le quedan</span> días';
     if(lim){var fal=Math.round((lim-hoy)/864e5);
       sub=(hayVenc?'<b style="color:var(--ciruela)">Se pasó el plazo del '+vacFF(lim)+' para darle '+(s.buckets.filter(function(b){return b.lim&&b.quedan>0&&b.lim<hoy;}).reduce(function(t,b){return t+b.quedan;},0))+' de sus días (art. 81): conviene que los tome primero.</b>'
         :'se le deben dar antes del '+vacFF(lim)+' · faltan '+fal+' días');}
     else sub=pend?'Pendientes de periodos anteriores':'Su siguiente periodo: '+s.sigDias+' días el '+vacFF(s.sigAniv);
     if(ult&&ult.gan)sub='Ganados el '+vacFF(ult.gan)+' · '+sub;
+    else if(!ult)t1='Sus días de vacaciones';
     sub=sub.charAt(0).toUpperCase()+sub.slice(1);
   }
   h+='<div class="vac-hero"><div class="vac-hero-top"><div style="flex:1;min-width:240px">'+
@@ -9899,8 +9906,12 @@ function vacRender(emp,v){
   // sueltos en Asistencias
   var sue=vacSueltos(emp,s.desde);
   if(sue.length)h+='<div style="font-size:12px;padding:7px 9px;border:1px solid var(--ciruela);border-radius:6px;margin-bottom:.6rem">Hay '+sue.length+' día'+(sue.length!==1?'s':'')+' marcado'+(sue.length!==1?'s':'')+' 🌴 en Asistencias sin registrar aquí: '+sue.slice(0,6).map(vacFC).join(', ')+(sue.length>6?'…':'')+'. <a href="#" onclick="vacRegistrarSueltos();return false" style="color:var(--ciruela);font-weight:600">Registrarlos como salidas</a></div>';
+  if((s.autos||[]).length)h+='<div style="font-size:12px;padding:7px 9px;background:var(--mant-l);color:var(--mant-d);border-radius:6px;margin-bottom:.6rem;line-height:1.6">'+
+    s.autos.map(function(a){return 'Le autorizaste <b>'+a.dias+' día'+(a.dias!==1?'s':'')+'</b> de adelanto el '+vacFF(a.fecha)+(a.motivo?' · '+a.motivo:'')+' <a href="#" onclick="vacQuitarAdel('+a.id+');return false" style="color:var(--mant-d)">quitar</a>';}).join('<br>')+
+    '</div>';
   // registrar
-  h+='<div style="font-size:12.5px;font-weight:600;color:var(--text2);margin:.9rem 0 .35rem">Registrar vacaciones</div>'+
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:.9rem 0 .35rem;gap:8px;flex-wrap:wrap"><span style="font-size:12.5px;font-weight:600;color:var(--text2)">Registrar vacaciones</span>'+
+    '<button class="btn btn-s btn-xs" onclick="vacAutorizar()">+ Autorizar adelanto</button></div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="field" style="margin:0"><label>Del</label><input type="date" id="vac-del" min="'+String(emp.ingreso).slice(0,10)+'" onchange="vacPrev()"></div>'+
     '<div class="field" style="margin:0"><label>Al</label><input type="date" id="vac-al" min="'+String(emp.ingreso).slice(0,10)+'" onchange="vacPrev()"></div></div><div id="vac-prev"></div>';
   // historial
@@ -9997,6 +10008,27 @@ function vacRegistrarSueltos(){
   guardarVac().then(function(){logActivity('Registró vacaciones desde Asistencias',emp.nombre+' — '+sue.length+' días');renderLFT(emp,lftVals(emp));})
   .catch(function(e){var ids=nuevas.map(function(x){return x.id;});st.salidas=st.salidas.filter(function(y){return ids.indexOf(y.id)<0;});alert('No se guardó ('+e.message+').');renderLFT(emp,lftVals(emp));});
 }
+function vacAutorizar(){
+  var emp=vacEmpSel();if(!emp)return;var st=vacEmp(emp.id),s=vacSaldo(emp);
+  var p=prompt('Autorizar adelanto de vacaciones a '+emp.nombre+'\n\nHoy tiene '+Math.max(0,s.pend)+' día'+(s.pend!==1?'s':'')+' disponible'+(s.pend!==1?'s':'')+'.\nEstos días se descuentan del periodo que gana el '+vacFF(s.sigAniv)+'.\n\n¿Cuántos días le adelantas?','');
+  if(p===null)return;var n=parseInt(String(p).trim(),10);
+  if(isNaN(n)||n<1||n>60){alert('Escribe un número de días, por ejemplo 3');return;}
+  if(n>s.sigDias&&!confirm('Son más días de los '+s.sigDias+' que gana el '+vacFF(s.sigAniv)+'.\n\n¿Autorizar de todos modos?'))return;
+  var motivo=(prompt('¿Por qué se los adelantas? (queda en el recibo)','')||'').trim();
+  var a={id:Date.now(),dias:n,fecha:todayStr(),motivo:motivo,quien:(USERS.find(function(u){return u.key===CU;})||{}).name||CU||''};
+  st.adel.push(a);
+  guardarVac().then(function(){logActivity('Autorizó adelanto de vacaciones',emp.nombre+' — '+n+' días'+(motivo?' ('+motivo+')':''));renderLFT(emp,lftVals(emp));})
+  .catch(function(e){st.adel=st.adel.filter(function(x){return x.id!==a.id;});alert('No se guardó ('+e.message+').');renderLFT(emp,lftVals(emp));});
+}
+function vacQuitarAdel(id){
+  var emp=vacEmpSel();if(!emp)return;var st=vacEmp(emp.id),a=st.adel.find(function(x){return x.id===id;});if(!a)return;
+  var s=vacSaldo(emp);
+  if(s.pend<a.dias){alert('No se puede quitar: ya tomó días de este adelanto.\n\nPrimero borra esas vacaciones del historial.');return;}
+  if(!confirm('¿Quitar el adelanto de '+a.dias+' días'+(a.motivo?' ('+a.motivo+')':'')+'?'))return;
+  var antes=st.adel.slice();st.adel=st.adel.filter(function(x){return x.id!==id;});
+  guardarVac().then(function(){logActivity('Quitó adelanto de vacaciones',emp.nombre+' — '+a.dias+' días');renderLFT(emp,lftVals(emp));})
+  .catch(function(e){st.adel=antes;alert('No se guardó ('+e.message+').');renderLFT(emp,lftVals(emp));});
+}
 function vacAjustar(){
   var emp=vacEmpSel();if(!emp)return;var st=vacEmp(emp.id);
   var p=prompt('Saldo real de '+emp.nombre+'\n\n¿Cuántos días de vacaciones YA GANADOS le quedan pendientes hoy?\n(Todo lo que tome de hoy en adelante se registra aquí.)',st.ini?st.ini.pend:'');
@@ -10065,6 +10097,8 @@ function vacRecibo(empId,id){
   c+='<div class="r t"><span>Prima vacacional 25% ('+x.dias+' × '+fmt(x.sd)+' × 25%)</span><span style="color:#1A5C3A">'+fmt(x.prima)+'</span></div>';
   var an1=dateStrLocal(vacSumaAnios(emp.ingreso,1));
   var txtAdel=x.del<an1?' Estos días son un adelanto a cuenta del periodo de '+diasVac(1)+' días de vacaciones que gano al cumplir un año de servicios, el '+vacFF(an1)+', y se descuentan de él.':'';
+  var au=(vacEmp(empId).adel||[]).filter(function(a){return a.fecha<=x.del;}).slice(-1)[0];
+  if(au&&!txtAdel)txtAdel=' De estos días, '+au.dias+' son un adelanto autorizado por Impulso Galería el '+vacFF(au.fecha)+(au.motivo?' ('+au.motivo+')':'')+', a cuenta del periodo que gano el '+vacFF(vacSumaAnios(emp.ingreso,vacCumplidos(emp.ingreso,lftFecha(x.del))+1))+', y se descuentan de él.';
   c+='<p style="margin-top:1.2rem">Recibí de Impulso Galería el goce de '+x.dias+' día'+(x.dias!==1?'s':'')+' de vacaciones con pago de salario íntegro, del '+vacFF(x.del)+' al '+vacFF(x.al)+', conforme a los artículos 76 y 78 de la Ley Federal del Trabajo'+(x.pagada?', así como la cantidad de <b>'+fmt(x.prima)+'</b> por concepto de prima vacacional (art. 80 LFT), pagada el '+vacFF(x.fpago):'. La prima vacacional correspondiente, de <b>'+fmt(x.prima)+'</b> (art. 80 LFT), queda pendiente de pago')+'.'+txtAdel+' Después de este periodo me quedan '+Math.max(0,s.pend)+' día'+(s.pend!==1?'s':'')+' de vacaciones por disfrutar.</p>';
   return vacDoc('Recibo de vacaciones y prima vacacional',c);
 }
