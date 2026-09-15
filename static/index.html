@@ -2028,7 +2028,7 @@ function provMarca(pv,alto){
 }
 const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const MESES_C=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-let BANCOS_INIT={'Efectivo':0,'HSBC':0,'INBURSA':0,'Bzipay':0,'El Patio':0,'Zibata':0,'Efectivo Zibata':0};
+let BANCOS_INIT={'Efectivo':0,'HSBC':0,'INBURSA':0,'El Patio':0,'Zibata':0,'Efectivo Zibata':0};
 function loadBancosCfg(){
   return fetch('/api/config/bancos',{credentials:'include'}).then(r=>r.json()).then(d=>{
     if(d&&d.valor&&typeof d.valor==='object'&&Object.keys(d.valor).length){BANCOS_INIT=d.valor;}
@@ -2060,6 +2060,7 @@ let ER_CATS={
 // SÍ afecta Bancos (el dinero sí entra/sale) pero NO cuenta en el Estado de Resultados.
 const PUENTE_IN='Cobro por terceros (puente)';
 const PUENTE_OUT='Devolución a terceros (puente)';
+const BAN_TRASP='➜ Traspaso entre mis cuentas';
 function esPuenteC(c){return String(c||'').toLowerCase().includes('(puente)');}
 var AUDIT_EXCL=[]; // conceptos de entrada de efectivo que NO son ventas de sucursal (ej. reembolsos)
 function loadAuditExcl(){
@@ -8222,7 +8223,11 @@ function banDetalle(){
   var l=BAN_SEL;
   if(!l){det.innerHTML='<div class="card" style="padding:26px 18px;text-align:center;color:var(--text3);font-size:13px">Pica un renglón de la izquierda para ver con qué empata.</div>';return;}
   var c=banCasado(l),sug=banSugerencias(l),cta=document.getElementById('ban-cta').value;
-  var cats=(l.signo<0?ER_CATS.gastos_admin.concat(ER_CATS.costos,ER_CATS.gastos_venta):ER_CATS.ingresos);
+  // Además de ingresos/gastos: el puente (dinero de terceros, no es venta ni gasto)
+  // y los traspasos entre cuentas propias (no es dinero nuevo: no toca el Estado de resultados)
+  var cats=(l.signo<0?ER_CATS.gastos_admin.concat(ER_CATS.costos,ER_CATS.gastos_venta,[PUENTE_OUT])
+                     :ER_CATS.ingresos.concat([PUENTE_IN])).concat([BAN_TRASP]);
+  var otras=Object.keys(BANCOS_INIT).filter(function(x){return x!==cta;});
   det.innerHTML='<div class="card" style="padding:0;overflow:hidden">'+
     '<div style="padding:14px 17px;background:'+(l.signo<0?'#FEF2F2':'#ECFDF3')+'">'+
       '<div style="font-size:12px;color:var(--text3)">'+l.f+' · dice el banco</div>'+
@@ -8262,7 +8267,9 @@ function banDetalle(){
           '<div style="font-size:12.5px;font-weight:700;margin-bottom:7px">O regístralo como movimiento nuevo</div>'+
           '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'+
             '<div class="field" style="flex:1;min-width:150px;margin:0"><label>Categoría</label>'+
-              '<select id="ban-cat">'+cats.map(function(x){return '<option>'+x+'</option>';}).join('')+'</select></div>'+
+              '<select id="ban-cat" onchange="banCatCambia()">'+cats.map(function(x){return '<option>'+x+'</option>';}).join('')+'</select></div>'+
+            '<div class="field" id="ban-dest-w" style="display:none;flex:1;min-width:140px;margin:0"><label>'+(l.signo<0?'¿A qué cuenta fue?':'¿De qué cuenta vino?')+'</label>'+
+              '<select id="ban-dest">'+otras.map(function(x){return '<option>'+x+'</option>';}).join('')+'</select></div>'+
             '<button class="btn btn-p btn-sm" onclick="banCrear()">Registrar en '+cta+'</button>'+
           '</div>'+
         '</div></div>')+
@@ -8285,12 +8292,28 @@ function banDesCasar(){
   delete BCO_OK[banClave(l)];
   guardarBcoOK().then(function(){banPinta();});
 }
+function banCatCambia(){
+  var w=document.getElementById('ban-dest-w');
+  if(w)w.style.display=(document.getElementById('ban-cat').value===BAN_TRASP)?'block':'none';
+}
 function banCrear(){
   var l=BAN_SEL;if(!l)return;
   var cta=document.getElementById('ban-cta').value;
   var cat=document.getElementById('ban-cat').value;
-  var mv={tipo:l.signo<0?'Salida':'Entrada',concepto:cat,desc:(l.det||'')+' (del estado de cuenta)',
-    cuenta:cta,cta_destino:'',monto:Math.round(l.monto*100)/100,fecha:l.f,mes:parseInt(l.f.split('-')[1],10)-1};
+  var monto=Math.round(l.monto*100)/100,mes=parseInt(l.f.split('-')[1],10)-1;
+  var mv;
+  if(cat===BAN_TRASP){
+    // Un solo movimiento que sale de una cuenta y entra a la otra. El renglón
+    // gemelo del otro estado de cuenta casa con este mismo movimiento.
+    var otra=(document.getElementById('ban-dest')||{}).value;
+    if(!otra){alert('Escoge la otra cuenta');return;}
+    mv={tipo:'Traspaso',concepto:'Traspaso entre cuentas',
+      desc:(l.det||'')+' · '+(l.signo<0?cta+' → '+otra:otra+' → '+cta)+' (del estado de cuenta)',
+      cuenta:l.signo<0?cta:otra,cta_destino:l.signo<0?otra:cta,monto:monto,fecha:l.f,mes:mes};
+  }else{
+    mv={tipo:l.signo<0?'Salida':'Entrada',concepto:cat,desc:(l.det||'')+' (del estado de cuenta)',
+      cuenta:cta,cta_destino:'',monto:monto,fecha:l.f,mes:mes};
+  }
   fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
   .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
   .then(function(d){movs.unshift(d);banCasar(d.id);})
