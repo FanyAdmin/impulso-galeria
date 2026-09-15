@@ -726,7 +726,7 @@ tr:hover .ent-edit{opacity:1}
     <div style="font-size:12px;color:var(--text3);margin-top:8px">Todo cobro se suma solo al pagado de la nota.</div>
     <div id="cb-aviso" style="display:none;font-size:12px;margin-top:10px;padding:8px 10px;border-radius:8px;line-height:1.45"></div>
   </div>
-  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-cobro')">Cancelar</button><button class="btn btn-p" onclick="guardarCobroManual()">✓ Registrar</button></div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-cobro')">Cancelar</button><button class="btn btn-p" id="btn-cobro" onclick="guardarCobroManual(this)">✓ Registrar</button></div>
 </div>
 </div>
 
@@ -844,7 +844,7 @@ tr:hover .ent-edit{opacity:1}
     </div>
     <div id="me-av" style="display:none;background:var(--amber-l);border:1px solid #FDE68A;border-radius:var(--rad);padding:7px 10px;font-size:11px;color:var(--amber)">⚠️ El saldo restante pasará a Cuentas por Cobrar</div>
   </div>
-  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-ent')">Cancelar</button><button class="btn btn-p" onclick="confEnt()">✓ Confirmar Entrega</button></div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-ent')">Cancelar</button><button class="btn btn-p" id="btn-ent" onclick="confEnt(this)">✓ Confirmar Entrega</button></div>
 </div>
 </div>
 
@@ -903,7 +903,7 @@ tr:hover .ent-edit{opacity:1}
     <div><div style="font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Historial de pagos</div>
     <div id="ab-hist" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--rad);padding:.5rem .875rem;min-height:32px"></div></div>
   </div>
-  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-ab')">Cancelar</button><button class="btn btn-p" onclick="guardarAb()">+ Registrar Abono</button></div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-ab')">Cancelar</button><button class="btn btn-p" id="btn-ab" onclick="guardarAb(this)">+ Registrar Abono</button></div>
 </div>
 </div>
 
@@ -2810,6 +2810,26 @@ function syncPedido(p,d){
   if('ant_ini' in d)p.ant_ini=d.ant_ini;
   if('pagado_ok' in d)p.pagado_ok=d.pagado_ok;
 }
+// ─── DOBLE CLIC: un cobro no se registra dos veces ────────────────────────────
+// El botón se apaga en cuanto se pica y no revive hasta que el servidor contesta,
+// y antes de guardar se avisa si ya hay un cobro idéntico ese día.
+function btnOcupado(btn,txt){
+  if(!btn)return function(){};
+  var o=btn.innerHTML,d=btn.disabled;
+  btn.disabled=true;btn.style.opacity='.6';btn.style.cursor='wait';btn.innerHTML=txt||'Guardando…';
+  return function(){btn.disabled=d;btn.style.opacity='';btn.style.cursor='';btn.innerHTML=o;};
+}
+function cobroRepetido(p,monto,met,fecha){
+  if(!p)return null;
+  return cobrosDe(p).find(function(a){
+    return Math.abs((a.monto||0)-monto)<0.01&&String(a.fecha).slice(0,10)===String(fecha).slice(0,10)&&(a.met||'')===(met||'');
+  })||null;
+}
+function okRepetido(p,monto,met,fecha){
+  var r=cobroRepetido(p,monto,met,fecha);
+  if(!r)return true;
+  return confirm('⚠️ El folio '+p.folio+' ya tiene un cobro de '+fmt(monto)+' por '+(met||'—')+' con fecha '+fecha+'.\n\n¿Es OTRO pago del cliente, o se repitió?\n\nAceptar = es otro pago y se registra\nCancelar = no registrar nada');
+}
 function cobrosDe(p){return (ABONOS||[]).filter(function(a){return a.pedido_id?a.pedido_id===p.id:(a.folio===p.folio&&a.suc===p.suc);});}
 function antIni(p){
   if(!p)return 0;
@@ -2970,10 +2990,12 @@ function guardarEntFechas(){
     })
     .catch(function(e){msg.textContent='No se guardó: '+e.message;});
 }
-function confEnt(){
+function confEnt(btn){
   if(entIdx===null)return;
   const p=pedidos[entIdx],c=parseFloat(document.getElementById('me-monto').value)||0,s=Math.max(0,p.rest-c);
   const met=document.getElementById('me-m').value;
+  if(c>0&&!okRepetido(p,c,met,todayStr()))return;
+  const libera=btnOcupado(btn||document.getElementById('btn-ent'),'Entregando…');
   const estAntes=p.est;
   p.est='Entregado';p.entregaF=todayStr();
   p.entrega_real=todayStr();   // CUÁNDO se entregó de verdad (antes solo vivía en pantalla)
@@ -2982,7 +3004,8 @@ function confEnt(){
   (c>0?registrarCobro(p,ab):Promise.resolve())
     .catch(e=>{alert('🔴 NO SE REGISTRÓ EL COBRO de '+fmt(c)+'\n\nFolio '+p.folio+' · '+(p.cli||'')+'\nMotivo: '+e.message+'\n\nLa nota sí se marca como entregada. Registra el cobro desde CxC.');})
     .then(()=>putPedidoVerificado(p,{est:'Entregado',entrega_real:p.entrega_real},{ant:p.ant,rest:p.rest,est:estAntes}))
-    .then(()=>{rPed();rCxC();rDia();});
+    .then(()=>{libera();rPed();rCxC();rDia();})
+    .catch(()=>{libera();});
   logActivity('Entregó pedido','Folio '+p.folio+(c>0?' — cobró '+fmt(c)+' ('+met+')':''));
   if(s>0){const ex=cuentas.findIndex(x=>x.folio===p.folio);
     if(ex>=0)cuentas[ex].saldo=s;
@@ -3465,7 +3488,7 @@ function openAb(idx){
   document.getElementById('ab-hist').innerHTML=c.abonos.length?c.abonos.map(a=>`<div class="ab-row"><span>${a.fecha} · ${a.met}</span><span class="mono" style="font-weight:600">${fmt(a.monto)}</span></div>`).join(''):'<div style="color:var(--text3);font-size:11px;padding:5px 0">Sin abonos anteriores</div>';
   OM('mod-ab');
 }
-function guardarAb(){
+function guardarAb(btn){
   if(abIdx===null)return;
   const m=parseFloat(document.getElementById('ab-monto').value)||0;
   if(!m){alert('Ingresa el monto');return;}
@@ -3476,13 +3499,15 @@ function guardarAb(){
     const p=pedidos.find(x=>x.id===c.id||(x.folio===c.folio&&x.suc===c.suc));
     if(p){
       const metAb=document.getElementById('ab-m')?document.getElementById('ab-m').value:'Efectivo';
+      if(!okRepetido(p,m,metAb,fechaAb))return;
       const abReg={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:m,met:metAb,fecha:fechaAb,tipo:(p.rest||0)-m<=0.009?'Liquidacion':'Abono'};
+      const libera=btnOcupado(btn||document.getElementById('btn-ab'),'Registrando…');
       // El servidor suma el cobro al pagado de la nota y devuelve cómo quedó
       registrarCobro(p,abReg).then(()=>{
         logActivity('Abonó a cuenta','Folio '+p.folio+' — '+fmt(m)+' ('+metAb+', '+fechaAb+')');
         if((p.rest||0)<=0.009&&p.est!=='Entregado')return putPedidoVerificado(p,{est:'Entregado'},{ant:p.ant,rest:p.rest,est:p.est});
-      }).then(()=>{CM('mod-ab');rPed();rCxC();rDia();})
-      .catch(e=>alert('🔴 No se registró el cobro\n\nFolio '+p.folio+' · '+(p.cli||'')+'\nMotivo: '+e.message+'\n\nLa nota sigue igual; intenta de nuevo.'));
+      }).then(()=>{libera();CM('mod-ab');rPed();rCxC();rDia();})
+      .catch(e=>{libera();alert('🔴 No se registró el cobro\n\nFolio '+p.folio+' · '+(p.cli||'')+'\nMotivo: '+e.message+'\n\nLa nota sigue igual; intenta de nuevo.');});
       return;
     }
   }
@@ -3688,7 +3713,7 @@ function avisoCobroManual(){
     av.innerHTML='Esta nota ya no tiene saldo.';
   }
 }
-function guardarCobroManual(){
+function guardarCobroManual(btn){
   if(!_cbPedido){alert('Busca primero un folio válido');return;}
   const m=parseFloat(document.getElementById('cb-monto').value)||0;
   if(!m){alert('Ingresa el monto');return;}
@@ -3697,12 +3722,14 @@ function guardarCobroManual(){
   const tipo=document.getElementById('cb-tipo').value;
   const p=_cbPedido;
   if(m>(p.rest||0)+0.009&&!confirm('El folio '+p.folio+' debe '+fmt(p.rest||0)+' y vas a registrar '+fmt(m)+'.\n\nQuedaría '+fmt(m-(p.rest||0))+' pagado de más. ¿Registrarlo así?'))return;
+  if(!okRepetido(p,m,met,fecha))return;
   const ab={pedido_id:p.id||null,folio:p.folio,cli:p.cli,suc:p.suc,monto:m,met:met,fecha:fecha,tipo:tipo};
+  const libera=btnOcupado(btn||document.getElementById('btn-cobro'),'Registrando…');
   registrarCobro(p,ab).then(()=>{
     logActivity('Registró cobro manual','Folio '+p.folio+' — '+fmt(m)+' ('+met+', '+fecha+')');
     if((p.rest||0)<=0.009&&p.est!=='Entregado')return putPedidoVerificado(p,{est:'Entregado'},{ant:p.ant,rest:p.rest,est:p.est});
-  }).then(()=>{CM('mod-cobro');rPed();rDia();if(document.querySelector('#page-cxc.active'))rCxC();})
-  .catch(e=>alert('🔴 No se registró el cobro: '+e.message));
+  }).then(()=>{libera();CM('mod-cobro');rPed();rDia();if(document.querySelector('#page-cxc.active'))rCxC();})
+  .catch(e=>{libera();alert('🔴 No se registró el cobro: '+e.message);});
 }
 let diaSuc='Ambas';
 function setDiaSuc(s,el){diaSuc=s;document.querySelectorAll('#dia-suc-chips .chip').forEach(c=>c.classList.remove('active'));if(el)el.classList.add('active');rDia();}
