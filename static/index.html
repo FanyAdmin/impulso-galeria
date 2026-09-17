@@ -1605,7 +1605,7 @@ tr:hover .ent-edit{opacity:1}
     <div class="tw" style="max-height:65vh;overflow:auto"><table class="tbl" id="fp-tbl">
       <thead><tr>
         <th style="width:34px"></th>
-        <th>Fecha pedido</th><th>Pedido</th><th>Factura</th><th>Fecha factura</th>
+        <th>Fecha pedido</th><th>Nuestra OC</th><th>Su pedido</th><th>Factura</th><th>Fecha factura</th>
         <th>Vence</th><th style="text-align:right">Monto</th><th style="text-align:right">Abonado</th>
         <th style="text-align:right">Pendiente</th><th style="text-align:center">Atraso</th>
         <th>Estatus</th><th>Fecha de pago</th><th></th>
@@ -4900,7 +4900,7 @@ function rFP(){
   var visibles={};lista.forEach(function(f){visibles[f.id]=true;});
   FPSEL=FPSEL.filter(function(id){return visibles[id];});
   if(!lista.length){
-    body.innerHTML='<tr><td colspan="13" class="tbl-empty">Sin pedidos de '+(PROVS[prov]||prov)+
+    body.innerHTML='<tr><td colspan="14" class="tbl-empty">Sin pedidos de '+(PROVS[prov]||prov)+
       '. Usa “⬇️ Traer pedidos que faltan” para bajar las órdenes de compra ya hechas.</td></tr>';
     document.getElementById('fp-met').innerHTML='';return;
   }
@@ -4928,6 +4928,7 @@ function rFP(){
       '<td style="font-size:12px;color:var(--text2)">'+(f.fecha_ped||'—')+'</td>'+
       '<td style="font-size:12px;font-weight:700">'+(f.oc||'—')+
         (nOC[f.id]&&nOC[f.id].de>1?'<div style="font-size:10.5px;font-weight:600;color:var(--ciruela)">factura '+nOC[f.id].n+' de '+nOC[f.id].de+'</div>':'')+'</td>'+
+      ed('ped_prov',f.ped_prov,'',95)+
       ed('factura',f.factura,'',100)+
       ed('fecha_fac',f.fecha_fac,'date',125)+
       '<td style="font-size:12px;font-weight:600;color:'+(at>0?'#991B1B':'var(--text2)')+'">'+(v||'—')+'</td>'+
@@ -5071,7 +5072,7 @@ function fpOtra(id){
   var hnas=FP.filter(function(x){return x.oc&&x.oc===f.oc&&x.prov===f.prov;}).length;
   if(!confirm('Se agrega otra factura del pedido '+(f.oc||'')+'.\n\nQuedaría con '+(hnas+1)+' facturas: se acomoda junto a la de arriba y cada una se paga por separado.'))return;
   fetch('/api/facprov',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({oc:f.oc,prov:f.prov,fecha_ped:f.fecha_ped})})
+    body:JSON.stringify({oc:f.oc,ped_prov:f.ped_prov||'',prov:f.prov,fecha_ped:f.fecha_ped})})
   .then(function(r){return r.json();}).then(function(d){FP.push(d);rFP();})
   .catch(function(e){alert('No se pudo: '+e.message);});
 }
@@ -5115,10 +5116,10 @@ function fpPagar(id){
 function fpExcel(){
   var prov=fpProv();
   var lista=FP.filter(function(f){return f.prov===prov;});
-  var cab=['Fecha pedido','Pedido','Factura','Fecha factura','Vence','Monto','Abonado','Pendiente','Atraso','Estatus','Fecha de pago'];
+  var cab=['Fecha pedido','Nuestra OC','Su pedido','Factura','Fecha factura','Vence','Monto','Abonado','Pendiente','Atraso','Estatus','Fecha de pago'];
   var filas=lista.map(function(f){
     var pend=(f.monto||0)-(f.abonado||0),at=fpAtraso(f);
-    return [f.fecha_ped,f.oc,f.factura,f.fecha_fac,fpVence(f),f.monto||0,f.abonado||0,
+    return [f.fecha_ped,f.oc,f.ped_prov||'',f.factura,f.fecha_fac,fpVence(f),f.monto||0,f.abonado||0,
             Math.round(pend*100)/100,at,
             !f.factura?'falta factura':(pend<=0.5&&(f.monto||0)>0?'PAGADO':(at>0?'VENCIDA':'por pagar')),
             f.fecha_pago];
