@@ -4879,11 +4879,23 @@ function fpAtraso(f){
 function rFP(){
   var body=document.getElementById('fp-body');if(!body)return;
   var prov=fpProv();
-  var lista=FP.filter(function(f){return f.prov===prov;})
-    .sort(function(a,b){
-      var va=fpVence(a)||'9999-12-31', vb=fpVence(b)||'9999-12-31';
-      return va.localeCompare(vb)||(b.id-a.id);
+  // Servimarco parte los pedidos: una OC puede traer varias facturas. Se ordena
+  // por la más próxima a vencer de cada OC, pero las hermanas quedan juntas.
+  var porOC={},nOC={};
+  FP.filter(function(f){return f.prov===prov;}).forEach(function(f){
+    var k=f.oc||('__'+f.id);
+    (porOC[k]=porOC[k]||[]).push(f);
+  });
+  var lista=[];
+  Object.keys(porOC).map(function(k){
+    var g=porOC[k].sort(function(a,b){
+      return (fpVence(a)||'9999-12-31').localeCompare(fpVence(b)||'9999-12-31')||(a.id-b.id);
     });
+    g.forEach(function(f,i){nOC[f.id]={n:i+1,de:g.length};});
+    return {k:k,g:g,v:fpVence(g[0])||'9999-12-31',id:g[0].id};
+  }).sort(function(a,b){
+    return a.v.localeCompare(b.v)||(b.id-a.id);
+  }).forEach(function(x){lista=lista.concat(x.g);});
   // La seleccion solo vive para las facturas que siguen en pantalla
   var visibles={};lista.forEach(function(f){visibles[f.id]=true;});
   FPSEL=FPSEL.filter(function(id){return visibles[id];});
@@ -4910,10 +4922,12 @@ function rFP(){
         'style="width:'+(ancho||90)+'px;border:1px solid var(--border);border-radius:5px;padding:3px 6px;font-size:12px;background:#fff"></td>';
     };
     var selble=!pagada&&(f.monto||0)>0;
-    return '<tr style="'+bg+'">'+
+    var hno=nOC[f.id]&&nOC[f.id].de>1;   // franja ciruela a la izquierda: las de la misma OC van juntas
+    return '<tr style="'+bg+';'+(hno?'box-shadow:inset 3px 0 0 var(--ciruela)':'')+'">'+
       '<td style="text-align:center">'+(selble?'<input type="checkbox" '+(FPSEL.indexOf(f.id)>=0?'checked ':'')+'onchange="fpTog('+f.id+',this.checked)" style="width:16px;height:16px;cursor:pointer">':'')+'</td>'+
       '<td style="font-size:12px;color:var(--text2)">'+(f.fecha_ped||'—')+'</td>'+
-      '<td style="font-size:12px;font-weight:700">'+(f.oc||'—')+'</td>'+
+      '<td style="font-size:12px;font-weight:700">'+(f.oc||'—')+
+        (nOC[f.id]&&nOC[f.id].de>1?'<div style="font-size:10.5px;font-weight:600;color:var(--ciruela)">factura '+nOC[f.id].n+' de '+nOC[f.id].de+'</div>':'')+'</td>'+
       ed('factura',f.factura,'',100)+
       ed('fecha_fac',f.fecha_fac,'date',125)+
       '<td style="font-size:12px;font-weight:600;color:'+(at>0?'#991B1B':'var(--text2)')+'">'+(v||'—')+'</td>'+
@@ -4928,7 +4942,7 @@ function rFP(){
       ed('fecha_pago',f.fecha_pago,'date',125)+
       '<td style="white-space:nowrap">'+
         (!pagada&&(f.monto||0)>0?'<button class="btn btn-s btn-xs" onclick="fpPagar('+f.id+')">💸 Pagar</button> ':'')+
-        '<button class="btn btn-s btn-xs" onclick="fpOtra('+f.id+')" title="Otra factura del mismo pedido">➕</button> '+
+        '<button class="btn btn-s btn-xs" onclick="fpOtra('+f.id+')" title="Servimarco partió este pedido: agrega otra factura de la misma OC">+ factura</button> '+
         '<button class="btn btn-d btn-xs" onclick="fpBorrar('+f.id+')">🗑</button></td>'+
       '</tr>';
   }).join('');
@@ -5054,9 +5068,11 @@ function fpNueva(){
 // Otra factura del MISMO pedido (Servimarco parte los pedidos)
 function fpOtra(id){
   var f=FP.find(function(x){return x.id===id;});if(!f)return;
+  var hnas=FP.filter(function(x){return x.oc&&x.oc===f.oc&&x.prov===f.prov;}).length;
+  if(!confirm('Se agrega otra factura del pedido '+(f.oc||'')+'.\n\nQuedaría con '+(hnas+1)+' facturas: se acomoda junto a la de arriba y cada una se paga por separado.'))return;
   fetch('/api/facprov',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({oc:f.oc,prov:f.prov,fecha_ped:f.fecha_ped})})
-  .then(function(r){return r.json();}).then(function(d){FP.unshift(d);rFP();})
+  .then(function(r){return r.json();}).then(function(d){FP.push(d);rFP();})
   .catch(function(e){alert('No se pudo: '+e.message);});
 }
 
