@@ -1398,6 +1398,12 @@ tr:hover .ent-edit{opacity:1}
 <!-- ÓRDENES -->
 <div class="page" id="page-ord">
   <div class="ph"><div><div class="ph-title">Órdenes de Compra</div><div class="ph-sub">Molduras pendientes de surtir por proveedor</div><button class="btn btn-s admin-only" style="display:none" onclick="openOrdManual()">➕ Orden manual</button> <button class="btn btn-s" onclick="openInsumosSem()">🧰 Insumos de taller (consejo)</button></div></div>
+  <div style="margin:2px 0 10px">
+    <input id="ord-busca" oninput="ordBuscaResp(this.value)" onkeydown="if(event.key==='Escape')ordBuscaResp('')"
+      placeholder="🔍 ¿Ya se pidió? Escribe la moldura, la nota, la OC…"
+      style="width:100%;max-width:520px;font-size:13px;padding:7px 12px">
+    <div id="ord-resp"></div>
+  </div>
   <div class="chips">
     <div class="chip active" id="chip-ord-pend" onclick="switchOrdTab('activas',this)">Pendientes de pedir</div>
     <div class="chip" id="chip-ord-seg" onclick="switchOrdTab('seguimiento',this)">Seguimiento</div>
@@ -6024,6 +6030,87 @@ function switchOrdTab(tab, el){
   document.getElementById('ord-hist').style.display=tab==='historial'?'':'none';
   if(tab==='historial') rOrdHist();
   if(tab==='seguimiento') rOrdSeg();
+}
+// ─── ¿YA SE PIDIÓ? ────────────────────────────────────────────────────────────
+// Contesta en un renglón: dónde está esa moldura o esa nota. Busca en las
+// órdenes ya pedidas (llegó o esperando) y en lo que sigue pendiente de pedir.
+function ordBuscaResp(v){
+  var q=String(v||'').trim().toLowerCase();
+  var caja=document.getElementById('ord-busca');if(caja&&caja.value!==v)caja.value=v;
+  var box=document.getElementById('ord-resp');if(!box)return;
+  if(q.length<2){box.innerHTML='';return;}
+  var res=[];
+  // 1) en órdenes ya pedidas
+  (ORDENES||[]).forEach(function(o,ix){
+    (o.items||[]).forEach(function(it){
+      var meds=medsList(it).map(function(m){return m.m;}).join(' ');
+      var texto=[it.mol,(it.fols||[]).join(' '),meds,sucsTxt(it),o.oc,o.prov_nombre||o.prov].join(' ').toLowerCase();
+      if(texto.indexOf(q)<0)return;
+      res.push({mol:it.mol,fols:(it.fols||[]).join(', '),suc:sucsTxt(it),meds:meds,pzas:it.pzas,
+        estado:it.rec?'llegó':'esperando entrega',oc:o.oc||'',prov:o.prov_nombre||o.prov||'',fecha:o.fecha||'',orden:ix,id:o.id});
+    });
+  });
+  // 2) en lo que todavía no se pide
+  var yaPed=itemsPedidos();
+  (pedidos||[]).forEach(function(p){
+    if(p.est!=='Pendiente'||!p.items)return;
+    if(soloMira()&&p.suc!==miSuc())return;
+    (p.items||[]).forEach(function(it){
+      if(!it.mol||yaPed.has(claveItem(p.folio,it.mol)))return;
+      var med=(it.l1&&it.l2)?(it.l1+'×'+it.l2):'';
+      if([it.mol,p.folio,med,p.suc,p.cli].join(' ').toLowerCase().indexOf(q)<0)return;
+      res.push({mol:it.mol,fols:String(p.folio),suc:p.suc||'',meds:med,pzas:it.cant||1,
+        estado:'pendiente',cli:p.cli||'',folio:p.folio});
+    });
+  });
+  if(!res.length){
+    box.innerHTML='<div style="margin-top:8px;padding:10px 13px;border:1px solid var(--border);border-radius:var(--rad);font-size:13px;color:var(--text2)">'+
+      'No aparece ni en órdenes ni en pendientes de pedir. Puede ser que la nota ya se entregó, que se capturó con otro nombre de moldura, o que nunca se pidió.</div>';
+    return;
+  }
+  // pendientes primero; lo pedido, lo más reciente arriba
+  res.sort(function(a,b){
+    if((a.estado==='pendiente')!==(b.estado==='pendiente'))return a.estado==='pendiente'?-1:1;
+    return (a.orden||0)-(b.orden||0);
+  });
+  // ¿la misma moldura de la misma nota en más de una orden?
+  var veces={};
+  res.forEach(function(r){if(r.estado!=='pendiente'){var k=(r.mol+'|'+r.fols).toLowerCase();veces[k]=(veces[k]||0)+1;}});
+  var filas=res.slice(0,12).map(function(r){
+    var col=r.estado==='pendiente'?'var(--amber)':r.estado==='llegó'?'var(--green)':'var(--ciruela)';
+    var chip=r.estado==='pendiente'?'todavía no se pide':r.estado==='llegó'?'ya llegó':'esperando entrega';
+    var dup=r.estado!=='pendiente'&&veces[(r.mol+'|'+r.fols).toLowerCase()]>1;
+    var donde=r.estado==='pendiente'
+      ? 'en Pendientes de pedir'+(r.cli?' · '+r.cli:'')
+      : 'pedida el '+r.fecha+' en la '+r.oc+(r.prov?' ('+r.prov+')':'');
+    var btn=r.estado==='pendiente'
+      ? '<button class="btn btn-s btn-xs" onclick="ordIrPend(\''+String(r.mol).replace(/'/g,"")+'\')">Ver</button>'
+      : '<button class="btn btn-s btn-xs" onclick="ordIrOrden('+r.id+')">Ver orden</button>';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 13px;border-top:1px solid var(--border)">'+
+      '<div style="font-size:13px"><b>'+r.mol+'</b>'+(r.suc?' · '+r.suc:'')+(r.fols?' · nota '+r.fols:'')+(r.meds?' · '+r.meds:'')+
+      '<div style="font-size:11.5px;color:var(--text2);margin-top:1px">'+donde+
+      (dup?' <span style="color:var(--ciruela);font-weight:700">· ojo: esta moldura de esa nota está en más de una orden</span>':'')+'</div></div>'+
+      '<div style="display:flex;gap:8px;align-items:center"><span style="font-size:11.5px;font-weight:700;color:'+col+'">'+chip+'</span>'+btn+'</div></div>';
+  }).join('');
+  box.innerHTML='<div style="margin-top:8px;border:1px solid var(--border);border-radius:var(--rad);overflow:hidden">'+
+    '<div style="font-size:11.5px;color:var(--text2);padding:7px 13px;background:var(--surface2)">'+res.length+' resultado'+(res.length!==1?'s':'')+(res.length>12?' · se muestran los 12 primeros':'')+'</div>'+
+    filas+'</div>';
+}
+function ordIrOrden(id){
+  switchOrdTab('historial',document.getElementById('chip-ord-hist'));
+  setTimeout(function(){
+    var o=(ORDENES||[]).find(function(x){return x.id===id;});if(!o)return;
+    var cards=document.querySelectorAll('#ord-hist .card');
+    var ix=(ORDENES||[]).findIndex(function(x){return x.id===id;});
+    var c=cards[ix];if(!c)return;
+    c.scrollIntoView({behavior:'smooth',block:'center'});
+    var antes=c.style.boxShadow;c.style.boxShadow='0 0 0 3px var(--mant)';
+    setTimeout(function(){c.style.boxShadow=antes;},2500);
+  },120);
+}
+function ordIrPend(mol){
+  switchOrdTab('activas',document.getElementById('chip-ord-pend'));
+  ordBuscar(mol);
 }
 function rOrdHist(){
   const h=document.getElementById('ord-hist');if(!h)return;
