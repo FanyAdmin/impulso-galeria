@@ -1155,6 +1155,7 @@ def migrar_columnas():
         "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS conciliado VARCHAR(20) DEFAULT ''",
         "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS banco_ref VARCHAR(40) DEFAULT ''",
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS ant_ini FLOAT",
+        "ALTER TABLE fac_prov ADD COLUMN IF NOT EXISTS ped_prov VARCHAR(40) DEFAULT ''",
     ]:
         try:
             db.session.execute(text(stmt)); db.session.commit()
@@ -1372,6 +1373,7 @@ class FacProv(db.Model):
     __tablename__ = 'fac_prov'
     id          = db.Column(db.Integer, primary_key=True)
     oc          = db.Column(db.String(20))     # OC-0036 (o vacio si es manual)
+    ped_prov    = db.Column(db.String(40))     # el numero de pedido del proveedor
     prov        = db.Column(db.String(60))
     fecha_ped   = db.Column(db.String(20))     # cuando se pidio
     factura     = db.Column(db.String(40))
@@ -1384,7 +1386,7 @@ class FacProv(db.Model):
     nota        = db.Column(db.String(200))
 
 def fp_dict(f):
-    return {'id':f.id,'oc':f.oc or '','prov':f.prov or '','fecha_ped':f.fecha_ped or '',
+    return {'id':f.id,'oc':f.oc or '','ped_prov':f.ped_prov or '','prov':f.prov or '','fecha_ped':f.fecha_ped or '',
             'factura':f.factura or '','fecha_fac':f.fecha_fac or '','venc':f.venc or '',
             'monto':f.monto or 0,'abonado':f.abonado or 0,'fecha_pago':f.fecha_pago or '',
             'mov_id':f.mov_id,'nota':f.nota or ''}
@@ -1401,7 +1403,7 @@ def get_facprov():
 @requiere_admin
 def post_facprov():
     d = request.json or {}
-    f = FacProv(oc=d.get('oc',''), prov=d.get('prov',''), fecha_ped=d.get('fecha_ped',''),
+    f = FacProv(oc=d.get('oc',''), ped_prov=d.get('ped_prov',''), prov=d.get('prov',''), fecha_ped=d.get('fecha_ped',''),
                 factura=d.get('factura',''), fecha_fac=d.get('fecha_fac',''),
                 venc=d.get('venc',''), monto=d.get('monto',0) or 0,
                 abonado=d.get('abonado',0) or 0, fecha_pago=d.get('fecha_pago',''),
@@ -1414,7 +1416,7 @@ def post_facprov():
 def put_facprov(fid):
     f = FacProv.query.get_or_404(fid)
     d = request.json or {}
-    for c in ['oc','prov','fecha_ped','factura','fecha_fac','venc','monto','abonado','fecha_pago','mov_id','nota']:
+    for c in ['oc','ped_prov','prov','fecha_ped','factura','fecha_fac','venc','monto','abonado','fecha_pago','mov_id','nota']:
         if c in d: setattr(f, c, d[c])
     db.session.commit()
     return jsonify(fp_dict(f))
