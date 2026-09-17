@@ -4900,6 +4900,11 @@ function rFP(){
     g.forEach(function(f,i){nOC[f.id]={n:i+1,de:g.length};});
     return {k:k,g:g,v:fpVence(g[0])||'9999-12-31',id:g[0].id};
   }).sort(function(a,b){
+    // Arriba lo que ya tiene factura, por vencimiento: esa es la lista de pago.
+    // Abajo las que aún no tienen factura, ordenadas por número de OC.
+    var sa=a.v==='9999-12-31',sb=b.v==='9999-12-31';
+    if(sa!==sb)return sa?1:-1;
+    if(sa)return String(b.k).localeCompare(String(a.k),'es',{numeric:true});
     return a.v.localeCompare(b.v)||(b.id-a.id);
   }).forEach(function(x){lista=lista.concat(x.g);});
   // La seleccion solo vive para las facturas que siguen en pantalla
