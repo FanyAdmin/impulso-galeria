@@ -4903,9 +4903,10 @@ function rFP(){
     // Arriba lo que ya tiene factura, por vencimiento: esa es la lista de pago.
     // Abajo las que aún no tienen factura, ordenadas por número de OC.
     var sa=a.v==='9999-12-31',sb=b.v==='9999-12-31';
-    if(sa!==sb)return sa?1:-1;
-    if(sa)return String(b.k).localeCompare(String(a.k),'es',{numeric:true});
-    return a.v.localeCompare(b.v)||(b.id-a.id);
+    if(sa!==sb)return sa?1:-1;                       // sin factura, hasta abajo
+    var oc=String(a.k).localeCompare(String(b.k),'es',{numeric:true});  // OC-0056 antes que OC-0066
+    if(sa)return oc;
+    return a.v.localeCompare(b.v)||oc||(a.id-b.id);  // por vencimiento; si empatan, por OC
   }).forEach(function(x){lista=lista.concat(x.g);});
   // La seleccion solo vive para las facturas que siguen en pantalla
   var visibles={};lista.forEach(function(f){visibles[f.id]=true;});
