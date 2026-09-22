@@ -795,6 +795,21 @@ tr:hover .ent-edit{opacity:1}
 </div>
 </div>
 
+<div class="modal-bg" id="mod-comp" style="display:none;z-index:3000">
+<div class="modal" style="width:520px;max-width:96vw">
+  <div class="modal-hdr"><div class="modal-ttl">&#129534; Complemento de pago</div><button class="modal-x" onclick="CM('mod-comp')">&times;</button></div>
+  <div class="modal-body">
+    <div id="comp-info" style="background:var(--surface2);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--text2);margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px;align-items:flex-end">
+      <div class="field" style="flex:1;margin:0"><label>Folio del complemento</label><input id="comp-folio" placeholder="ej. C-0001"></div>
+      <div class="field" style="width:160px;margin:0"><label>Fecha de emisi&oacute;n</label><input type="date" id="comp-fecha"></div>
+    </div>
+    <div id="comp-aviso" style="margin-top:10px;font-size:11.5px;color:var(--text3)"></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-comp')">Cancelar</button><button class="btn btn-p" onclick="guardarComp()">Guardar complemento</button></div>
+</div>
+</div>
+
 <div class="modal-bg" id="mod-cargaab" style="display:none;z-index:3000">
 <div class="modal" style="width:920px;max-width:96vw">
   <div class="modal-hdr"><div class="modal-ttl">⬆️ Cargar abonos históricos</div><button class="modal-x" onclick="CM('mod-cargaab')">✕</button></div>
@@ -1906,6 +1921,17 @@ tr:hover .ent-edit{opacity:1}
     </div>
   </div>
 </div>
+<style id="fac-css">
+/* Lista de facturas continua: el mes viaja pegado arriba mientras haces scroll */
+#fac-emit-wrap{max-height:66vh;overflow-y:auto;overflow-x:auto}
+#fac-emit-wrap table.tbl thead th{position:sticky;top:0;z-index:9;background:var(--ciruela)}
+#fac-emit-wrap table.tbl tr.fac-sep>td{position:sticky;top:31px;right:auto;z-index:6;
+  background:var(--surface2);box-shadow:0 1px 0 var(--border);border-bottom:1px solid var(--border);
+  padding:7px 11px;white-space:nowrap}
+.fac-sep-mes{font-weight:800;font-size:12px;color:var(--ciruela);letter-spacing:.02em}
+.fac-sep-det{font-size:11px;color:var(--text3);font-weight:500}
+.fac-comp-row td{background:#FFFDF5}
+</style>
 <!-- FACTURACION -->
 <div class="page" id="page-fac">
   <div class="ph">
@@ -1913,7 +1939,7 @@ tr:hover .ent-edit{opacity:1}
     <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
       <input id="fac-q" placeholder="🔍 Nota, cliente, factura o RFC..." oninput="rFac()" title="Busca en TODOS los meses — el filtro de mes se ignora mientras escribes" style="width:230px;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:7px">
       <button class="btn btn-s btn-xs" id="fac-limpiar" style="display:none" onclick="limpiarFac()">✕ Limpiar</button>
-      <select id="fac-mes" onchange="rFac()" style="width:140px"></select>
+      <select id="fac-mes" onchange="facSaltarMes()" style="width:150px" title="Salta al mes dentro de la lista — ya no filtra, todos los meses se ven"></select>
       <button class="btn btn-s btn-sm" onclick="expFacXlsx()">Excel</button>
     </div>
   </div>
@@ -1934,6 +1960,17 @@ tr:hover .ent-edit{opacity:1}
     <div class="tw" style="margin:.7rem 0 0"><table class="tbl"><thead><tr><th>Factura</th><th>Cliente</th><th>Emitida</th><th style="text-align:right">Por cobrar</th><th></th></tr></thead><tbody id="fac-pc-body"></tbody></table></div>
     <div style="margin-top:8px;font-size:11px;color:var(--text3)">El saldo sale solo de las notas ligadas a cada factura. Al abonar en CxC, esta lista se actualiza sola.</div>
   </div>
+  <div class="card" id="fac-comp-card" style="display:none;border-left:4px solid var(--mant-d);border-radius:0;margin-bottom:1rem">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:baseline;gap:10px">
+        <span style="font-size:17px;font-weight:700;color:var(--text)">&#129534; Complementos pendientes</span>
+        <span style="font-size:12px;color:var(--text2)" id="fac-comp-n"></span>
+      </div>
+      <span style="font-size:13px;font-weight:600" id="fac-comp-alerta"></span>
+    </div>
+    <div class="tw" style="margin:.7rem 0 0"><table class="tbl"><thead><tr><th>Factura</th><th>Cliente</th><th>Nota</th><th>Pago recibido</th><th style="text-align:right">Monto</th><th>Se vence</th><th></th></tr></thead><tbody id="fac-comp-body"></tbody></table></div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text3)">Solo facturas <b>PPD</b>. Cada abono capturado en CxC despu&eacute;s de emitida la factura pide su complemento. El SAT da hasta el d&iacute;a 5 del mes siguiente al pago.</div>
+  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card">
       <div class="card-title">Pendientes de facturar</div>
@@ -1942,12 +1979,13 @@ tr:hover .ent-edit{opacity:1}
         <div class="field" style="flex:1;margin:0"><label>No. de Factura</label><input id="fac-num" placeholder="ej. A-0001"></div>
         <div class="field" style="flex:1;margin:0"><label>RFC Cliente</label><input id="fac-rfc" placeholder="ej. XAXX010101000"></div>
         <div class="field" style="flex:1;margin:0"><label>Fecha</label><input type="date" id="fac-fecha"></div>
+        <div class="field" style="width:135px;margin:0"><label>Forma de pago</label><select id="fac-metodo" title="PUE: se paga de una vez. PPD: van a abonar en parcialidades y cada abono lleva complemento"><option value="PUE">PUE &middot; un pago</option><option value="PPD">PPD &middot; parcialidades</option></select></div>
         <button class="btn btn-p btn-sm" onclick="emitirFactura()">Emitir</button>
       </div>
     </div>
     <div class="card">
       <div class="card-title">Facturas emitidas</div>
-      <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>No. Factura</th><th>RFC</th><th>Fecha</th><th>Pedidos</th><th>Total</th><th>Cobro</th><th></th></tr></thead><tbody id="fac-emit-body"></tbody></table></div>
+      <div class="tw" id="fac-emit-wrap" style="margin:0"><table class="tbl"><thead><tr><th>No. Factura</th><th>RFC</th><th>Fecha</th><th>Pago</th><th>Pedidos</th><th>Total</th><th>Cobro</th><th></th></tr></thead><tbody id="fac-emit-body"></tbody></table></div>
     </div>
   </div>
 </div>
@@ -10300,7 +10338,18 @@ function genRecibo(){
 
 // === FACTURACION ===
 var FACTURAS=[];
-function initFacMes(){var s=document.getElementById('fac-mes');if(!s)return;var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var h='';for(var i=0;i<12;i++)h+='<option value="'+i+'">'+M[i]+' 2026</option>';s.innerHTML=h;s.value=new Date().getMonth();var fd=document.getElementById('fac-fecha');if(fd)fd.value=todayStr();}
+var MESES_FAC=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+// El mes ya no filtra: la lista trae todos los meses seguidos con su separador.
+// El selector quedo como atajo para brincar al mes sin bajar a mano.
+function initFacMes(){var fd=document.getElementById('fac-fecha');if(fd)fd.value=todayStr();}
+function facEtiquetaMes(k){var a=k.slice(0,4),m=parseInt(k.slice(5,7),10);return (MESES_FAC[m-1]||k)+' '+a;}
+function facSaltarMes(){
+  var s=document.getElementById('fac-mes');if(!s||!s.value)return;
+  var sep=document.getElementById('fac-sep-'+s.value);
+  var wrap=document.getElementById('fac-emit-wrap');
+  if(sep&&wrap){wrap.scrollTop=Math.max(0,sep.offsetTop-wrap.offsetTop-31);}
+  s.value='';
+}
 function facSaldo(f){
   // Enlace factura↔notas: la factura está pagada cuando sus pedidos ya no deben
   let saldo=0;
@@ -10337,9 +10386,156 @@ function facCobrar(fol){
   var q=document.getElementById('cxc-q');if(q)q.value=fol||'';
   go('cxc');
 }
+// ── COMPLEMENTOS DE PAGO (facturas PPD) ──────────────────────────────────────
+// Una factura PPD se emite por el total y cada abono posterior lleva su propio
+// complemento. El complemento NO es otra factura: cuelga del abono, por eso se
+// guarda dentro de la factura (f.comp) con la llave del cobro que ampara.
+// Trabajo de administracion, no de ventas: se captura aqui, no en CxC.
+function facMetodo(f){return (f&&f.metodo)==='PPD'?'PPD':'PUE';}
+function facKeyAb(a){return (a&&a.id)?('ab'+a.id):(String(a.folio||'')+'|'+String(a.fecha||'')+'|'+(+a.monto||0));}
+function facPedDeAbono(a){
+  if(a.pedido_id){for(var i=0;i<pedidos.length;i++)if(pedidos[i].id===a.pedido_id)return pedidos[i];}
+  for(var j=0;j<pedidos.length;j++)if(pedidos[j].folio===a.folio&&(!a.suc||pedidos[j].suc===a.suc))return pedidos[j];
+  return null;
+}
+// Abonos que caen dentro de una factura PPD. Los anticipos anteriores a la
+// factura no llevan complemento: ya venian cobrados cuando se emitio.
+function facPagosPPD(f){
+  if(facMetodo(f)!=='PPD')return [];
+  var fol=f.folios||[],out=[];
+  (ABONOS||[]).forEach(function(a){
+    var p=facPedDeAbono(a);if(!p)return;
+    if(fol.indexOf(p.folio)<0)return;
+    if(String(a.fecha||'')<String(f.fecha||''))return;
+    out.push({ab:a,ped:p,key:facKeyAb(a)});
+  });
+  out.sort(function(x,y){return String(x.ab.fecha).localeCompare(String(y.ab.fecha));});
+  return out;
+}
+// Limite del SAT: dia 5 del mes siguiente a aquel en que se recibio el pago.
+function facLimiteComp(fechaPago){
+  var pz=String(fechaPago||'').slice(0,10).split('-');if(pz.length<3)return '';
+  var y=+pz[0],m=+pz[1]+1;if(m>12){m=1;y++;}
+  return y+'-'+(m<10?'0':'')+m+'-05';
+}
+function facDiasHasta(f){
+  if(!f)return 0;
+  var pz=String(f).slice(0,10).split('-');if(pz.length<3)return 0;
+  var d=new Date(+pz[0],+pz[1]-1,+pz[2]);
+  var h=new Date();h=new Date(h.getFullYear(),h.getMonth(),h.getDate());
+  return Math.round((d-h)/86400000);
+}
+function facCompsDe(f){
+  var pg=facPagosPPD(f),c=f.comp||{},hechos=0;
+  for(var i=0;i<pg.length;i++)if(c[pg[i].key]&&c[pg[i].key].folio)hechos++;
+  return {total:pg.length,hechos:hechos,faltan:pg.length-hechos};
+}
+// Los complementos y el PUE/PPD viven en la factura, asi que se guardan con
+// un PUT sobre ella. Si el servidor todavia no acepta el PUT lo decimos una
+// sola vez, sin tapar el trabajo hecho en pantalla.
+var _facPutAviso=false;
+function facGuardar(f,cambios){
+  if(!f||!f.id)return;
+  fetch('/api/facturas/'+f.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(cambios)})
+  .then(function(r){if(!r.ok)throw 0;})
+  .catch(function(){
+    if(_facPutAviso)return;_facPutAviso=true;
+    alert('El cambio quedo en pantalla pero NO se guardo en el servidor.\n\nFalta habilitar PUT /api/facturas/<id> para los campos "metodo" y "comp". Mientras tanto, lo capturado se pierde al recargar.');
+  });
+}
+function facToggleMetodo(idx){
+  var f=FACTURAS[idx];if(!f)return;
+  var nuevo=facMetodo(f)==='PUE'?'PPD':'PUE';
+  if(nuevo==='PUE'){
+    var c=facCompsDe(f);
+    if(c.hechos&&!confirm('Esta factura ya tiene '+c.hechos+' complemento(s) capturado(s).\nAl pasarla a PUE se dejan de pedir. Los datos no se borran.\n\n¿Continuar?'))return;
+  }
+  f.metodo=nuevo;
+  facGuardar(f,{metodo:nuevo});
+  logActivity('Cambio forma de pago',(f.num||'')+' → '+nuevo);
+  rFac();
+}
+var _compRef=null;
+function abrirComp(idx,key){
+  var f=FACTURAS[idx];if(!f)return;
+  var pg=facPagosPPD(f),it=null;
+  for(var i=0;i<pg.length;i++)if(pg[i].key===key)it=pg[i];
+  if(!it){alert('Ese cobro ya no existe; recarga la pagina');return;}
+  _compRef={idx:idx,key:key};
+  var lim=facLimiteComp(it.ab.fecha),dd=facDiasHasta(lim);
+  document.getElementById('comp-info').innerHTML=
+    '<b>Factura '+(f.num||'')+'</b> &middot; '+(it.ped.cli||'')+'<br>'+
+    'Nota <span class="mono">'+it.ped.folio+'</span> &middot; pago del '+(it.ab.fecha||'')+
+    ' por <b>'+fmt(+it.ab.monto||0)+'</b> ('+(it.ab.met||'')+')';
+  var av=document.getElementById('comp-aviso');
+  av.innerHTML=dd<0?'<span style="color:var(--borgona);font-weight:600">Se paso la fecha limite ('+lim+'), hace '+Math.abs(dd)+' dia(s).</span>'
+    :'Fecha limite para emitirlo: <b>'+lim+'</b> ('+dd+' dia'+(dd===1?'':'s')+').';
+  document.getElementById('comp-folio').value='';
+  document.getElementById('comp-fecha').value=todayStr();
+  OM('mod-comp');
+  setTimeout(function(){var e=document.getElementById('comp-folio');if(e)e.focus();},80);
+}
+function guardarComp(){
+  if(!_compRef)return;
+  var folio=document.getElementById('comp-folio').value.trim();
+  var fecha=document.getElementById('comp-fecha').value;
+  if(!folio||!fecha){alert('Captura el folio del complemento y su fecha');return;}
+  var f=FACTURAS[_compRef.idx];if(!f)return;
+  if(!f.comp)f.comp={};
+  f.comp[_compRef.key]={folio:folio,fecha:fecha};
+  facGuardar(f,{comp:f.comp});
+  logActivity('Registro complemento',folio+' — factura '+(f.num||''));
+  CM('mod-comp');_compRef=null;rFac();
+}
+function borrarComp(idx,key){
+  var f=FACTURAS[idx];if(!f||!f.comp||!f.comp[key])return;
+  if(!confirm('¿Quitar el complemento '+(f.comp[key].folio||'')+'? Vuelve a la lista de pendientes.'))return;
+  delete f.comp[key];
+  facGuardar(f,{comp:f.comp});
+  rFac();
+}
+// Tablero de pendientes: lo que administracion tiene que emitir hoy, sin
+// depender de que ventas avise. Lo mas viejo primero.
+function rFacComp(){
+  var card=document.getElementById('fac-comp-card');if(!card)return;
+  var rows=[];
+  for(var i=0;i<FACTURAS.length;i++){
+    var f=FACTURAS[i],pg=facPagosPPD(f),c=f.comp||{};
+    for(var j=0;j<pg.length;j++){
+      if(c[pg[j].key]&&c[pg[j].key].folio)continue;
+      rows.push({idx:i,f:f,it:pg[j],lim:facLimiteComp(pg[j].ab.fecha)});
+    }
+  }
+  if(!rows.length){card.style.display='none';return;}
+  card.style.display='';
+  rows.sort(function(a,b){return String(a.it.ab.fecha).localeCompare(String(b.it.ab.fecha));});
+  var venc=0,proximos=0,h='';
+  for(var k=0;k<rows.length;k++){
+    var r=rows[k],dd=facDiasHasta(r.lim);
+    var col,txt;
+    if(dd<0){col=['var(--borgona-l)','var(--borgona)'];txt='vencido hace '+Math.abs(dd)+'d';venc++;}
+    else if(dd<=5){col=['var(--mant-l)','var(--mant-d)'];txt=(dd===0?'hoy':'en '+dd+'d');proximos++;}
+    else {col=['var(--surface2)','var(--text2)'];txt='en '+dd+'d';}
+    h+='<tr><td class="mono" style="font-weight:700">'+(r.f.num||'')+'</td>'+
+      '<td>'+(r.it.ped.cli||'')+'</td>'+
+      '<td class="mono" style="font-size:11px;color:var(--text2)">'+r.it.ped.folio+'</td>'+
+      '<td style="color:var(--text2);font-size:12px">'+(r.it.ab.fecha||'')+
+        '<br><span style="font-size:10px;color:var(--text3)">'+(r.it.ab.met||'')+'</span></td>'+
+      '<td class="mono" style="text-align:right;font-weight:700">'+fmt(+r.it.ab.monto||0)+'</td>'+
+      '<td style="font-size:11.5px;color:var(--text2)">'+r.lim+
+        '<br><span style="display:inline-block;margin-top:3px;background:'+col[0]+';color:'+col[1]+
+        ';font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px">'+txt+'</span></td>'+
+      '<td style="text-align:right"><button class="btn btn-p btn-xs" onclick="abrirComp('+r.idx+',\''+r.it.key+'\')">+ Complemento</button></td></tr>';
+  }
+  document.getElementById('fac-comp-body').innerHTML=h;
+  document.getElementById('fac-comp-n').textContent=rows.length+' pago'+(rows.length===1?'':'s')+' sin complemento';
+  var al=document.getElementById('fac-comp-alerta');
+  if(venc)al.innerHTML='<span style="color:var(--borgona)">'+venc+' fuera de tiempo</span>';
+  else if(proximos)al.innerHTML='<span style="color:var(--mant-d)">'+proximos+' por vencer</span>';
+  else al.innerHTML='<span style="color:var(--text3);font-weight:500">todos en tiempo</span>';
+}
 function limpiarFac(){var q=document.getElementById('fac-q');if(q)q.value='';rFac();}
 function rFac(){
-  var mes=parseInt(document.getElementById('fac-mes').value);
   // La búsqueda ignora el mes a propósito: si buscas una nota es justamente
   // porque no sabes de qué mes es. El selector de mes vuelve a mandar al borrarla.
   var qEl=document.getElementById('fac-q');
@@ -10397,14 +10593,68 @@ function rFac(){
       return false;
     });
   } else {
-    facsMes=FACTURAS.filter(function(f){return new Date(f.fecha).getMonth()===mes;});
+    facsMes=FACTURAS.slice();
   }
-  for(var i=0;i<facsMes.length;i++){var f=facsMes[i],idx=FACTURAS.indexOf(f);
-    var saldo=facSaldo(f);
-    var cobro=saldo>0.5?'<span class="badge by">🕗 Por cobrar '+fmt(saldo)+'</span>':'<span class="badge bg">✔ Pagada</span>';
-    var folTxt=(f.folios||[]).map(function(fo){return facMarca(fo,q);}).join(', ');
-    eh+='<tr><td class="mono" style="font-weight:600">'+facMarca(f.num,q)+'</td><td style="color:var(--text2)">'+facMarca(f.rfc,q)+'</td><td style="color:var(--text2)">'+f.fecha+'</td><td style="font-size:11px;color:var(--text2)">'+folTxt+'</td><td class="mono">'+fmt(f.total)+'</td><td>'+cobro+'</td><td><button class="btn btn-d btn-xs" onclick="delFac('+idx+')">&#128465;</button></td></tr>';}
-  document.getElementById('fac-emit-body').innerHTML=eh||'<tr><td colspan="7" class="tbl-empty">'+(q?'Ninguna factura contiene «'+qRaw+'»':'Sin facturas emitidas en este mes')+'</td></tr>';
+  // Todos los meses de corrido, en el orden en que se fueron ingresando, con
+  // una barra de mes que se queda pegada arriba al hacer scroll.
+  var grupos=[],mapG={};
+  for(var i=0;i<facsMes.length;i++){
+    var f=facsMes[i];
+    var kMes=String(f.fecha||'').slice(0,7)||'0000-00';
+    if(!mapG[kMes]){mapG[kMes]={k:kMes,items:[],tot:0};grupos.push(mapG[kMes]);}
+    mapG[kMes].items.push(f);mapG[kMes].tot+=(+f.total||0);
+  }
+  grupos.sort(function(a,b){return b.k.localeCompare(a.k);});
+  for(var g=0;g<grupos.length;g++){
+    var G=grupos[g];
+    eh+='<tr class="fac-sep" id="fac-sep-'+G.k+'"><td colspan="8">'+
+      '<span class="fac-sep-mes">'+facEtiquetaMes(G.k)+'</span>'+
+      '<span class="fac-sep-det"> &nbsp;&middot;&nbsp; '+G.items.length+' factura'+(G.items.length===1?'':'s')+
+      ' &nbsp;&middot;&nbsp; facturado '+fmt(G.tot)+'</span></td></tr>';
+    for(var i=0;i<G.items.length;i++){
+      var f=G.items[i],idx=FACTURAS.indexOf(f);
+      var saldo=facSaldo(f);
+      var cobro=saldo>0.5?'<span class="badge by">🕗 Por cobrar '+fmt(saldo)+'</span>':'<span class="badge bg">✔ Pagada</span>';
+      var folTxt=(f.folios||[]).map(function(fo){return facMarca(fo,q);}).join(', ');
+      var mt=facMetodo(f),pago;
+      if(mt==='PUE'){
+        pago='<span class="badge bg" style="cursor:pointer" title="Un solo pago, sin complementos. Clic para pasarla a PPD" onclick="facToggleMetodo('+idx+')">PUE</span>';
+      } else {
+        var cc=facCompsDe(f);
+        var est=cc.total?(cc.faltan?'<span style="color:var(--borgona);font-weight:700">'+cc.hechos+'/'+cc.total+'</span>':cc.hechos+'/'+cc.total):'0/0';
+        pago='<span class="badge by" style="cursor:pointer" title="Parcialidades: cada abono lleva complemento. Clic para pasarla a PUE" onclick="facToggleMetodo('+idx+')">PPD</span>'+
+          '<br><span style="font-size:10px;color:var(--text3)">'+est+' compl.</span>';
+      }
+      eh+='<tr><td class="mono" style="font-weight:600">'+facMarca(f.num,q)+'</td>'+
+        '<td style="color:var(--text2)">'+facMarca(f.rfc,q)+'</td>'+
+        '<td style="color:var(--text2)">'+f.fecha+'</td>'+
+        '<td>'+pago+'</td>'+
+        '<td style="font-size:11px;color:var(--text2)">'+folTxt+'</td>'+
+        '<td class="mono">'+fmt(f.total)+'</td><td>'+cobro+'</td>'+
+        '<td><button class="btn btn-d btn-xs" onclick="delFac('+idx+')">&#128465;</button></td></tr>';
+      // Complementos ya emitidos: renglon chico debajo de su factura
+      if(mt==='PPD'&&f.comp){
+        var pgs=facPagosPPD(f);
+        for(var z=0;z<pgs.length;z++){
+          var cRec=f.comp[pgs[z].key];
+          if(!cRec||!cRec.folio)continue;
+          eh+='<tr class="fac-comp-row"><td></td><td colspan="6" style="font-size:11.5px;color:var(--text2)">'+
+            '\u21b3 Complemento <b class="mono">'+cRec.folio+'</b> del '+cRec.fecha+
+            ' &middot; pago del '+(pgs[z].ab.fecha||'')+' por '+fmt(+pgs[z].ab.monto||0)+'</td>'+
+            '<td><button class="btn btn-d btn-xs" title="Quitar complemento" onclick="borrarComp('+idx+',\''+pgs[z].key+'\')">&#128465;</button></td></tr>';
+        }
+      }
+    }
+  }
+  document.getElementById('fac-emit-body').innerHTML=eh||'<tr><td colspan="8" class="tbl-empty">'+(q?'Ninguna factura contiene «'+qRaw+'»':'Sin facturas emitidas')+'</td></tr>';
+  // El selector de mes se rearma con los meses que existen, como atajo
+  var selM=document.getElementById('fac-mes');
+  if(selM){
+    var oh='<option value="">Ir a mes…</option>';
+    for(var g2=0;g2<grupos.length;g2++)oh+='<option value="'+grupos[g2].k+'">'+facEtiquetaMes(grupos[g2].k)+'</option>';
+    selM.innerHTML=oh;selM.value='';
+  }
+  rFacComp();
   // Aviso: que quede claro que el mes dejó de mandar
   var av=document.getElementById('fac-aviso');
   if(av){
@@ -10423,15 +10673,18 @@ function emitirFactura(){
   for(var i=0;i<cbs.length;i++){var folio=cbs[i].value;folios.push(folio);for(var j=0;j<pedidos.length;j++){if(pedidos[j].folio===folio){pedidos[j].factura_num=num;total+=pedidos[j].total;
     if(pedidos[j].id)fetch('/api/pedidos/'+pedidos[j].id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({factura_num:num})});
     break;}}}
-  var reg={num:num,rfc:rfc,fecha:fecha,folios:folios,total:total};
+  var mEl=document.getElementById('fac-metodo');
+  var metodo=mEl?(mEl.value||'PUE'):'PUE';
+  var reg={num:num,rfc:rfc,fecha:fecha,folios:folios,total:total,metodo:metodo,comp:{}};
   fetch('/api/facturas',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(reg)})
   .then(function(r){return r.json();}).then(function(d){
     FACTURAS.unshift(d&&d.id?d:reg);
-    logActivity('Emitió factura',num+' — '+folios.length+' pedido(s) — '+fmt(total));
+    logActivity('Emitió factura',num+' — '+metodo+' — '+folios.length+' pedido(s) — '+fmt(total));
     rFac();
     alert('Factura '+num+' registrada con '+folios.length+' pedido(s) por '+fmt(total));
   }).catch(function(){FACTURAS.unshift(reg);rFac();alert('Factura registrada LOCALMENTE — sin conexión al servidor, se perderá al recargar');});
   document.getElementById('fac-num').value='';document.getElementById('fac-rfc').value='';
+  if(mEl)mEl.value='PUE';
   var faa=document.getElementById('fac-all');if(faa)faa.checked=false;
 }
 function delFac(idx){
