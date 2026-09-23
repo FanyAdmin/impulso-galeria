@@ -703,7 +703,7 @@ tr:hover .ent-edit{opacity:1}
 
 <div class="modal-bg" id="mod-detped" style="display:none">
 <div class="modal" style="width:620px;max-width:94vw">
-  <div class="modal-hdr"><div class="modal-ttl" id="detped-ttl">Detalles del pedido</div><button class="modal-x" onclick="CM('mod-detped')">✕</button></div>
+  <div class="modal-hdr"><div class="modal-ttl" id="detped-ttl">Detalles del pedido</div><span style="font-size:11px;color:var(--text3);font-weight:600;background:var(--surface2);padding:3px 9px;border-radius:20px;margin-left:10px">👁 Solo lectura</span><button class="modal-x" onclick="CM('mod-detped')">✕</button></div>
   <div class="modal-body" id="detped-body" style="max-height:70vh;overflow-y:auto"></div>
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-detped')">Cerrar</button></div>
 </div>
@@ -2789,6 +2789,37 @@ function limpiarFiltrosPed(){
   document.getElementById('ped-q').value='';
   pedPage=0;rPed();
 }
+// ── TELEFONO DEL CLIENTE EN LA LISTA DE NOTAS ────────────────────────────────
+// El numero ya se captura en cada nota, solo no se veia. Va debajo del nombre
+// para no ensanchar mas la tabla, y al picarle abre WhatsApp con ese cliente.
+// Mexico lleva 52 adelante; si el numero ya lo trae no se duplica.
+function telDigitos(t){return String(t||'').replace(/[^0-9]/g,'');}
+function telWA(t){
+  var raw=String(t||''),d=telDigitos(t);
+  // Si viene con "+" el numero ya trae su clave de pais: se respeta tal cual.
+  // Asi un +1 de Estados Unidos no se confunde con el viejo "1 442..." de aqui.
+  if(raw.indexOf('+')>=0)return d.length>=10?d:'';
+  if(d.length===10)return '52'+d;                              // 4421234567
+  if(d.length===11&&d.charAt(0)==='1')return '52'+d.slice(1);  // 1 442... (formato viejo)
+  if(d.length===12&&d.slice(0,2)==='52')return d;              // 52442...
+  if(d.length===13&&d.slice(0,3)==='521')return d;             // 521442...
+  return d.length>=10?d:'';
+}
+function telBonito(t){
+  var d=telDigitos(t),n=d.length>10?d.slice(-10):d;
+  return n.length===10?(n.slice(0,3)+' '+n.slice(3,6)+' '+n.slice(6)):String(t||'');
+}
+function celTel(p){
+  if(!p||!telDigitos(p.tel))
+    return '<span style="font-size:10.5px;color:var(--text3)">sin tel\u00e9fono</span>';
+  var wa=telWA(p.tel),txt=telBonito(p.tel);
+  if(!wa)return '<span style="font-size:11px;color:var(--text2)">'+txt+'</span>';
+  var cli=String(p.cli||'').replace(/["<>]/g,'');
+  return '<a href="https://wa.me/'+wa+'" target="_blank" rel="noopener" '+
+    'title="Abrir WhatsApp con '+cli+'" '+
+    'style="font-size:11px;color:var(--text2);text-decoration:none;white-space:nowrap">'+
+    '\uD83D\uDCAC '+txt+'</a>';
+}
 function rPed(f){
   if(f!==undefined){pedFilter=f;pedPage=0;}
   try{pintarAvisoPagado();}catch(e){}
@@ -2810,10 +2841,10 @@ function rPed(f){
     const tvBtn=`<button class="btn btn-s btn-xs" onclick="toggleTV(${idx})" style="padding:1px 5px;font-size:10px" title="Cambiar tipo">&#8644;</button>`;
     const tpB=p.tipo_prod==='arte'?'<span class="badge" style="font-size:10px;background:var(--red-l);color:#9D174D">🎨 Arte</span>':'<span class="badge bgr" style="font-size:10px">🖼️</span>';
     const tpBtn=`<button class="btn btn-s btn-xs" onclick="toggleTP(${idx})" style="padding:1px 5px;font-size:10px" title="Marcos/Arte">&#8644;</button>`;
-    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}</td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}<br>${tpB} ${tpBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
+    return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}<div style="margin-top:2px">${celTel(p)}</div></td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}<br>${tpB} ${tpBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
-      <td style="color:var(--text2);font-size:12px">${colEntrega(p)}</td><td>${cxcCancelada(p)?'<span class="badge" style="background:#FEE2E2;color:#991B1B">🚫 Cancelada</span>':badge}</td><td>${btn}</td><td><button onclick="ticketPedido(pedidos[${idx}])" title="Imprimir nota (3 copias)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🧾</button><button onclick="insumosPed(${idx})" title="Insumos que ocupa este pedido" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">📋</button>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?(cxcCancelada(p)?`<button onclick="cxcReactivar(${idx})" title="Reactivar la nota" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">↩️</button>`:`<button onclick="cxcCancelar(${idx})" title="Cancelar la nota — conserva el folio y el motivo" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🚫</button>`)+`<button onclick="delPed(${idx})" title="Borrar — solo si fue error de captura" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
+      <td style="color:var(--text2);font-size:12px">${colEntrega(p)}</td><td>${cxcCancelada(p)?'<span class="badge" style="background:#FEE2E2;color:#991B1B">🚫 Cancelada</span>':badge}</td><td>${btn}</td><td><button onclick="ticketPedido(pedidos[${idx}])" title="Imprimir nota (3 copias)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🧾</button><button onclick="verDetallesPed(${idx})" title="Ver el pedido completo (solo lectura)" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">👁</button>${USERS.find(x=>x.key===CU)?.role==='owner'?`<button onclick="editPed(${idx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button>`:''}${(USERS.find(x=>x.key===CU)?.role==='admin'||USERS.find(x=>x.key===CU)?.role==='owner')?(cxcCancelada(p)?`<button onclick="cxcReactivar(${idx})" title="Reactivar la nota" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">↩️</button>`:`<button onclick="cxcCancelar(${idx})" title="Cancelar la nota — conserva el folio y el motivo" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🚫</button>`)+`<button onclick="delPed(${idx})" title="Borrar — solo si fue error de captura" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:''}</td></tr>`;
   }).join('');
   document.getElementById('p-pag').innerHTML=total>1?
     `<span style="margin-right:4px;color:var(--text2)">Pág ${pedPage+1} de ${total} · ${list.length} pedidos</span>
@@ -6281,73 +6312,6 @@ function printInsumosSem(){
   w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Insumos de taller</title><style>body{font-family:Calibri,sans-serif;padding:20px;font-size:13px;color:#1a1a1a}:root{--text2:#555;--text3:#888}</style></head><body><h2 style="color:#1A5C3A;margin:0">🧰 Insumos de taller</h2><div style="color:#777;font-size:12px;margin:2px 0 12px">Pedidos del '+d1+' al '+d2+'</div>'+document.getElementById('ins-body').innerHTML+'<script>window.onload=()=>window.print();<\/script></body></html>');
   w.document.close();
 }
-function insumosPed(idx){
-  const p=pedidos[idx];if(!p)return;
-  const items=p.items||[];
-  if(!items.length){alert('Este pedido no tiene artículos detallados (pedido histórico o concepto libre sin medidas).');return;}
-  const mlLin=it=>{ // metros lineales de moldura: perímetro + desperdicio del catálogo
-    if(!it.l1||!it.l2)return 0;
-    const per=((+it.l1/100)+(+it.l2/100))*2;
-    const base=typeof molBase==='function'?molBase(it.mol):it.mol;
-    const m=_MD.find(x=>x.n===base||x.n===it.mol);
-    const desp=m?(+m.d||0):0;
-    return (per+desp)*(it.q||1);
-  };
-  const med=it=>it.l1&&it.l2?(it.l1+'×'+it.l2+' cm'):'';
-  // Por artículo + acumulados
-  const acc={mold:{},vid:{},ml:{},otros:{}};
-  const add=(bucket,clave,det)=>{if(!acc[bucket][clave])acc[bucket][clave]=[];acc[bucket][clave].push(det);};
-  let porArt='';
-  items.forEach(it=>{
-    const q=it.q||1;
-    const lineas=[];
-    if(it.mol&&!it.esServicio&&it.l1&&it.l2){
-      const lin=mlLin(it);
-      lineas.push('Moldura <b>'+it.mol+'</b>: <b>'+lin.toFixed(2)+' m lineales</b> (incluye desperdicio)');
-      add('mold',it.mol,{med:med(it),q:q,lin:lin});
-    }else if(it.esServicio){
-      lineas.push('<span style="color:var(--text3)">Concepto libre / obra — sin materiales de taller</span>');
-    }
-    (it.en||[]).forEach(ex=>{
-      if(ex==='Regalo')return;
-      const exL=ex.toLowerCase();
-      if(exL.startsWith('vid')||exL.startsWith('v normal')||exL.startsWith('/2')){
-        lineas.push(ex+': corte de <b>'+med(it)+'</b>'+(q>1?' ×'+q:''));
-        add('vid',ex.split(' ').slice(0,2).join(' '),{med:med(it),q:q});
-      }else if(exL.startsWith('ml')||exL.startsWith('2ml')){
-        lineas.push('María Luisa <b>'+ex.replace(/^2?ml\s*/i,'')+'</b>'+(exL.startsWith('2ml')?' (doble)':'')+': para <b>'+med(it)+'</b>'+(q>1?' ×'+q:''));
-        add('ml',ex,{med:med(it),q:q});
-      }else{
-        lineas.push(ex+': <b>'+med(it)+'</b>'+(q>1?' ×'+q:''));
-        add('otros',ex,{med:med(it),q:q});
-      }
-    });
-    if(!it.esServicio){
-      // Siempre: emplaye por pieza terminada
-      add('otros','Emplaye / empaque',{med:med(it),q:q});
-    }
-    porArt+='<div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:8px"><div style="font-weight:700;margin-bottom:3px">'+(it.mol||'—')+' '+(med(it)?'· '+med(it):'')+(q>1?' · ×'+q:'')+'</div>'+(lineas.length?lineas.map(l=>'<div style="font-size:12px;padding:1px 0">• '+l+'</div>').join(''):'<div style="font-size:12px;color:var(--text3)">Sin extras</div>')+'</div>';
-  });
-  // Resumen acumulado
-  const bloque=(tit,obj,fm)=>{
-    const ks=Object.keys(obj);if(!ks.length)return '';
-    return '<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:10px 0 4px">'+tit+'</div>'+ks.map(k=>'<div style="font-size:12.5px;padding:2px 0">'+fm(k,obj[k])+'</div>').join('');
-  };
-  let resumen='';
-  resumen+=bloque('🪵 Moldura (pedir/cortar)',acc.mold,(k,v)=>{const tot=v.reduce((s,x)=>s+x.lin,0);return '<b>'+k+'</b> → <b>'+tot.toFixed(2)+' m lineales</b> ('+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')).join(', ')+')';});
-  resumen+=bloque('🔲 Vidrios (cortes)',acc.vid,(k,v)=>'<b>'+k+'</b> → '+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')).join(', '));
-  resumen+=bloque('🎨 María Luisa',acc.ml,(k,v)=>'<b>'+k+'</b> → '+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')).join(', '));
-  resumen+=bloque('📦 Otros insumos',acc.otros,(k,v)=>'<b>'+k+'</b> → '+v.map(x=>x.med+(x.q>1?' ×'+x.q:'')).join(', '));
-  const w=window.open('','_blank','width=560,height=720');
-  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Insumos '+(p.folio||'')+'</title><style>body{font-family:Calibri,\'Segoe UI\',sans-serif;padding:18px;color:#1a1a1a;font-size:13px}:root{--border:#ddd;--text2:#555;--text3:#888}@media print{button{display:none}}</style></head><body>'+
-    '<div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0;color:#1A5C3A">📋 Insumos · Nota '+(p.folio||'')+'</h2><button onclick="window.print()" style="padding:6px 12px;cursor:pointer">🖨️ Imprimir</button></div>'+
-    '<div style="color:#777;font-size:12px;margin:2px 0 12px">'+(p.cli||'')+' · '+(p.suc||'')+' · '+(p.fecha||'')+(p.entrega?' · entrega: '+p.entrega:'')+'</div>'+
-    '<div style="background:var(--green-l);border:1px solid #1A5C3A;border-radius:8px;padding:8px 12px;margin-bottom:12px"><b>RESUMEN — lo que vas a ocupar:</b>'+(resumen||'<div style="color:#888">Sin materiales calculables</div>')+'</div>'+
-    '<div style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Detalle por artículo</div>'+porArt+
-    '<div style="font-size:11px;color:#999;margin-top:8px">Consejo generado de la nota: metros lineales = perímetro + desperdicio del catálogo. Verifica contra la pieza física antes de cortar.</div>'+
-    '</body></html>');
-  w.document.close();
-}
 function ticketPedido(p){
   if(!p)return;
   const items=p.items||[];
@@ -6539,6 +6503,17 @@ function verDetallesPed(pi){
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Fecha del pedido</div><div>${p.fecha||'—'}</div></div>
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Entrega estimada</div><div style="font-weight:600">${p.entrega||'—'}</div></div>
       <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Casillero</div><div style="font-weight:700;font-size:16px">${p.casillero?'📦 '+p.casillero:'—'}</div></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--surface2);border-radius:8px;padding:10px 12px;margin-bottom:12px">
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Total</div><div class="mono" style="font-weight:700">${fmt(p.total)}</div></div>
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Pagado</div><div class="mono">${fmt(p.ant)}</div></div>
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Restante</div><div class="mono" style="${p.rest>0?'color:var(--amber);font-weight:700':''}">${fmt(p.rest)}</div></div>
+      <div><div style="font-size:10px;color:var(--text3);text-transform:uppercase;font-weight:600">Método</div><div>${p.met||'—'}</div></div>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        ${p.tipo_venta==='factura'?'<span class="badge bb">📄 Factura</span>':'<span class="badge bgr">Gral</span>'}
+        ${p.factura_num?'<span style="font-size:11px;color:var(--text2)">'+p.factura_num+'</span>':''}
+        ${p.est==='Entregado'?'<span class="badge bg">Entregado</span>':'<span class="badge by">Pendiente</span>'}
+      </div>
     </div>
     ${p.obs?`<div style="background:var(--surface2);border-radius:8px;padding:9px 12px;font-size:12px;margin-bottom:12px"><strong>Observaciones:</strong> ${p.obs}</div>`:''}
     <div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Moldura / Concepto</th><th style="text-align:center">Medidas</th><th style="text-align:center">Cant.</th><th>Extras</th></tr></thead><tbody>${filas}</tbody></table></div>`;
