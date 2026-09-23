@@ -656,10 +656,26 @@ class Factura(db.Model):
     fecha  = db.Column(db.String(20))
     folios = db.Column(db.Text)          # JSON: lista de folios
     total  = db.Column(db.Float, default=0)
+    # Forma de pago del CFDI. PUE = se paga de una vez y no lleva complementos.
+    # PPD = van a abonar en parcialidades y CADA abono posterior necesita su
+    # complemento de pago. Las facturas viejas llegan sin dato: se tratan como
+    # PUE para que no empiecen pidiendo complementos que no les tocan.
+    metodo = db.Column(db.String(4), default='PUE')
+    # Complementos emitidos, JSON { llave_del_abono: {folio, fecha} }.
+    # Cuelgan del abono que amparan, no son otra factura: por eso viven aqui
+    # y no como registro aparte.
+    comp   = db.Column(db.Text)
 
 def fac_dict(f):
+    try:
+        comp = json.loads(f.comp) if f.comp else {}
+        if not isinstance(comp, dict):
+            comp = {}
+    except Exception:
+        comp = {}
     return {'id':f.id,'num':f.num,'rfc':f.rfc,'fecha':f.fecha,
-            'folios':json.loads(f.folios) if f.folios else [],'total':f.total}
+            'folios':json.loads(f.folios) if f.folios else [],'total':f.total,
+            'metodo':(f.metodo or 'PUE'),'comp':comp}
 
 @app.route('/api/facturas', methods=['GET'])
 @requiere_login
@@ -672,11 +688,52 @@ def crear_factura():
     d = request.json or {}
     if not d.get('num'):
         return jsonify({'error': 'No. de factura requerido'}), 400
+    metodo = 'PPD' if str(d.get('metodo','')).upper() == 'PPD' else 'PUE'
     f = Factura(num=d.get('num'), rfc=d.get('rfc',''), fecha=d.get('fecha',''),
-                folios=json.dumps(d.get('folios',[])), total=d.get('total',0))
+                folios=json.dumps(d.get('folios',[])), total=d.get('total',0),
+                metodo=metodo, comp=json.dumps(d.get('comp') or {}))
     db.session.add(f)
     db.session.commit()
     return jsonify(fac_dict(f)), 201
+
+@app.route('/api/facturas/<int:fid>', methods=['PUT'])
+@requiere_login
+def editar_factura(fid):
+    """Actualiza la forma de pago y los complementos de una factura ya emitida.
+
+    Solo toca los campos que vengan en el cuerpo: mandar 'comp' sin 'metodo'
+    no borra el metodo, y al reves igual. 'comp' se manda COMPLETO (el front
+    guarda el objeto entero), asi quitar un complemento es mandarlo sin el.
+    """
+    f = Factura.query.get_or_404(fid)
+    d = request.json or {}
+
+    if 'metodo' in d:
+        f.metodo = 'PPD' if str(d.get('metodo','')).upper() == 'PPD' else 'PUE'
+
+    if 'comp' in d:
+        c = d.get('comp') or {}
+        if not isinstance(c, dict):
+            return jsonify({'error': 'comp debe ser un objeto'}), 400
+        limpio = {}
+        for k, v in c.items():
+            if not isinstance(v, dict):
+                continue
+            folio = str(v.get('folio','')).strip()
+            if not folio:      # sin folio no es complemento, es renglon vacio
+                continue
+            limpio[str(k)] = {'folio': folio, 'fecha': str(v.get('fecha','')).strip()}
+        f.comp = json.dumps(limpio)
+
+    # Por si algun dia se corrige un dato de captura de la factura misma
+    for campo in ['num','rfc','fecha','total']:
+        if campo in d:
+            setattr(f, campo, d.get(campo))
+    if 'folios' in d:
+        f.folios = json.dumps(d.get('folios') or [])
+
+    db.session.commit()
+    return jsonify(fac_dict(f))
 
 @app.route('/api/facturas/<int:fid>', methods=['DELETE'])
 @requiere_login
@@ -1156,6 +1213,8 @@ def migrar_columnas():
         "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS banco_ref VARCHAR(40) DEFAULT ''",
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS ant_ini FLOAT",
         "ALTER TABLE fac_prov ADD COLUMN IF NOT EXISTS ped_prov VARCHAR(40) DEFAULT ''",
+        "ALTER TABLE facturas ADD COLUMN IF NOT EXISTS metodo VARCHAR(4) DEFAULT 'PUE'",
+        "ALTER TABLE facturas ADD COLUMN IF NOT EXISTS comp TEXT",
     ]:
         try:
             db.session.execute(text(stmt)); db.session.commit()
