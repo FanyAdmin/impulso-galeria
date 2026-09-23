@@ -8969,17 +8969,32 @@ function banInitCta(){
 // tu banco pero no es tu venta, así que el Estado de Resultados no lo cuenta —
 // y por eso nadie lo vigila. Si entra más de lo que sale, traes dinero ajeno;
 // si sale más, pusiste de tu bolsa. Las dos cosas hay que saberlas.
+// Manda el TIPO del movimiento, no la categoria. Antes se clasificaba solo por
+// el nombre de la categoria: un movimiento capturado como Salida pero con la
+// categoria "Cobro por terceros" se sumaba como si hubiera entrado dinero, y
+// ademas faltaba del lado de las devoluciones, asi que el saldo se iba al doble.
+// Lo que de verdad dice si el dinero entro o salio es el tipo.
 function puenteTerceros(anio){
-  var ent=[],sal=[];
+  var ent=[],sal=[],raros=[];
   (movs||[]).forEach(function(m){
     var f=String(m.fecha||'').slice(0,10);
     if(anio&&f.slice(0,4)!==String(anio))return;
+    if(!esPuenteC(m.concepto))return;
+    var t=String(m.tipo||'').toLowerCase();
     var c=(m.concepto||'').trim();
-    if(c===PUENTE_IN)ent.push(m);
-    else if(c===PUENTE_OUT)sal.push(m);
+    if(t.indexOf('entrada')>=0){
+      ent.push(m);
+      if(c!==PUENTE_IN)raros.push(m);      // entro dinero pero dice "devolucion"
+    } else if(t.indexOf('salida')>=0||t.indexOf('retiro')>=0){
+      sal.push(m);
+      if(c!==PUENTE_OUT)raros.push(m);     // salio dinero pero dice "cobro"
+    } else {
+      raros.push(m);                       // traspaso u otro: no cuenta de ningun lado
+    }
   });
   var sm=function(a){return a.reduce(function(x,m){return x+(+m.monto||0);},0);};
-  return {ent:ent,sal:sal,tEnt:sm(ent),tSal:sm(sal),saldo:Math.round((sm(ent)-sm(sal))*100)/100};
+  return {ent:ent,sal:sal,raros:raros,tEnt:sm(ent),tSal:sm(sal),
+          saldo:Math.round((sm(ent)-sm(sal))*100)/100};
 }
 function puenteHTML(){
   var anio=(document.getElementById('er-yr')&&document.getElementById('er-yr').value)||String(new Date().getFullYear());
@@ -8993,6 +9008,16 @@ function puenteHTML(){
     var g={};arr.forEach(function(m){var k=String(m.fecha).slice(0,7);g[k]=(g[k]||0)+(+m.monto||0);});
     return g;
   };
+  var aviso='';
+  if(p.raros&&p.raros.length){
+    var lst=p.raros.slice(0,6).map(function(m){
+      return (m.fecha||'')+' \u00b7 '+(m.tipo||'')+' \u00b7 '+fmt(+m.monto||0)+' \u00b7 '+(m.desc||'').slice(0,34);
+    }).join('<br>');
+    aviso='<div style="margin:0 15px 12px;background:#FEF2F2;border:1.5px solid #FCA5A5;border-radius:9px;padding:10px 13px;font-size:11.5px;color:#991B1B">'+
+      '<b>\u26a0\ufe0f '+p.raros.length+' movimiento'+(p.raros.length===1?'':'s')+' con la categor\u00eda al rev\u00e9s.</b> '+
+      'Se est\u00e1'+(p.raros.length===1?'':'n')+' contando por su tipo (que es lo correcto), pero conviene corregirle'+(p.raros.length===1?'':'s')+' la categor\u00eda:<br>'+
+      '<span style="color:#7F1D1D">'+lst+(p.raros.length>6?'<br>\u2026 y '+(p.raros.length-6)+' m\u00e1s':'')+'</span></div>';
+  }
   var ge=meses(p.ent),gs=meses(p.sal);
   var ks=Object.keys(ge).concat(Object.keys(gs)).filter(function(v,i,a){return a.indexOf(v)===i;}).sort();
   var acum=0;
@@ -9007,6 +9032,7 @@ function puenteHTML(){
       '<div style="font-size:13px;font-weight:700">🔁 Puente de terceros · '+anio+'</div>'+
       '<div style="font-size:11.5px;color:var(--text3)">Cobros que haces por alguien más. Pasan por tu banco pero no son tu venta, así que no aparecen en el Estado de Resultados.</div>'+
     '</div>'+
+    aviso+
     '<div style="padding:12px 15px;display:flex;gap:22px;flex-wrap:wrap;align-items:baseline">'+
       '<div><div style="font-size:11px;color:var(--text3)">Cobraste por ellos</div><b class="mono" style="font-size:16px;color:var(--green)">'+fmt(p.tEnt)+'</b> <span style="font-size:11px;color:var(--text3)">'+p.ent.length+' mov.</span></div>'+
       '<div><div style="font-size:11px;color:var(--text3)">Les devolviste</div><b class="mono" style="font-size:16px;color:var(--red)">'+fmt(p.tSal)+'</b> <span style="font-size:11px;color:var(--text3)">'+p.sal.length+' mov.</span></div>'+
