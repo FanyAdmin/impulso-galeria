@@ -165,6 +165,13 @@ body.riel-on .content{margin-right:300px}
 /* Renglón seleccionado: gris claro tipo Excel. El color va en los td (no en el
    tr) para que gane sobre el fondo que ya traen los renglones casados. */
 .tbl tbody tr.sel td{background:#E9E9ED}
+/* Hoja de proveedores: el color del renglón ES el estatus (verde pagado, rojo
+   vencido, ámbar por vencer, gris sin factura). El hover genérico lo tapaba con
+   blanco y se perdía la lectura de un vistazo. Aquí el renglón solo se oscurece
+   un poco, conservando su color. */
+#fp-tbl tbody tr:hover td{background:transparent}
+#fp-tbl tbody tr:hover{filter:brightness(.955)}
+.tw table.tbl#fp-tbl tbody tr:hover>td:last-child{background:var(--surface)}
 /* ── Filtro de varias opciones, como el autofiltro de Excel ────────────── */
 .msel{position:relative;display:inline-block;flex:0 0 auto}
 .msel-b{font-size:12px;padding:4px 10px;border:1px solid var(--border2);border-radius:7px;background:var(--surface);
@@ -792,6 +799,26 @@ tr:hover .ent-edit{opacity:1}
     </div>
   </div>
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-concilcierre')">Cancelar</button><button class="btn btn-p" onclick="ccGuardar()">✓ Casar y guardar</button></div>
+</div>
+</div>
+
+<div class="modal-bg" id="mod-fpdes" style="display:none;z-index:3000">
+<div class="modal" style="width:560px;max-width:96vw">
+  <div class="modal-hdr"><div class="modal-ttl">&#8617;&#65039; Deshacer pago</div><button class="modal-x" onclick="CM('mod-fpdes')">&times;</button></div>
+  <div class="modal-body">
+    <div id="fpdes-info" style="background:var(--surface2);border-radius:8px;padding:11px 13px;font-size:12.5px;color:var(--text2);margin-bottom:14px"></div>
+    <div style="font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:9px">&iquest;Qu&eacute; pas&oacute; con esta factura?</div>
+    <button onclick="fpDesAplicar('error')" style="display:block;width:100%;text-align:left;background:var(--surface);border:1.5px solid var(--border2);border-radius:10px;padding:12px 14px;cursor:pointer;margin-bottom:9px;font-family:inherit">
+      <div style="font-weight:700;font-size:13px;color:var(--text)">Me equivoqu&eacute; &mdash; vuelve a quedar por pagar</div>
+      <div style="font-size:11.5px;color:var(--text3);margin-top:3px">La factura sigue debiendo. Regresa a la lista de pago.</div>
+    </button>
+    <button onclick="fpDesAplicar('fuera')" style="display:block;width:100%;text-align:left;background:var(--surface);border:1.5px solid var(--border2);border-radius:10px;padding:12px 14px;cursor:pointer;font-family:inherit">
+      <div style="font-weight:700;font-size:13px;color:var(--text)">Ya estaba pagada por fuera &mdash; no debe nada</div>
+      <div style="font-size:11.5px;color:var(--text3);margin-top:3px">Se pag&oacute; en otro movimiento. Queda saldada y marcada aparte, sin inflar el &laquo;Por pagar&raquo;.</div>
+    </button>
+    <div id="fpdes-mov" style="margin-top:13px;font-size:11.5px;color:var(--text3)"></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-fpdes')">Cancelar</button></div>
 </div>
 </div>
 
@@ -1633,7 +1660,7 @@ tr:hover .ent-edit{opacity:1}
     <div id="fp-selbar" style="display:none;align-items:center;gap:12px;flex-wrap:wrap;background:var(--amber-l);border:1.5px solid #FCD34D;border-radius:11px;padding:10px 14px;margin-bottom:10px"></div>
     <div class="tw" style="max-height:65vh;overflow:auto"><table class="tbl" id="fp-tbl">
       <thead><tr>
-        <th style="width:34px"></th>
+        <th style="width:34px;text-align:center"><input type="checkbox" id="fp-all" onclick="fpTogTodos(this.checked)" title="Marcar todo lo que esté en pantalla" style="width:15px;height:15px;cursor:pointer"></th>
         <th>Fecha pedido</th><th>Nuestra OC</th><th>Su pedido</th><th>Factura</th><th>Fecha factura</th>
         <th>Vence</th><th style="text-align:right">Monto</th><th style="text-align:right">Abonado</th>
         <th style="text-align:right">Pendiente</th><th style="text-align:center">Atraso</th>
@@ -4926,7 +4953,7 @@ function cuaRegistrarCom(){
 // La hoja que se llena, no un reporte. Una fila POR FACTURA (un pedido puede
 // traer dos). Nace de la orden de compra y ellas completan lo demás.
 var FP=[];
-var FPSEL=[];   // ids de facturas palomeadas para pagar juntas
+var FPSEL=[],FPVIS=[];   // ids de facturas palomeadas para pagar juntas
 
 function cxpVista(t,el){
   document.querySelectorAll('#chip-cxp-hoja,#chip-cxp-suelta').forEach(function(c){c.classList.remove('active');});
@@ -5025,6 +5052,94 @@ function fpPintarRepes(repFac,repPed){
   bar.innerHTML='<span style="font-size:15px">\u26a0\ufe0f</span><span>'+partes.join(' &nbsp;\u00b7&nbsp; ')+
     ' &nbsp;\u00b7&nbsp; <span style="font-weight:500">rev\u00edsalos antes de pagar: puede ser doble captura.</span></span>';
 }
+// ── DESHACER UN PAGO DE LA HOJA ─────────────────────────────────────────────
+// Un pago de la hoja crea UN movimiento por varias facturas. Al deshacer una
+// sola, el movimiento no se borra: se le resta lo que esa factura aportaba, y
+// solo desaparece si queda en cero. Asi Movimientos no se queda con un monto
+// que ya no corresponde, que fue justo el descuadre de agosto.
+var FPDES=null;
+function fpEsPagadaFuera(f){return /^PAGADA APARTE/i.test(String(f&&f.nota||''));}
+function fpMovDe(f){
+  if(!f||!f.mov_id||typeof movs==='undefined')return null;
+  for(var i=0;i<movs.length;i++)if(movs[i].id===f.mov_id)return movs[i];
+  return null;
+}
+function fpDeshacer(id){
+  var f=FP.find(function(x){return x.id===id;});if(!f)return;
+  var ab=Math.round((f.abonado||0)*100)/100;
+  if(ab<=0.5){alert('Esta factura no tiene nada abonado, no hay pago que deshacer.');return;}
+  FPDES={id:id,resta:ab};
+  var mv=fpMovDe(f);
+  document.getElementById('fpdes-info').innerHTML=
+    '<b>'+(f.oc||'')+'</b> &middot; factura <b>'+(f.factura||'s/n')+'</b><br>'+
+    'Monto '+fmt(f.monto||0)+' &middot; abonado <b>'+fmt(ab)+'</b>'+
+    (f.fecha_pago?' &middot; pagada el '+f.fecha_pago:'');
+  var mEl=document.getElementById('fpdes-mov');
+  if(mv){
+    var nuevo=Math.round(((mv.monto||0)-ab)*100)/100;
+    mEl.innerHTML=nuevo>0.5
+      ? 'Al movimiento del '+(mv.fecha||'')+' se le restar&aacute;n '+fmt(ab)+': queda en <b>'+fmt(nuevo)+'</b>.'
+      : 'El movimiento del '+(mv.fecha||'')+' por '+fmt(mv.monto||0)+' <b>se va a borrar</b>, porque no le queda nada.';
+  } else {
+    mEl.innerHTML='Esta factura no tiene un movimiento ligado, as&iacute; que en Movimientos no cambia nada. Si el pago se registr&oacute; a mano, rev&iacute;salo por separado.';
+  }
+  OM('mod-fpdes');
+}
+function fpDesAplicar(modo){
+  if(!FPDES)return;
+  var f=FP.find(function(x){return x.id===FPDES.id;});if(!f){CM('mod-fpdes');return;}
+  var resta=FPDES.resta, mv=fpMovDe(f), fechaPago=f.fecha_pago||'';
+  var cambios = (modo==='fuera')
+    ? {abonado:Math.round((f.monto||0)*100)/100, fecha_pago:'', mov_id:null,
+       nota:'PAGADA APARTE \u2014 se quit\u00f3 del pago del '+(fechaPago||'?')}
+    : {abonado:0, fecha_pago:'', mov_id:null, nota:''};
+
+  // 1) Ajustar el movimiento ligado antes de soltar la factura
+  var paso=Promise.resolve();
+  if(mv){
+    var nuevo=Math.round(((mv.monto||0)-resta)*100)/100;
+    if(nuevo>0.5){
+      // La descripcion se rearma con las facturas que SIGUEN en este movimiento,
+      // con el mismo formato que usa el pago. Recortar el texto a mano dejaba
+      // comas sueltas y el conteo viejo ("3 facturas" cuando ya eran 1).
+      var restantes=FP.filter(function(x){return x.mov_id===mv.id&&x.id!==f.id;});
+      var facs=restantes.map(function(x){return x.factura||'(s/n)';});
+      var lbl=facs.slice(0,6).join(', ')+(facs.length>6?' +'+(facs.length-6):'');
+      var provN=(typeof PROVS!=='undefined'&&PROVS[f.prov])||f.prov||'proveedor';
+      var desc=facs.length
+        ? ('Pago '+provN+' \u2014 '+facs.length+' factura'+(facs.length===1?'':'s')+': '+lbl)
+        : String(mv.desc||'');
+      paso=fetch('/api/movimientos/'+mv.id,{method:'PUT',credentials:'include',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify({monto:nuevo,desc:desc})})
+        .then(function(r){if(!r.ok)throw new Error('No se pudo ajustar el movimiento');return r.json();})
+        .then(function(d){var i=movs.findIndex(function(m){return m.id===mv.id;});if(i>=0)movs[i]=d||movs[i];});
+    } else {
+      paso=fetch('/api/movimientos/'+mv.id,{method:'DELETE',credentials:'include'})
+        .then(function(r){if(!r.ok)throw new Error('No se pudo borrar el movimiento');
+          movs=movs.filter(function(m){return m.id!==mv.id;});});
+    }
+  }
+  // 2) Y ya entonces la factura
+  paso.then(function(){
+    return fetch('/api/facprov/'+f.id,{method:'PUT',credentials:'include',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify(cambios)})
+      .then(function(r){if(!r.ok)throw new Error('No se pudo actualizar la factura');return r.json();})
+      .then(function(d){var i=FP.findIndex(function(x){return x.id===f.id;});if(i>=0)FP[i]=d;});
+  })
+  .then(function(){
+    CM('mod-fpdes');FPDES=null;FPSEL=[];rFP();
+    try{rMovsRe();}catch(e){}
+    if(typeof logActivity==='function')
+      logActivity('Deshizo pago a proveedor',(f.factura||f.oc||'')+' \u2014 '+fmt(resta)+(modo==='fuera'?' (ya estaba pagada aparte)':' (vuelve a por pagar)'));
+    alert(modo==='fuera'
+      ? '\u2714 Listo. La factura queda saldada y marcada aparte: no vuelve a aparecer como deuda.'
+      : '\u2714 Listo. La factura regres\u00f3 a \u00abpor pagar\u00bb.');
+  })
+  .catch(function(e){
+    CM('mod-fpdes');FPDES=null;rFP();
+    alert('\u26a0\ufe0f '+e.message+'\nRevisa la hoja y Movimientos: puede que solo una parte se haya aplicado.');
+  });
+}
 function rFP(){
   var body=document.getElementById('fp-body');if(!body)return;
   var prov=fpProv();
@@ -5063,6 +5178,10 @@ function rFP(){
   // La seleccion solo vive para las facturas que siguen en pantalla
   var visibles={};lista.forEach(function(f){visibles[f.id]=true;});
   FPSEL=FPSEL.filter(function(id){return visibles[id];});
+  // Lo que hoy se ve y se puede marcar: sirve para el "todas" del encabezado.
+  // Como el buscador filtra, "todas" significa "todas las que están en pantalla":
+  // buscas 2026-09-17 y con un clic marcas justo las de ese día.
+  FPVIS=lista.filter(function(f){return (f.monto||0)>0;}).map(function(f){return f.id;});
   var resEl=document.getElementById('fp-qres');
   if(resEl)resEl.textContent=qRaw?('— '+lista.length+' resultado'+(lista.length===1?'':'s')+' de '+todas.length):'';
   if(!lista.length){
@@ -5080,6 +5199,7 @@ function rFP(){
     if(at>0)venc+=pend;
     if(!f.factura)sinFac++;
     var bg=!f.factura?'background:#F8FAFC'
+      :(pagada&&fpEsPagadaFuera(f))?'background:#EEF2FA'
       :pagada?'background:var(--green-l)'
       :at>0?'background:var(--red-l)'
       :(v&&(new Date(v+'T12:00:00')-new Date())/86400000<=7)?'background:var(--amber-l)':'';
@@ -5096,7 +5216,9 @@ function rFP(){
         (rep?' <span style="color:#DC2626;font-weight:800;font-size:12px" title="'+tip+'">\u26a0</span>':'')+
         '</td>';
     };
-    var selble=!pagada&&(f.monto||0)>0;
+    // Tambien se pueden seleccionar las pagadas: sirve para sumar, por ejemplo
+    // todas las que se pagaron el mismo dia y cuadrar contra el banco.
+    var selble=(f.monto||0)>0;
     var hno=nOC[f.id]&&nOC[f.id].de>1;   // franja ciruela a la izquierda: las de la misma OC van juntas
     return '<tr style="'+bg+';'+(hno?'box-shadow:inset 3px 0 0 var(--ciruela)':'')+'">'+
       '<td style="text-align:center">'+(selble?'<input type="checkbox" '+(FPSEL.indexOf(f.id)>=0?'checked ':'')+'onchange="fpTog('+f.id+',this.checked)" style="width:16px;height:16px;cursor:pointer">':'')+'</td>'+
@@ -5112,12 +5234,15 @@ function rFP(){
       '<td class="mono" style="text-align:right;font-weight:700">'+(pagada?'—':fmt(pend))+'</td>'+
       '<td style="text-align:center">'+(at>0?'<span style="background:var(--red-l);color:#991B1B;border-radius:99px;padding:2px 8px;font-size:11px;font-weight:800">'+at+'</span>':'<span style="color:var(--text3)">0</span>')+'</td>'+
       '<td>'+(!f.factura?'<span style="font-size:11px;color:var(--text3)">falta factura</span>'
+        :(pagada&&fpEsPagadaFuera(f))?'<span style="font-size:11px;font-weight:800;color:#1F3864">PAGADA APARTE</span>'+
+           '<div style="font-size:9.5px;color:var(--text3);font-weight:600">fuera de esta hoja</div>'
         :pagada?'<span style="font-size:11px;font-weight:800;color:var(--green)">PAGADO</span>'
         :at>0?'<span style="font-size:11px;font-weight:800;color:#991B1B">VENCIDA</span>'
         :'<span style="font-size:11px;font-weight:700;color:#B45309">por pagar</span>')+'</td>'+
       ed('fecha_pago',f.fecha_pago,'date',125)+
       '<td style="white-space:nowrap">'+
         (!pagada&&(f.monto||0)>0?'<button class="btn btn-s btn-xs" onclick="fpPagar('+f.id+')">💸 Pagar</button> ':'')+
+        ((f.abonado||0)>0.5?'<button class="btn btn-s btn-xs" onclick="fpDeshacer('+f.id+')" title="Deshacer el pago de esta factura y ajustar el movimiento">\u21a9\ufe0f</button> ':'')+
         '<button class="btn btn-s btn-xs" onclick="fpOtra('+f.id+')" title="Servimarco partió este pedido: agrega otra factura de la misma OC">+ factura</button> '+
         '<button class="btn btn-d btn-xs" onclick="fpBorrar('+f.id+')">🗑</button></td>'+
       '</tr>';
@@ -5137,8 +5262,11 @@ function rFP(){
 
 // ── Seleccionar varias facturas y pagarlas de un solo movimiento ──────────
 function fpPend(f){return Math.round(((f.monto||0)-(f.abonado||0))*100)/100;}
+// Todo lo marcado, pagado o no. Antes se descartaban las saldadas aqui mismo,
+// asi que al marcarlas para sumar no contaban en el total. Quien necesita solo
+// las que deben (el boton de pagar) las filtra por su cuenta.
 function fpSelList(){
-  return FP.filter(function(f){return FPSEL.indexOf(f.id)>=0&&(f.monto||0)>0&&fpPend(f)>0.5;});
+  return FP.filter(function(f){return FPSEL.indexOf(f.id)>=0&&(f.monto||0)>0;});
 }
 function fpTog(id,v){
   var i=FPSEL.indexOf(id);
@@ -5147,21 +5275,45 @@ function fpTog(id,v){
   fpSelBar();
 }
 function fpSelLimpiar(){FPSEL=[];rFP();}
+function fpTogTodos(v){
+  if(v){FPVIS.forEach(function(id){if(FPSEL.indexOf(id)<0)FPSEL.push(id);});}
+  else {FPSEL=FPSEL.filter(function(id){return FPVIS.indexOf(id)<0;});}
+  rFP();
+}
+function fpPintarTodas(){
+  var c=document.getElementById('fp-all');if(!c)return;
+  var n=FPVIS.filter(function(id){return FPSEL.indexOf(id)>=0;}).length;
+  c.checked=n>0&&n===FPVIS.length;
+  c.indeterminate=n>0&&n<FPVIS.length;   // guion: hay algunas, no todas
+}
 function fpSelBar(){
   var bar=document.getElementById('fp-selbar');if(!bar)return;
+  fpPintarTodas();
   var sel=fpSelList();
   if(!sel.length){bar.style.display='none';bar.innerHTML='';return;}
-  var tot=Math.round(sel.reduce(function(s,f){return s+fpPend(f);},0)*100)/100;
+  // Dos sumas distintas: el monto de todo lo marcado (para cuadrar contra el
+  // banco) y lo que de eso falta por pagar (para el boton de pago).
+  var totMonto=Math.round(sel.reduce(function(s,f){return s+(f.monto||0);},0)*100)/100;
+  var pendientes=sel.filter(function(f){return fpPend(f)>0.5;});
+  var totPend=Math.round(pendientes.reduce(function(s,f){return s+fpPend(f);},0)*100)/100;
   bar.style.display='flex';
   bar.innerHTML=
     '<div style="font-size:13px;color:#92400E"><b>'+sel.length+'</b> factura'+(sel.length===1?'':'s')+' seleccionada'+(sel.length===1?'':'s')+'</div>'+
-    '<div class="mono" style="font-size:20px;font-weight:800;color:#92400E">'+fmt(tot)+'</div>'+
-    '<button class="btn btn-p btn-xs" style="font-size:13px;padding:8px 14px" onclick="fpPagarSel()">💸 Pagar seleccionadas</button>'+
+    '<div><div style="font-size:10px;font-weight:800;color:#92400E;text-transform:uppercase;letter-spacing:.05em">Monto total</div>'+
+      '<div class="mono" style="font-size:20px;font-weight:800;color:#92400E;line-height:1.1">'+fmt(totMonto)+'</div></div>'+
+    (totPend>0.5
+      ? '<div><div style="font-size:10px;font-weight:800;color:#92400E;text-transform:uppercase;letter-spacing:.05em;opacity:.8">De eso, por pagar</div>'+
+        '<div class="mono" style="font-size:16px;font-weight:700;color:#92400E;line-height:1.1">'+fmt(totPend)+
+        '<span style="font-size:11px;font-weight:500"> \u00b7 '+pendientes.length+' factura'+(pendientes.length===1?'':'s')+'</span></div></div>'+
+        '<button class="btn btn-p btn-xs" style="font-size:13px;padding:8px 14px" onclick="fpPagarSel()">💸 Pagar las '+pendientes.length+' por pagar</button>'
+      : '<span style="font-size:12px;color:#92400E;font-weight:600">Todas est\u00e1n pagadas \u2014 solo suma</span>')+
     '<button class="btn btn-s btn-xs" onclick="fpSelLimpiar()">Limpiar</button>'+
-    '<span style="font-size:11px;color:#92400E;opacity:.85">Se crea UN solo movimiento de salida por el total.</span>';
+    (totPend>0.5?'<span style="font-size:11px;color:#92400E;opacity:.85">Se crea UN solo movimiento de salida por el total por pagar.</span>':'');
 }
 function fpPagarSel(){
-  var sel=fpSelList();if(!sel.length)return;
+  // Nunca se re-paga una que ya estaba saldada, aunque este marcada para sumar
+  var sel=fpSelList().filter(function(f){return fpPend(f)>0.5;});
+  if(!sel.length){alert('Las facturas marcadas ya est\u00e1n pagadas. La selecci\u00f3n solo est\u00e1 sumando.');return;}
   var tot=Math.round(sel.reduce(function(s,f){return s+fpPend(f);},0)*100)/100;
   var prov=PROVS[sel[0].prov]||sel[0].prov;
   if(!confirm('Vas a pagar '+sel.length+' factura(s) de '+prov+' por '+fmt(tot)+'.\nSe registra UN movimiento de salida por el total y las facturas quedan saldadas.\n\n¿Continuar?'))return;
