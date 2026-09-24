@@ -1065,6 +1065,9 @@ tr:hover .ent-edit{opacity:1}
   <div class="sb-section admin-only" style="display:none">Config</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('vends')" id="nav-vends">🏷 Vendedores</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('usr')" id="nav-usr">👤 Usuarios</div>
+
+  <div id="sb-vertodo" onclick="toggleMenuDueno()" style="display:none;margin:12px 8px 4px;padding:8px 10px;border-radius:7px;font-size:11.5px;font-weight:700;color:var(--text3);background:rgba(20,24,31,.045);cursor:pointer;text-align:center;user-select:none">⋯ Ver todo el menú</div>
+
   <div class="sb-foot">
     <div class="sb-user" id="sb-user">—</div>
     <div class="sb-role" id="sb-role">—</div>
@@ -2200,6 +2203,31 @@ function loadUsers(){
     if(document.getElementById('usr-body'))rUsuarios();
   }).catch(()=>renderUCards());
 }
+// Pinta el menú de la dirección. corto=false deja las 8; corto=true muestra
+// todo lo que su rol permite ver.
+function aplicarMenuDueno(verTodo){
+  var lista=window.DUENO_MENU||[];
+  document.querySelectorAll('.sb-item').forEach(function(el){
+    // La dirección tiene permisos completos, así que al abrir se ve todo.
+    el.style.display=verTodo?'':((lista.indexOf(el.id)>=0)?'':'none');
+  });
+  // Una sección solo aparece si le quedó algún renglón visible
+  document.querySelectorAll('.sb-section').forEach(function(sec){
+    var vis=false,n=sec.nextElementSibling;
+    while(n&&!n.classList.contains('sb-section')){
+      if(n.classList.contains('sb-item')&&n.style.display!=='none'){vis=true;break;}
+      n=n.nextElementSibling;
+    }
+    sec.style.display=vis?'':'none';
+  });
+}
+function toggleMenuDueno(){
+  var vt=document.getElementById('sb-vertodo');if(!vt)return;
+  var abierto=vt.dataset.todo==='1';
+  aplicarMenuDueno(!abierto);
+  vt.dataset.todo=abierto?'0':'1';
+  vt.textContent=abierto?'⋯ Ver todo el menú':'⌃ Ver solo lo esencial';
+}
 function isOwner(){const u=USERS.find(x=>x.key===CU);return u&&u.role==='owner';}
 function isAdmin(){const u=USERS.find(x=>x.key===CU);return u&&(u.role==='admin'||u.role==='owner');}
 function canEdit(){return isAdmin();}  // admin y owner pueden editar
@@ -2246,7 +2274,7 @@ function renderUCards(){
   document.getElementById('u-grid').innerHTML=USERS.map(u=>`
     <div class="ucard" onclick="selU('${u.key}')" id="uc-${u.key}">
       <div class="uicon" style="background:${u.role==='admin'?'#FEF3C7':u.role==='taller'?'#FDE8D7':u.suc==='Zibata'?'#EFF6FF':'#E6F4ED'}">${u.role==='owner'?'👑':u.role==='admin'?'⚙️':u.role==='taller'?'🔨':u.suc==='Zibata'?'🏬':'🏪'}</div>
-      <div><div style="font-size:12px;font-weight:500">${u.display}</div><div style="font-size:10px;color:var(--text3)">${u.role==='owner'?'Dueña':u.role==='admin'?'Administrador':u.role==='taller'?'Taller':'Punto de venta'}</div></div>
+      <div><div style="font-size:12px;font-weight:500">${u.display}</div><div style="font-size:10px;color:var(--text3)">${u.role==='dueno'?'Dirección':u.role==='owner'?'Dueña':u.role==='admin'?'Administrador':u.role==='taller'?'Taller':'Punto de venta'}</div></div>
     </div>`).join('');
 }
 function selU(k){document.querySelectorAll('.ucard').forEach(c=>c.classList.remove('sel'));const el=document.getElementById('uc-'+k);if(el)el.classList.add('sel');CU=k;}
@@ -2261,14 +2289,15 @@ function doLogin(){
     document.getElementById('login').style.display='none';
     document.getElementById('app').style.display='flex';
     document.getElementById('sb-user').textContent=u.name;
-    document.getElementById('sb-role').textContent=u.role==='owner'?'Dueña':u.role==='admin'?'Administrador':u.role==='taller'?'Taller':'Punto de venta';
+    document.getElementById('sb-role').textContent=u.role==='dueno'?'Dirección':u.role==='owner'?'Dueña':u.role==='admin'?'Administrador':u.role==='taller'?'Taller':'Punto de venta';
     document.getElementById('sb-suc').textContent=u.display;
     // Restaurar TODO el menú antes de aplicar reglas del rol (evita heredar el menú de la sesión anterior)
     document.querySelectorAll('.sb-item,.sb-sec,.sb-section').forEach(el=>{if(!el.classList.contains('admin-only')&&!el.classList.contains('owner-only'))el.style.display='';});
-    document.querySelectorAll('.admin-only').forEach(el=>el.style.display=(u.role==='admin'||u.role==='owner')?'':'none');
-    // owner-only: cosas que Estefania sí ve y admin no
-    document.querySelectorAll('.owner-only').forEach(el=>el.style.display=(u.role==='owner')?'':'none');
-    document.querySelectorAll('.owner-only').forEach(el=>el.style.display=u.role==='owner'?'':'none');
+    var _rolDueno=(u.role==='owner'||u.role==='dueno');
+    document.querySelectorAll('.admin-only').forEach(el=>el.style.display=(u.role==='admin'||_rolDueno)?'':'none');
+    // owner-only: lo que solo ven la dueña y la dirección
+    document.querySelectorAll('.owner-only').forEach(el=>el.style.display=_rolDueno?'':'none');
+    var _vt=document.getElementById('sb-vertodo');if(_vt)_vt.style.display='none';
     // ── MENÚ DEL ADMINISTRADOR (Andrea) ──────────────────────────────────
     // Lista explícita en vez de reglas sueltas: se ve de un golpe a qué tiene
     // acceso y qué no. Todo Ventas, todo Catálogo, todo Admin; de Auditoría
@@ -2293,6 +2322,25 @@ function doLogin(){
         }
         sec.style.display=vis?'':'none';
       });
+    }
+    // ── MENÚ DE LA DIRECCIÓN (Carmen y Raúl) ────────────────────────────
+    // Ellos supervisan, no operan: entran a saber cómo va el negocio, cuánto
+    // les deben, cuánto deben y si hay algo raro. Con 28 pantallas nadie entra.
+    // No se les prohíbe nada: lo demás está detrás de "Ver todo".
+    if(u.role==='dueno'){
+      window.DUENO_MENU=[
+        'nav-dash',              // cómo va el negocio
+        'nav-er',                // la utilidad del mes
+        'nav-ban',               // cuánto hay en cada cuenta
+        'nav-cxc',               // cuánto nos deben
+        'nav-cxp',               // cuánto debemos
+        'nav-ped',               // el pulso diario (solo lectura con el 👁)
+        'nav-com',               // lo que cuesta el equipo
+        'nav-activity'           // quién cambió qué
+      ];
+      aplicarMenuDueno(false);
+      var vt=document.getElementById('sb-vertodo');
+      if(vt){vt.style.display='';vt.dataset.todo='0';vt.textContent='⋯ Ver todo el menú';}
     }
     if(u.role==='taller'){
       // Taller solo ve Pendientes y Órdenes de compra (con Seguimiento)
@@ -9186,7 +9234,7 @@ function rBancosSaldos(){
 function rUsuarios(){
   document.getElementById('usr-body').innerHTML=USERS.map((u,i)=>`
     <tr><td style="font-weight:500">${u.name}</td><td class="mono" style="color:var(--text2)">${u.key}</td><td>${u.suc}</td>
-    <td><span class="badge ${u.role==='owner'?'br':u.role==='admin'?'by':'bg'}">${u.role==='owner'?'Dueña':u.role==='admin'?'Admin':'Venta'}</span></td>
+    <td><span class="badge ${u.role==='owner'?'br':u.role==='dueno'?'br':u.role==='admin'?'by':'bg'}">${u.role==='owner'?'Dueña':u.role==='dueno'?'Dirección':u.role==='admin'?'Admin':'Venta'}</span></td>
     <td style="display:flex;gap:5px">
       <button class="btn btn-s btn-xs" onclick="openEditUsr(${i})">✏️ Editar</button>
       ${(u.key!=='admin'&&u.key!=='estefania')?`<button class="btn btn-d btn-xs" onclick="delUsr(${i})">🗑</button>`:''}
