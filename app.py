@@ -84,14 +84,14 @@ USUARIOS_SEED = [
     {'key':'admin',     'password':'admin123',    'name':'Ana Karen', 'display':'Admin',     'role':'admin', 'suc':'Admin'},
     {'key':'estefania', 'password':'impulso2026', 'name':'Estefania', 'display':'Estefania', 'role':'owner', 'suc':'Admin'},
     {'key':'taller',    'password':'taller2026',  'name':'Taller',    'display':'Taller',    'role':'taller','suc':'Taller'},
-    # Carmen y Raul son los duenos del negocio. Rol 'dueno': mismos permisos que
-    # 'owner' (incluidos los retiros de utilidades), pero el menu arranca corto
-    # y el resto se despliega con "Ver todo". Usuario separado cada uno para que
-    # el log de Actividad diga quien hizo que.
-    {'key':'carmen',    'password':'carmen2026',  'name':'Carmen',    'display':'Direcci\u00f3n',  'role':'dueno', 'suc':'Admin'},
-    {'key':'raul',      'password':'raul2026',    'name':'Ra\u00fal',      'display':'Direcci\u00f3n',  'role':'dueno', 'suc':'Admin'},
+    # Carmen y Raul son los duenos del negocio y entran juntos, con una sola
+    # cuenta. Rol 'dueno': mismos permisos que 'owner' (retiros de utilidades
+    # incluidos), pero el menu arranca corto y el resto se despliega con
+    # "Ver todo". Ojo: al compartir cuenta, el log de Actividad no distingue
+    # quien de los dos hizo cada movimiento.
+    {'key':'carmen',    'password':'carmen2026',  'name':'Carmen y Raúl', 'display':'Dirección', 'role':'dueno', 'suc':'Admin'},
 ]
-USUARIOS_PROTEGIDOS = ('admin', 'estefania', 'carmen', 'raul')  # no se pueden borrar
+USUARIOS_PROTEGIDOS = ('admin', 'estefania', 'carmen')  # no se pueden borrar
 
 def usr_dict(u, incluir_pwd=False):
     d = {'id':u.id,'key':u.key,'name':u.name,'display':u.display,'role':u.role,'suc':u.suc}
@@ -160,7 +160,7 @@ def requiere_admin(f):
     def decorado(*args, **kwargs):
         if not session.get('usuario'):
             return jsonify({'error': 'No autenticado'}), 401
-        if session.get('rol') not in ('admin', 'owner'):
+        if session.get('rol') not in ('admin', 'owner', 'dueno'):
             return jsonify({'error': 'Sin permisos'}), 403
         return f(*args, **kwargs)
     return decorado
@@ -227,7 +227,7 @@ def me():
 def get_usuarios():
     # Sin sesión: lista sanitizada (para las tarjetas de login).
     # Con sesión admin/owner: incluye contraseña (para el modal de edición).
-    es_gestor = session.get('rol') in ('admin', 'owner')
+    es_gestor = session.get('rol') in ('admin', 'owner', 'dueno')
     usuarios = Usuario.query.order_by(Usuario.id).all()
     return jsonify([usr_dict(u, incluir_pwd=es_gestor) for u in usuarios])
 
@@ -421,7 +421,7 @@ def get_movimientos():
     rol = session.get('rol')
     suc = session.get('suc')
     q = Movimiento.query
-    if rol not in ('admin','owner'):
+    if rol not in ('admin','owner','dueno'):
         q = q.filter_by(suc=suc)
     return jsonify([m_dict(m) for m in q.order_by(Movimiento.id.desc()).all()])
 
@@ -1071,7 +1071,7 @@ def get_pendientes():
     rol = session.get('rol')
     suc = session.get('suc')
     q = Pendiente.query
-    if rol not in ('admin','owner','taller'):
+    if rol not in ('admin','owner','dueno','taller'):
         q = q.filter_by(suc=suc)
     return jsonify([pend_dict(p) for p in q.order_by(Pendiente.id.desc()).all()])
 
