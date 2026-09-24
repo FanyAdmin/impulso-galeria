@@ -84,14 +84,8 @@ USUARIOS_SEED = [
     {'key':'admin',     'password':'admin123',    'name':'Ana Karen', 'display':'Admin',     'role':'admin', 'suc':'Admin'},
     {'key':'estefania', 'password':'impulso2026', 'name':'Estefania', 'display':'Estefania', 'role':'owner', 'suc':'Admin'},
     {'key':'taller',    'password':'taller2026',  'name':'Taller',    'display':'Taller',    'role':'taller','suc':'Taller'},
-    # Carmen y Raul son los duenos del negocio. Rol 'dueno': mismos permisos que
-    # 'owner' (incluidos los retiros de utilidades), pero el menu arranca corto
-    # y el resto se despliega con "Ver todo". Usuario separado cada uno para que
-    # el log de Actividad diga quien hizo que.
-    {'key':'carmen',    'password':'carmen2026',  'name':'Carmen',    'display':'Direcci\u00f3n',  'role':'dueno', 'suc':'Admin'},
-    {'key':'raul',      'password':'raul2026',    'name':'Ra\u00fal',      'display':'Direcci\u00f3n',  'role':'dueno', 'suc':'Admin'},
 ]
-USUARIOS_PROTEGIDOS = ('admin', 'estefania', 'carmen', 'raul')  # no se pueden borrar
+USUARIOS_PROTEGIDOS = ('admin', 'estefania')  # no se pueden borrar
 
 def usr_dict(u, incluir_pwd=False):
     d = {'id':u.id,'key':u.key,'name':u.name,'display':u.display,'role':u.role,'suc':u.suc}
