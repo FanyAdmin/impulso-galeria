@@ -973,7 +973,7 @@ tr:hover .ent-edit{opacity:1}
       <div class="field"><label>Nombre</label><input id="mu-n" placeholder="ej. Alondra"></div>
       <div class="field"><label>Login</label><input id="mu-k" placeholder="ej. jardines2"></div>
       <div class="field"><label>Sucursal</label><select id="mu-s"><option>Jardines</option><option>Zibata</option><option>Admin</option><option>Taller</option></select></div>
-      <div class="field"><label>Rol</label><select id="mu-r"><option value="venta">Punto de venta</option><option value="admin">Administrador</option><option value="taller">Taller</option><option value="owner">👑 Dueña (owner)</option></select></div>
+      <div class="field"><label>Rol</label><select id="mu-r"><option value="venta">Punto de venta</option><option value="admin">Administrador</option><option value="taller">Taller</option><option value="dueno">🏛️ Dirección (menú corto)</option><option value="owner">👑 Dueña (owner)</option></select></div>
       <div class="field gc2"><label>Contraseña</label><input type="password" id="mu-p" placeholder="Mínimo 4 caracteres"></div>
     </div>
   </div>
@@ -2200,6 +2200,7 @@ function loadUsers(){
   .then(r=>r.json()).then(list=>{
     if(Array.isArray(list)&&list.length)USERS=list;
     USERS.forEach(function(u){
+      u.rolReal=u.role;                 // lo que de verdad está guardado
       if(u.role==='dueno'){u.role='owner';u.menuCorto=true;}
     });
     renderUCards();
@@ -9251,8 +9252,9 @@ function openEditUsr(i){
   // Nunca degradar en silencio: si el rol o sucursal del usuario no está en el select, se agrega al vuelo
   const sSel=document.getElementById('mu-s');if(u.suc&&![...sSel.options].some(o=>o.value===u.suc)){const o=document.createElement('option');o.value=o.textContent=u.suc;sSel.appendChild(o);}
   sSel.value=u.suc;
-  const rSel=document.getElementById('mu-r');if(u.role&&![...rSel.options].some(o=>o.value===u.role)){const o=document.createElement('option');o.value=u.role;o.textContent=u.role;rSel.appendChild(o);}
-  rSel.value=u.role;
+  const rolEd=u.rolReal||u.role;      // 'dueno' sigue siendo 'dueno' al editar
+  const rSel=document.getElementById('mu-r');if(rolEd&&![...rSel.options].some(o=>o.value===rolEd)){const o=document.createElement('option');o.value=rolEd;o.textContent=rolEd;rSel.appendChild(o);}
+  rSel.value=rolEd;
   document.getElementById('mu-p').value=u.pwd;
   OM('mod-usr');
 }
@@ -9260,12 +9262,18 @@ function saveUsr(){
   const nom=document.getElementById('mu-n').value.trim(),key=document.getElementById('mu-k').value.trim().toLowerCase(),pwd=document.getElementById('mu-p').value.trim(),suc=document.getElementById('mu-s').value,rol=document.getElementById('mu-r').value;
   if(!nom||!key||!pwd){alert('Completa todos los campos');return;}
   if(pwd.length<4){alert('La contraseña debe tener al menos 4 caracteres');return;}
-  const body=JSON.stringify({key,name:nom,display:suc,role:rol,suc,pwd});
+  // El nombre visible se conserva: antes se pisaba con la sucursal, y a la
+  // cuenta de Dirección le quedaba 'Admin' en la barra.
+  const prev=editUsrIdx===null?null:USERS[editUsrIdx];
+  const disp=(rol==='dueno')?'Dirección':((prev&&prev.display&&prev.display!==prev.suc)?prev.display:suc);
+  const body=JSON.stringify({key,name:nom,display:disp,role:rol,suc,pwd});
   const req=editUsrIdx===null
     ?fetch('/api/usuarios',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body})
     :fetch('/api/usuarios/'+USERS[editUsrIdx].id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body});
   req.then(r=>r.json()).then(d=>{
     if(d.error){alert(d.error);return;}
+    if(d&&d.role==='dueno'){d.rolReal='dueno';d.role='owner';d.menuCorto=true;}
+    else if(d){d.rolReal=d.role;}
     if(editUsrIdx===null){USERS.push(d);logActivity('Creó usuario',nom);}
     else{USERS[editUsrIdx]=d;logActivity('Editó usuario',nom);}
     CM('mod-usr');rUsuarios();renderUCards();
