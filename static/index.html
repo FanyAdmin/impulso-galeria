@@ -2290,6 +2290,13 @@ function doLogin(){
   .then(r=>r.json()).then(data=>{
     if(!data.ok){showLE(data.msg||'Credenciales incorrectas');return;}
     const u=data.user;
+    // El usuario que devuelve el login NO pasa por loadUsers(), asi que aqui se
+    // normaliza igual: la direccion pesa como 'owner' en permisos y se queda la
+    // marca menuCorto, que es lo unico que la distingue. Sin esto, entraba con
+    // el menu de punto de venta aunque su rol estuviera bien guardado.
+    if(u&&u.role==='dueno'){u.rolReal='dueno';u.role='owner';u.menuCorto=true;}
+    const iu=USERS.findIndex(x=>x.key===u.key);
+    if(iu>=0)USERS[iu]=Object.assign({},USERS[iu],u); else USERS.push(u);
     document.getElementById('login').style.display='none';
     document.getElementById('app').style.display='flex';
     document.getElementById('sb-user').textContent=u.name;
