@@ -65,6 +65,12 @@ class Movimiento(db.Model):
     # el banco. Mientras no esté conciliado, el saldo es "en libros", no real.
     conciliado  = db.Column(db.String(20), default='')   # fecha en que se concilió
     banco_ref   = db.Column(db.String(40), default='')   # referencia del banco
+    # ── PUENTE DE TERCEROS ─────────────────────────────────────────────────
+    # tercero: por quién se cobró (en cobros) o a quién se devolvió (en devoluciones).
+    # puente_liga: JSON en las salidas puente con los cobros que salda, ej.
+    #   {"g":"grupo","e":[[id_cobro,monto],...],"r":1}  (r=1: retención que pasa a ingreso)
+    tercero     = db.Column(db.String(80), default='')
+    puente_liga = db.Column(db.Text, default='')
 
 # ── USUARIOS EN BD ────────────────────────────────────────────────────────────
 
@@ -433,7 +439,9 @@ def crear_movimiento():
         tipo=d.get('tipo'), concepto=d.get('concepto'), desc=d.get('desc'),
         monto=d.get('monto',0), fecha=d.get('fecha'), mes=d.get('mes'),
         suc=d.get('suc', session.get('suc')),
-        cuenta=d.get('cuenta'), cta_destino=d.get('cta_destino'), socio=d.get('socio','')
+        cuenta=d.get('cuenta'), cta_destino=d.get('cta_destino'), socio=d.get('socio',''),
+        conciliado=d.get('conciliado','') or '', banco_ref=d.get('banco_ref','') or '',
+        tercero=d.get('tercero','') or '', puente_liga=d.get('puente_liga','') or ''
     )
     db.session.add(m)
     db.session.commit()
@@ -444,7 +452,7 @@ def crear_movimiento():
 def actualizar_movimiento(mid):
     m = Movimiento.query.get_or_404(mid)
     d = request.json or {}
-    for campo in ['tipo','concepto','desc','monto','fecha','mes','suc','cuenta','cta_destino','socio','conciliado','banco_ref']:
+    for campo in ['tipo','concepto','desc','monto','fecha','mes','suc','cuenta','cta_destino','socio','conciliado','banco_ref','tercero','puente_liga']:
         if campo in d:
             setattr(m, campo, d[campo])
     db.session.commit()
@@ -463,7 +471,8 @@ def m_dict(m):
         'id':m.id,'tipo':m.tipo,'concepto':m.concepto,'desc':m.desc,
         'monto':m.monto,'fecha':m.fecha,'mes':m.mes,'suc':m.suc,
         'cuenta':m.cuenta,'cta_destino':m.cta_destino,'socio':m.socio,
-        'conciliado':m.conciliado or '','banco_ref':m.banco_ref or ''
+        'conciliado':m.conciliado or '','banco_ref':m.banco_ref or '',
+        'tercero':m.tercero or '','puente_liga':m.puente_liga or ''
     }
 
 # ── FACTURAS EN BD ────────────────────────────────────────────────────────────
@@ -1217,6 +1226,8 @@ def migrar_columnas():
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS entrega_real VARCHAR(20)",
         "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS conciliado VARCHAR(20) DEFAULT ''",
         "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS banco_ref VARCHAR(40) DEFAULT ''",
+        "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS tercero VARCHAR(80) DEFAULT ''",
+        "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS puente_liga TEXT DEFAULT ''",
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS ant_ini FLOAT",
         "ALTER TABLE fac_prov ADD COLUMN IF NOT EXISTS ped_prov VARCHAR(40) DEFAULT ''",
         "ALTER TABLE facturas ADD COLUMN IF NOT EXISTS metodo VARCHAR(4) DEFAULT 'PUE'",
