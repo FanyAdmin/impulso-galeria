@@ -1542,7 +1542,7 @@ tr:hover .ent-edit{opacity:1}
     </div>
     <button id="mv-ter-btn" class="btn btn-s btn-sm" style="margin-left:auto" onclick="ptToggle()">🔁 Terceros por devolver</button>
   </div>
-  <div id="mv-ter" style="display:none"></div>
+  <div id="mv-ter-panel" style="display:none"></div>
   <div class="tw" id="mv-tw"><table class="tbl"><thead><tr><th style="width:30px"><input type="checkbox" id="mv-selall" onchange="movSelAll(this.checked)" title="Seleccionar todo lo visible" style="width:15px;height:15px;cursor:pointer"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Cuenta</th><th>Monto</th></tr></thead><tbody id="mv-body"></tbody></table></div>
   <div id="mv-selbar" style="display:none;position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:60;background:#1F3864;color:#fff;border-radius:12px;padding:10px 18px;box-shadow:0 8px 24px rgba(0,0,0,.25);align-items:center;gap:14px;font-size:13px">
     <span id="mv-selinfo" style="font-weight:600"></span>
@@ -7446,7 +7446,7 @@ function ptToggle(on){
 }
 function ptIr(){go('mov');ptToggle(true);}
 function ptPintaVista(){
-  var p=document.getElementById('mv-ter'),tw=document.getElementById('mv-tw'),b=document.getElementById('mv-ter-btn');
+  var p=document.getElementById('mv-ter-panel'),tw=document.getElementById('mv-tw'),b=document.getElementById('mv-ter-btn');
   var E=ptEstado();window._ptE=E;
   if(b){
     b.innerHTML=MV_TER?'✕ Volver a movimientos':'🔁 Terceros por devolver'+(E.total>0.5?' <b class="mono" style="color:var(--mant-d)">'+fmt(E.total)+'</b>':'');
@@ -7597,7 +7597,7 @@ function ptIniciarLigar(id){
   PT_LIGAR=id;PT_SEL.clear();
   if(!document.querySelector('#page-mov.active'))go('mov');
   MV_TER=true;ptPintaVista();
-  var p=document.getElementById('mv-ter');if(p)p.scrollIntoView({behavior:'smooth',block:'start'});
+  var p=document.getElementById('mv-ter-panel');if(p)p.scrollIntoView({behavior:'smooth',block:'start'});
 }
 // Reparte un monto entre cobros, del más viejo al más nuevo
 function ptRepartir(monto,lista,disp){
