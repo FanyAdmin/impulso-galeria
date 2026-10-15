@@ -1006,9 +1006,34 @@ tr:hover .ent-edit{opacity:1}
       <div class="field gc2"><label>Descripción</label><input id="em-desc" placeholder="Descripción del movimiento"></div>
       <div class="field"><label>Monto ($)</label><input type="number" id="em-monto" step="0.01" placeholder="0.00"></div>
       <div class="field"><label>Fecha</label><input type="date" id="em-fecha"></div>
+      <div class="field gc2"><label>Tercero (solo cobros y devoluciones por terceros)</label><input id="em-ter" list="dl-terceros" placeholder="Por quién se cobró o a quién se devolvió"></div>
     </div>
   </div>
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-edit-mov')">Cancelar</button><button class="btn btn-p" onclick="guardarEditMov()">✓ Guardar</button></div>
+</div>
+</div>
+
+<datalist id="dl-terceros"></datalist>
+<div class="modal-bg" id="mod-ptdev" style="display:none">
+<div class="modal" style="width:540px">
+  <div class="modal-hdr"><div class="modal-ttl" id="ptd-ttl">↩️ Devolver</div><button class="modal-x" onclick="CM('mod-ptdev');PT_DEV=null">✕</button></div>
+  <div class="modal-body">
+    <div id="ptd-lista" style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin-bottom:12px;max-height:170px;overflow:auto"></div>
+    <div class="g2">
+      <div class="field"><label>A quién le devuelves</label><input id="ptd-ter" list="dl-terceros" placeholder="Raúl Chávez"></div>
+      <div class="field"><label>Fecha</label><input type="date" id="ptd-f"></div>
+      <div class="field"><label>Sale de la cuenta</label><select id="ptd-cta" onchange="ptCalcDev()"></select></div>
+      <div class="field"><label>Referencia (opcional)</label><input id="ptd-ref" placeholder="Folio de la transferencia"></div>
+      <div class="field gc2"><label>Te quedas (comisión de terminal, IVA o lo pactado)</label>
+        <div style="display:flex;gap:6px"><input type="number" id="ptd-ret" step="0.01" min="0" oninput="ptRetCambio()" style="flex:1">
+          <button class="btn btn-s btn-sm" onclick="ptRetBtn('cero')">Nada</button>
+          <button class="btn btn-s btn-sm" id="ptd-pctb" onclick="ptRetBtn('pct')">Mi %</button></div></div>
+      <div class="field gc2"><label>Les devuelves</label><input type="number" id="ptd-dev" step="0.01" min="0" oninput="ptCalcDev()">
+        <div style="font-size:11px;color:var(--text3);margin-top:3px">Se calcula solo. Si hoy devuelves solo una parte, escribe el monto y el resto queda pendiente.</div></div>
+    </div>
+    <div id="ptd-res" style="margin-top:12px;border-top:1px solid var(--border);padding-top:9px;font-size:12.5px;line-height:1.75"></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-ptdev');PT_DEV=null">Cancelar</button><button class="btn btn-p" id="ptd-ok" onclick="ptGuardarDev()">✓ Registrar devolución</button></div>
 </div>
 </div>
 
@@ -1370,6 +1395,7 @@ tr:hover .ent-edit{opacity:1}
     <div class="ph-sub">Lo del negocio y lo de la gente, en un solo lugar. Pica un día para anotar algo.</div>
   </div></div>
   <div id="cal-audit"></div>
+  <div id="cal-ter"></div>
   <div class="cal-top">
     <button class="cal-nav" onclick="calMover(-1)">‹</button>
     <div class="cal-mes" id="cal-mes"></div>
@@ -1470,7 +1496,7 @@ tr:hover .ent-edit{opacity:1}
     <div class="card-title">Registrar movimiento</div>
     <div class="g3" style="margin-bottom:.75rem">
       <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Tipo</label><select id="mv-t" style="width:100%" onchange="rMvCat()"><option>Entrada</option><option>Salida</option><option>Retiro</option><option>Traspaso</option></select></div>
-      <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Categoría</label><select id="mv-c" style="width:100%"></select></div>
+      <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Categoría</label><select id="mv-c" style="width:100%" onchange="ptMvCatChange()"></select></div>
       <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Cuenta Origen</label><select id="mv-cta" style="width:100%"><option>Efectivo</option><option>HSBC</option><option>INBURSA</option><option>Bzipay</option><option>El Patio</option><option>Zibata</option><option>Efectivo Zibata</option></select></div>
       <div id="mv-cta2-wrap" style="display:none"><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Cuenta Destino</label><select id="mv-cta2" style="width:100%"><option>Efectivo</option><option>HSBC</option><option>INBURSA</option><option>Bzipay</option><option>El Patio</option><option>Zibata</option><option>Efectivo Zibata</option></select></div>
     </div>
@@ -1479,6 +1505,8 @@ tr:hover .ent-edit{opacity:1}
       <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Descripción</label><input id="mv-d" placeholder="ej. Pago Servimarco" style="width:100%"></div>
       <div><label style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">Monto ($)</label><input type="number" id="mv-m" style="width:100%"></div>
     </div>
+    <div id="mv-ter-wrap" style="display:none;margin-top:.75rem;max-width:420px"><label id="mv-ter-lbl" style="font-size:10px;font-weight:600;color:var(--text2);display:block;margin-bottom:3px;text-transform:uppercase">¿Por quién cobraste?</label><input id="mv-ter" list="dl-terceros" placeholder="Raúl Chávez" style="width:100%">
+      <div id="mv-ter-tip" style="display:none;font-size:11px;color:var(--mant-d);margin-top:3px">Mejor usa ↩️ Devolver en "Terceros por devolver": así la devolución queda ligada a sus cobros.</div></div>
     <div style="margin-top:.75rem;display:flex;justify-content:flex-end"><button class="btn btn-p" onclick="addMov()">+ Registrar</button></div>
   </div>
   <div class="metrics m4">
@@ -1512,8 +1540,10 @@ tr:hover .ent-edit{opacity:1}
       <button class="btn btn-s btn-xs" onclick="limpiarFiltrosMov()">✕ Limpiar</button>
       <span id="mv-res" style="font-size:11px;color:var(--text3)"></span>
     </div>
+    <button id="mv-ter-btn" class="btn btn-s btn-sm" style="margin-left:auto" onclick="ptToggle()">🔁 Terceros por devolver</button>
   </div>
-  <div class="tw"><table class="tbl"><thead><tr><th style="width:30px"><input type="checkbox" id="mv-selall" onchange="movSelAll(this.checked)" title="Seleccionar todo lo visible" style="width:15px;height:15px;cursor:pointer"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Cuenta</th><th>Monto</th></tr></thead><tbody id="mv-body"></tbody></table></div>
+  <div id="mv-ter" style="display:none"></div>
+  <div class="tw" id="mv-tw"><table class="tbl"><thead><tr><th style="width:30px"><input type="checkbox" id="mv-selall" onchange="movSelAll(this.checked)" title="Seleccionar todo lo visible" style="width:15px;height:15px;cursor:pointer"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Cuenta</th><th>Monto</th></tr></thead><tbody id="mv-body"></tbody></table></div>
   <div id="mv-selbar" style="display:none;position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:60;background:#1F3864;color:#fff;border-radius:12px;padding:10px 18px;box-shadow:0 8px 24px rgba(0,0,0,.25);align-items:center;gap:14px;font-size:13px">
     <span id="mv-selinfo" style="font-weight:600"></span>
     <button id="mv-seldel" class="btn btn-xs" style="background:#fff;color:#991B1B;font-weight:700;border:none" onclick="movSelBorrar()">🗑 Eliminar seleccionados</button>
@@ -6020,6 +6050,7 @@ function rCal(){
   document.getElementById('cal-grid').innerHTML=celdas;
   document.getElementById('cal-det').innerHTML='';
   try{pintaAvisoAudit();}catch(e){}
+  try{pintaAvisoTerceros();}catch(e){}
 }
 
 // La auditoría no espera a que abran su pantalla: avisa aquí, en la primera
@@ -7159,6 +7190,7 @@ function rMvCat(){
   document.getElementById('mv-c').innerHTML=all.map(c=>`<option>${c}</option>`).join('');
   const wrap=document.getElementById('mv-cta2-wrap');
   if(wrap) wrap.style.display=(tipo==='Traspaso'||tipo==='Retiro')?'block':'none';
+  try{ptMvCatChange();}catch(e){}
 }
 // addMov está definida más abajo (versión que guarda en la BD)
 
@@ -7174,6 +7206,8 @@ function editMov(idx){
   document.getElementById('em-desc').value=m.desc||'';
   document.getElementById('em-monto').value=m.monto||0;
   document.getElementById('em-fecha').value=m.fecha||todayStr();
+  const emT=document.getElementById('em-ter');if(emT)emT.value=m.tercero||'';
+  try{ptPintaDatalist();}catch(e){}
   OM('mod-edit-mov');
 }
 function guardarEditMov(){
@@ -7181,6 +7215,7 @@ function guardarEditMov(){
   const m=movs[editMovIdx];if(!m)return;
   const prev={...m};
   const updates={tipo:document.getElementById('em-t').value,concepto:document.getElementById('em-cat').value.trim(),cuenta:document.getElementById('em-cta').value,cta_destino:document.getElementById('em-cta2').value,desc:document.getElementById('em-desc').value.trim(),monto:parseFloat(document.getElementById('em-monto').value)||0,fecha:document.getElementById('em-fecha').value,mes:parseInt(document.getElementById('em-fecha').value.split('-')[1],10)-1};
+  const emT=document.getElementById('em-ter');if(emT)updates.tercero=ptTitulo(emT.value);
   Object.assign(m,updates);
   logActivity('Editó movimiento',(updates.concepto||'')+' — '+fmt(updates.monto));
   CM('mod-edit-mov');rMovsRe();
@@ -7296,12 +7331,13 @@ function rMovs(f=''){
   if(resEl){const hayF=catFil||d1||d2||q||ctaFil;resEl.textContent=hayF?('→ '+list.length+' mov · '+fmt(list.reduce((s,m)=>s+(+m.monto||0),0))):'';}
   // Ordenar SIEMPRE por fecha (más reciente arriba); si editas la fecha, el movimiento se reacomoda solo
   list=[...list].sort((a,b)=>String(b.fecha||'').localeCompare(String(a.fecha||''))||((b.id||0)-(a.id||0)));
+  window._ptE=ptEstado();
   const body=document.getElementById('mv-body');
   body.innerHTML=list.slice(0,100).length?list.slice(0,100).map(m=>{
     const bc=m.tipo.toLowerCase().includes('entrada')?'bg':m.tipo.toLowerCase().includes('salida')?'br':'bb';
     const midx=movs.indexOf(m);const canE=canEdit();
     const chk=m.id?`<input type="checkbox" class="mv-sel" ${MOV_SEL.has(m.id)?'checked':''} onchange="movSelTog(${m.id},this.checked)" style="width:15px;height:15px;cursor:pointer">`:'';
-    return `<tr${MOV_SEL.has(m.id)?' style="background:#EFF6FF"':''}><td>${chk}</td><td style="color:var(--text2)">${m.fecha}</td><td><span class="badge ${bc}" style="font-size:10px">${m.tipo}</span></td><td style="color:var(--text2)">${m.concepto}</td><td>${m.desc}</td><td style="color:var(--text2)">${m.cuenta}${m.cta_destino?" → "+m.cta_destino:""}</td><td class="mono" style="font-weight:600">${fmt(m.monto)}</td><td style="white-space:nowrap">${canE?`<button onclick="editMov(${midx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button><button onclick="borrarMov(${midx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:'—'}</td></tr>`;
+    return `<tr${MOV_SEL.has(m.id)?' style="background:#EFF6FF"':''}><td>${chk}</td><td style="color:var(--text2)">${m.fecha}</td><td><span class="badge ${bc}" style="font-size:10px">${m.tipo}</span></td><td style="color:var(--text2)">${m.concepto}${ptBadgeMov(m)}</td><td>${m.desc}${m.tercero&&esPuenteC(m.concepto)?'<div style="font-size:11px;color:var(--text3)">'+ptEsc(ptTitulo(m.tercero))+'</div>':''}</td><td style="color:var(--text2)">${m.cuenta}${m.cta_destino?" → "+m.cta_destino:""}</td><td class="mono" style="font-weight:600">${fmt(m.monto)}</td><td style="white-space:nowrap">${canE?`<button onclick="editMov(${midx})" style="padding:3px 7px;border:1px solid #ccc;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">✏️</button><button onclick="borrarMov(${midx})" style="padding:3px 7px;border:1px solid #fca5a5;border-radius:4px;cursor:pointer;font-size:11px;color:#991B1B">🗑</button>`:'—'}</td></tr>`;
   }).join(''):`<tr><td colspan="8" class="tbl-empty">Sin movimientos</td></tr>`;
   window._movLista=list;
   try{movSelBarra();}catch(e){}
@@ -7314,8 +7350,425 @@ function rMovs(f=''){
   document.getElementById('mv-s').textContent=fmt(s);
   const mvR=document.getElementById('mv-r');if(mvR)mvR.textContent=fmt(r);
   document.getElementById('mv-b').textContent=fmt(e-s-r);
+  try{ptPintaVista();}catch(err){}
 }
 function fMov(f,el){document.querySelectorAll('#page-mov .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');rMovs(f);}
+
+
+// ═══ TERCEROS POR DEVOLVER ═══════════════════════════════════════════════════
+// Cada "Cobro por terceros (puente)" sabe cuánto falta devolverle a quién.
+// Las devoluciones (salidas puente) guardan en puente_liga qué cobros saldan:
+//   {"g":"grupo","e":[[id_cobro,monto],...],"r":1}   r=1: retención que pasa a ingreso
+// Lo que te quedas NO sale del banco: se registra como un par que se cancela
+// (salida puente + entrada INGRESO POR TERMINAL, misma cuenta), así el puente
+// cierra en $0, el banco no se mueve y el Estado de Resultados ve el ingreso.
+var MV_TER=false, PT_SEL=new Set(), PT_LIGAR=null, PT_PCT=null, PT_DEV=null;
+function ptEsc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function ptLiga(m){try{return m&&m.puente_liga?JSON.parse(m.puente_liga):null;}catch(e){return null;}}
+function ptEsEnt(m){return esPuenteC(m.concepto)&&String(m.tipo||'').toLowerCase().indexOf('entrada')>=0;}
+function ptEsSal(m){var t=String(m.tipo||'').toLowerCase();return esPuenteC(m.concepto)&&(t.indexOf('salida')>=0||t.indexOf('retiro')>=0);}
+function ptTitulo(s){return String(s||'').trim().replace(/\s+/g,' ').toLowerCase().replace(/(^|\s)(\S)/g,function(a,b,c){return b+c.toUpperCase();});}
+// Por quién se cobró: el campo nuevo manda; en los viejos se lee de la descripción
+function ptTercero(m){
+  if(m.tercero)return ptTitulo(m.tercero);
+  var d=String(m.desc||'');
+  if(/tranquilo/i.test(d))return 'Tranquilo';
+  var i=d.lastIndexOf(' - ');
+  if(i>0&&d.slice(i+3).trim())return ptTitulo(d.slice(i+3));
+  return '';
+}
+function ptFec(f){f=String(f||'').slice(0,10);return f?f.slice(8,10)+'/'+f.slice(5,7)+'/'+f.slice(0,4):'';}
+function ptDias(f){var d=ordDias(String(f||'').slice(0,10));return d==null?0:d;}
+function ptR2(n){return Math.round((+n||0)*100)/100;}
+function cargarPuentePct(){
+  return fetch('/api/config/puente_pct',{credentials:'include'}).then(function(r){return r.json();})
+    .then(function(d){if(d&&d.valor!=null&&!isNaN(+d.valor))PT_PCT=+d.valor;}).catch(function(){});
+}
+function ptEstado(){
+  var aplic={},ult={},salSin=[],info={};
+  (movs||[]).forEach(function(m){
+    if(!ptEsSal(m))return;
+    var L=ptLiga(m);
+    if(!L||!L.e||!L.e.length){salSin.push(m);return;}
+    L.e.forEach(function(x){aplic[x[0]]=(aplic[x[0]]||0)+(+x[1]||0);if(!ult[x[0]]||String(m.fecha)>ult[x[0]])ult[x[0]]=String(m.fecha||'');});
+  });
+  var pend=[];
+  (movs||[]).forEach(function(m){
+    if(!ptEsEnt(m)||!m.id)return;
+    var L=ptLiga(m),hist=!!(L&&L.h);
+    var ap=hist?(+m.monto||0):(aplic[m.id]||0);
+    var p=ptR2((+m.monto||0)-ap);
+    info[m.id]={m:m,ap:ap,pend:p,hist:hist,ult:hist?(L.f||''):(ult[m.id]||''),ter:ptTercero(m)};
+    if(p>0.5)pend.push(m);
+  });
+  pend.sort(function(a,b){return String(a.fecha||'').localeCompare(String(b.fecha||''))||(a.id-b.id);});
+  var total=ptR2(pend.reduce(function(s,m){return s+info[m.id].pend;},0));
+  return {info:info,pend:pend,salSin:salSin,total:total};
+}
+function ptTercerosLista(){
+  var s={};(movs||[]).forEach(function(m){if(esPuenteC(m.concepto)){var t=ptTercero(m);if(t)s[t]=1;}});
+  return Object.keys(s).sort();
+}
+function ptPintaDatalist(){
+  var dl=document.getElementById('dl-terceros');
+  if(dl)dl.innerHTML=ptTercerosLista().map(function(t){return '<option value="'+ptEsc(t)+'">';}).join('');
+}
+function ptPill(txt,bg,col){return '<span style="display:inline-block;margin-top:3px;background:'+bg+';color:'+col+';border-radius:99px;padding:1px 9px;font-size:11px;font-weight:600;white-space:nowrap">'+txt+'</span>';}
+
+// Etiqueta y botón que lleva cada renglón puente en la tabla de Movimientos
+function ptBadgeMov(m){
+  if(!m||!m.id||!esPuenteC(m.concepto))return '';
+  var E=window._ptE||ptEstado(),ce=canEdit();
+  if(ptEsEnt(m)){
+    var i=E.info[m.id];if(!i)return '';
+    if(i.pend>0.5){
+      var d=ptDias(m.fecha);
+      return '<br>'+ptPill((i.ap>0.5?'Faltan '+fmt(i.pend):'Por devolver')+' · hace '+d+' día'+(d===1?'':'s'),'var(--mant-l)','var(--mant-d)')+
+        (ce?' <button class="btn btn-s btn-xs" style="margin-top:3px" onclick="ptAbrirDev(['+m.id+'])">↩️ Devolver</button>':'');
+    }
+    if(i.pend<-0.5)return '<br>'+ptPill('Devolviste '+fmt(-i.pend)+' de más','var(--borgona-l)','var(--borgona)');
+    return '<br>'+ptPill(i.hist?'✓ Ya estaba devuelto':'✓ Devuelto el '+ptFec(i.ult),'var(--menta-l)','#12724C');
+  }
+  if(ptEsSal(m)){
+    var L=ptLiga(m);
+    if(L&&L.e&&L.e.length)return '<br>'+ptPill(L.r?'Retención → ingreso':'Salda '+L.e.length+' cobro'+(L.e.length===1?'':'s'),'var(--menta-l)','#12724C');
+    return '<br>'+ptPill('Sin ligar a sus cobros','var(--borgona-l)','var(--borgona)')+
+      (ce?' <button class="btn btn-s btn-xs" style="margin-top:3px" onclick="ptIniciarLigar('+m.id+')">🔗 Ligar</button>':'');
+  }
+  return '';
+}
+
+// ── Vista "Terceros por devolver" dentro de Movimientos ──
+function ptToggle(on){
+  MV_TER=(on==null)?!MV_TER:!!on;
+  if(!MV_TER){PT_LIGAR=null;PT_SEL.clear();}
+  ptPintaVista();
+}
+function ptIr(){go('mov');ptToggle(true);}
+function ptPintaVista(){
+  var p=document.getElementById('mv-ter'),tw=document.getElementById('mv-tw'),b=document.getElementById('mv-ter-btn');
+  var E=ptEstado();window._ptE=E;
+  if(b){
+    b.innerHTML=MV_TER?'✕ Volver a movimientos':'🔁 Terceros por devolver'+(E.total>0.5?' <b class="mono" style="color:var(--mant-d)">'+fmt(E.total)+'</b>':'');
+    b.className='btn btn-sm '+(MV_TER?'btn-p':'btn-s');
+  }
+  if(!p)return;
+  p.style.display=MV_TER?'':'none';
+  if(tw)tw.style.display=MV_TER?'none':'';
+  var sb=document.getElementById('mv-selbar');if(sb&&MV_TER)sb.style.display='none';
+  if(MV_TER)p.innerHTML=ptPanelHTML(E);
+}
+function ptPanelHTML(E){
+  var ce=canEdit(),h='';
+  var viejo=E.pend.length?ptDias(E.pend[0].fecha):0;
+  // Encabezado
+  h+='<div class="tw" style="margin-bottom:.75rem"><div style="padding:13px 16px;display:flex;gap:22px;flex-wrap:wrap;align-items:baseline">'+
+    '<div><div style="font-size:11px;color:var(--text3)">Dinero de terceros en tu banco</div>'+
+      '<b class="mono" style="font-size:20px;color:'+(E.total>0.5?'var(--mant-d)':'#12724C')+'">'+fmt(E.total)+'</b></div>'+
+    '<div style="flex:1;min-width:220px;font-size:12.5px;color:var(--text2)">'+
+      (E.total>0.5?E.pend.length+' cobro'+(E.pend.length===1?'':'s')+' por devolver · el más viejo es de hace <b>'+viejo+' día'+(viejo===1?'':'s')+'</b>.'
+        :'Está todo devuelto. Lo que cobres por alguien más aparecerá aquí hasta que se lo regreses.')+
+      '<br><span style="color:var(--text3)">No es tu venta: entra y sale del banco, pero no toca el Estado de Resultados.</span></div>'+
+    '<div style="font-size:12px;color:var(--text2)">Tu % de retención: <b>'+(PT_PCT!=null?PT_PCT+'%':'sin definir')+'</b>'+
+      (ce?' <button class="btn btn-s btn-xs" onclick="ptDefinirPct()">✏️</button>':'')+'</div>'+
+  '</div></div>';
+
+  // Modo ligar una devolución vieja
+  if(PT_LIGAR){
+    var s=(movs||[]).find(function(m){return m.id===PT_LIGAR;});
+    if(s)h+='<div style="background:var(--azul-l);border:1px solid #BCD3F3;border-radius:12px;padding:11px 15px;margin-bottom:.75rem;font-size:12.5px;color:#2A4F8A">'+
+      '🔗 <b>Ligando la devolución de '+fmt(s.monto)+' del '+ptFec(s.fecha)+'</b>'+(s.desc?' ('+ptEsc(String(s.desc).slice(0,50))+')':'')+
+      '. Palomea abajo los cobros que saldó y pica <b>Ligar</b>. <button class="btn btn-s btn-xs" onclick="PT_LIGAR=null;PT_SEL.clear();ptPintaVista()">Cancelar</button></div>';
+  }
+
+  // Cobros pendientes agrupados por tercero
+  if(E.pend.length){
+    var G={};
+    E.pend.forEach(function(m){var t=E.info[m.id].ter||'Sin asignar';(G[t]=G[t]||[]).push(m);});
+    var ks=Object.keys(G).sort(function(a,b){
+      if(a==='Sin asignar')return 1;if(b==='Sin asignar')return -1;
+      var sa=G[a].reduce(function(s,m){return s+E.info[m.id].pend;},0),sb=G[b].reduce(function(s,m){return s+E.info[m.id].pend;},0);
+      return sb-sa;});
+    h+='<div class="tw" style="margin-bottom:.75rem"><table class="tbl"><tbody>';
+    ks.forEach(function(t){
+      var tot=G[t].reduce(function(s,m){return s+E.info[m.id].pend;},0);
+      var ids=G[t].map(function(m){return m.id;});
+      h+='<tr style="background:var(--surface2)"><td colspan="5" style="font-weight:700">'+(t==='Sin asignar'?'<span style="color:var(--borgona)">Sin asignar</span> <span style="font-weight:400;font-size:11.5px;color:var(--text3)">· ponles el nombre con ✏️</span>':ptEsc(t))+'</td>'+
+        '<td class="mono" style="text-align:right;font-weight:700">'+fmt(tot)+'</td>'+
+        '<td style="text-align:right"><button class="btn btn-s btn-xs" onclick="ptSelGrupo(['+ids.join(',')+'])">Seleccionar</button></td></tr>';
+      G[t].forEach(function(m){
+        var i=E.info[m.id],d=ptDias(m.fecha),on=PT_SEL.has(m.id);
+        h+='<tr'+(on?' style="background:#EFF6FF"':'')+'>'+
+          '<td style="width:30px"><input type="checkbox" '+(on?'checked':'')+' onchange="ptSelTog('+m.id+',this.checked)" style="width:15px;height:15px;cursor:pointer"></td>'+
+          '<td style="color:var(--text2);white-space:nowrap">'+ptFec(m.fecha)+'</td>'+
+          '<td>'+ptEsc(m.desc||'')+(i.ap>0.5?'<div style="font-size:11px;color:var(--text3)">Cobro de '+fmt(m.monto)+', ya devolviste '+fmt(i.ap)+'</div>':'')+'</td>'+
+          '<td style="color:var(--text2)">'+ptEsc(m.cuenta||'')+'</td>'+
+          '<td style="color:'+(d>7?'var(--borgona)':'var(--text3)')+';font-size:11.5px;white-space:nowrap">hace '+d+' día'+(d===1?'':'s')+'</td>'+
+          '<td class="mono" style="text-align:right;font-weight:600">'+fmt(i.pend)+'</td>'+
+          '<td style="text-align:right;white-space:nowrap">'+(ce?'<button class="btn btn-s btn-xs" title="Cambiar el nombre del tercero" onclick="ptCambiarTercero('+m.id+')">✏️</button>':'')+'</td></tr>';
+      });
+    });
+    h+='</tbody></table></div>';
+  }
+
+  // Barra de selección
+  var sel=E.pend.filter(function(m){return PT_SEL.has(m.id);});
+  if(sel.length){
+    var suma=sel.reduce(function(s,m){return s+E.info[m.id].pend;},0);
+    var bot='';
+    if(PT_LIGAR){
+      var s2=(movs||[]).find(function(m){return m.id===PT_LIGAR;});
+      var dif=s2?ptR2((+s2.monto||0)-suma):0;
+      bot='<span style="font-size:12px">'+(Math.abs(dif)<0.5?'✓ cuadra exacto':(dif>0?'la devolución es '+fmt(dif)+' mayor':'faltan '+fmt(-dif)+' para cubrir lo palomeado'))+'</span>'+
+        '<button class="btn btn-xs" style="background:#fff;color:#1F3864;font-weight:700;border:none" onclick="ptGuardarLigar()">🔗 Ligar</button>';
+    }else{
+      bot='<button class="btn btn-xs" style="background:#fff;color:#1F3864;font-weight:700;border:none" onclick="ptAbrirDev(['+sel.map(function(m){return m.id;}).join(',')+'])">↩️ Devolver seleccionados</button>'+
+        '<button class="btn btn-xs" style="background:transparent;border:1px solid #ffffff66;color:#fff" onclick="ptMarcarHist()">Ya estaba devuelto</button>';
+    }
+    h+='<div style="position:sticky;bottom:12px;z-index:5;background:#1F3864;color:#fff;border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:13px;margin-bottom:.75rem">'+
+      '<span style="font-weight:600">'+sel.length+' seleccionado'+(sel.length===1?'':'s')+' · SUMA: '+fmt(suma)+'</span>'+(ce?bot:'')+
+      '<button class="btn btn-xs" style="background:transparent;border:1px solid #ffffff66;color:#fff" onclick="PT_SEL.clear();ptPintaVista()">✕ Quitar</button></div>';
+  }
+
+  // Devoluciones viejas sin ligar
+  if(E.salSin.length&&!PT_LIGAR){
+    var sinT=E.salSin.reduce(function(s,m){return s+(+m.monto||0);},0);
+    h+='<div class="tw" style="margin-bottom:.75rem"><div style="padding:11px 15px;border-bottom:1px solid var(--border)">'+
+      '<div style="font-size:13px;font-weight:700">🔗 Devoluciones sin ligar · '+E.salSin.length+' por '+fmt(sinT)+'</div>'+
+      '<div style="font-size:11.5px;color:var(--text3)">Las registraste antes de que existiera esta pantalla. Ligarlas una vez dice qué cobros saldaron, y así esos cobros dejan de salir como pendientes. Si un cobro viejo ya se devolvió por otro lado, márcalo como "Ya estaba devuelto".</div></div>'+
+      '<table class="tbl"><tbody>'+E.salSin.slice().sort(function(a,b){return String(b.fecha||'').localeCompare(String(a.fecha||''));}).map(function(m){
+        return '<tr><td style="color:var(--text2);white-space:nowrap">'+ptFec(m.fecha)+'</td><td>'+ptEsc(m.desc||'')+'</td><td style="color:var(--text2)">'+ptEsc(m.cuenta||'')+'</td>'+
+          '<td class="mono" style="text-align:right;font-weight:600;color:var(--red)">'+fmt(m.monto)+'</td>'+
+          '<td style="text-align:right">'+(ce?'<button class="btn btn-s btn-xs" onclick="ptIniciarLigar('+m.id+')">🔗 Ligar</button>':'')+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+  }
+
+  // Devoluciones hechas desde aquí (para deshacer)
+  var grp={};
+  // solo las hechas con ↩️ Devolver (grupo g…); las viejas ligadas a mano (L…) no se borran desde aquí
+  (movs||[]).forEach(function(m){var L=ptLiga(m);if(L&&L.g&&String(L.g).charAt(0)==='g'&&ptEsSal(m)&&!L.r){grp[L.g]=m;}});
+  var gl=Object.keys(grp).map(function(k){return grp[k];}).sort(function(a,b){return String(b.fecha||'').localeCompare(String(a.fecha||''))||(b.id-a.id);}).slice(0,8);
+  if(gl.length&&!PT_LIGAR){
+    h+='<div class="tw"><div style="padding:11px 15px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Últimas devoluciones</div><table class="tbl"><tbody>'+
+      gl.map(function(m){
+        var L=ptLiga(m),ret=(movs||[]).find(function(x){var l2=ptLiga(x);return l2&&l2.g===L.g&&l2.r&&ptEsSal(x);});
+        return '<tr><td style="color:var(--text2);white-space:nowrap">'+ptFec(m.fecha)+'</td><td>'+ptEsc(m.desc||'')+'</td>'+
+          '<td class="mono" style="text-align:right">'+fmt(m.monto)+(ret?'<div style="font-size:11px;color:#12724C">te quedaste '+fmt(ret.monto)+'</div>':'')+'</td>'+
+          '<td style="text-align:right">'+(ce?'<button class="btn btn-s btn-xs" onclick="ptDeshacer(\''+L.g+'\')">↩︎ Deshacer</button>':'')+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+  }
+  return h;
+}
+function ptSelTog(id,on){if(on)PT_SEL.add(id);else PT_SEL.delete(id);ptPintaVista();}
+function ptSelGrupo(ids){var todos=ids.every(function(i){return PT_SEL.has(i);});ids.forEach(function(i){if(todos)PT_SEL.delete(i);else PT_SEL.add(i);});ptPintaVista();}
+function ptDefinirPct(){
+  var v=prompt('¿Qué porcentaje te quedas normalmente de los cobros por terceros?\n(La comisión de la terminal, IVA o lo que hayan pactado. Ej. 3.5)',PT_PCT!=null?PT_PCT:'');
+  if(v==null)return;
+  v=parseFloat(String(v).replace(',','.'));
+  if(isNaN(v)||v<0||v>50){alert('Escribe un número entre 0 y 50.');return;}
+  PT_PCT=v;
+  fetch('/api/config/puente_pct',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:v})})
+    .then(function(r){if(!r.ok)throw 0;}).catch(function(){alert('⚠️ No se pudo guardar el porcentaje en el servidor.');});
+  ptPintaVista();
+  if(PT_DEV)ptCalcDev();
+}
+function ptPutMov(m,upd){
+  return fetch('/api/movimientos/'+m.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(upd)})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(srv){Object.assign(m,srv&&srv.id?srv:upd);return m;});
+}
+function ptCambiarTercero(id){
+  var m=(movs||[]).find(function(x){return x.id===id;});if(!m)return;
+  var v=prompt('¿Por quién se cobró?\nYa usados: '+(ptTercerosLista().join(', ')||'—'),ptTercero(m));
+  if(v==null)return;v=ptTitulo(v);if(!v)return;
+  ptPutMov(m,{tercero:v}).then(ptPintaVista).catch(function(e){alert('⚠️ No se guardó: '+e.message);});
+}
+function ptMarcarHist(){
+  var E=ptEstado(),sel=E.pend.filter(function(m){return PT_SEL.has(m.id);});
+  if(!sel.length)return;
+  var suma=sel.reduce(function(s,m){return s+E.info[m.id].pend;},0);
+  if(!confirm('¿Marcar '+sel.length+' cobro(s) por '+fmt(suma)+' como YA DEVUELTOS?\n\nÚsalo solo para cobros viejos cuya devolución no está registrada en Movimientos. No crea ningún movimiento: solo los quita de pendientes.'))return;
+  Promise.allSettled(sel.map(function(m){return ptPutMov(m,{puente_liga:JSON.stringify({h:1,f:todayStr()})});}))
+    .then(function(r){var f=r.filter(function(x){return x.status!=='fulfilled';}).length;
+      logActivity('Marcó cobros por terceros como ya devueltos',sel.length+' — '+fmt(suma));
+      PT_SEL.clear();ptPintaVista();if(f)alert('⚠️ '+f+' no se pudieron guardar.');});
+}
+function ptIniciarLigar(id){
+  PT_LIGAR=id;PT_SEL.clear();
+  if(!document.querySelector('#page-mov.active'))go('mov');
+  MV_TER=true;ptPintaVista();
+  var p=document.getElementById('mv-ter');if(p)p.scrollIntoView({behavior:'smooth',block:'start'});
+}
+// Reparte un monto entre cobros, del más viejo al más nuevo
+function ptRepartir(monto,lista,disp){
+  var out=[],r=ptR2(monto);
+  lista.forEach(function(m){if(r<=0.004)return;var t=Math.min(r,disp[m.id]||0);if(t>0.004){out.push([m.id,ptR2(t)]);disp[m.id]=ptR2(disp[m.id]-t);r=ptR2(r-t);}});
+  return {e:out,sobra:r};
+}
+function ptGuardarLigar(){
+  var s=(movs||[]).find(function(m){return m.id===PT_LIGAR;});if(!s)return;
+  var E=ptEstado(),sel=E.pend.filter(function(m){return PT_SEL.has(m.id);});
+  if(!sel.length)return;
+  var disp={};sel.forEach(function(m){disp[m.id]=E.info[m.id].pend;});
+  var R=ptRepartir(+s.monto||0,sel,disp);
+  if(R.sobra>0.5){
+    if(!confirm('La devolución es '+fmt(R.sobra)+' mayor que los cobros palomeados.\n\nEse sobrante se anotará en el último cobro y saldrá como "devolviste de más". ¿Seguir?'))return;
+    var ult=R.e[R.e.length-1];ult[1]=ptR2(ult[1]+R.sobra);
+  }
+  var ters=sel.map(function(m){return E.info[m.id].ter;}).filter(Boolean);
+  var upd={puente_liga:JSON.stringify({g:'L'+Date.now(),e:R.e})};
+  if(!s.tercero&&ters.length)upd.tercero=ters[0];
+  ptPutMov(s,upd).then(function(){
+    logActivity('Ligó devolución a terceros',fmt(s.monto)+' → '+R.e.length+' cobro(s)');
+    PT_LIGAR=null;PT_SEL.clear();ptPintaVista();try{rMovsRe();}catch(e){}
+  }).catch(function(e){alert('⚠️ No se pudo ligar: '+e.message);});
+}
+
+// ── Modal de devolución ──
+function ptAbrirDev(ids){
+  var E=ptEstado();
+  var sel=E.pend.filter(function(m){return ids.indexOf(m.id)>=0;});
+  if(!sel.length){alert('Esos cobros ya no tienen saldo por devolver.');return;}
+  var ters=sel.map(function(m){return E.info[m.id].ter;}).filter(function(v,i,a){return v&&a.indexOf(v)===i;});
+  if(ters.length>1&&!confirm('Palomeaste cobros de '+ters.length+' terceros distintos ('+ters.join(', ')+').\n\nNormalmente cada transferencia es para una sola persona. ¿Devolver todo junto de todos modos?'))return;
+  var total=ptR2(sel.reduce(function(s,m){return s+E.info[m.id].pend;},0));
+  var porCta={};sel.forEach(function(m){porCta[m.cuenta||'INBURSA']=(porCta[m.cuenta||'INBURSA']||0)+E.info[m.id].pend;});
+  var ctaMas=Object.keys(porCta).sort(function(a,b){return porCta[b]-porCta[a];})[0]||'INBURSA';
+  PT_DEV={ids:sel.map(function(m){return m.id;}),total:total,cta:ctaMas};
+  document.getElementById('ptd-ttl').textContent='↩️ Devolver'+(ters.length===1?' a '+ters[0]:'');
+  document.getElementById('ptd-lista').innerHTML=sel.map(function(m){
+    return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:3px 0"><span><span style="color:var(--text3)">'+ptFec(m.fecha)+'</span> · '+ptEsc(String(m.desc||'').slice(0,46))+'</span><b class="mono">'+fmt(E.info[m.id].pend)+'</b></div>';
+  }).join('')+'<div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);margin-top:4px;padding-top:5px;font-size:13px;font-weight:700"><span>Cobrado por ellos, por devolver</span><span class="mono">'+fmt(total)+'</span></div>';
+  document.getElementById('ptd-f').value=todayStr();
+  var sc=document.getElementById('ptd-cta');
+  sc.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option'+(c===ctaMas?' selected':'')+'>'+ptEsc(c)+'</option>';}).join('');
+  document.getElementById('ptd-ter').value=ters.length===1?ters[0]:'';
+  document.getElementById('ptd-ref').value='';
+  document.getElementById('ptd-ret').value=0;
+  document.getElementById('ptd-dev').value=total.toFixed(2);
+  document.getElementById('ptd-pctb').textContent=PT_PCT!=null?'Mi '+PT_PCT+'%':'Mi %…';
+  ptPintaDatalist();
+  ptCalcDev();
+  OM('mod-ptdev');
+}
+function ptRetBtn(modo){
+  if(!PT_DEV)return;
+  if(modo==='pct'){
+    if(PT_PCT==null){ptDefinirPct();if(PT_PCT==null)return;document.getElementById('ptd-pctb').textContent='Mi '+PT_PCT+'%';}
+    document.getElementById('ptd-ret').value=ptR2(PT_DEV.total*PT_PCT/100).toFixed(2);
+  }else document.getElementById('ptd-ret').value=0;
+  ptRetCambio();
+}
+// Al cambiar lo que te quedas, lo que devuelves se ajusta solo (y al revés no: si
+// escribes lo que devuelves a mano, se respeta para permitir devoluciones parciales)
+function ptRetCambio(){
+  if(!PT_DEV)return;
+  var r=Math.max(0,+document.getElementById('ptd-ret').value||0);
+  document.getElementById('ptd-dev').value=Math.max(0,ptR2(PT_DEV.total-r)).toFixed(2);
+  ptCalcDev();
+}
+function ptCalcDev(){
+  if(!PT_DEV)return;
+  var d=ptR2(Math.max(0,+document.getElementById('ptd-dev').value||0)),r=ptR2(Math.max(0,+document.getElementById('ptd-ret').value||0));
+  var queda=ptR2(PT_DEV.total-d-r),cta=document.getElementById('ptd-cta').value;
+  var fila=function(t,v,c){return '<div style="display:flex;justify-content:space-between;gap:10px'+(c?';color:'+c:'')+'"><span>'+t+'</span><b class="mono">'+v+'</b></div>';};
+  var h=fila('Sale de '+ptEsc(cta)+': "Devolución a terceros (puente)"',fmt(d),'var(--red)');
+  if(r>0.004)h+=fila('Te quedas → "INGRESO POR TERMINAL"',fmt(r),'#12724C')+
+    '<div style="font-size:11px;color:var(--text3);margin:-1px 0 3px">Eso no sale del banco: el sistema lo pasa del puente a tu ingreso con un par de movimientos que se cancelan.</div>';
+  var msg;
+  if(queda<-0.004)msg='<div style="color:var(--borgona);font-weight:700;margin-top:5px">⚠️ Es '+fmt(-queda)+' más de lo que les debes. Revisa los montos.</div>';
+  else if(queda>0.004)msg='<div style="color:var(--mant-d);font-weight:700;margin-top:5px">Devolución parcial: quedan '+fmt(queda)+' por devolver.</div>';
+  else msg='<div style="color:#12724C;font-weight:700;margin-top:5px">✓ El puente de estos cobros queda en $0.00</div>';
+  document.getElementById('ptd-res').innerHTML=h+msg;
+}
+function ptPostMov(mv){
+  return fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(srv){if(!srv||!srv.id)throw new Error('el servidor no devolvió el registro');movs.unshift(srv);return srv;});
+}
+function ptGuardarDev(){
+  if(!PT_DEV)return;
+  var E=ptEstado();
+  var sel=E.pend.filter(function(m){return PT_DEV.ids.indexOf(m.id)>=0;});
+  var total=ptR2(sel.reduce(function(s,m){return s+E.info[m.id].pend;},0));
+  var d=ptR2(Math.max(0,+document.getElementById('ptd-dev').value||0)),r=ptR2(Math.max(0,+document.getElementById('ptd-ret').value||0));
+  var f=document.getElementById('ptd-f').value||todayStr(),cta=document.getElementById('ptd-cta').value;
+  var ter=ptTitulo(document.getElementById('ptd-ter').value),ref=document.getElementById('ptd-ref').value.trim();
+  if(!ter){alert('Escribe a quién le devuelves.');return;}
+  if(d+r<0.01){alert('Escribe cuánto devuelves.');return;}
+  if(d+r>total+0.01){alert('Es '+fmt(d+r-total)+' más de lo que les debes por estos cobros. Revisa los montos.');return;}
+  var btn=document.getElementById('ptd-ok');btn.disabled=true;btn.textContent='Guardando…';
+  var disp={};sel.forEach(function(m){disp[m.id]=E.info[m.id].pend;});
+  var Rd=ptRepartir(d,sel,disp),Rr=ptRepartir(r,sel,disp);
+  var ctaRet=PT_DEV.cta,g='g'+Date.now(),mes=parseInt(f.split('-')[1],10)-1,hechos=[];
+  var base={fecha:f,mes:mes,cta_destino:'',socio:'',tercero:ter};
+  var p=Promise.resolve();
+  if(d>0.004)p=p.then(function(){return ptPostMov(Object.assign({},base,{tipo:'Salida',concepto:PUENTE_OUT,
+    desc:'Devolución a '+ter+(ref?' · ref '+ref:''),monto:d,cuenta:cta,puente_liga:JSON.stringify({g:g,e:Rd.e})})).then(function(s){hechos.push(s);});});
+  if(r>0.004){
+    p=p.then(function(){return ptPostMov(Object.assign({},base,{tipo:'Salida',concepto:PUENTE_OUT,
+      desc:'Lo que me quedé de '+ter+' → pasa a INGRESO POR TERMINAL',monto:r,cuenta:ctaRet,conciliado:f,banco_ref:'reclasificación',
+      puente_liga:JSON.stringify({g:g,e:Rr.e,r:1})})).then(function(s){hechos.push(s);});});
+    p=p.then(function(){return ptPostMov(Object.assign({},base,{tipo:'Entrada',concepto:'INGRESO POR TERMINAL',
+      desc:'Lo que me quedé del cobro por '+ter,monto:r,cuenta:ctaRet,conciliado:f,banco_ref:'reclasificación',
+      puente_liga:JSON.stringify({g:g,r:1})})).then(function(s){hechos.push(s);});});
+  }
+  p.then(function(){
+    // el nombre del tercero también se anota en los cobros que no lo traían
+    sel.forEach(function(m){if(!m.tercero)ptPutMov(m,{tercero:ter}).catch(function(){});});
+    logActivity('Devolvió cobro por terceros',ter+' — devuelto '+fmt(d)+(r>0.004?' · retenido '+fmt(r):''));
+    CM('mod-ptdev');PT_DEV=null;PT_SEL.clear();
+    ptPintaVista();try{rMovsRe();}catch(e){}
+  }).catch(function(e){
+    // si algo falló a medias, se borra lo que sí se creó para no dejar el puente chueco
+    Promise.allSettled(hechos.map(function(s){return fetch('/api/movimientos/'+s.id,{method:'DELETE',credentials:'include'});}))
+      .then(function(){var ids=hechos.map(function(s){return s.id;});movs=movs.filter(function(m){return ids.indexOf(m.id)<0;});ptPintaVista();});
+    alert('⚠️ No se pudo registrar la devolución ('+e.message+'). No quedó nada a medias; inténtalo de nuevo.');
+  }).then(function(){btn.disabled=false;btn.textContent='✓ Registrar devolución';});
+}
+function ptDeshacer(g){
+  var lst=(movs||[]).filter(function(m){var L=ptLiga(m);return L&&L.g===g;});
+  if(!lst.length)return;
+  var conc=lst.filter(function(m){return m.conciliado&&m.banco_ref!=='reclasificación';});
+  var dev=lst.find(function(m){var L=ptLiga(m);return ptEsSal(m)&&!L.r;});
+  if(!confirm('¿Deshacer la devolución'+(dev?' de '+fmt(dev.monto):'')+'?\n\nSe borran sus '+lst.length+' movimiento(s) y los cobros vuelven a quedar por devolver.'+
+    (conc.length?'\n\n⚠️ La salida ya estaba conciliada con el banco: al borrarla, ese renglón del estado de cuenta vuelve a quedar sin casar.':'')))return;
+  Promise.allSettled(lst.map(function(m){return fetch('/api/movimientos/'+m.id,{method:'DELETE',credentials:'include'}).then(function(r){if(!r.ok)throw 0;return m.id;});}))
+    .then(function(res){
+      var ok=res.filter(function(x){return x.status==='fulfilled';}).map(function(x){return x.value;});
+      movs=movs.filter(function(m){return ok.indexOf(m.id)<0;});
+      logActivity('Deshizo devolución a terceros',ok.length+' movimiento(s)');
+      ptPintaVista();try{rMovsRe();}catch(e){}
+      if(ok.length<lst.length)alert('⚠️ '+(lst.length-ok.length)+' movimiento(s) no se pudieron borrar. Revisa Movimientos.');
+    });
+}
+
+// ── Campo "¿Por quién cobraste?" en el registro de movimientos ──
+function ptMvCatChange(){
+  var c=(document.getElementById('mv-c')||{}).value||'',w=document.getElementById('mv-ter-wrap');
+  if(!w)return;
+  var es=esPuenteC(c);w.style.display=es?'':'none';
+  var lb=document.getElementById('mv-ter-lbl');
+  if(lb)lb.textContent=c===PUENTE_OUT?'¿A quién le devolviste?':'¿Por quién cobraste?';
+  var tip=document.getElementById('mv-ter-tip');
+  if(tip)tip.style.display=c===PUENTE_OUT?'':'none';
+  if(es)ptPintaDatalist();
+}
+
+// ── Aviso en el Calendario (la pantalla de entrada) ──
+function pintaAvisoTerceros(){
+  var c=document.getElementById('cal-ter');if(!c)return;
+  var uu=_u()||{};
+  if(uu.role!=='owner'&&uu.role!=='admin'){c.innerHTML='';return;}
+  var E=ptEstado();
+  if(E.total<=0.5){c.innerHTML='';return;}
+  var d=ptDias(E.pend[0].fecha);
+  c.innerHTML='<div onclick="ptIr()" style="cursor:pointer;background:var(--mant-l);border:1px solid #F3DC8A;border-radius:12px;padding:11px 15px;margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+    '<div style="font-size:22px">🔁</div><div style="flex:1;min-width:220px">'+
+    '<div style="font-size:14px;font-weight:800;color:var(--mant-d)">Tienes '+fmt(E.total)+' de terceros en tu banco</div>'+
+    '<div style="font-size:12px;color:var(--text2);margin-top:2px">'+E.pend.length+' cobro(s) por devolver · el más viejo es de hace '+d+' día'+(d===1?'':'s')+' · pica para devolver</div>'+
+    '</div><div style="font-size:20px;color:var(--mant-d)">›</div></div>';
+}
 
 // ─── ESTADO DE RESULTADOS ─────────────────────────────────────────────────────
 function getMonto(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes).reduce((a,b)=>a+b.monto,0);}
@@ -11127,6 +11580,7 @@ function loadData(){
     FACTURAS=facs;
     loadERCats().then(()=>{try{rMvCat();}catch(e){}try{if(document.querySelector('#page-er.active'))rER();}catch(e){}});
     loadAuditExcl();
+    cargarPuentePct();
     loadBancosCfg().then(()=>{pintarCuentasSelects();try{if(document.querySelector('#page-ban.active'))rBancos();}catch(e){}});
     if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
     ORDENES=ords||[];
@@ -11210,12 +11664,17 @@ function addMov(){
   const fEl=document.getElementById('mv-f');
   const fecha=(fEl&&fEl.value)?fEl.value:todayStr();
   const mesMov=parseInt(fecha.split('-')[1],10)-1; // mes desde la fecha, sin bug de zona horaria
+  const terEl=document.getElementById('mv-ter');
+  const tercero=esPuenteC(cat)&&terEl?ptTitulo(terEl.value):'';
+  if(esPuenteC(cat)&&!tercero){alert(cat===PUENTE_OUT?'Escribe a quién le devolviste.':'Escribe por quién cobraste (ej. Raúl Chávez).');return;}
   const newMov={tipo,concepto:cat,desc,monto,fecha:fecha,
-    mes:mesMov,cuenta:cta,cta_destino:cta2,socio:''};
+    mes:mesMov,cuenta:cta,cta_destino:cta2,socio:'',tercero};
   fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(newMov)})
-  .then(r=>r.json()).then(()=>{
+  .then(r=>r.json()).then(srv=>{
+    if(srv&&srv.id)Object.assign(newMov,srv);   // con id, para poder ligarlo, editarlo o borrarlo sin recargar
     movs.unshift(newMov);
+    if(terEl)terEl.value='';
     document.getElementById('mv-d').value='';
     document.getElementById('mv-m').value='';
     if(cta2El) cta2El.value='';
