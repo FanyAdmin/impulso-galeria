@@ -4604,32 +4604,12 @@ function bcoRecupera(){
   }catch(e){}
   return rescatados;
 }
-// Una marca de conciliado solo vale si el movimiento al que apunta SIGUE EXISTIENDO.
-// Antes, al borrar movimientos, la marca se quedaba huérfana y el renglón del banco
-// seguía saliendo como "ya conciliado" aunque ya no hubiera nada registrado.
-function bcoVivo(id){
-  if(id==null||id===''||typeof id==='boolean')return !!id||id===0;
-  var n=+id;if(isNaN(n))return true;          // marcas viejas sin id: se respetan
-  if(!movs||!movs.length)return true;           // aún no cargan los movimientos: no se juzga
-  return movs.some(function(m){return +m.id===n;});
-}
-function bcoMarca(k){var id=BCO_OK[k];return (id&&bcoVivo(id))?id:null;}
-// Quita de la base las marcas que apuntan a movimientos borrados (solo admin/owner,
-// que son quienes reciben TODOS los movimientos; a venta le llegan solo los suyos)
-function bcoLimpiaHuerfanos(){
-  var u=_u()||{};
-  if((u.role!=='owner'&&u.role!=='admin')||!movs||!movs.length)return 0;
-  var n=0;
-  Object.keys(BCO_OK).forEach(function(k){if(!bcoVivo(BCO_OK[k])){delete BCO_OK[k];n++;}});
-  return n;
-}
 function cargarBcoOK(){
   return fetch('/api/config/bco_ok',{credentials:'include'}).then(function(r){return r.json();})
     .then(function(d){var v=d&&d.valor;if(v&&typeof v==='object')BCO_OK=v;})
     .then(function(){
-      var n=bcoRecupera(),h=bcoLimpiaHuerfanos();
-      if(h)console.log('Marcas de conciliado sin movimiento (borrado): '+h+' — se liberaron');
-      if(n||h)return guardarBcoOK().then(function(){if(n)console.log('Conciliaciones recuperadas: '+n);});
+      var n=bcoRecupera();
+      if(n)return guardarBcoOK().then(function(){console.log('Conciliaciones recuperadas: '+n);});
     })
     .catch(function(){});
 }
@@ -4676,7 +4656,7 @@ function pintaCuadre(d){
   // Lo que ya quedó cubierto por un movimiento agrupado no se vuelve a pedir
   var cubiertos=[],cubTot=0;
   var vivo=function(b){
-    if(bcoMarca(kLinea(b))){cubiertos.push(b);cubTot+=b.monto;return false;}
+    if(BCO_OK[kLinea(b)]){cubiertos.push(b);cubTot+=b.monto;return false;}
     return true;
   };
 
@@ -8912,7 +8892,7 @@ function banLineas(){
 function banClave(l){return kLinea(l);}
 // ¿Ya está conciliado? Por marca guardada o por movimiento conciliado que empate
 function banCasado(l){
-  var id=bcoMarca(banClave(l));
+  var id=BCO_OK[banClave(l)];
   if(id)return movs.find(function(m){return m.id===id;})||{id:id,desc:'(movimiento agrupado)'};
   return null;
 }
@@ -9619,7 +9599,7 @@ function banPuenteHTML(){
 function banRegistrarCom(){
   if(!BAN_EDO){alert('Primero sube el estado de cuenta.');return;}
   var cta=document.getElementById('ban-cta').value;
-  var faltan=(BAN_EDO.cargos||[]).filter(function(b){return banEsComision(b.det||b.tipo||'',b.comision)&&!bcoMarca(kLinea(b));});
+  var faltan=(BAN_EDO.cargos||[]).filter(function(b){return banEsComision(b.det||b.tipo||'',b.comision)&&!BCO_OK[kLinea(b)];});
   var tot=faltan.reduce(function(a,b){return a+b.monto;},0);
   if(!tot){alert('Ya no falta ninguna comisión por capturar.');return;}
   var f=faltan.map(function(b){return b.fecha;}).sort().pop();
