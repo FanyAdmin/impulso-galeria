@@ -1013,6 +1013,33 @@ tr:hover .ent-edit{opacity:1}
 </div>
 </div>
 
+<div class="modal-bg" id="mod-aj" style="display:none">
+<div class="modal" style="width:680px">
+  <div class="modal-hdr"><div class="modal-ttl" id="aj-ttl">🧾 Cuadre de bancos · 1 jul – 16 oct 2026</div><button class="modal-x" onclick="CM('mod-aj')">✕</button></div>
+  <div class="modal-body">
+    <div style="font-size:12.5px;color:var(--text2);margin-bottom:8px">Revisado renglón por renglón contra los estados de cuenta. Con esto el saldo de INBURSA en la plataforma queda igual al del banco y los cobros por terceros quedan ligados a sus devoluciones. Lo que no se encuentre se salta sin tocar nada más.</div>
+    <div id="aj-lista" style="max-height:52vh;overflow:auto;border:1px solid var(--border);border-radius:10px"></div>
+    <div id="aj-info" style="font-size:12px;color:var(--text3);margin-top:8px"></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-aj')">Cancelar</button><button class="btn btn-p" id="aj-ok" onclick="ajAplicar()">✓ Aplicar</button></div>
+</div>
+</div>
+<div class="modal-bg" id="mod-ref" style="display:none">
+<div class="modal" style="width:720px">
+  <div class="modal-hdr"><div class="modal-ttl">💵 Cobros en efectivo · 18 jun – 31 ago 2026</div><button class="modal-x" onclick="CM('mod-ref')">✕</button></div>
+  <div class="modal-body">
+    <div style="font-size:12.5px;color:var(--text2);margin-bottom:8px">Es el mismo cálculo del Cierre del día, hecho día por día: lo cobrado en efectivo según las notas contra lo registrado en Movimientos. Septiembre y octubre no se tocan porque ya cuadran.</div>
+    <div id="ref-lista" style="max-height:44vh;overflow:auto;border:1px solid var(--border);border-radius:10px"></div>
+    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+      <div style="font-weight:700;font-size:13px;margin-bottom:6px">Después: ¿cuánto efectivo hay hoy en caja?</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="number" step="0.01" id="ref-arqueo" placeholder="Arqueo de hoy" oninput="refArqueoCalc()" style="max-width:180px">
+        <button class="btn btn-s btn-sm" id="ref-arq-ok" onclick="refArqueoGuardar()" disabled>Ajustar saldo de Efectivo</button></div>
+      <div id="ref-arq-res" style="font-size:12px;color:var(--text2);margin-top:6px"></div>
+    </div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-ref')">Cerrar</button><button class="btn btn-p" id="ref-ok" onclick="refRegistrar()">✓ Registrar</button></div>
+</div>
+</div>
 <datalist id="dl-terceros"></datalist>
 <div class="modal-bg" id="mod-ptdev" style="display:none">
 <div class="modal" style="width:540px">
@@ -1542,6 +1569,8 @@ tr:hover .ent-edit{opacity:1}
     </div>
     <button id="mv-ter-btn" class="btn btn-s btn-sm" style="margin-left:auto" onclick="ptToggle()">🔁 Terceros por devolver</button>
   </div>
+  <div id="aj-banner"></div>
+  <div id="ref-banner"></div>
   <div id="mv-ter-panel" style="display:none"></div>
   <div class="tw" id="mv-tw"><table class="tbl"><thead><tr><th style="width:30px"><input type="checkbox" id="mv-selall" onchange="movSelAll(this.checked)" title="Seleccionar todo lo visible" style="width:15px;height:15px;cursor:pointer"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Cuenta</th><th>Monto</th></tr></thead><tbody id="mv-body"></tbody></table></div>
   <div id="mv-selbar" style="display:none;position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:60;background:#1F3864;color:#fff;border-radius:12px;padding:10px 18px;box-shadow:0 8px 24px rgba(0,0,0,.25);align-items:center;gap:14px;font-size:13px">
@@ -4604,12 +4633,32 @@ function bcoRecupera(){
   }catch(e){}
   return rescatados;
 }
+// Una marca de conciliado solo vale si el movimiento al que apunta SIGUE EXISTIENDO.
+// Antes, al borrar movimientos, la marca se quedaba huérfana y el renglón del banco
+// seguía saliendo como "ya conciliado" aunque ya no hubiera nada registrado.
+function bcoVivo(id){
+  if(id==null||id===''||typeof id==='boolean')return !!id||id===0;
+  var n=+id;if(isNaN(n))return true;          // marcas viejas sin id: se respetan
+  if(!movs||!movs.length)return true;           // aún no cargan los movimientos: no se juzga
+  return movs.some(function(m){return +m.id===n;});
+}
+function bcoMarca(k){var id=BCO_OK[k];return (id&&bcoVivo(id))?id:null;}
+// Quita de la base las marcas que apuntan a movimientos borrados (solo admin/owner,
+// que son quienes reciben TODOS los movimientos; a venta le llegan solo los suyos)
+function bcoLimpiaHuerfanos(){
+  var u=_u()||{};
+  if((u.role!=='owner'&&u.role!=='admin')||!movs||!movs.length)return 0;
+  var n=0;
+  Object.keys(BCO_OK).forEach(function(k){if(!bcoVivo(BCO_OK[k])){delete BCO_OK[k];n++;}});
+  return n;
+}
 function cargarBcoOK(){
   return fetch('/api/config/bco_ok',{credentials:'include'}).then(function(r){return r.json();})
     .then(function(d){var v=d&&d.valor;if(v&&typeof v==='object')BCO_OK=v;})
     .then(function(){
-      var n=bcoRecupera();
-      if(n)return guardarBcoOK().then(function(){console.log('Conciliaciones recuperadas: '+n);});
+      var n=bcoRecupera(),h=bcoLimpiaHuerfanos();
+      if(h)console.log('Marcas de conciliado sin movimiento (borrado): '+h+' — se liberaron');
+      if(n||h)return guardarBcoOK().then(function(){if(n)console.log('Conciliaciones recuperadas: '+n);});
     })
     .catch(function(){});
 }
@@ -4656,7 +4705,7 @@ function pintaCuadre(d){
   // Lo que ya quedó cubierto por un movimiento agrupado no se vuelve a pedir
   var cubiertos=[],cubTot=0;
   var vivo=function(b){
-    if(BCO_OK[kLinea(b)]){cubiertos.push(b);cubTot+=b.monto;return false;}
+    if(bcoMarca(kLinea(b))){cubiertos.push(b);cubTot+=b.monto;return false;}
     return true;
   };
 
@@ -7351,6 +7400,8 @@ function rMovs(f=''){
   const mvR=document.getElementById('mv-r');if(mvR)mvR.textContent=fmt(r);
   document.getElementById('mv-b').textContent=fmt(e-s-r);
   try{ptPintaVista();}catch(err){}
+  try{ajPintaBanner();}catch(err){}
+  try{refPintaBanner();}catch(err){}
 }
 function fMov(f,el){document.querySelectorAll('#page-mov .chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');rMovs(f);}
 
@@ -7768,6 +7819,446 @@ function pintaAvisoTerceros(){
     '<div style="font-size:14px;font-weight:800;color:var(--mant-d)">Tienes '+fmt(E.total)+' de terceros en tu banco</div>'+
     '<div style="font-size:12px;color:var(--text2);margin-top:2px">'+E.pend.length+' cobro(s) por devolver · el más viejo es de hace '+d+' día'+(d===1?'':'s')+' · pica para devolver</div>'+
     '</div><div style="font-size:20px;color:var(--mant-d)">›</div></div>';
+}
+
+
+// ═══ AJUSTE ÚNICO: CUADRE INBURSA 1 JUL – 15 OCT 2026 ═══════════════════════
+// Hecho contra los PDF "Detalle de movimientos" de Inbursa (22/04–22/07 y 15/07–15/10).
+// Se aplica UNA sola vez desde Movimientos; antes enseña la lista completa.
+var AJ_KEY='ajuste_inb_2026_10',AJ_DONE=null,AJ_RES=null;
+var AJ_L={"com": [["2026-07-01", 310.0, "CUOTA MENSUAL POR SERVICIO"], ["2026-07-01", 49.6, "IVA CUOTA MENSUAL POR SERVICIO"], ["2026-07-01", 360.0, "CUOTA MENSUAL POR SERVICIO"], ["2026-07-01", 57.6, "IVA CUOTA MENSUAL POR SERVICIO"], ["2026-07-02", 17.54, "TASA DE DESCTO CREDITO"], ["2026-07-02", 2.81, "IVA TASA DE DESCTO CREDITO"], ["2026-07-02", 16.95, "TASA DE DESCTO DEBITO"], ["2026-07-02", 2.71, "IVA TASA DE DESCTO DEBITO"], ["2026-07-03", 325.86, "TASA DE DESCTO CREDITO"], ["2026-07-03", 52.14, "IVA TASA DE DESCTO CREDITO"], ["2026-07-06", 40.93, "TASA DE DESCTO DEBITO"], ["2026-07-06", 6.55, "IVA TASA DE DESCTO DEBITO"], ["2026-07-06", 25.75, "TASA DE DESCTO CREDITO"], ["2026-07-06", 4.12, "IVA TASA DE DESCTO CREDITO"], ["2026-07-06", 32.58, "TASA DE DESCTO CREDITO"], ["2026-07-06", 5.21, "IVA TASA DE DESCTO CREDITO"], ["2026-07-07", 46.52, "TASA DE DESCTO CREDITO"], ["2026-07-07", 7.44, "IVA TASA DE DESCTO CREDITO"], ["2026-07-07", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-07", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-07", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-07", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-08", 169.74, "TASA DE DESCTO CREDITO"], ["2026-07-08", 27.16, "IVA TASA DE DESCTO CREDITO"], ["2026-07-08", 32.8, "TASA DE DESCTO DEBITO"], ["2026-07-08", 5.25, "IVA TASA DE DESCTO DEBITO"], ["2026-07-09", 47.34, "TASA DE DESCTO CREDITO"], ["2026-07-09", 7.57, "IVA TASA DE DESCTO CREDITO"], ["2026-07-09", 4.51, "TASA DE DESCTO DEBITO"], ["2026-07-09", 0.72, "IVA TASA DE DESCTO DEBITO"], ["2026-07-09", 51.2, "TASA DE DESCTO CREDITO"], ["2026-07-09", 8.19, "IVA TASA DE DESCTO CREDITO"], ["2026-07-09", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-09", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-10", 29.11, "TASA DE DESCTO DEBITO"], ["2026-07-10", 4.66, "IVA TASA DE DESCTO DEBITO"], ["2026-07-13", 63.38, "TASA DE DESCTO CREDITO"], ["2026-07-13", 10.14, "IVA TASA DE DESCTO CREDITO"], ["2026-07-13", 48.25, "TASA DE DESCTO DEBITO"], ["2026-07-13", 7.72, "IVA TASA DE DESCTO DEBITO"], ["2026-07-13", 56.93, "TASA DE DESCTO CREDITO"], ["2026-07-13", 9.11, "IVA TASA DE DESCTO CREDITO"], ["2026-07-13", 48.0, "TASA DE DESCTO CREDITO"], ["2026-07-13", 7.68, "IVA TASA DE DESCTO CREDITO"], ["2026-07-13", 21.91, "TASA DESCUENTO AMEX"], ["2026-07-13", 3.51, "IVA TASA DESCUENTO AMEX"], ["2026-07-14", 105.94, "TASA DE DESCTO CREDITO"], ["2026-07-14", 16.95, "IVA TASA DE DESCTO CREDITO"], ["2026-07-14", 162.27, "TASA DE DESCTO DEBITO"], ["2026-07-14", 25.96, "IVA TASA DE DESCTO DEBITO"], ["2026-07-14", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-14", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-15", 61.4, "TASA DE DESCTO CREDITO"], ["2026-07-15", 9.82, "IVA TASA DE DESCTO CREDITO"], ["2026-07-15", 54.48, "TASA DE DESCTO DEBITO"], ["2026-07-15", 8.72, "IVA TASA DE DESCTO DEBITO"], ["2026-07-15", 41.69, "TASA DESCUENTO AMEX"], ["2026-07-15", 6.67, "IVA TASA DESCUENTO AMEX"], ["2026-07-15", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-15", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-16", 433.15, "TASA DE DESCTO CREDITO"], ["2026-07-16", 69.3, "IVA TASA DE DESCTO CREDITO"], ["2026-07-16", 40.61, "TASA DE DESCTO DEBITO"], ["2026-07-16", 6.5, "IVA TASA DE DESCTO DEBITO"], ["2026-07-16", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-16", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-17", 59.74, "TASA DE DESCTO CREDITO"], ["2026-07-17", 9.56, "IVA TASA DE DESCTO CREDITO"], ["2026-07-17", 72.54, "TASA DE DESCTO DEBITO"], ["2026-07-17", 11.61, "IVA TASA DE DESCTO DEBITO"], ["2026-07-20", 39.66, "TASA DE DESCTO CREDITO"], ["2026-07-20", 6.35, "IVA TASA DE DESCTO CREDITO"], ["2026-07-20", 23.15, "TASA DE DESCTO DEBITO"], ["2026-07-20", 3.7, "IVA TASA DE DESCTO DEBITO"], ["2026-07-20", 67.57, "TASA DE DESCTO CREDITO"], ["2026-07-20", 10.81, "IVA TASA DE DESCTO CREDITO"], ["2026-07-20", 78.45, "TASA DE DESCTO CREDITO"], ["2026-07-20", 12.55, "IVA TASA DE DESCTO CREDITO"], ["2026-07-22", 72.21, "TASA DE DESCTO CREDITO"], ["2026-07-22", 11.55, "IVA TASA DE DESCTO CREDITO"], ["2026-07-22", 221.68, "TASA DE DESCTO DEBITO"], ["2026-07-22", 35.47, "IVA TASA DE DESCTO DEBITO"], ["2026-07-22", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-22", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-22", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-22", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-22", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-22", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-23", 106.06, "TASA DE DESCTO CREDITO"], ["2026-07-23", 16.97, "IVA TASA DE DESCTO CREDITO"], ["2026-07-23", 72.67, "TASA DE DESCTO DEBITO"], ["2026-07-23", 11.63, "IVA TASA DE DESCTO DEBITO"], ["2026-07-23", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-23", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-24", 107.45, "TASA DE DESCTO CREDITO"], ["2026-07-24", 17.19, "IVA TASA DE DESCTO CREDITO"], ["2026-07-24", 126.26, "TASA DE DESCTO CREDITO"], ["2026-07-24", 20.2, "IVA TASA DE DESCTO CREDITO"], ["2026-07-24", 67.85, "TASA DE DESCTO DEBITO"], ["2026-07-24", 10.86, "IVA TASA DE DESCTO DEBITO"], ["2026-07-27", 56.19, "TASA DE DESCTO CREDITO"], ["2026-07-27", 8.99, "IVA TASA DE DESCTO CREDITO"], ["2026-07-27", 42.77, "TASA DE DESCTO DEBITO"], ["2026-07-27", 6.84, "IVA TASA DE DESCTO DEBITO"], ["2026-07-27", 74.75, "TASA DE DESCTO CREDITO"], ["2026-07-27", 11.96, "IVA TASA DE DESCTO CREDITO"], ["2026-07-27", 12.06, "TASA DE DESCTO CREDITO"], ["2026-07-27", 1.93, "IVA TASA DE DESCTO CREDITO"], ["2026-07-27", 1.72, "TASA DE DESCTO DEBITO"], ["2026-07-27", 0.28, "IVA TASA DE DESCTO DEBITO"], ["2026-07-27", 61.09, "TASA DE DESCTO CREDITO"], ["2026-07-27", 9.77, "IVA TASA DE DESCTO CREDITO"], ["2026-07-27", 13.12, "TASA DE DESCTO DEBITO"], ["2026-07-27", 2.1, "IVA TASA DE DESCTO DEBITO"], ["2026-07-27", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-27", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-27", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-27", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-28", 51.2, "TASA DE DESCTO CREDITO"], ["2026-07-28", 8.19, "IVA TASA DE DESCTO CREDITO"], ["2026-07-28", 271.54, "TASA DE DESCTO CREDITO"], ["2026-07-28", 43.45, "IVA TASA DE DESCTO CREDITO"], ["2026-07-28", 36.63, "TASA DE DESCTO DEBITO"], ["2026-07-28", 5.86, "IVA TASA DE DESCTO DEBITO"], ["2026-07-29", 24.84, "TASA DE DESCTO CREDITO"], ["2026-07-29", 3.97, "IVA TASA DE DESCTO CREDITO"], ["2026-07-29", 22.03, "TASA DE DESCTO DEBITO"], ["2026-07-29", 3.52, "IVA TASA DE DESCTO DEBITO"], ["2026-07-29", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-29", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-29", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-29", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-30", 239.99, "TASA DE DESCTO CREDITO"], ["2026-07-30", 38.4, "IVA TASA DE DESCTO CREDITO"], ["2026-07-30", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-30", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-30", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-30", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-07-31", 78.37, "TASA DE DESCTO DEBITO"], ["2026-07-31", 12.54, "IVA TASA DE DESCTO DEBITO"], ["2026-08-03", 50.56, "TASA DE DESCTO CREDITO"], ["2026-08-03", 8.09, "IVA TASA DE DESCTO CREDITO"], ["2026-08-03", 452.39, "TASA DE DESCTO CREDITO"], ["2026-08-03", 72.38, "IVA TASA DE DESCTO CREDITO"], ["2026-08-03", 139.03, "TASA DE DESCTO DEBITO"], ["2026-08-03", 22.24, "IVA TASA DE DESCTO DEBITO"], ["2026-08-03", 7.1, "TASA DE DESCTO CREDITO"], ["2026-08-03", 1.14, "IVA TASA DE DESCTO CREDITO"], ["2026-08-03", 360.0, "CUOTA MENSUAL POR SERVICIO"], ["2026-08-03", 57.6, "IVA CUOTA MENSUAL POR SERVICIO"], ["2026-08-03", 310.0, "CUOTA MENSUAL POR SERVICIO"], ["2026-08-03", 49.6, "IVA CUOTA MENSUAL POR SERVICIO"], ["2026-08-04", 88.75, "TASA DE DESCTO CREDITO"], ["2026-08-04", 14.2, "IVA TASA DE DESCTO CREDITO"], ["2026-08-04", 162.5, "TASA DE DESCTO DEBITO"], ["2026-08-04", 26.0, "IVA TASA DE DESCTO DEBITO"], ["2026-08-04", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-04", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-04", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-04", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-04", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-04", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-04", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-04", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-04", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-04", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-05", 23.14, "TASA DE DESCTO CREDITO"], ["2026-08-05", 3.7, "IVA TASA DE DESCTO CREDITO"], ["2026-08-05", 129.87, "TASA DE DESCTO DEBITO"], ["2026-08-05", 20.78, "IVA TASA DE DESCTO DEBITO"], ["2026-08-06", 18.04, "TASA DE DESCTO DEBITO"], ["2026-08-06", 2.89, "IVA TASA DE DESCTO DEBITO"], ["2026-08-07", 189.35, "TASA DE DESCTO CREDITO"], ["2026-08-07", 30.3, "IVA TASA DE DESCTO CREDITO"], ["2026-08-07", 41.0, "TASA DE DESCTO DEBITO"], ["2026-08-07", 6.56, "IVA TASA DE DESCTO DEBITO"], ["2026-08-10", 129.94, "TASA DE DESCTO CREDITO"], ["2026-08-10", 20.79, "IVA TASA DE DESCTO CREDITO"], ["2026-08-10", 40.0, "TASA DE DESCTO DEBITO"], ["2026-08-10", 6.4, "IVA TASA DE DESCTO DEBITO"], ["2026-08-10", 49.13, "TASA DE DESCTO DEBITO"], ["2026-08-10", 7.86, "IVA TASA DE DESCTO DEBITO"], ["2026-08-10", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-10", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-10", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-10", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-11", 13.23, "TASA DE DESCTO CREDITO"], ["2026-08-11", 2.12, "IVA TASA DE DESCTO CREDITO"], ["2026-08-11", 92.88, "TASA DESCUENTO AMEX"], ["2026-08-11", 14.86, "IVA TASA DESCUENTO AMEX"], ["2026-08-11", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-11", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-12", 73.98, "TASA DE DESCTO CREDITO"], ["2026-08-12", 11.84, "IVA TASA DE DESCTO CREDITO"], ["2026-08-12", 43.07, "TASA DE DESCTO CREDITO"], ["2026-08-12", 6.89, "IVA TASA DE DESCTO CREDITO"], ["2026-08-13", 9.59, "TASA DE DESCTO CREDITO"], ["2026-08-13", 1.53, "IVA TASA DE DESCTO CREDITO"], ["2026-08-13", 10.8, "TASA DE DESCTO DEBITO"], ["2026-08-13", 1.73, "IVA TASA DE DESCTO DEBITO"], ["2026-08-13", 209.51, "TASA DE DESCTO CREDITO"], ["2026-08-13", 33.52, "IVA TASA DE DESCTO CREDITO"], ["2026-08-13", 31.72, "TASA DE DESCTO DEBITO"], ["2026-08-13", 5.08, "IVA TASA DE DESCTO DEBITO"], ["2026-08-14", 200.19, "TASA DE DESCTO CREDITO"], ["2026-08-14", 32.03, "IVA TASA DE DESCTO CREDITO"], ["2026-08-14", 8.46, "TASA DE DESCTO DEBITO"], ["2026-08-14", 1.35, "IVA TASA DE DESCTO DEBITO"], ["2026-08-14", 57.17, "TASA DE DESCTO CREDITO"], ["2026-08-14", 9.15, "IVA TASA DE DESCTO CREDITO"], ["2026-08-17", 155.87, "TASA DE DESCTO CREDITO"], ["2026-08-17", 24.94, "IVA TASA DE DESCTO CREDITO"], ["2026-08-17", 118.21, "TASA DE DESCTO DEBITO"], ["2026-08-17", 18.91, "IVA TASA DE DESCTO DEBITO"], ["2026-08-17", 39.21, "TASA DE DESCTO CREDITO"], ["2026-08-17", 6.27, "IVA TASA DE DESCTO CREDITO"], ["2026-08-17", 106.22, "TASA DE DESCTO DEBITO"], ["2026-08-17", 17.0, "IVA TASA DE DESCTO DEBITO"], ["2026-08-18", 38.96, "TASA DE DESCTO CREDITO"], ["2026-08-18", 6.23, "IVA TASA DE DESCTO CREDITO"], ["2026-08-18", 73.3, "TASA DE DESCTO DEBITO"], ["2026-08-18", 11.73, "IVA TASA DE DESCTO DEBITO"], ["2026-08-19", 70.52, "TASA DE DESCTO CREDITO"], ["2026-08-19", 11.28, "IVA TASA DE DESCTO CREDITO"], ["2026-08-19", 119.02, "TASA DE DESCTO DEBITO"], ["2026-08-19", 19.04, "IVA TASA DE DESCTO DEBITO"], ["2026-08-19", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-19", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-20", 25.28, "TASA DE DESCTO CREDITO"], ["2026-08-20", 4.04, "IVA TASA DE DESCTO CREDITO"], ["2026-08-20", 3.36, "TASA DE DESCTO DEBITO"], ["2026-08-20", 0.54, "IVA TASA DE DESCTO DEBITO"], ["2026-08-20", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-20", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-21", 783.7, "TASA DE DESCTO CREDITO"], ["2026-08-21", 125.39, "IVA TASA DE DESCTO CREDITO"], ["2026-08-21", 11.89, "TASA DE DESCTO DEBITO"], ["2026-08-21", 1.9, "IVA TASA DE DESCTO DEBITO"], ["2026-08-21", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-21", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-24", 41.68, "TASA DE DESCTO CREDITO"], ["2026-08-24", 6.67, "IVA TASA DE DESCTO CREDITO"], ["2026-08-24", 150.88, "TASA DE DESCTO CREDITO"], ["2026-08-24", 24.14, "IVA TASA DE DESCTO CREDITO"], ["2026-08-24", 35.02, "TASA DE DESCTO DEBITO"], ["2026-08-24", 5.6, "IVA TASA DE DESCTO DEBITO"], ["2026-08-24", 830.0, "TASA DESCUENTO AMEX"], ["2026-08-24", 132.8, "IVA TASA DESCUENTO AMEX"], ["2026-08-25", 34.65, "TASA DE DESCTO CREDITO"], ["2026-08-25", 5.54, "IVA TASA DE DESCTO CREDITO"], ["2026-08-25", 50.94, "TASA DE DESCTO DEBITO"], ["2026-08-25", 8.15, "IVA TASA DE DESCTO DEBITO"], ["2026-08-25", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-25", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-25", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-25", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-26", 1171.27, "TASA DE DESCTO CREDITO"], ["2026-08-26", 187.4, "IVA TASA DE DESCTO CREDITO"], ["2026-08-26", 69.53, "TASA DE DESCTO DEBITO"], ["2026-08-26", 11.12, "IVA TASA DE DESCTO DEBITO"], ["2026-08-27", 225.82, "TASA DE DESCTO CREDITO"], ["2026-08-27", 36.13, "IVA TASA DE DESCTO CREDITO"], ["2026-08-27", 20.75, "TASA DE DESCTO DEBITO"], ["2026-08-27", 3.32, "IVA TASA DE DESCTO DEBITO"], ["2026-08-27", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-27", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-27", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-27", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-28", 35.61, "TASA DE DESCTO CREDITO"], ["2026-08-28", 5.7, "IVA TASA DE DESCTO CREDITO"], ["2026-08-28", 37.39, "TASA DE DESCTO DEBITO"], ["2026-08-28", 5.98, "IVA TASA DE DESCTO DEBITO"], ["2026-08-28", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-28", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-28", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-28", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-31", 20.81, "TASA DE DESCTO CREDITO"], ["2026-08-31", 3.33, "IVA TASA DE DESCTO CREDITO"], ["2026-08-31", 40.84, "TASA DE DESCTO CREDITO"], ["2026-08-31", 6.53, "IVA TASA DE DESCTO CREDITO"], ["2026-08-31", 79.82, "TASA DE DESCTO DEBITO"], ["2026-08-31", 12.77, "IVA TASA DE DESCTO DEBITO"], ["2026-08-31", 124.12, "TASA DESCUENTO AMEX"], ["2026-08-31", 19.86, "IVA TASA DESCUENTO AMEX"], ["2026-08-31", 877.89, "TASA DESCUENTO AMEX"], ["2026-08-31", 140.46, "IVA TASA DESCUENTO AMEX"], ["2026-08-31", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-08-31", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-01", 148.73, "TASA DE DESCTO CREDITO"], ["2026-09-01", 23.8, "IVA TASA DE DESCTO CREDITO"], ["2026-09-01", 61.3, "TASA DE DESCTO DEBITO"], ["2026-09-01", 9.81, "IVA TASA DE DESCTO DEBITO"], ["2026-09-01", 15.26, "TASA DESCUENTO AMEX"], ["2026-09-01", 2.44, "IVA TASA DESCUENTO AMEX"], ["2026-09-01", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-01", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-01", 360.0, "CUOTA MENSUAL POR SERVICIO"], ["2026-09-01", 57.6, "IVA CUOTA MENSUAL POR SERVICIO"], ["2026-09-01", 310.0, "CUOTA MENSUAL POR SERVICIO"], ["2026-09-01", 49.6, "IVA CUOTA MENSUAL POR SERVICIO"], ["2026-09-02", 56.92, "TASA DE DESCTO CREDITO"], ["2026-09-02", 9.11, "IVA TASA DE DESCTO CREDITO"], ["2026-09-02", 6.56, "TASA DE DESCTO DEBITO"], ["2026-09-02", 1.05, "IVA TASA DE DESCTO DEBITO"], ["2026-09-03", 40.35, "TASA DE DESCTO CREDITO"], ["2026-09-03", 6.46, "IVA TASA DE DESCTO CREDITO"], ["2026-09-03", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-03", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-03", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-03", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-03", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-03", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-04", 60.6, "TASA DE DESCTO CREDITO"], ["2026-09-04", 9.7, "IVA TASA DE DESCTO CREDITO"], ["2026-09-04", 8.46, "TASA DE DESCTO DEBITO"], ["2026-09-04", 1.35, "IVA TASA DE DESCTO DEBITO"], ["2026-09-07", 127.8, "TASA DE DESCTO CREDITO"], ["2026-09-07", 20.45, "IVA TASA DE DESCTO CREDITO"], ["2026-09-07", 42.19, "TASA DE DESCTO DEBITO"], ["2026-09-07", 6.75, "IVA TASA DE DESCTO DEBITO"], ["2026-09-07", 138.51, "TASA DE DESCTO CREDITO"], ["2026-09-07", 22.16, "IVA TASA DE DESCTO CREDITO"], ["2026-09-07", 11.46, "TASA DE DESCTO DEBITO"], ["2026-09-07", 1.83, "IVA TASA DE DESCTO DEBITO"], ["2026-09-07", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-07", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-07", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-07", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-08", 46.11, "TASA DE DESCTO CREDITO"], ["2026-09-08", 7.38, "IVA TASA DE DESCTO CREDITO"], ["2026-09-08", 259.26, "TASA DE DESCTO DEBITO"], ["2026-09-08", 41.48, "IVA TASA DE DESCTO DEBITO"], ["2026-09-09", 18.51, "TASA DE DESCTO CREDITO"], ["2026-09-09", 2.96, "IVA TASA DE DESCTO CREDITO"], ["2026-09-09", 37.13, "TASA DE DESCTO DEBITO"], ["2026-09-09", 5.94, "IVA TASA DE DESCTO DEBITO"], ["2026-09-09", 12.99, "TASA DE DESCTO DEBITO"], ["2026-09-09", 2.08, "IVA TASA DE DESCTO DEBITO"], ["2026-09-09", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-09", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-10", 36.53, "TASA DE DESCTO DEBITO"], ["2026-09-10", 5.84, "IVA TASA DE DESCTO DEBITO"], ["2026-09-10", 93.48, "TASA DE DESCTO DEBITO"], ["2026-09-10", 14.96, "IVA TASA DE DESCTO DEBITO"], ["2026-09-11", 37.48, "TASA DE DESCTO DEBITO"], ["2026-09-11", 6.0, "IVA TASA DE DESCTO DEBITO"], ["2026-09-14", 32.62, "TASA DE DESCTO CREDITO"], ["2026-09-14", 5.22, "IVA TASA DE DESCTO CREDITO"], ["2026-09-14", 16.4, "TASA DE DESCTO DEBITO"], ["2026-09-14", 2.62, "IVA TASA DE DESCTO DEBITO"], ["2026-09-14", 116.5, "TASA DE DESCTO CREDITO"], ["2026-09-14", 18.64, "IVA TASA DE DESCTO CREDITO"], ["2026-09-14", 123.66, "TASA DE DESCTO DEBITO"], ["2026-09-14", 19.79, "IVA TASA DE DESCTO DEBITO"], ["2026-09-14", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-14", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-14", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-14", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-15", 191.03, "TASA DE DESCTO CREDITO"], ["2026-09-15", 30.56, "IVA TASA DE DESCTO CREDITO"], ["2026-09-17", 22.82, "TASA DE DESCTO DEBITO"], ["2026-09-17", 3.65, "IVA TASA DE DESCTO DEBITO"], ["2026-09-17", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-17", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-18", 296.13, "TASA DE DESCTO CREDITO"], ["2026-09-18", 47.38, "IVA TASA DE DESCTO CREDITO"], ["2026-09-18", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-18", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-18", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-18", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-18", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-18", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-21", 81.68, "TASA DE DESCTO CREDITO"], ["2026-09-21", 13.07, "IVA TASA DE DESCTO CREDITO"], ["2026-09-21", 125.05, "TASA DE DESCTO DEBITO"], ["2026-09-21", 20.01, "IVA TASA DE DESCTO DEBITO"], ["2026-09-21", 82.08, "TASA DE DESCTO CREDITO"], ["2026-09-21", 13.13, "IVA TASA DE DESCTO CREDITO"], ["2026-09-21", 33.41, "TASA DE DESCTO DEBITO"], ["2026-09-21", 5.35, "IVA TASA DE DESCTO DEBITO"], ["2026-09-21", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-21", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-21", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-21", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-21", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-21", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-21", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-21", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-22", 10.25, "TASA DE DESCTO CREDITO"], ["2026-09-22", 1.64, "IVA TASA DE DESCTO CREDITO"], ["2026-09-22", 38.32, "TASA DE DESCTO DEBITO"], ["2026-09-22", 6.13, "IVA TASA DE DESCTO DEBITO"], ["2026-09-22", 22.61, "TASA DE DESCTO DEBITO"], ["2026-09-22", 3.62, "IVA TASA DE DESCTO DEBITO"], ["2026-09-23", 48.0, "TASA DE DESCTO CREDITO"], ["2026-09-23", 7.68, "IVA TASA DE DESCTO CREDITO"], ["2026-09-23", 129.26, "TASA DE DESCTO DEBITO"], ["2026-09-23", 20.68, "IVA TASA DE DESCTO DEBITO"], ["2026-09-23", 128.98, "TASA DESCUENTO AMEX"], ["2026-09-23", 20.64, "IVA TASA DESCUENTO AMEX"], ["2026-09-23", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-23", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-23", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-23", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-23", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-23", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-24", 20.74, "TASA DE DESCTO CREDITO"], ["2026-09-24", 3.32, "IVA TASA DE DESCTO CREDITO"], ["2026-09-24", 69.99, "TASA DE DESCTO DEBITO"], ["2026-09-24", 11.2, "IVA TASA DE DESCTO DEBITO"], ["2026-09-25", 75.91, "TASA DE DESCTO CREDITO"], ["2026-09-25", 12.15, "IVA TASA DE DESCTO CREDITO"], ["2026-09-25", 84.08, "TASA DE DESCTO DEBITO"], ["2026-09-25", 13.45, "IVA TASA DE DESCTO DEBITO"], ["2026-09-25", 231.44, "TASA DESCUENTO AMEX"], ["2026-09-25", 37.03, "IVA TASA DESCUENTO AMEX"], ["2026-09-25", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-25", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-26", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-26", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-28", 96.9, "TASA DE DESCTO CREDITO"], ["2026-09-28", 15.5, "IVA TASA DE DESCTO CREDITO"], ["2026-09-28", 313.95, "TASA DE DESCTO CREDITO"], ["2026-09-28", 50.23, "IVA TASA DE DESCTO CREDITO"], ["2026-09-28", 81.19, "TASA DE DESCTO DEBITO"], ["2026-09-28", 12.99, "IVA TASA DE DESCTO DEBITO"], ["2026-09-28", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-28", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-29", 162.37, "TASA DE DESCTO CREDITO"], ["2026-09-29", 25.98, "IVA TASA DE DESCTO CREDITO"], ["2026-09-29", 5.81, "TASA DE DESCTO DEBITO"], ["2026-09-29", 0.93, "IVA TASA DE DESCTO DEBITO"], ["2026-09-29", 40.08, "TASA DESCUENTO AMEX"], ["2026-09-29", 6.41, "IVA TASA DESCUENTO AMEX"], ["2026-09-30", 49.0, "TASA DE DESCTO DEBITO"], ["2026-09-30", 7.84, "IVA TASA DE DESCTO DEBITO"], ["2026-09-30", 41.24, "TASA DE DESCTO CREDITO"], ["2026-09-30", 6.6, "IVA TASA DE DESCTO CREDITO"], ["2026-09-30", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-30", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-30", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-30", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-30", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-09-30", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-10-01", 82.09, "TASA DE DESCTO DEBITO"], ["2026-10-01", 13.13, "IVA TASA DE DESCTO DEBITO"], ["2026-10-01", 310.0, "CUOTA MENSUAL POR SERVICIO"], ["2026-10-01", 49.6, "IVA CUOTA MENSUAL POR SERVICIO"], ["2026-10-01", 360.0, "CUOTA MENSUAL POR SERVICIO"], ["2026-10-01", 57.6, "IVA CUOTA MENSUAL POR SERVICIO"], ["2026-10-02", 155.49, "TASA DE DESCTO CREDITO"], ["2026-10-02", 24.88, "IVA TASA DE DESCTO CREDITO"], ["2026-10-02", 18.01, "TASA DE DESCTO DEBITO"], ["2026-10-02", 2.88, "IVA TASA DE DESCTO DEBITO"], ["2026-10-05", 65.24, "TASA DE DESCTO CREDITO"], ["2026-10-05", 10.44, "IVA TASA DE DESCTO CREDITO"], ["2026-10-05", 8.2, "TASA DE DESCTO DEBITO"], ["2026-10-05", 1.31, "IVA TASA DE DESCTO DEBITO"], ["2026-10-05", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-10-05", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-10-06", 24.5, "TASA DE DESCTO DEBITO"], ["2026-10-06", 3.92, "IVA TASA DE DESCTO DEBITO"], ["2026-10-06", 124.33, "TASA DE DESCTO CREDITO"], ["2026-10-06", 19.89, "IVA TASA DE DESCTO CREDITO"], ["2026-10-06", 91.5, "TASA DE DESCTO DEBITO"], ["2026-10-06", 14.64, "IVA TASA DE DESCTO DEBITO"], ["2026-10-07", 9.62, "TASA DE DESCTO CREDITO"], ["2026-10-07", 1.54, "IVA TASA DE DESCTO CREDITO"], ["2026-10-07", 14.71, "TASA DESCUENTO AMEX"], ["2026-10-07", 2.35, "IVA TASA DESCUENTO AMEX"], ["2026-10-07", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-10-07", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-10-07", 4.5, "TRANSFERENCIA - ENVIO - SPEI"], ["2026-10-07", 0.72, "IVA TRANSFERENCIA - ENVIO - SPEI"], ["2026-10-08", 57.92, "TASA DE DESCTO CREDITO"], ["2026-10-08", 9.27, "IVA TASA DE DESCTO CREDITO"], ["2026-10-08", 124.42, "TASA DE DESCTO DEBITO"], ["2026-10-08", 19.91, "IVA TASA DE DESCTO DEBITO"], ["2026-10-09", 34.67, "TASA DE DESCTO DEBITO"], ["2026-10-09", 5.55, "IVA TASA DE DESCTO DEBITO"], ["2026-10-12", 310.64, "TASA DE DESCTO CREDITO"], ["2026-10-12", 49.7, "IVA TASA DE DESCTO CREDITO"], ["2026-10-12", 25.17, "TASA DE DESCTO DEBITO"], ["2026-10-12", 4.03, "IVA TASA DE DESCTO DEBITO"], ["2026-10-12", 30.5, "TASA DE DESCTO CREDITO"], ["2026-10-12", 4.88, "IVA TASA DE DESCTO CREDITO"], ["2026-10-12", 16.83, "TASA DE DESCTO DEBITO"], ["2026-10-12", 2.69, "IVA TASA DE DESCTO DEBITO"], ["2026-10-12", 34.6, "TASA DE DESCTO CREDITO"], ["2026-10-12", 5.54, "IVA TASA DE DESCTO CREDITO"], ["2026-10-12", 62.35, "TASA DE DESCTO DEBITO"], ["2026-10-12", 9.98, "IVA TASA DE DESCTO DEBITO"], ["2026-10-13", 34.29, "TASA DE DESCTO CREDITO"], ["2026-10-13", 5.49, "IVA TASA DE DESCTO CREDITO"], ["2026-10-13", 383.44, "TASA DE DESCTO DEBITO"], ["2026-10-13", 61.35, "IVA TASA DE DESCTO DEBITO"], ["2026-10-13", 27.89, "TASA DE DESCTO CREDITO"], ["2026-10-13", 4.46, "IVA TASA DE DESCTO CREDITO"], ["2026-10-14", 23.2, "TASA DE DESCTO CREDITO"], ["2026-10-14", 3.71, "IVA TASA DE DESCTO CREDITO"], ["2026-10-14", 37.66, "TASA DE DESCTO DEBITO"], ["2026-10-14", 6.03, "IVA TASA DE DESCTO DEBITO"], ["2026-10-15", 19.31, "TASA DE DESCTO CREDITO"], ["2026-10-15", 3.09, "IVA TASA DE DESCTO CREDITO"], ["2026-10-15", 57.85, "TASA DE DESCTO CREDITO"], ["2026-10-15", 9.26, "IVA TASA DE DESCTO CREDITO"], ["2026-10-15", 16.24, "TASA DE DESCTO DEBITO"], ["2026-10-15", 2.6, "IVA TASA DE DESCTO DEBITO"]], "c188": ["2026-07-13", 188622.5, "DEPOSITO SPEI"], "sales": [["2026-07-14", 4547.0, "CREDITO"], ["2026-07-14", 9894.5, "DEBITO"], ["2026-08-13", 8992.0, "CREDITO"], ["2026-10-01", 5005.5, "DEBITO"], ["2026-10-02", 6673.0, "CREDITO"], ["2026-10-02", 1098.0, "DEBITO"]], "oct": [["2026-10-07", 19146.96, "TRANSFERENCIA SPEI"], ["2026-10-07", 4197.78, "TRANSFERENCIA SPEI"], ["2026-10-05", 6683.0, "TRANSFERENCIA SPEI"]], "sayer": [["2026-07-29", 9691.51, "TRASPASO DE TU CUENTA (EFED) -"], ["2026-07-31", 9651.51, "TRASPASO DE (SANBORNS) - 3253 - DE"]], "rebote": [["2026-07-27", 5260.51, "TRANSFERENCIA SPEI"], ["2026-07-27", 5260.51, "DEVOLUCION SPEI"], ["2026-07-29", 5260.51, "TRANSFERENCIA SPEI"], ["2026-07-29", 5260.51, "DEVOLUCION SPEI"], ["2026-07-29", 5260.51, "TRANSFERENCIA SPEI"], ["2026-07-29", 5260.51, "DEVOLUCION SPEI"], ["2026-08-27", 2320.0, "TRANSFERENCIA SPEI"], ["2026-08-27", 2320.0, "DEVOLUCION SPEI"]]};
+function ajCargar(){
+  return fetch('/api/config/'+AJ_KEY,{credentials:'include'}).then(function(r){return r.json();})
+    .then(function(d){AJ_DONE=(d&&d.valor&&d.valor.fecha)?d.valor:null;})
+    .then(function(){return fetch('/api/config/'+AJ2_KEY,{credentials:'include'}).then(function(r){return r.json();})
+      .then(function(d){AJ2_DONE=(d&&d.valor&&d.valor.fecha)?d.valor:null;});})
+    .then(function(){return fetch('/api/config/'+AJ3_KEY,{credentials:'include'}).then(function(r){return r.json();})
+      .then(function(d){AJ3_DONE=(d&&d.valor&&d.valor.fecha)?d.valor:null;});})
+    .then(function(){
+      // Si el cuadre se aplicó antes de saber qué era el pago de 6,683 del 05/10,
+      // aquí se le pone su categoría (vidrio de museo), una sola vez.
+      var u=_u()||{};if(!AJ_DONE||(u.role!=='owner'&&u.role!=='admin'))return;
+      var m=ajFind({f:'2026-10-05',tipo:'Salida',monto:6683,concepto:'POR CLASIFICAR'});
+      if(m.length===1)return ptPutMov(m[0],{concepto:'VIDRIO DE MUSEO',desc:'Pago vidrio de museo (del estado de cuenta)'})
+        .then(function(){logActivity('Clasificó pago 05/10','6,683.00 → VIDRIO DE MUSEO');});
+    }).then(function(){
+      // Los 81,240.70 del 23/07 (Ma. del Carmen Heredia) son ingreso: si el cuadre HSBC ya
+      // los dejó como POR INVESTIGAR, aquí pasan a ingreso HSBC, una sola vez.
+      var u=_u()||{};if(!AJ3_DONE||(u.role!=='owner'&&u.role!=='admin'))return;
+      var m=ajFind({f:'2026-07-23',tipo:'Entrada',cuenta:'HSBC',monto:81240.7,concepto:'POR INVESTIGAR'});
+      if(m.length===1)return ptPutMov(m[0],{concepto:'HSBC'})
+        .then(function(){logActivity('Clasificó entrada 23/07','81,240.70 → ingreso HSBC');});
+    }).then(function(){
+      // Los 20,000 de "Septiembre" del 24/09 son devolución de un cobro por terceros que entró a INBURSA
+      var u=_u()||{};if(!AJ3_DONE||(u.role!=='owner'&&u.role!=='admin'))return;
+      var m=ajFind({f:'2026-09-24',tipo:'Salida',cuenta:'HSBC',monto:20000,concepto:'POR INVESTIGAR'});
+      if(m.length===1)return ptPutMov(m[0],{concepto:PUENTE_OUT})
+        .then(function(){logActivity('Clasificó salida 24/09','20,000.00 → Devolución a terceros');});
+    }).catch(function(){});
+}
+
+// ═══ AJUSTE ÚNICO 3: CUADRE HSBC 1 JUL – 16 OCT 2026 ════════════════════════
+// Contra los estados de cuenta HSBC de julio, agosto y septiembre y la app (1–16 oct).
+// Deja HSBC igual al banco (11,098.53 al 16/10). Lo que no se pudo identificar queda
+// como "POR INVESTIGAR" para reclasificarlo después.
+var AJ3_KEY='ajuste_hsbc_2026_10',AJ3_DONE=null;
+function ajOps3(){
+  var mv=function(o){return Object.assign({cta_destino:'',socio:'',cuenta:'HSBC'},o);};
+  return [
+   {k:'hsbc188',op:'borrar',txt:'Borrar la entrada de HSBC del 18/06 por 188,622.50 ("zibata"): es la venta de We Build, que ya está como traspaso de INBURSA del 15/07',
+    q:{f:'2026-06-18',tipo:'Entrada',cuenta:'HSBC',monto:188622.5},necesita:{f:'2026-07-15',tipo:'Traspaso',cuenta:'INBURSA',monto:188622.5}},
+   {k:'ret182',op:'borrar',txt:'Borrar "Retiro socios" 182,020.71 del 17/07: duplicado; lo que de verdad salió (utilidades 72,500 + 72,500 y los demás pagos) ya está registrado',
+    q:{f:'2026-07-17',tipo:'Retiro',cuenta:'HSBC',monto:182020.71}},
+   {k:'julAF',op:'borrar',txt:'Borrar "PAGO NÓMINA JULIO" Alex y Fany 25,000 del 31/07: en julio no salió del banco; el pago del 03/08 ya está registrado',
+    q:{f:'2026-07-31',tipo:'Salida',cuenta:'HSBC',monto:25000,concepto:'PAGO MENSUAL ALEX Y FANY'}},
+   {k:'julCR',op:'borrar',txt:'Borrar "PAGO NÓMINA JULIO" Carmen y Raúl 25,000 del 31/07: en julio no salió del banco; el pago del 03/08 ya está registrado',
+    q:{f:'2026-07-31',tipo:'Salida',cuenta:'HSBC',monto:25000,concepto:'PAGO MENSUAL CARMEN Y RAUL'}},
+   {k:'v0905',op:'borrar',txt:'Borrar "VENTAS 05/09 (cierre)" 1,238.85: es la NOTA 2533 que entró el 04/08 y ya está en "VENTAS 05 DE AGOSTO"',
+    q:{f:'2026-09-05',tipo:'Entrada',cuenta:'HSBC',monto:1238.85}},
+   {k:'cfe0831',op:'borrar',txt:'Borrar "CFE ZIBATA" 1,492 del 31/08: duplicado del CFE del 01/09, que es el que salió del banco',
+    q:{f:'2026-08-31',tipo:'Salida',cuenta:'HSBC',monto:1492},necesita:{f:'2026-09-01',tipo:'Salida',cuenta:'HSBC',monto:1492}},
+   {k:'t35900',op:'editar',txt:'Los 35,900 que salieron de INBURSA el 21/08 no fueron devolución: fueron traspaso a HSBC (de ahí salieron 29,500 a Tranquilo y 5,000 de adelanto)',
+    q:{f:'2026-08-21',tipo:'Salida',cuenta:'INBURSA',monto:35900},upd:{tipo:'Traspaso',concepto:'Traspaso entre cuentas',cta_destino:'HSBC',desc:'Traspaso a HSBC "agosto tranquix" (de ahí salieron 29,500 a Tranquilo y 5,000 de adelanto agosto)',tercero:'',puente_liga:''}},
+   {k:'h0',op:'crear',txt:"Registrar pago CGO Transferencia SPEI (01/07) · 1,750.00 → POR INVESTIGAR",mov:mv({tipo:'Salida',concepto:"POR INVESTIGAR",desc:"CGO Transferencia SPEI (del estado de cuenta HSBC)",fecha:'2026-07-01',monto:1750.0})},
+   {k:'h1',op:'crear',txt:"Registrar pago CGO Mayo y junio (01/07) · 5,863.00 → PAGO MENSUAL CARMEN Y RAUL",mov:mv({tipo:'Salida',concepto:"PAGO MENSUAL CARMEN Y RAUL",desc:"CGO Mayo y junio (del estado de cuenta HSBC)",fecha:'2026-07-01',monto:5863.0})},
+   {k:'h2',op:'crear',txt:"Registrar pago CGO Acrílico 2mm 229 x 114 (02/07) · 958.00 → MATERIALES",mov:mv({tipo:'Salida',concepto:"MATERIALES",desc:"CGO Acrílico 2mm 229 x 114 (del estado de cuenta HSBC)",fecha:'2026-07-02',monto:958.0})},
+   {k:'h3',op:'crear',txt:"Registrar PAGO 0307260 (03/07) · 3,000.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"PAGO 0307260 (del estado de cuenta HSBC)",fecha:'2026-07-03',monto:3000.0})},
+   {k:'h4',op:'crear',txt:"Registrar FINIQUITO PAULINA 2199895 (09/07) · 4,080.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"FINIQUITO PAULINA 2199895 (del estado de cuenta HSBC)",fecha:'2026-07-09',monto:4080.0})},
+   {k:'h5',op:'crear',txt:"Registrar ANTICIPO 6769268 (10/07) · 185.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"ANTICIPO 6769268 (del estado de cuenta HSBC)",fecha:'2026-07-10',monto:185.0})},
+   {k:'h6',op:'crear',txt:"Registrar TATIANA 2206260 (13/07) · 944.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"TATIANA 2206260 (del estado de cuenta HSBC)",fecha:'2026-07-13',monto:944.0})},
+   {k:'h7',op:'crear',txt:"Registrar SR GISI TRASPASO 2206260 (13/07) · 3,500.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"SR GISI TRASPASO 2206260 (del estado de cuenta HSBC)",fecha:'2026-07-13',monto:3500.0})},
+   {k:'h8',op:'crear',txt:"Registrar MARCOS IMPULSO 0683834 (13/07) · 3,892.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"MARCOS IMPULSO 0683834 (del estado de cuenta HSBC)",fecha:'2026-07-13',monto:3892.0})},
+   {k:'h9',op:'crear',txt:"Registrar pago CGO Cojines, dulces, papel (14/07) · 2,000.00 → Compras",mov:mv({tipo:'Salida',concepto:"Compras",desc:"CGO Cojines, dulces, papel (del estado de cuenta HSBC)",fecha:'2026-07-14',monto:2000.0})},
+   {k:'h10',op:'crear',txt:"Registrar MARCOS A CUENTA 0260714 (14/07) · 8,000.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"MARCOS A CUENTA 0260714 (del estado de cuenta HSBC)",fecha:'2026-07-14',monto:8000.0})},
+   {k:'h11',op:'crear',txt:"Registrar REMAY26CPR 0828110 (14/07) · 3,600.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"REMAY26CPR 0828110 (del estado de cuenta HSBC)",fecha:'2026-07-14',monto:3600.0})},
+   {k:'h12',op:'crear',txt:"Registrar MARCO PLANO VIRGEN 0160726 (16/07) · 1,206.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"MARCO PLANO VIRGEN 0160726 (del estado de cuenta HSBC)",fecha:'2026-07-16',monto:1206.0})},
+   {k:'h13',op:'crear',txt:"Registrar pago CGO Papel higiénico (17/07) · 300.00 → Compras",mov:mv({tipo:'Salida',concepto:"Compras",desc:"CGO Papel higiénico (del estado de cuenta HSBC)",fecha:'2026-07-17',monto:300.0})},
+   {k:'h14',op:'crear',txt:"Registrar pago CGO Cojines comedor (17/07) · 790.30 → Compras",mov:mv({tipo:'Salida',concepto:"Compras",desc:"CGO Cojines comedor (del estado de cuenta HSBC)",fecha:'2026-07-17',monto:790.3})},
+   {k:'h15',op:'crear',txt:"Registrar TRANSFERENCIA 0220726 (22/07) · 1.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"TRANSFERENCIA 0220726 (del estado de cuenta HSBC)",fecha:'2026-07-22',monto:1.0})},
+   {k:'h16',op:'crear',txt:"Registrar TRANSFERENCIA 0220726 (22/07) · 1,001.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"TRANSFERENCIA 0220726 (del estado de cuenta HSBC)",fecha:'2026-07-22',monto:1001.0})},
+   {k:'h17',op:'crear',txt:"Registrar MARCO ANDRES ALCOCER 0230726 (23/07) · 647.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"MARCO ANDRES ALCOCER 0230726 (del estado de cuenta HSBC)",fecha:'2026-07-23',monto:647.0})},
+   {k:'h18',op:'crear',txt:"Registrar Transferencia de Ma. del Carmen Heredia (la de Alejandro se regresó el mismo día) (23/07) · 81,240.70 → HSBC (ingreso)",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"Transferencia de Ma. del Carmen Heredia (la de Alejandro se regresó el mismo día) (del estado de cuenta HSBC)",fecha:'2026-07-23',monto:81240.7})},
+   {k:'h19',op:'crear',txt:"Registrar CUADROS 2206260 (24/07) · 2,412.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"CUADROS 2206260 (del estado de cuenta HSBC)",fecha:'2026-07-24',monto:2412.0})},
+   {k:'h20',op:'crear',txt:"Registrar pago CGO Semana 30 (27/07) · 13,500.00 → Nómina",mov:mv({tipo:'Salida',concepto:"Nómina",desc:"CGO Semana 30 (del estado de cuenta HSBC)",fecha:'2026-07-27',monto:13500.0})},
+   {k:'h21',op:'crear',txt:"Registrar TELEFONIA WENDY 0270726 (27/07) · 2,382.39 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"TELEFONIA WENDY 0270726 (del estado de cuenta HSBC)",fecha:'2026-07-27',monto:2382.39})},
+   {k:'h22',op:'crear',txt:"Registrar ANTICIPO ROMPECABEZAD 0260728 (28/07) · 1,000.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"ANTICIPO ROMPECABEZAD 0260728 (del estado de cuenta HSBC)",fecha:'2026-07-28',monto:1000.0})},
+   {k:'h23',op:'crear',txt:"Registrar LORENA TORRES RAIMOND 0260728 (28/07) · 1,000.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"LORENA TORRES RAIMOND 0260728 (del estado de cuenta HSBC)",fecha:'2026-07-28',monto:1000.0})},
+   {k:'h24',op:'crear',txt:"Registrar TRANSFERENCIA BPI DESDE LA CUENTA 7107 (28/07) · 250.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"TRANSFERENCIA BPI DESDE LA CUENTA 7107 (del estado de cuenta HSBC)",fecha:'2026-07-28',monto:250.0})},
+   {k:'h25',op:'crear',txt:"Registrar MARCO PECES 8445918 (30/07) · 718.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"MARCO PECES 8445918 (del estado de cuenta HSBC)",fecha:'2026-07-30',monto:718.0})},
+   {k:'h26',op:'crear',txt:"Registrar FINIQUITO CUADROS MARCOS 0260730 (30/07) · 16,283.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"FINIQUITO CUADROS MARCOS 0260730 (del estado de cuenta HSBC)",fecha:'2026-07-30',monto:16283.0})},
+   {k:'h27',op:'crear',txt:"Registrar TRANSFERENCIA DE YVES ALEJANDRO 6562890 (31/07) · 6,097.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"TRANSFERENCIA DE YVES ALEJANDRO 6562890 (del estado de cuenta HSBC)",fecha:'2026-07-31',monto:6097.0})},
+   {k:'h28',op:'crear',txt:"Registrar CUADRO 3107260 (10/08) · 1,000.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"CUADRO 3107260 (del estado de cuenta HSBC)",fecha:'2026-08-10',monto:1000.0})},
+   {k:'h29',op:'crear',txt:"Registrar LIQUIDACIóN CUADROS 0120826 (12/08) · 8,262.12 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"LIQUIDACIóN CUADROS 0120826 (del estado de cuenta HSBC)",fecha:'2026-08-12',monto:8262.12})},
+   {k:'h30',op:'crear',txt:"Registrar pago CGO Agua, telmex, compras, aerosoles (19/08) · 3,112.00 → Servicios",mov:mv({tipo:'Salida',concepto:"Servicios",desc:"CGO Agua, telmex, compras, aerosoles (del estado de cuenta HSBC)",fecha:'2026-08-19',monto:3112.0})},
+   {k:'h31',op:'crear',txt:"Registrar pago CGO Tranquilos (21/08) · 29,500.00 → Devolución a terceros (Tranquilo)",mov:mv({tipo:'Salida',concepto:PUENTE_OUT,desc:"CGO Tranquilos (del estado de cuenta HSBC)",fecha:'2026-08-21',monto:29500.0,tercero:'Tranquilo'})},
+   {k:'h32',op:'crear',txt:"Registrar pago CGO Adelanto agosto (21/08) · 5,000.00 → PAGO MENSUAL ALEX Y FANY",mov:mv({tipo:'Salida',concepto:"PAGO MENSUAL ALEX Y FANY",desc:"CGO Adelanto agosto (del estado de cuenta HSBC)",fecha:'2026-08-21',monto:5000.0})},
+   {k:'h33',op:'crear',txt:"Registrar ANTICIPO ESME HUERTA 0210826 (21/08) · 1,000.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"ANTICIPO ESME HUERTA 0210826 (del estado de cuenta HSBC)",fecha:'2026-08-21',monto:1000.0})},
+   {k:'h34',op:'crear',txt:"Registrar pago RETIRO CAJERO 4213168060888476 20260822 (24/08) · 500.00 → POR INVESTIGAR",mov:mv({tipo:'Salida',concepto:"POR INVESTIGAR",desc:"RETIRO CAJERO 4213168060888476 20260822 (del estado de cuenta HSBC)",fecha:'2026-08-24',monto:500.0})},
+   {k:'h35',op:'crear',txt:"Registrar pago CGO Transferencia carpa liquidación (24/08) · 4,600.00 → Compras",mov:mv({tipo:'Salida',concepto:"Compras",desc:"CGO Transferencia carpa liquidación (del estado de cuenta HSBC)",fecha:'2026-08-24',monto:4600.0})},
+   {k:'h36',op:'crear',txt:"Registrar pago CGO Semana 34 (24/08) · 2,500.00 → Nómina",mov:mv({tipo:'Salida',concepto:"Nómina",desc:"CGO Semana 34 (del estado de cuenta HSBC)",fecha:'2026-08-24',monto:2500.0})},
+   {k:'h37',op:'crear',txt:"Registrar pago CGO Transferencia mobiliario (24/08) · 2,610.00 → Compras",mov:mv({tipo:'Salida',concepto:"Compras",desc:"CGO Transferencia mobiliario (del estado de cuenta HSBC)",fecha:'2026-08-24',monto:2610.0})},
+   {k:'h38',op:'crear',txt:"Registrar pago CGO Transferencia sabado 22 (24/08) · 2,350.00 → POR INVESTIGAR",mov:mv({tipo:'Salida',concepto:"POR INVESTIGAR",desc:"CGO Transferencia sabado 22 (del estado de cuenta HSBC)",fecha:'2026-08-24',monto:2350.0})},
+   {k:'h39',op:'crear',txt:"Registrar ANYA B 1408260 (31/08) · 455.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"ANYA B 1408260 (del estado de cuenta HSBC)",fecha:'2026-08-31',monto:455.0})},
+   {k:'h40',op:'crear',txt:"Registrar pago C ADMINISTRACION RENTA (31/08) · 73.50 → Comisiones bancarias",mov:mv({tipo:'Salida',concepto:"Comisiones bancarias",desc:"C ADMINISTRACION RENTA (del estado de cuenta HSBC)",fecha:'2026-08-31',monto:73.5})},
+   {k:'h41',op:'crear',txt:"Registrar pago I.V.A. (31/08) · 11.76 → Comisiones bancarias",mov:mv({tipo:'Salida',concepto:"Comisiones bancarias",desc:"I.V.A. (del estado de cuenta HSBC)",fecha:'2026-08-31',monto:11.76})},
+   {k:'h42',op:'crear',txt:"Registrar LIQUIDACION MARCOS FRIDA 1408260 (07/09) · 1,166.85 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"LIQUIDACION MARCOS FRIDA 1408260 (del estado de cuenta HSBC)",fecha:'2026-09-07',monto:1166.85})},
+   {k:'h43',op:'crear',txt:"Registrar pago CGO Familiar (21/09) · 10,000.00 → POR INVESTIGAR",mov:mv({tipo:'Salida',concepto:"POR INVESTIGAR",desc:"CGO Familiar (del estado de cuenta HSBC)",fecha:'2026-09-21',monto:10000.0})},
+   {k:'h44',op:'crear',txt:"Registrar GABRIELA VALENCIA 9326957 (22/09) · 1,026.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"GABRIELA VALENCIA 9326957 (del estado de cuenta HSBC)",fecha:'2026-09-22',monto:1026.0})},
+   {k:'h45',op:'crear',txt:"Registrar pago CGO Septiembre (23/09) · 400.00 → POR INVESTIGAR",mov:mv({tipo:'Salida',concepto:"POR INVESTIGAR",desc:"CGO Septiembre (del estado de cuenta HSBC)",fecha:'2026-09-23',monto:400.0})},
+   {k:'h46',op:'crear',txt:"Registrar pago CGO Septiembre (24/09) · 20,000.00 → Devolución a terceros (cobro que entró a INBURSA)",mov:mv({tipo:'Salida',concepto:PUENTE_OUT,desc:"CGO Septiembre (del estado de cuenta HSBC)",fecha:'2026-09-24',monto:20000.0})},
+   {k:'h47',op:'crear',txt:"Registrar pago TRANSFERENCIA BPI A LA CUENTA 5479 (24/09) · 30,000.00 → POR INVESTIGAR",mov:mv({tipo:'Salida',concepto:"POR INVESTIGAR",desc:"TRANSFERENCIA BPI A LA CUENTA 5479 (del estado de cuenta HSBC)",fecha:'2026-09-24',monto:30000.0})},
+   {k:'h48',op:'crear',txt:"Registrar ANTICIPO SALMA M 0509260 (24/09) · 1,352.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"ANTICIPO SALMA M 0509260 (del estado de cuenta HSBC)",fecha:'2026-09-24',monto:1352.0})},
+   {k:'h49',op:'crear',txt:"Registrar PAGO 1 HECTOR MORENO 2309260 (30/09) · 2,000.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"PAGO 1 HECTOR MORENO 2309260 (del estado de cuenta HSBC)",fecha:'2026-09-30',monto:2000.0})},
+   {k:'h50',op:'crear',txt:"Registrar pago C ADMINISTRACION RENTA (30/09) · 73.50 → Comisiones bancarias",mov:mv({tipo:'Salida',concepto:"Comisiones bancarias",desc:"C ADMINISTRACION RENTA (del estado de cuenta HSBC)",fecha:'2026-09-30',monto:73.5})},
+   {k:'h51',op:'crear',txt:"Registrar pago I.V.A. (30/09) · 11.76 → Comisiones bancarias",mov:mv({tipo:'Salida',concepto:"Comisiones bancarias",desc:"I.V.A. (del estado de cuenta HSBC)",fecha:'2026-09-30',monto:11.76})},
+   {k:'h52',op:'crear',txt:"Registrar TRANSFERENCIA A ALEJANDRO CHAVEZ (13/10) · 458.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"TRANSFERENCIA A ALEJANDRO CHAVEZ (del estado de cuenta HSBC)",fecha:'2026-10-13',monto:458})},
+   {k:'h53',op:'crear',txt:"Registrar MARCO 0910260 (16/10) · 590.00 → HSBC",mov:mv({tipo:'Entrada',concepto:"HSBC",desc:"MARCO 0910260 (del estado de cuenta HSBC)",fecha:'2026-10-16',monto:590})},
+   {k:'resid',op:'crear',txt:'Diferencia de 1,539.04 POR INVESTIGAR: gastos y traspasos capturados en HSBC que no salieron así del banco (servicios de agosto, papel y café, traspasos con Efectivo de 20,000 y 12,500, y diferencias de comisión Ana Belén y plan AT&T)',
+    mov:mv({tipo:'Salida',concepto:'POR INVESTIGAR',desc:'Diferencia por investigar del cuadre HSBC jul-oct (ver Excel "Cuadre HSBC")',fecha:'2026-10-16',monto:1539.04})},
+   {k:'ini',op:'marcar',txt:'Poner los saldos iniciales para que HSBC quede en 11,098.53 (16/10) e INBURSA en 98,042.60 (15/10), igual que los bancos. Efectivo no se toca'}
+  ];
+}
+// Saldo inicial = saldo del banco − lo que suman los movimientos de la plataforma hasta esa fecha
+function ajSaldosIniciales(){
+  var neto=function(c,hasta){return (movs||[]).reduce(function(s,m){
+    if(String(m.fecha||'').slice(0,10)>hasta)return s;
+    var t=m.tipo,v=0;
+    if(m.cuenta===c&&t==='Entrada')v=+m.monto;
+    else if(m.cuenta===c&&(t==='Salida'||t==='Retiro'||t==='Traspaso'))v=-m.monto;
+    if(m.cta_destino===c&&t==='Traspaso')v+=+m.monto;
+    return s+v;},0);};
+  var nuevo=Object.assign({},BANCOS_INIT);
+  if('HSBC' in nuevo)nuevo['HSBC']=Math.round((11098.53-neto('HSBC','2026-10-16'))*100)/100;
+  if('INBURSA' in nuevo)nuevo['INBURSA']=Math.round((98042.60-neto('INBURSA','2026-10-15'))*100)/100;
+  return fetch('/api/config/bancos',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:nuevo})})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);BANCOS_INIT=nuevo;
+      logActivity('Saldos iniciales por cuadre','HSBC '+nuevo['HSBC']+' · INBURSA '+nuevo['INBURSA']);return nuevo;});
+}
+
+var AJ_SET=1,AJ2_KEY='ajuste_inb_2026_10b',AJ2_DONE=null;
+function ajOps2(){
+  return [
+   {k:'ent188',op:'editar',txt:'El depósito del 13/07 por 188,622.50 deja de ser cobro por terceros: es el pago de F3497, venta de We Build',
+    q:{f:'2026-07-13',tipo:'Entrada',cuenta:'INBURSA',monto:188622.5},upd:{concepto:'INBURSA',desc:'Pago F3497 · venta We Build (del estado de cuenta)',tercero:'',puente_liga:''}},
+   {k:'sal188',op:'editar',txt:'La salida del 15/07 por 188,622.50 (F3497) pasa a ser traspaso de INBURSA a HSBC',
+    q:{f:'2026-07-15',cuenta:'INBURSA',monto:188622.5},upd:{tipo:'Traspaso',concepto:'Traspaso entre cuentas',cta_destino:'HSBC',desc:'F3497 · traspaso a HSBC (venta We Build)',tercero:'',puente_liga:''}},
+   {k:'hsbc188',op:'borrar',txt:'Borrar la entrada de HSBC del 18/06 por 188,622.50 ("zibata"): es ese mismo traspaso capturado aparte; si se queda, la venta cuenta doble',
+    q:{f:'2026-06-18',tipo:'Entrada',cuenta:'HSBC',monto:188622.5},req:'sal188'}
+  ];
+}
+function ajOps(){
+  if(AJ_SET===3)return ajOps3();
+  if(AJ_SET===2)return ajOps2();
+  var V='Venta con tarjeta (del estado de cuenta) · cuadre';
+  var mv=function(o){return Object.assign({cta_destino:'',socio:'',cuenta:'INBURSA'},o);};
+  return [
+   {k:'ent188',op:'crear',txt:'Registrar el pago de F3497 (venta We Build) que entró a INBURSA el 13/07 por 188,622.50 (no estaba)',
+    mov:mv({tipo:'Entrada',concepto:'INBURSA',desc:'Pago F3497 · venta We Build (del estado de cuenta)',fecha:'2026-07-13',monto:188622.5}),linea:AJ_L.c188},
+   {k:'sal188',op:'editar',txt:'La salida del 15/07 por 188,622.50 (F3497) deja de ser gasto: es un traspaso de INBURSA a HSBC',
+    q:{f:'2026-07-15',tipo:'Salida',cuenta:'INBURSA',monto:188622.5},upd:{tipo:'Traspaso',concepto:'Traspaso entre cuentas',cta_destino:'HSBC',desc:'F3497 · traspaso a HSBC (venta We Build)',tercero:''}},
+   {k:'hsbc188',op:'borrar',txt:'Borrar la entrada de HSBC del 18/06 por 188,622.50 ("zibata"): es ese mismo traspaso capturado aparte; si se queda, la venta cuenta doble',
+    q:{f:'2026-06-18',tipo:'Entrada',cuenta:'HSBC',monto:188622.5},req:'sal188'},
+   {k:'entLau',op:'editar',txt:'La entrada del 07/08 por 2,638.51 deja de ser venta: es Cobro por terceros de Laura',
+    q:{f:'2026-08-07',tipo:'Entrada',cuenta:'INBURSA',monto:2638.51},upd:{concepto:PUENTE_IN,tercero:'Laura'}},
+   {k:'salLau',op:'editar',txt:'Ligar la devolución a Laura del 10/08 (2,638.51) con su cobro',
+    q:{f:'2026-08-10',tipo:'Salida',monto:2638.51,concepto:PUENTE_OUT},upd:{tercero:'Laura'},liga:[['entLau',2638.51]]},
+   {k:'entGob',op:'editar',txt:'Poner nombre al cobro del 31/08 por 25,000 (Gobierno)',
+    q:{f:'2026-08-31',tipo:'Entrada',monto:25000,concepto:PUENTE_IN},upd:{tercero:'Gobierno'}},
+   {k:'salGob',op:'editar',txt:'Ligar la devolución del 03/09 (25,000) con el cobro de Gobierno',
+    q:{f:'2026-09-03',tipo:'Salida',monto:25000,concepto:PUENTE_OUT},upd:{tercero:'Gobierno'},liga:[['entGob',25000]]},
+   {k:'entSit',op:'editar',txt:'Poner nombre al cobro del 11/09 por 34,220 (Sitrack)',
+    q:{f:'2026-09-11',tipo:'Entrada',monto:34220,concepto:PUENTE_IN},upd:{tercero:'Sitrack'}},
+   {k:'salSit',op:'editar',txt:'Ligar la devolución del 12/09 (34,220) con el cobro de Sitrack',
+    q:{f:'2026-09-12',tipo:'Salida',monto:34220,concepto:PUENTE_OUT},upd:{tercero:'Sitrack'},liga:[['entSit',34220]]},
+   {k:'entHos',op:'editar',txt:'Poner nombre al cobro del 30/07 por 58,931.53 (Grupo Hospitalario)',
+    q:{f:'2026-07-30',tipo:'Entrada',monto:58931.53,concepto:PUENTE_IN},upd:{tercero:'Grupo Hospitalario'}},
+   {k:'salHos',op:'editar',txt:'Ligar la devolución a Grupo Hospitalario del 04/08 (58,793) con ese cobro',
+    q:{f:'2026-08-04',tipo:'Salida',monto:58793,concepto:PUENTE_OUT},upd:{tercero:'Grupo Hospitalario'},liga:[['entHos',58793]]},
+   {k:'retHosS',op:'crear',txt:'Los 138.53 que quedaron del cobro de Grupo Hospitalario pasan a INGRESO POR TERMINAL (par que no mueve el banco)',
+    mov:mv({tipo:'Salida',concepto:PUENTE_OUT,desc:'Lo que me quedé de Grupo Hospitalario → pasa a INGRESO POR TERMINAL',fecha:'2026-08-04',monto:138.53,tercero:'Grupo Hospitalario',banco_ref:'reclasificación'}),liga:[['entHos',138.53]],ret:1},
+   {k:'retHosE',op:'crear',txt:'(segunda mitad del par anterior)',
+    mov:mv({tipo:'Entrada',concepto:'INGRESO POR TERMINAL',desc:'Lo que me quedé del cobro por Grupo Hospitalario',fecha:'2026-08-04',monto:138.53,tercero:'Grupo Hospitalario',banco_ref:'reclasificación'}),ret:1},
+   {k:'dup939',op:'borrar',txt:'Borrar el 939 duplicado del 13/10 (el banco lo depositó una vez y ya está en "Zibata ventas 12/10")',
+    q:{f:'2026-10-13',tipo:'Entrada',cuenta:'INBURSA',monto:939,concepto:'INBURSA'}},
+   {k:'r380',op:'editar',txt:'Los 380 que te quedaste de Raúl pasan de Efectivo a INBURSA (su salida puente está en INBURSA)',
+    q:{f:'2026-10-15',tipo:'Entrada',monto:380,concepto:'INGRESO POR TERMINAL'},upd:{cuenta:'INBURSA'}},
+   {k:'mym',op:'editar',txt:'La compra a Marcos y Marcos del 03/09 (1,675.23) pasa de categoría "INBURSA" a MOLDURAS',
+    q:{f:'2026-09-03',tipo:'Salida',cuenta:'INBURSA',monto:1675.23},upd:{concepto:'MOLDURAS'}},
+   {k:'v1',op:'crear',txt:'Registrar venta CREDITO del 14/07 · 4,547.00',mov:mv({tipo:'Entrada',concepto:'INBURSA',desc:'CREDITO · '+V,fecha:'2026-07-14',monto:4547}),linea:AJ_L.sales[0]},
+   {k:'v2',op:'crear',txt:'Registrar venta DEBITO del 14/07 · 9,894.50',mov:mv({tipo:'Entrada',concepto:'INBURSA',desc:'DEBITO · '+V,fecha:'2026-07-14',monto:9894.5}),linea:AJ_L.sales[1]},
+   {k:'v3',op:'crear',txt:'Registrar venta CREDITO del 13/08 · 8,992.00',mov:mv({tipo:'Entrada',concepto:'INBURSA',desc:'CREDITO · '+V,fecha:'2026-08-13',monto:8992}),linea:AJ_L.sales[2]},
+   {k:'v4',op:'crear',txt:'Registrar venta DEBITO del 01/10 · 5,005.50',mov:mv({tipo:'Entrada',concepto:'INBURSA',desc:'DEBITO · '+V,fecha:'2026-10-01',monto:5005.5}),linea:AJ_L.sales[3]},
+   {k:'v5',op:'crear',txt:'Registrar venta CREDITO del 02/10 · 6,673.00',mov:mv({tipo:'Entrada',concepto:'INBURSA',desc:'CREDITO · '+V,fecha:'2026-10-02',monto:6673}),linea:AJ_L.sales[4]},
+   {k:'v6',op:'crear',txt:'Registrar venta DEBITO del 02/10 · 1,098.00',mov:mv({tipo:'Entrada',concepto:'INBURSA',desc:'DEBITO · '+V,fecha:'2026-10-02',monto:1098}),linea:AJ_L.sales[5]},
+   {k:'renta',op:'crear',txt:'Registrar renta Zibata octubre (07/10 · 19,146.96)',mov:mv({tipo:'Salida',concepto:'Servicios',desc:'Renta Zibata octubre (del estado de cuenta)',fecha:'2026-10-07',monto:19146.96}),linea:AJ_L.oct[0]},
+   {k:'serv',op:'crear',txt:'Registrar servicios Zibata octubre (07/10 · 4,197.78)',mov:mv({tipo:'Salida',concepto:'Servicios',desc:'Servicios Zibata octubre (del estado de cuenta)',fecha:'2026-10-07',monto:4197.78}),linea:AJ_L.oct[1]},
+   {k:'x6683',op:'crear',txt:'Registrar el pago de vidrio de museo del 05/10 (6,683.00)',mov:mv({tipo:'Salida',concepto:'VIDRIO DE MUSEO',desc:'Pago vidrio de museo (del estado de cuenta)',fecha:'2026-10-05',monto:6683}),linea:AJ_L.oct[2]},
+   {k:'sayer',op:'crear',txt:'Pago a Sayer que rebotó (salió 9,691.51 el 29/07 y regresaron 9,651.51 el 31/07): se registra la diferencia de 40.00 como comisión',
+    mov:mv({tipo:'Salida',concepto:'Comisiones bancarias',desc:'Pago Sayer rebotado: salió 9,691.51 el 29/07, regresó 9,651.51 el 31/07',fecha:'2026-07-31',monto:40}),lineas:AJ_L.sayer},
+   {k:'com',op:'crear',txt:'Registrar las comisiones del banco que faltaban (7,871.62: el banco cobró 23,919.98 y había 16,048.36)',
+    mov:mv({tipo:'Salida',concepto:'Comisiones bancarias',desc:'Comisiones de terminal, SPEI, cuotas e IVA que faltaban del 01/07 al 15/10 (cuadre contra estado de cuenta)',fecha:'2026-10-15',monto:7871.62}),com:1},
+   {k:'reb',op:'marcar',txt:'Marcar como conciliados los rebotes que salieron y regresaron (3 × 5,260.51 y 2,320.00): netos en cero, no se registran'}
+  ];
+}
+function ajFind(q){
+  return (movs||[]).filter(function(m){
+    if(String(m.fecha||'').slice(0,10)!==q.f)return false;
+    if(q.tipo&&String(m.tipo||'').toLowerCase()!==q.tipo.toLowerCase())return false;
+    if(q.cuenta&&m.cuenta!==q.cuenta)return false;
+    if(q.concepto&&m.concepto!==q.concepto)return false;
+    return Math.abs((+m.monto||0)-q.monto)<0.01;
+  });
+}
+function ajRevisar(){
+  return ajOps().map(function(o){
+    var r={o:o,ok:true,nota:''};
+    if(o.q){var f=ajFind(o.q);
+      if(f.length===1)r.m=f[0];
+      else{r.ok=false;r.nota=f.length?'hay '+f.length+' iguales, no sé cuál':'no lo encontré';}}
+    if(o.necesita&&ajFind(o.necesita).length===0){r.ok=false;r.nota='no encontré el movimiento que lo reemplaza; no se borra';}
+    if(o.op==='crear'){
+      var ya=ajFind({f:o.mov.fecha,tipo:o.mov.tipo,cuenta:o.mov.cuenta,monto:o.mov.monto,concepto:o.mov.concepto})
+        .filter(function(m){return String(m.desc||'')===o.mov.desc;});
+      if(ya.length){r.ok=false;r.nota='ya existe';}
+    }
+    return r;
+  });
+}
+function ajPintaBanner(){
+  var c=document.getElementById('aj-banner');if(!c)return;
+  var u=_u()||{};
+  if((u.role!=='owner'&&u.role!=='admin')||!movs||!movs.length){c.innerHTML='';return;}
+  if(AJ_DONE&&AJ3_DONE){c.innerHTML='';return;}
+  AJ_SET=AJ_DONE?3:1;
+  var n=ajOps().length;
+  if(AJ_SET===3){
+    c.innerHTML='<div onclick="ajAbrir()" style="cursor:pointer;background:var(--azul-l);border:1px solid #BCD3F3;border-radius:12px;padding:11px 15px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+      '<div style="font-size:22px">🧾</div><div style="flex:1;min-width:220px">'+
+      '<div style="font-size:14px;font-weight:800;color:#2A4F8A">Cuadre de HSBC del 1 jul al 16 oct listo para aplicar</div>'+
+      '<div style="font-size:12px;color:var(--text2);margin-top:2px">'+n+' cambios · HSBC queda en 11,098.53 e INBURSA en 98,042.60, igual que los bancos · pica para verlos</div>'+
+      '</div><div style="font-size:20px;color:#2A4F8A">›</div></div>';
+    return;
+  }
+  if(AJ_SET===2){
+    c.innerHTML='<div onclick="ajAbrir()" style="cursor:pointer;background:var(--azul-l);border:1px solid #BCD3F3;border-radius:12px;padding:11px 15px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+      '<div style="font-size:22px">🧾</div><div style="flex:1;min-width:220px">'+
+      '<div style="font-size:14px;font-weight:800;color:#2A4F8A">Corrección: los 188,622.50 de F3497 son la venta de We Build</div>'+
+      '<div style="font-size:12px;color:var(--text2);margin-top:2px">'+n+' cambios · pica para verlos y aplicarlos</div>'+
+      '</div><div style="font-size:20px;color:#2A4F8A">›</div></div>';
+    return;
+  }
+  c.innerHTML='<div onclick="ajAbrir()" style="cursor:pointer;background:var(--azul-l);border:1px solid #BCD3F3;border-radius:12px;padding:11px 15px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+    '<div style="font-size:22px">🧾</div><div style="flex:1;min-width:220px">'+
+    '<div style="font-size:14px;font-weight:800;color:#2A4F8A">Cuadre de INBURSA del 1 jul al 15 oct listo para aplicar</div>'+
+    '<div style="font-size:12px;color:var(--text2);margin-top:2px">'+n+' cambios revisados contra el estado de cuenta · pica para verlos y aplicarlos</div>'+
+    '</div><div style="font-size:20px;color:#2A4F8A">›</div></div>';
+}
+function ajAbrir(){
+  AJ_SET=AJ_DONE?3:1;
+  AJ_RES=ajRevisar();
+  var ok=AJ_RES.filter(function(r){return r.ok;}).length;
+  document.getElementById('aj-lista').innerHTML='<table class="tbl"><tbody>'+AJ_RES.map(function(r,i){
+    var ico={crear:'➕',editar:'✏️',borrar:'🗑',marcar:'✔︎'}[r.o.op];
+    return '<tr><td style="width:26px;color:var(--text3)">'+(i+1)+'</td><td style="width:24px">'+ico+'</td><td>'+ptEsc(r.o.txt)+
+      (r.ok?'':'<div style="font-size:11px;color:var(--borgona);font-weight:700">⚠ '+r.nota+' — se salta</div>')+'</td></tr>';
+  }).join('')+'</tbody></table>';
+  document.getElementById('aj-info').textContent=ok+' de '+AJ_RES.length+' listos para aplicar.';
+  var b=document.getElementById('aj-ok');b.disabled=false;b.textContent='✓ Aplicar los '+ok+' cambios';
+  OM('mod-aj');
+}
+function ajAplicar(){
+  if(!AJ_RES)return;
+  var b=document.getElementById('aj-ok');b.disabled=true;
+  var ids={},hechos=[],fallos=[],hoy=todayStr(),g='Laj'+Date.now();
+  AJ_RES.forEach(function(r){if(r.m)ids[r.o.k]=r.m.id;});
+  var liga=function(o){
+    if(!o.liga)return null;
+    var e=o.liga.map(function(x){return [ids[x[0]],x[1]];}).filter(function(x){return x[0];});
+    if(e.length<o.liga.length)return false;
+    var L={g:g,e:e};if(o.ret)L.r=1;return JSON.stringify(L);
+  };
+  var p=Promise.resolve();
+  AJ_RES.forEach(function(r,i){
+    if(!r.ok)return;
+    var o=r.o;
+    p=p.then(function(){
+      // nunca borrar la entrada de HSBC si el traspaso que la sustituye no quedó hecho
+      if(o.req&&hechos.indexOf(o.req)<0){fallos.push(o.txt+' (no se hizo porque falló el paso del que depende)');return;}
+      b.textContent='Aplicando '+(i+1)+' de '+AJ_RES.length+'…';
+      if(o.op==='crear'){
+        var mv=Object.assign({},o.mov,{mes:parseInt(o.mov.fecha.split('-')[1],10)-1,conciliado:hoy});
+        if(!mv.banco_ref)mv.banco_ref='cuadre jul-oct';
+        var lg=liga(o);if(lg===false){fallos.push(o.txt+' (falta el cobro al que se liga)');return;}
+        if(lg)mv.puente_liga=lg;
+        if(o.ret&&!o.liga)mv.puente_liga=JSON.stringify({g:g,r:1});
+        return ptPostMov(mv).then(function(s){ids[o.k]=s.id;hechos.push(o.k);});
+      }
+      if(o.op==='editar'){
+        var upd=Object.assign({},o.upd);
+        var lg2=liga(o);if(lg2===false){fallos.push(o.txt+' (falta el cobro al que se liga)');return;}
+        if(lg2)upd.puente_liga=lg2;
+        return ptPutMov(r.m,upd).then(function(){hechos.push(o.k);});
+      }
+      if(o.op==='borrar'){
+        return fetch('/api/movimientos/'+r.m.id,{method:'DELETE',credentials:'include'}).then(function(x){
+          if(!x.ok)throw new Error('HTTP '+x.status);movs=movs.filter(function(m){return m.id!==r.m.id;});hechos.push(o.k);});
+      }
+      if(o.op==='marcar'){hechos.push(o.k);}
+    }).catch(function(e){fallos.push(o.txt+' ('+e.message+')');});
+  });
+  p.then(function(){return cargarBcoOK();}).then(function(){
+    var k=function(l){return kLinea({fecha:l[0],monto:l[1],det:l[2]});};
+    var mk=function(l,id){if(id)BCO_OK[k(l)]=id;};
+    AJ_RES.forEach(function(r){var o=r.o,id=ids[o.k];if(!id||hechos.indexOf(o.k)<0)return;
+      if(o.linea)mk(o.linea,id);
+      if(o.lineas)o.lineas.forEach(function(l){mk(l,id);});
+      if(o.com)AJ_L.com.forEach(function(l){if(!bcoMarca(k(l)))mk(l,id);});
+    });
+    if(hechos.indexOf('reb')>=0)AJ_L.rebote.forEach(function(l){BCO_OK[k(l)]=true;});
+    if(ids.ent188&&hechos.indexOf('ent188')>=0)mk(AJ_L.c188,ids.ent188);
+    // el CREDITO de 939 del 13/10 queda casado con "Zibata ventas 12/10", que es el que se queda
+    var zib=ajFind({f:'2026-10-12',tipo:'Entrada',monto:939,concepto:'ZIBATA'});
+    if(zib.length===1&&hechos.indexOf('dup939')>=0)mk(['2026-10-13',939,'CREDITO'],zib[0].id);
+    return guardarBcoOK();
+  }).then(function(){
+    var reg={fecha:hoy,hechos:hechos.length,fallos:fallos.length,ids:ids};
+    // el cuadre nuevo ya trae la corrección de F3497, así que deja hechos los dos
+    var guarda=function(k,v){return fetch('/api/config/'+k,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:v})});};
+    AJ2_DONE=reg;
+    if(AJ_SET===3){AJ3_DONE=reg;
+      return guarda(AJ3_KEY,reg).then(function(){return guarda(AJ2_KEY,reg);})
+        .then(function(){if(hechos.indexOf('ini')>=0)return ajSaldosIniciales().catch(function(e){fallos.push('Saldos iniciales ('+e.message+')');});});}
+    if(AJ_SET===2)return guarda(AJ2_KEY,reg);
+    AJ_DONE=reg;
+    return guarda(AJ2_KEY,reg).then(function(){return guarda(AJ_KEY,reg);});
+  }).then(function(){
+    logActivity(AJ_SET===3?'Aplicó cuadre HSBC jul-oct':AJ_SET===2?'Corrigió F3497 (venta We Build)':'Aplicó cuadre INBURSA jul-oct',hechos.length+' cambios'+(fallos.length?' · '+fallos.length+' fallaron':''));
+    CM('mod-aj');rMovsRe();
+    alert('✅ Cuadre aplicado: '+hechos.length+' cambios.'+(fallos.length?'\n\n⚠️ No se pudieron hacer:\n• '+fallos.join('\n• '):''));
+  }).catch(function(e){alert('⚠️ Algo falló al terminar ('+e.message+'). Lo que ya se aplicó queda guardado; avísame qué dice.');b.disabled=false;});
+}
+
+
+// ═══ RECUPERAR ENTRADAS DE EFECTIVO (18 jun – 31 ago 2026) ═══════════════════
+// Recorre día por día el mismo cálculo del Cierre del día (cobros de las notas
+// contra lo registrado en Movimientos), solo para las cuentas de efectivo, y
+// junta lo que falta registrar. Septiembre y octubre ya cuadran, no se tocan.
+var REF_DESDE='2026-06-18',REF_HASTA='2026-08-31',REF_ROWS=[],REF_MAS=[];
+function refCalc(){
+  REF_ROWS=[];REF_MAS=[];
+  var d=new Date(REF_DESDE+'T12:00:00'),fin=new Date(REF_HASTA+'T12:00:00');
+  while(d<=fin){
+    var f=dateStrLocal(d);
+    var r=cierreCalc(f);
+    Object.values(r.porCta).forEach(function(v){
+      if(!/efectivo/i.test(v.cta||''))return;
+      var dif=Math.round((v.cob-(v.reg||0))*100)/100;
+      if(dif>0.5)REF_ROWS.push({f:f,cta:v.cta,suc:v.suc,cob:v.cob,reg:v.reg||0,dif:dif,dets:v.dets,sel:true});
+      else if(dif<-0.5)REF_MAS.push({f:f,cta:v.cta,suc:v.suc,cob:v.cob,reg:v.reg||0,dif:dif});
+    });
+    d.setDate(d.getDate()+1);
+  }
+}
+function refPintaBanner(){
+  var c=document.getElementById('ref-banner');if(!c)return;
+  var u=_u()||{};
+  if((u.role!=='owner'&&u.role!=='admin')||!movs||!movs.length||!(pedidos||[]).length){c.innerHTML='';return;}
+  var key=movs.length+'|'+pedidos.length+'|'+(ABONOS||[]).length;
+  if(refPintaBanner._k!==key){refCalc();refPintaBanner._k=key;}
+  if(!REF_ROWS.length){c.innerHTML='';return;}
+  var tot=REF_ROWS.reduce(function(s,x){return s+x.dif;},0);
+  c.innerHTML='<div onclick="refAbrir()" style="cursor:pointer;background:var(--menta-l);border:1px solid #A9DFC4;border-radius:12px;padding:11px 15px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+    '<div style="font-size:22px">💵</div><div style="flex:1;min-width:220px">'+
+    '<div style="font-size:14px;font-weight:800;color:#12724C">Faltan '+fmt(tot)+' de cobros en efectivo del 18 jun al 31 ago</div>'+
+    '<div style="font-size:12px;color:var(--text2);margin-top:2px">'+REF_ROWS.length+' día(s) donde las notas tienen cobros en efectivo que no están en Movimientos · pica para revisarlos y registrarlos</div>'+
+    '</div><div style="font-size:20px;color:#12724C">›</div></div>';
+}
+function refAbrir(){
+  refCalc();refPinta();
+  document.getElementById('ref-arqueo').value='';
+  refArqueoCalc();
+  OM('mod-ref');
+}
+function refPinta(){
+  var sel=REF_ROWS.filter(function(x){return x.sel;});
+  var tot=sel.reduce(function(s,x){return s+x.dif;},0);
+  var h='<table class="tbl" style="font-size:12.5px"><thead><tr><th style="width:30px"></th><th>Día</th><th>Cuenta</th><th style="text-align:right">Cobrado en notas</th><th style="text-align:right">Registrado</th><th style="text-align:right">Falta</th></tr></thead><tbody>'+
+    REF_ROWS.map(function(x,i){
+      return '<tr><td><input type="checkbox" '+(x.sel?'checked':'')+' onchange="REF_ROWS['+i+'].sel=this.checked;refPinta()" style="width:15px;height:15px;cursor:pointer"></td>'+
+        '<td style="white-space:nowrap">'+ptFec(x.f)+'</td><td>'+ptEsc(x.cta)+(x.suc==='Zibata'?' · Zibata':'')+'</td>'+
+        '<td class="mono" style="text-align:right">'+fmt(x.cob)+'<div style="font-size:10px;color:var(--text3)">'+ptEsc(x.dets.slice(0,8).join(', ')+(x.dets.length>8?' +'+(x.dets.length-8):''))+'</div></td>'+
+        '<td class="mono" style="text-align:right">'+fmt(x.reg)+'</td><td class="mono" style="text-align:right;font-weight:700;color:#12724C">'+fmt(x.dif)+'</td></tr>';
+    }).join('')+'</tbody></table>';
+  if(REF_MAS.length)h+='<div style="font-size:12px;color:var(--borgona);background:var(--borgona-l);border-radius:8px;padding:8px 11px;margin-top:10px"><b>Días con más efectivo registrado que cobrado en notas</b> (no se tocan, solo para que los revises): '+
+    REF_MAS.map(function(x){return ptFec(x.f)+' '+fmt(-x.dif);}).join(' · ')+'</div>';
+  document.getElementById('ref-lista').innerHTML=REF_ROWS.length?h:'<div class="tbl-empty">No falta ningún cobro en efectivo en ese periodo.</div>';
+  var b=document.getElementById('ref-ok');
+  b.disabled=!sel.length;b.textContent=sel.length?'✓ Registrar '+sel.length+' día(s) · '+fmt(tot):'Selecciona al menos un día';
+}
+function refRegistrar(){
+  var sel=REF_ROWS.filter(function(x){return x.sel;});if(!sel.length)return;
+  var b=document.getElementById('ref-ok');b.disabled=true;
+  var hechos=0,fallos=0,p=Promise.resolve();
+  sel.forEach(function(x,i){
+    p=p.then(function(){
+      b.textContent='Registrando '+(i+1)+' de '+sel.length+'…';
+      var esZ=x.suc==='Zibata';
+      return ptPostMov({tipo:'Entrada',concepto:esZ?'ZIBATA':String(x.cta).toUpperCase(),desc:(esZ?'Zibata ventas ':'VENTAS ')+x.f+' (cierre del día · recuperado)',
+        cuenta:x.cta,cta_destino:'',socio:'',monto:x.dif,fecha:x.f,mes:parseInt(x.f.split('-')[1],10)-1})
+        .then(function(){hechos++;}).catch(function(){fallos++;});
+    });
+  });
+  p.then(function(){
+    logActivity('Recuperó cierres de efectivo','18 jun – 31 ago · '+hechos+' día(s)');
+    refCalc();refPinta();refArqueoCalc();refPintaBanner();try{rMovsRe();}catch(e){}
+    alert('✅ Registrados '+hechos+' día(s) de cobros en efectivo.'+(fallos?'\n⚠️ '+fallos+' no se pudieron registrar; vuelve a abrir y reintenta.':'')+'\n\nAhora escribe abajo cuánto efectivo hay hoy en caja para que el saldo quede igual.');
+  });
+}
+// Saldo inicial de Efectivo a partir del arqueo de hoy
+function refNetoEf(){
+  return (movs||[]).reduce(function(s,m){var t=m.tipo,v=0;
+    if(m.cuenta==='Efectivo'&&t==='Entrada')v=+m.monto;
+    else if(m.cuenta==='Efectivo'&&(t==='Salida'||t==='Retiro'||t==='Traspaso'))v=-m.monto;
+    if(m.cta_destino==='Efectivo'&&t==='Traspaso')v+=+m.monto;return s+v;},0);
+}
+function refArqueoCalc(){
+  var a=parseFloat(document.getElementById('ref-arqueo').value);
+  var o=document.getElementById('ref-arq-res'),b=document.getElementById('ref-arq-ok');
+  var neto=refNetoEf(),ini=(BANCOS_INIT&&BANCOS_INIT['Efectivo'])||0;
+  if(isNaN(a)){o.innerHTML='Hoy la plataforma dice <b>'+fmt(ini+neto)+'</b> en Efectivo (saldo inicial '+fmt(ini)+').';b.disabled=true;return;}
+  var nuevo=Math.round((a-neto)*100)/100;
+  o.innerHTML='Para que Efectivo quede en <b>'+fmt(a)+'</b>, el saldo inicial debe ser <b>'+fmt(nuevo)+'</b> (hoy es '+fmt(ini)+').';
+  b.disabled=false;b.dataset.v=nuevo;
+}
+function refArqueoGuardar(){
+  var b=document.getElementById('ref-arq-ok'),v=parseFloat(b.dataset.v);if(isNaN(v))return;
+  if(!confirm('¿Poner '+fmt(v)+' como saldo inicial de Efectivo?'))return;
+  var nuevo=Object.assign({},BANCOS_INIT);nuevo['Efectivo']=v;
+  fetch('/api/config/bancos',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:nuevo})})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);BANCOS_INIT=nuevo;
+      logActivity('Saldo inicial de Efectivo por arqueo',fmt(v));refArqueoCalc();try{rMovsRe();}catch(e){}
+      alert('✅ Listo: Efectivo ya queda igual a lo que hay en caja.');})
+    .catch(function(e){alert('⚠️ No se guardó ('+e.message+')');});
 }
 
 // ─── ESTADO DE RESULTADOS ─────────────────────────────────────────────────────
@@ -8892,7 +9383,7 @@ function banLineas(){
 function banClave(l){return kLinea(l);}
 // ¿Ya está conciliado? Por marca guardada o por movimiento conciliado que empate
 function banCasado(l){
-  var id=BCO_OK[banClave(l)];
+  var id=bcoMarca(banClave(l));
   if(id)return movs.find(function(m){return m.id===id;})||{id:id,desc:'(movimiento agrupado)'};
   return null;
 }
@@ -9599,7 +10090,7 @@ function banPuenteHTML(){
 function banRegistrarCom(){
   if(!BAN_EDO){alert('Primero sube el estado de cuenta.');return;}
   var cta=document.getElementById('ban-cta').value;
-  var faltan=(BAN_EDO.cargos||[]).filter(function(b){return banEsComision(b.det||b.tipo||'',b.comision)&&!BCO_OK[kLinea(b)];});
+  var faltan=(BAN_EDO.cargos||[]).filter(function(b){return banEsComision(b.det||b.tipo||'',b.comision)&&!bcoMarca(kLinea(b));});
   var tot=faltan.reduce(function(a,b){return a+b.monto;},0);
   if(!tot){alert('Ya no falta ninguna comisión por capturar.');return;}
   var f=faltan.map(function(b){return b.fecha;}).sort().pop();
@@ -11581,6 +12072,7 @@ function loadData(){
     loadERCats().then(()=>{try{rMvCat();}catch(e){}try{if(document.querySelector('#page-er.active'))rER();}catch(e){}});
     loadAuditExcl();
     cargarPuentePct();
+    ajCargar().then(function(){try{if(document.querySelector('#page-mov.active'))ajPintaBanner();}catch(e){}});
     loadBancosCfg().then(()=>{pintarCuentasSelects();try{if(document.querySelector('#page-ban.active'))rBancos();}catch(e){}});
     if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
     ORDENES=ords||[];
