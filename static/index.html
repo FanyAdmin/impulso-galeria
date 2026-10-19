@@ -1029,7 +1029,8 @@ tr:hover .ent-edit{opacity:1}
   <div class="modal-hdr"><div class="modal-ttl">💵 Cobros en efectivo · 18 jun – 31 ago 2026</div><button class="modal-x" onclick="CM('mod-ref')">✕</button></div>
   <div class="modal-body">
     <div style="font-size:12.5px;color:var(--text2);margin-bottom:8px">Es el mismo cálculo del Cierre del día, hecho día por día: lo cobrado en efectivo según las notas contra lo registrado en Movimientos. Septiembre y octubre no se tocan porque ya cuadran.</div>
-    <div id="ref-lista" style="max-height:44vh;overflow:auto;border:1px solid var(--border);border-radius:10px"></div>
+    <div id="ref-lista" style="max-height:34vh;overflow:auto;border:1px solid var(--border);border-radius:10px"></div>
+    <div id="ref-meses" style="max-height:30vh;overflow:auto"></div>
     <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
       <div style="font-weight:700;font-size:13px;margin-bottom:6px">Después: ¿cuánto efectivo hay hoy en caja?</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="number" step="0.01" id="ref-arqueo" placeholder="Arqueo de hoy" oninput="refArqueoCalc()" style="max-width:180px">
@@ -8178,6 +8179,20 @@ function refCalc(){
     });
     d.setDate(d.getDate()+1);
   }
+  // Neteo por mes: si un cobro se registró con otra fecha, un día sale "falta" y otro
+  // "de más". Solo se propone lo que falta en el MES; si el mes ya cuadra, nada.
+  var G={},K='␟';
+  REF_ROWS.forEach(function(x){var k=x.f.slice(0,7)+K+x.cta+K+x.suc;(G[k]=G[k]||{rows:[],mas:0}).rows.push(x);});
+  REF_MAS.forEach(function(x){var k=x.f.slice(0,7)+K+x.cta+K+x.suc;(G[k]=G[k]||{rows:[],mas:0}).mas+= -x.dif;});
+  var out=[];
+  Object.keys(G).forEach(function(k){
+    var g=G[k],falta=g.rows.reduce(function(s,x){return s+x.dif;},0),neto=Math.round((falta-g.mas)*100)/100;
+    if(neto<=0.5)return;
+    if(g.mas<=0.5){out=out.concat(g.rows);return;}
+    var x0=g.rows[0],mes=x0.f.slice(0,7),ult=dateStrLocal(new Date(+mes.slice(0,4),+mes.slice(5),0));if(ult>REF_HASTA)ult=REF_HASTA;
+    out.push({f:ult,cta:x0.cta,suc:x0.suc,cob:neto,reg:0,dif:neto,dets:['neto de '+mes+' (hay cobros registrados con otra fecha)'],sel:true});
+  });
+  REF_ROWS=out.sort(function(a,b){return a.f.localeCompare(b.f);});
 }
 function refPintaBanner(){
   var c=document.getElementById('ref-banner');if(!c)return;
@@ -8185,7 +8200,17 @@ function refPintaBanner(){
   if((u.role!=='owner'&&u.role!=='admin')||!movs||!movs.length||!(pedidos||[]).length){c.innerHTML='';return;}
   var key=movs.length+'|'+pedidos.length+'|'+(ABONOS||[]).length;
   if(refPintaBanner._k!==key){refCalc();refPintaBanner._k=key;}
-  if(!REF_ROWS.length){c.innerHTML='';return;}
+  if(!REF_ROWS.length){
+    var mal=refMeses().filter(function(o){return o.exceso>0.5;});
+    if(!mal.length){c.innerHTML='';return;}
+    var tm=mal.reduce(function(s,o){return s+o.exceso;},0);
+    c.innerHTML='<div onclick="refAbrir()" style="cursor:pointer;background:var(--borgona-l);border:1px solid #F0B8CB;border-radius:12px;padding:11px 15px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+      '<div style="font-size:22px">💵</div><div style="flex:1;min-width:220px">'+
+      '<div style="font-size:14px;font-weight:800;color:var(--borgona)">Se recuperaron '+fmt(tm)+' de efectivo de más</div>'+
+      '<div style="font-size:12px;color:var(--text2);margin-top:2px">Eran cobros que ya estaban registrados con otra fecha · pica para corregirlo y cuadrar con tu arqueo</div>'+
+      '</div><div style="font-size:20px;color:var(--borgona)">›</div></div>';
+    return;
+  }
   var tot=REF_ROWS.reduce(function(s,x){return s+x.dif;},0);
   c.innerHTML='<div onclick="refAbrir()" style="cursor:pointer;background:var(--menta-l);border:1px solid #A9DFC4;border-radius:12px;padding:11px 15px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
     '<div style="font-size:22px">💵</div><div style="flex:1;min-width:220px">'+
@@ -8194,7 +8219,7 @@ function refPintaBanner(){
     '</div><div style="font-size:20px;color:#12724C">›</div></div>';
 }
 function refAbrir(){
-  refCalc();refPinta();
+  refCalc();refPinta();refPintaMeses();
   document.getElementById('ref-arqueo').value='';
   refArqueoCalc();
   OM('mod-ref');
@@ -8230,10 +8255,85 @@ function refRegistrar(){
   });
   p.then(function(){
     logActivity('Recuperó cierres de efectivo','18 jun – 31 ago · '+hechos+' día(s)');
-    refCalc();refPinta();refArqueoCalc();refPintaBanner();try{rMovsRe();}catch(e){}
+    refCalc();refPinta();refPintaMeses();refArqueoCalc();refPintaBanner();try{rMovsRe();}catch(e){}
     alert('✅ Registrados '+hechos+' día(s) de cobros en efectivo.'+(fallos?'\n⚠️ '+fallos+' no se pudieron registrar; vuelve a abrir y reintenta.':'')+'\n\nAhora escribe abajo cuánto efectivo hay hoy en caja para que el saldo quede igual.');
   });
 }
+
+// ── Revisión por mes de lo recuperado ──
+// Cuando un cobro se registró en Movimientos con OTRA fecha que la de la nota,
+// el cálculo día por día lo ve como "falta" en un día y "de más" en otro.
+// Por mes eso se compensa; aquí se detecta y se corrige dejando solo lo neto.
+var REF_TAG='(cierre del día · recuperado)';
+function refMeses(){
+  var M={},K='␟';
+  var d=new Date(REF_DESDE+'T12:00:00'),fin=new Date(REF_HASTA+'T12:00:00');
+  while(d<=fin){
+    var f=dateStrLocal(d),r=cierreCalc(f);
+    Object.values(r.porCta).forEach(function(v){
+      if(!/efectivo/i.test(v.cta||''))return;
+      var k=f.slice(0,7)+K+v.cta+K+v.suc;
+      var o=M[k]=M[k]||{mes:f.slice(0,7),cta:v.cta,suc:v.suc,cob:0,reg:0,rec:0,recs:[]};
+      o.cob+=v.cob||0;o.reg+=v.reg||0;
+    });
+    d.setDate(d.getDate()+1);
+  }
+  (movs||[]).forEach(function(m){
+    if(m.tipo!=='Entrada'||String(m.desc||'').indexOf(REF_TAG)<0)return;
+    var f=String(m.fecha||'').slice(0,10);if(f<REF_DESDE||f>REF_HASTA)return;
+    var suc=String(m.concepto||'').toUpperCase().indexOf('ZIBATA')>=0?'Zibata':'Jardines';
+    var k=f.slice(0,7)+K+m.cuenta+K+suc;
+    var o=M[k]=M[k]||{mes:f.slice(0,7),cta:m.cuenta,suc:suc,cob:0,reg:0,rec:0,recs:[]};
+    o.rec+=+m.monto||0;o.recs.push(m);
+  });
+  return Object.values(M).map(function(o){
+    o.regOrig=Math.round((o.reg-o.rec)*100)/100;
+    o.gap=Math.round((o.cob-o.regOrig)*100)/100;
+    o.exceso=Math.round((o.rec-Math.max(o.gap,0))*100)/100;
+    return o;
+  }).sort(function(a,b){return (a.mes+a.cta).localeCompare(b.mes+b.cta);});
+}
+function refPintaMeses(){
+  var c=document.getElementById('ref-meses');if(!c)return;
+  var R=refMeses().filter(function(o){return o.rec>0.5||o.cob>0.5;});
+  var mal=R.filter(function(o){return o.exceso>0.5;});
+  var nom=['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var h='<div style="font-weight:700;font-size:13px;margin:12px 0 6px">Revisión por mes</div><table class="tbl" style="font-size:12px"><thead><tr><th>Mes</th><th>Cuenta</th><th style="text-align:right">Cobrado en notas</th><th style="text-align:right">Ya estaba registrado</th><th style="text-align:right">Recuperado hoy</th><th style="text-align:right">Recuperado de más</th></tr></thead><tbody>'+
+    R.map(function(o){return '<tr'+(o.exceso>0.5?' style="background:var(--borgona-l)"':'')+'><td>'+nom[+o.mes.slice(5)]+' '+o.mes.slice(0,4)+'</td><td>'+ptEsc(o.cta)+'</td>'+
+      '<td class="mono" style="text-align:right">'+fmt(o.cob)+'</td><td class="mono" style="text-align:right">'+fmt(o.regOrig)+'</td><td class="mono" style="text-align:right">'+fmt(o.rec)+'</td>'+
+      '<td class="mono" style="text-align:right;font-weight:700;color:'+(o.exceso>0.5?'var(--borgona)':'#12724C')+'">'+(o.exceso>0.5?fmt(o.exceso):'✓')+'</td></tr>';}).join('')+'</tbody></table>';
+  if(mal.length){
+    var t=mal.reduce(function(s,o){return s+o.exceso;},0);
+    h+='<div style="font-size:12px;color:var(--borgona);margin-top:6px">En '+mal.length+' mes(es) se recuperaron <b>'+fmt(t)+' de más</b>: eran cobros que ya estaban registrados con otra fecha. '+
+      '<button class="btn btn-p btn-sm" onclick="refCorregirMeses()">Corregir: dejar solo lo que de verdad faltaba</button></div>';
+  }
+  c.innerHTML=h;
+}
+function refCorregirMeses(){
+  var mal=refMeses().filter(function(o){return o.exceso>0.5;});if(!mal.length)return;
+  var t=mal.reduce(function(s,o){return s+o.exceso;},0);
+  if(!confirm('Se borran los cobros recuperados de esos meses y se deja una sola entrada por mes con lo que de verdad faltaba.\n\nSe quitan '+fmt(t)+' que estaban contados dos veces. ¿Seguir?'))return;
+  var p=Promise.resolve(),hechos=0;
+  mal.forEach(function(o){
+    o.recs.forEach(function(m){
+      p=p.then(function(){return fetch('/api/movimientos/'+m.id,{method:'DELETE',credentials:'include'}).then(function(r){
+        if(!r.ok)throw new Error('HTTP '+r.status);movs=movs.filter(function(x){return x.id!==m.id;});});});
+    });
+    if(o.gap>0.5)p=p.then(function(){
+      var ult=new Date(+o.mes.slice(0,4),+o.mes.slice(5),0),f=dateStrLocal(ult);if(f>REF_HASTA)f=REF_HASTA;
+      var esZ=o.suc==='Zibata';
+      return ptPostMov({tipo:'Entrada',concepto:esZ?'ZIBATA':String(o.cta).toUpperCase(),desc:(esZ?'Zibata ventas ':'VENTAS ')+o.mes+' que faltaban (neto del mes) '+REF_TAG,
+        cuenta:o.cta,cta_destino:'',socio:'',monto:o.gap,fecha:f,mes:parseInt(o.mes.slice(5),10)-1});
+    });
+    p=p.then(function(){hechos++;});
+  });
+  p.then(function(){
+    logActivity('Corrigió cobros de efectivo recuperados de más',fmt(t));
+    refPintaMeses();refArqueoCalc();try{rMovsRe();}catch(e){}
+    alert('✅ Corregido. Ahora el saldo inicial de abajo ya es el bueno: revísalo y pica "Ajustar saldo de Efectivo".');
+  }).catch(function(e){alert('⚠️ Algo falló ('+e.message+'). Vuelve a abrir y reintenta; lo que ya se corrigió se conserva.');refPintaMeses();});
+}
+
 // Saldo inicial de Efectivo a partir del arqueo de hoy
 function refNetoEf(){
   return (movs||[]).reduce(function(s,m){var t=m.tipo,v=0;
