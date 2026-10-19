@@ -1026,15 +1026,17 @@ tr:hover .ent-edit{opacity:1}
 </div>
 <div class="modal-bg" id="mod-ref" style="display:none">
 <div class="modal" style="width:720px">
-  <div class="modal-hdr"><div class="modal-ttl">💵 Cobros en efectivo · 18 jun – 31 ago 2026</div><button class="modal-x" onclick="CM('mod-ref')">✕</button></div>
+  <div class="modal-hdr"><div class="modal-ttl">💵 Cobros en efectivo · 1 jul – 31 ago 2026</div><button class="modal-x" onclick="CM('mod-ref')">✕</button></div>
   <div class="modal-body">
     <div style="font-size:12.5px;color:var(--text2);margin-bottom:8px">Es el mismo cálculo del Cierre del día, hecho día por día: lo cobrado en efectivo según las notas contra lo registrado en Movimientos. Septiembre y octubre no se tocan porque ya cuadran.</div>
+    <div id="ref-junio"></div>
     <div id="ref-lista" style="max-height:34vh;overflow:auto;border:1px solid var(--border);border-radius:10px"></div>
     <div id="ref-meses" style="max-height:30vh;overflow:auto"></div>
     <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
       <div style="font-weight:700;font-size:13px;margin-bottom:6px">Después: ¿cuánto efectivo hay hoy en caja?</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input type="number" step="0.01" id="ref-arqueo" placeholder="Arqueo de hoy" oninput="refArqueoCalc()" style="max-width:180px">
-        <button class="btn btn-s btn-sm" id="ref-arq-ok" onclick="refArqueoGuardar()" disabled>Ajustar saldo de Efectivo</button></div>
+        <button class="btn btn-p btn-sm" id="ref-arq-inv" onclick="refDifInvestigar()" disabled>Cuadrar con ajuste de caja</button>
+        <button class="btn btn-s btn-sm" id="ref-arq-ok" onclick="refArqueoGuardar()" disabled>…o ajustar el saldo inicial</button></div>
       <div id="ref-arq-res" style="font-size:12px;color:var(--text2);margin-top:6px"></div>
     </div>
   </div>
@@ -8164,7 +8166,7 @@ function ajAplicar(){
 // Recorre día por día el mismo cálculo del Cierre del día (cobros de las notas
 // contra lo registrado en Movimientos), solo para las cuentas de efectivo, y
 // junta lo que falta registrar. Septiembre y octubre ya cuadran, no se tocan.
-var REF_DESDE='2026-06-18',REF_HASTA='2026-08-31',REF_ROWS=[],REF_MAS=[];
+var REF_DESDE='2026-07-01',REF_HASTA='2026-08-31',REF_ROWS=[],REF_MAS=[];
 function refCalc(){
   REF_ROWS=[];REF_MAS=[];
   var d=new Date(REF_DESDE+'T12:00:00'),fin=new Date(REF_HASTA+'T12:00:00');
@@ -8200,6 +8202,13 @@ function refPintaBanner(){
   if((u.role!=='owner'&&u.role!=='admin')||!movs||!movs.length||!(pedidos||[]).length){c.innerHTML='';return;}
   var key=movs.length+'|'+pedidos.length+'|'+(ABONOS||[]).length;
   if(refPintaBanner._k!==key){refCalc();refPintaBanner._k=key;}
+  if(!REF_ROWS.length&&refJunio().length){
+    c.innerHTML='<div onclick="refAbrir()" style="cursor:pointer;background:var(--borgona-l);border:1px solid #F0B8CB;border-radius:12px;padding:11px 15px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+      '<div style="font-size:22px">💵</div><div style="flex:1;min-width:220px">'+
+      '<div style="font-size:14px;font-weight:800;color:var(--borgona)">Cuadre de Efectivo: quitar junio y cuadrar con tu arqueo</div>'+
+      '<div style="font-size:12px;color:var(--text2);margin-top:2px">Pica para terminarlo</div></div><div style="font-size:20px;color:var(--borgona)">›</div></div>';
+    return;
+  }
   if(!REF_ROWS.length){
     var mal=refMeses().filter(function(o){return o.exceso>0.5;});
     if(!mal.length){c.innerHTML='';return;}
@@ -8214,12 +8223,12 @@ function refPintaBanner(){
   var tot=REF_ROWS.reduce(function(s,x){return s+x.dif;},0);
   c.innerHTML='<div onclick="refAbrir()" style="cursor:pointer;background:var(--menta-l);border:1px solid #A9DFC4;border-radius:12px;padding:11px 15px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
     '<div style="font-size:22px">💵</div><div style="flex:1;min-width:220px">'+
-    '<div style="font-size:14px;font-weight:800;color:#12724C">Faltan '+fmt(tot)+' de cobros en efectivo del 18 jun al 31 ago</div>'+
+    '<div style="font-size:14px;font-weight:800;color:#12724C">Faltan '+fmt(tot)+' de cobros en efectivo del 1 jul al 31 ago</div>'+
     '<div style="font-size:12px;color:var(--text2);margin-top:2px">'+REF_ROWS.length+' día(s) donde las notas tienen cobros en efectivo que no están en Movimientos · pica para revisarlos y registrarlos</div>'+
     '</div><div style="font-size:20px;color:#12724C">›</div></div>';
 }
 function refAbrir(){
-  refCalc();refPinta();refPintaMeses();
+  refCalc();refPinta();refJunioPinta();refPintaMeses();
   document.getElementById('ref-arqueo').value='';
   refArqueoCalc();
   OM('mod-ref');
@@ -8334,6 +8343,46 @@ function refCorregirMeses(){
   }).catch(function(e){alert('⚠️ Algo falló ('+e.message+'). Vuelve a abrir y reintenta; lo que ya se corrigió se conserva.');refPintaMeses();});
 }
 
+
+// ── Junio fuera: la plataforma se empezó a usar en julio ──
+function refJunio(){
+  return (movs||[]).filter(function(m){return m.tipo==='Entrada'&&String(m.desc||'').indexOf(REF_TAG)>=0&&String(m.fecha||'').slice(0,7)==='2026-06';});
+}
+function refQuitarJunio(){
+  var L=refJunio();if(!L.length)return;
+  var t=L.reduce(function(s,m){return s+(+m.monto||0);},0);
+  if(!confirm('Se borran '+L.length+' cobros de efectivo de junio que se recuperaron ('+fmt(t)+').\n\nLa plataforma se empezó a usar en julio y las salidas de junio nunca se capturaron, así que esos cobros no van. ¿Seguir?'))return;
+  var p=Promise.resolve(),ok=0;
+  L.forEach(function(m){p=p.then(function(){return fetch('/api/movimientos/'+m.id,{method:'DELETE',credentials:'include'}).then(function(r){
+    if(!r.ok)throw new Error('HTTP '+r.status);movs=movs.filter(function(x){return x.id!==m.id;});ok++;});});});
+  p.then(function(){logActivity('Quitó cobros de efectivo de junio recuperados',ok+' · '+fmt(t));})
+   .catch(function(e){alert('⚠️ '+e.message+'. Vuelve a abrir y reintenta.');})
+   .then(function(){refJunioPinta();refPintaMeses();refArqueoCalc();refPintaBanner._k=null;refPintaBanner();try{rMovsRe();}catch(e){}});
+}
+function refJunioPinta(){
+  var c=document.getElementById('ref-junio');if(!c)return;
+  var L=refJunio();
+  if(!L.length){c.innerHTML='';return;}
+  var ef=0,zi=0;L.forEach(function(m){if(/zibata/i.test(m.cuenta))zi+=+m.monto;else ef+=+m.monto;});
+  c.innerHTML='<div style="background:var(--borgona-l);border-radius:10px;padding:10px 13px;margin-bottom:10px;font-size:12.5px">'+
+    '<b>Junio:</b> se recuperaron '+fmt(ef)+' (Efectivo)'+(zi?' y '+fmt(zi)+' (Efectivo Zibata)':'')+', pero la plataforma se empezó a usar en julio y las salidas de junio no están. '+
+    '<button class="btn btn-p btn-sm" onclick="refQuitarJunio()">Quitar los cobros de junio</button></div>';
+}
+// Diferencia contra el arqueo como POR INVESTIGAR (el saldo inicial no se toca)
+function refDifInvestigar(){
+  var a=parseFloat(document.getElementById('ref-arqueo').value);if(isNaN(a))return;
+  var ini=(BANCOS_INIT&&BANCOS_INIT['Efectivo'])||0,plat=Math.round((ini+refNetoEf())*100)/100,dif=Math.round((plat-a)*100)/100;
+  if(Math.abs(dif)<0.01){alert('Ya cuadra.');return;}
+  var sal=dif>0;
+  if(!confirm('La plataforma dice '+fmt(plat)+' y en caja hay '+fmt(a)+'.\n\nSe registra una '+(sal?'SALIDA':'ENTRADA')+' de '+fmt(Math.abs(dif))+' en Efectivo como AJUSTE DE CAJA (diferencia contra el arqueo). ¿Seguir?'))return;
+  var f=todayStr();
+  ptPostMov({tipo:sal?'Salida':'Entrada',concepto:'AJUSTE DE CAJA',desc:'Ajuste por arqueo de caja: en caja '+fmt(a)+' al '+ptFec(f)+' ('+(sal?'faltante':'sobrante')+' acumulado jul-oct)',
+    cuenta:'Efectivo',cta_destino:'',socio:'',monto:Math.abs(dif),fecha:f,mes:parseInt(f.split('-')[1],10)-1})
+  .then(function(){logActivity('Cuadre de Efectivo contra arqueo','Ajuste de caja '+fmt(dif));refArqueoCalc();try{rMovsRe();}catch(e){}
+    alert('✅ Listo: Efectivo queda en '+fmt(a)+'.');})
+  .catch(function(e){alert('⚠️ No se registró ('+e.message+')');});
+}
+
 // Saldo inicial de Efectivo a partir del arqueo de hoy
 function refNetoEf(){
   return (movs||[]).reduce(function(s,m){var t=m.tipo,v=0;
@@ -8345,9 +8394,12 @@ function refArqueoCalc(){
   var a=parseFloat(document.getElementById('ref-arqueo').value);
   var o=document.getElementById('ref-arq-res'),b=document.getElementById('ref-arq-ok');
   var neto=refNetoEf(),ini=(BANCOS_INIT&&BANCOS_INIT['Efectivo'])||0;
+  var bi=document.getElementById('ref-arq-inv');if(bi)bi.disabled=isNaN(a);
   if(isNaN(a)){o.innerHTML='Hoy la plataforma dice <b>'+fmt(ini+neto)+'</b> en Efectivo (saldo inicial '+fmt(ini)+').';b.disabled=true;return;}
   var nuevo=Math.round((a-neto)*100)/100;
-  o.innerHTML='Para que Efectivo quede en <b>'+fmt(a)+'</b>, el saldo inicial debe ser <b>'+fmt(nuevo)+'</b> (hoy es '+fmt(ini)+').';
+  var dif=Math.round((ini+neto-a)*100)/100;
+  o.innerHTML='La plataforma dice <b>'+fmt(ini+neto)+'</b> y en caja hay <b>'+fmt(a)+'</b>: diferencia de <b>'+fmt(dif)+'</b>. '+
+    'Se cuadra con un ajuste de caja de '+fmt(Math.abs(dif))+' (recomendado), o cambiando el saldo inicial a '+fmt(nuevo)+'.';
   b.disabled=false;b.dataset.v=nuevo;
 }
 function refArqueoGuardar(){
