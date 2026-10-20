@@ -685,7 +685,7 @@ tr:hover .ent-edit{opacity:1}
       <div class="field"><label>Teléfono</label><input id="mp-t" placeholder="(442)..."></div>
       <div class="field"><label>Vendedor</label><select id="mp-vend"></select></div>
       <div class="field" id="mp-suc-wrap" style="display:none"><label>Sucursal del pedido</label><select id="mp-suc" onchange="mpSucChange()"><option>Jardines</option><option>Zibata</option></select></div>
-      <div class="field"><label>Método de pago</label><select id="mp-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
+      <div class="field"><label>Método de pago</label><select id="mp-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Efectivo Tranquilo</option><option>Scotiabank Tranquilo</option><option value="Tranquilo" hidden>Tranquilo (sin especificar)</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field gc2"><label>Descuento</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px"><button type="button" onclick="applyDesc(0)" id="desc-0" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">Sin desc</button><button type="button" onclick="applyDesc(5)" id="desc-5" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">5%</button><button type="button" onclick="applyDesc(10)" id="desc-10" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">10%</button><button type="button" onclick="applyDesc(15)" id="desc-15" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">15%</button><button type="button" onclick="applyDesc(16)" id="desc-16" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">16%</button><button type="button" onclick="applyDesc(50)" id="desc-50" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">50%</button></div></div>
       <div class="field"><label>Anticipo ($) <span style="font-weight:400;color:var(--text3);font-size:11.5px">lo que deja hoy</span></label><input type="number" id="mp-a" placeholder="0.00" oninput="calcMR()"></div>
       <div class="field"><label>Total <span style="font-size:9px;color:var(--text3);font-weight:400">(editable)</span></label><input id="mp-tot" style="font-weight:700" oninput="onTotEdit(this)" placeholder="$0.00"></div>
@@ -727,7 +727,7 @@ tr:hover .ent-edit{opacity:1}
     <div id="cb-info" style="font-size:12px;margin:4px 0 10px;color:var(--text3)">Escribe el folio para buscar el pedido</div>
     <div class="g2">
       <div class="field"><label>Monto ($)</label><input type="number" id="cb-monto" placeholder="0.00" oninput="avisoCobroManual()"></div>
-      <div class="field"><label>Método de pago</label><select id="cb-met"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>Intercambio Galería</option></select></div>
+      <div class="field"><label>Método de pago</label><select id="cb-met"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Efectivo Tranquilo</option><option>Scotiabank Tranquilo</option><option value="Tranquilo" hidden>Tranquilo (sin especificar)</option><option>Galería</option><option>Intercambio Galería</option></select></div>
       <div class="field"><label>Tipo</label><select id="cb-tipo" onchange="avisoCobroManual()"><option value="Liquidacion">Liquidación</option><option value="Abono">Abono</option></select></div>
     </div>
     <div style="font-size:12px;color:var(--text3);margin-top:8px">Todo cobro se suma solo al pagado de la nota.</div>
@@ -744,7 +744,7 @@ tr:hover .ent-edit{opacity:1}
     <div id="ea-info" style="font-size:12px;color:var(--text3);margin-bottom:10px"></div>
     <div class="g2">
       <div class="field"><label>Monto ($)</label><input type="number" id="ea-monto"></div>
-      <div class="field"><label>Método de pago</label><select id="ea-met"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>Intercambio Galería</option></select></div>
+      <div class="field"><label>Método de pago</label><select id="ea-met"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Efectivo Tranquilo</option><option>Scotiabank Tranquilo</option><option value="Tranquilo" hidden>Tranquilo (sin especificar)</option><option>Galería</option><option>Intercambio Galería</option></select></div>
       <div class="field"><label>Fecha del cobro</label><input type="date" id="ea-fecha"></div>
       <div class="field"><label>Tipo</label><select id="ea-tipo"><option value="Liquidacion">Liquidación</option><option value="Abono">Abono</option></select></div>
     </div>
@@ -880,7 +880,7 @@ tr:hover .ent-edit{opacity:1}
   <div class="modal-body">
     <div id="me-res" class="sbox"></div>
     <div class="g2">
-      <div class="field"><label>Método de pago</label><select id="me-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
+      <div class="field"><label>Método de pago</label><select id="me-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Efectivo Tranquilo</option><option>Scotiabank Tranquilo</option><option value="Tranquilo" hidden>Tranquilo (sin especificar)</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field"><label>Monto cobrado ($)</label><input type="number" id="me-monto" placeholder="0.00" oninput="calcES()"></div>
       <div class="field gc2"><label>Saldo pendiente</label><input class="ro" id="me-s" readonly style="font-weight:600"></div>
     </div>
@@ -901,7 +901,7 @@ tr:hover .ent-edit{opacity:1}
       <div class="field"><label>Cliente</label><input id="ep-c" placeholder="Nombre del cliente"></div>
       <div class="field"><label>Teléfono</label><input id="ep-t" placeholder="(442)..."></div>
       <div class="field"><label>Vendedor</label><select id="ep-vend"></select></div>
-      <div class="field"><label>Método de pago</label><select id="ep-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
+      <div class="field"><label>Método de pago</label><select id="ep-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Efectivo Tranquilo</option><option>Scotiabank Tranquilo</option><option value="Tranquilo" hidden>Tranquilo (sin especificar)</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field"><label>Anticipo al abrir la nota ($) <span style="font-weight:400;color:var(--text3);font-size:11.5px">lo que dejó el día del pedido</span></label><input type="number" id="ep-a" placeholder="0.00" oninput="epSaldo()"><div id="ep-conf"></div><div id="ep-saldo" style="font-size:12px;margin-top:5px"></div></div>
       <div class="field"><label>Fecha del pedido</label><input type="date" id="ep-fecha"></div>
       <div class="field"><label>Entrega prometida</label><input type="date" id="ep-ent"></div>
@@ -937,7 +937,7 @@ tr:hover .ent-edit{opacity:1}
   <div class="modal-body">
     <div id="ma-res" class="sbox"></div>
     <div class="g2">
-      <div class="field"><label>Método</label><select id="ab-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Tranquilo</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
+      <div class="field"><label>Método</label><select id="ab-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Efectivo Tranquilo</option><option>Scotiabank Tranquilo</option><option value="Tranquilo" hidden>Tranquilo (sin especificar)</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field"><label>Monto ($)</label><input type="number" id="ab-monto" placeholder="0.00"></div>
       <div class="field"><label>Fecha del cobro</label><input type="date" id="ab-fecha" onchange="aviFechaAb()"></div>
     </div>
@@ -1041,6 +1041,13 @@ tr:hover .ent-edit{opacity:1}
     </div>
   </div>
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-ref')">Cerrar</button><button class="btn btn-p" id="ref-ok" onclick="refRegistrar()">✓ Registrar</button></div>
+</div>
+</div>
+<div class="modal-bg" id="mod-tqz" style="display:none">
+<div class="modal" style="width:680px">
+  <div class="modal-hdr"><div class="modal-ttl">🎨 Ventas de Tranquilo</div><button class="modal-x" onclick="CM('mod-tqz')">✕</button></div>
+  <div class="modal-body"><div style="font-size:12.5px;color:var(--text2);margin-bottom:10px">No es venta de Impulso: no entra a tus cuentas ni a tu Estado de Resultados. Es el registro de lo que se ha vendido de Tranquilo. El efectivo queda resguardado en la cuenta <b>Tranquilo Zibata</b> hasta que se le entrega.</div><div id="tqz-body" style="max-height:62vh;overflow:auto"></div></div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-tqz')">Cerrar</button></div>
 </div>
 </div>
 <datalist id="dl-terceros"></datalist>
@@ -1570,7 +1577,8 @@ tr:hover .ent-edit{opacity:1}
       <button class="btn btn-s btn-xs" onclick="limpiarFiltrosMov()">✕ Limpiar</button>
       <span id="mv-res" style="font-size:11px;color:var(--text3)"></span>
     </div>
-    <button id="mv-ter-btn" class="btn btn-s btn-sm" style="margin-left:auto" onclick="ptToggle()">🔁 Terceros por devolver</button>
+    <button class="btn btn-s btn-sm" style="margin-left:auto" onclick="tqzAbrir()">🎨 Ventas Tranquilo</button>
+    <button id="mv-ter-btn" class="btn btn-s btn-sm" onclick="ptToggle()">🔁 Terceros por devolver</button>
   </div>
   <div id="aj-banner"></div>
   <div id="ref-banner"></div>
@@ -4023,7 +4031,7 @@ function rDia(){
     if(noTieneMet(a.met)){sinMet+=(a.monto||0);sinMetN++;return;}
     const k=a.met;mets[k]=(mets[k]||0)+a.monto;addDetDia(k,a.folio,a.cli||'',a.monto,a.tipo==='Liquidacion'?'liquidación':'abono');});
   // Agrupar por cuenta: Efectivo / HSBC / INBURSA / Otros
-  const ctaDeMet=m=>{m=(m||'').toLowerCase();if(m.includes('inbursa'))return 'INBURSA';if(m.includes('hsbc'))return 'HSBC';if(m.includes('efectivo'))return 'Efectivo';return 'Otros';};
+  const ctaDeMet=m=>{m=(m||'').toLowerCase();if(m.includes('tranquilo'))return 'Otros';if(m.includes('inbursa'))return 'INBURSA';if(m.includes('hsbc'))return 'HSBC';if(m.includes('efectivo'))return 'Efectivo';return 'Otros';};
   const CTA_ICON={Efectivo:'💵',HSBC:'🏦',INBURSA:'🏛️',Otros:'🔖'};
   const CTA_COLOR={Efectivo:'#15803D',HSBC:'#B91C1C',INBURSA:'#1D4ED8',Otros:'#6B7280'};
   const cuentasDia={};
@@ -4086,6 +4094,7 @@ function ctaSugerida(met,suc){
   var k=(met||'').toLowerCase();
   if(MAPA_CTA[met+'|'+suc])return MAPA_CTA[met+'|'+suc];
   if(MAPA_CTA[met])return MAPA_CTA[met];
+  if(k.indexOf('tranquilo')>=0)return k.indexOf('efectivo')>=0?'Tranquilo Zibata':'';
   if(k.indexOf('efectivo')>=0)return suc==='Zibata'?'Efectivo Zibata':'Efectivo';
   if(k.indexOf('inbursa')>=0)return 'INBURSA';
   if(k.indexOf('hsbc')>=0)return 'HSBC';
@@ -8413,6 +8422,54 @@ function refArqueoGuardar(){
     .catch(function(e){alert('⚠️ No se guardó ('+e.message+')');});
 }
 
+
+// ═══ VENTAS TRANQUILO EN ZIBATA ═══════════════════════════════════════════════
+// Dos métodos: "Efectivo Tranquilo" (se resguarda en la cuenta Tranquilo Zibata,
+// que no es tuya) y "Scotiabank Tranquilo" (va directo a Tranquilo: solo registro).
+function tqzSoloRegistro(met){var m=String(met||'').toLowerCase();return m.indexOf('tranquilo')>=0&&m.indexOf('efectivo')<0;}
+function tqzMet(met){var m=String(met||'').toLowerCase();if(m.indexOf('tranquilo')<0)return null;
+  if(m.indexOf('efectivo')>=0)return 'efectivo';if(m.indexOf('scotia')>=0)return 'scotia';return 'otro';}
+// Da de alta la cuenta "Tranquilo Zibata" una sola vez (lee la configuración guardada
+// antes de escribir, para no pisar los saldos iniciales de las demás cuentas)
+function tqzAsegurarCuenta(){
+  var u=_u()||{};if(u.role!=='owner'&&u.role!=='admin')return;
+  fetch('/api/config/bancos',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){
+    var v=d&&d.valor;if(!v||typeof v!=='object'||!Object.keys(v).length)return;
+    if(Object.keys(v).some(function(c){return c.toLowerCase()==='tranquilo zibata';}))return;
+    v['Tranquilo Zibata']=0;
+    return fetch('/api/config/bancos',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:v})})
+      .then(function(r){if(!r.ok)return;BANCOS_INIT=v;try{pintarCuentasSelects();}catch(e){}
+        logActivity('Alta de cuenta','Tranquilo Zibata (efectivo de Tranquilo resguardado en Zibata)');});
+  }).catch(function(){});
+}
+function tqzVentas(){
+  var L=[];
+  (pedidos||[]).forEach(function(p){var t=tqzMet(p.met);if(!t)return;var a=antIni(p);if(a>0)L.push({f:p.fecha,folio:p.folio,suc:p.suc,cli:p.cli||p.cliente||'',t:t,met:p.met,m:a});});
+  (ABONOS||[]).forEach(function(a){var t=tqzMet(a.met);if(!t)return;L.push({f:a.fecha,folio:a.folio,suc:a.suc,cli:a.cli||'',t:t,met:a.met,m:+a.monto||0});});
+  return L.sort(function(a,b){return String(b.f).localeCompare(String(a.f));});
+}
+function tqzAbrir(){
+  var L=tqzVentas(),M={};
+  L.forEach(function(x){var k=String(x.f||'').slice(0,7);var o=M[k]=M[k]||{efectivo:0,scotia:0,otro:0};o[x.t]+=x.m;});
+  var nom=['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  var meses=Object.keys(M).sort().reverse();
+  var tot={efectivo:0,scotia:0,otro:0};meses.forEach(function(k){['efectivo','scotia','otro'].forEach(function(t){tot[t]+=M[k][t];});});
+  var hayOtro=tot.otro>0.5;
+  var E=ptEstado(),pend=E.pend.filter(function(m){return banEsCustodia(m.cuenta);});
+  var enCaja=pend.reduce(function(s,m){return s+E.info[m.id].pend;},0);
+  var h='<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px">'+
+    '<div><div style="font-size:11px;color:var(--text3)">Vendido de Tranquilo (todo)</div><b class="mono" style="font-size:20px">'+fmt(tot.efectivo+tot.scotia+tot.otro)+'</b></div>'+
+    '<div><div style="font-size:11px;color:var(--text3)">Efectivo de Tranquilo en la caja de Zibata</div><b class="mono" style="font-size:20px;color:var(--mant-d)">'+fmt(enCaja)+'</b>'+
+      (enCaja>0.5&&canEdit()?' <button class="btn btn-s btn-xs" onclick="CM(\'mod-tqz\');ptAbrirDev(['+pend.map(function(m){return m.id;}).join(',')+'])">Entregar a Tranquilo</button>':'')+'</div></div>';
+  h+='<table class="tbl" style="font-size:12.5px"><thead><tr><th>Mes</th><th style="text-align:right">Efectivo Tranquilo</th><th style="text-align:right">Scotiabank Tranquilo</th>'+(hayOtro?'<th style="text-align:right">Sin especificar (antes)</th>':'')+'<th style="text-align:right">Total</th></tr></thead><tbody>'+
+    (meses.length?meses.map(function(k){var o=M[k];return '<tr><td>'+nom[+k.slice(5)]+' '+k.slice(0,4)+'</td><td class="mono" style="text-align:right">'+fmt(o.efectivo)+'</td><td class="mono" style="text-align:right">'+fmt(o.scotia)+'</td>'+(hayOtro?'<td class="mono" style="text-align:right">'+fmt(o.otro)+'</td>':'')+'<td class="mono" style="text-align:right;font-weight:700">'+fmt(o.efectivo+o.scotia+o.otro)+'</td></tr>';}).join('')
+      :'<tr><td colspan="5" class="tbl-empty">Todavía no hay ventas con método Efectivo Tranquilo o Scotiabank Tranquilo.</td></tr>')+'</tbody></table>';
+  if(L.length)h+='<div style="font-weight:700;font-size:13px;margin:14px 0 6px">Cobros</div><table class="tbl" style="font-size:12px"><thead><tr><th>Fecha</th><th>Folio</th><th>Sucursal</th><th>Método</th><th style="text-align:right">Monto</th></tr></thead><tbody>'+
+    L.slice(0,200).map(function(x){return '<tr><td>'+ptFec(x.f)+'</td><td>F.'+ptEsc(x.folio)+'</td><td>'+ptEsc(x.suc||'')+'</td><td>'+ptEsc(x.met)+'</td><td class="mono" style="text-align:right">'+fmt(x.m)+'</td></tr>';}).join('')+'</tbody></table>';
+  document.getElementById('tqz-body').innerHTML=h;
+  OM('mod-tqz');
+}
+
 // ─── ESTADO DE RESULTADOS ─────────────────────────────────────────────────────
 function getMonto(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes).reduce((a,b)=>a+b.monto,0);}
 function getIngreso(concepto,mes){const c=concepto.toLowerCase();return movs.filter(m=>(m.concepto||'').toLowerCase()===c&&parseInt(m.mes)===mes&&m.tipo.toLowerCase().includes('entrada')).reduce((a,b)=>a+b.monto,0);}
@@ -8739,6 +8796,13 @@ function concilQuitar(idx){
 function ctaDeMetodo(met,suc){
   const m=(met||'').toLowerCase();if(!m||m.includes('no dej'))return null;
   const ctas=Object.keys(BANCOS_INIT);
+  // Ventas de Tranquilo: no son de Impulso. El efectivo se resguarda en la caja de
+  // Zibata (cuenta "Tranquilo Zibata", que no suma a tu disponible); lo de
+  // Scotiabank va directo a la cuenta de Tranquilo y no entra a ninguna tuya.
+  if(m.includes('tranquilo')){
+    if(m.includes('efectivo'))return ctas.find(c=>c.toLowerCase()==='tranquilo zibata')||null;
+    return null;
+  }
   if(m.includes('efectivo')){
     const porSuc=ctas.find(c=>c.toLowerCase().includes('efectivo')&&suc&&c.toLowerCase().includes(String(suc).toLowerCase()));
     if(porSuc)return porSuc;
@@ -8756,22 +8820,23 @@ function cierreCalc(f){
   const K='␟';
   const sucG=s=>String(s||'').toLowerCase().includes('zibata')?'Zibata':'Jardines';
   const porCta={},sinCta=[];
-  const add=(cta,suc,monto,det)=>{if(!cta){sinCta.push(det+' '+fmt(monto));return;}const k=cta+K+sucG(suc);(porCta[k]=porCta[k]||{cta:cta,suc:sucG(suc),cob:0,dets:[]}).cob+=monto;porCta[k].dets.push(det);};
+  const add=(cta,suc,monto,det)=>{if(!cta){sinCta.push(det+' '+fmt(monto));return;}if(banEsCustodia(cta))suc='Zibata';const k=cta+K+sucG(suc);(porCta[k]=porCta[k]||{cta:cta,suc:sucG(suc),cob:0,dets:[]}).cob+=monto;porCta[k].dets.push(det);};
   pedidos.forEach(p=>{
     if(p.fecha!==f)return;
     const ao=antIni(p);
-    if(ao>0)add(ctaDeMetodo(p.met,p.suc),p.suc,ao,'F.'+p.folio);
+    if(ao>0&&!tqzSoloRegistro(p.met,p.suc))add(ctaDeMetodo(p.met,p.suc),p.suc,ao,'F.'+p.folio);
   });
   (ABONOS||[]).forEach(a=>{
     if(a.fecha!==f)return;
-    add(ctaDeMetodo(a.met,a.suc),a.suc,a.monto||0,'F.'+a.folio);
+    if(!tqzSoloRegistro(a.met,a.suc))add(ctaDeMetodo(a.met,a.suc),a.suc,a.monto||0,'F.'+a.folio);
   });
   // Registrado: entradas de ese día; concepto que contenga ZIBATA cuenta como Zibata
   const esPuente=c=>String(c||'').toLowerCase().includes('puente');
   movs.forEach(m=>{
     if(m.tipo!=='Entrada'||m.fecha!==f)return;
-    if(esPuente(m.concepto)||AUDIT_EXCL.includes(m.concepto))return;
-    const sM=String(m.concepto||'').toUpperCase().includes('ZIBATA')?'Zibata':'Jardines';
+    const cus=banEsCustodia(m.cuenta);
+    if((!cus&&esPuente(m.concepto))||AUDIT_EXCL.includes(m.concepto))return;
+    const sM=(cus||String(m.concepto||'').toUpperCase().includes('ZIBATA'))?'Zibata':'Jardines';
     const k=m.cuenta+K+sM;
     if(!porCta[k])porCta[k]={cta:m.cuenta,suc:sM,cob:0,dets:[]};
     porCta[k].reg=(porCta[k].reg||0)+(m.monto||0);
@@ -8825,7 +8890,7 @@ function cieBtnRefresh(){
   const tot=sel.reduce((s,x)=>s+x.monto,0);
   if(!CIE_FALTANTES.length){
     btn.style.display='none';
-    msg.textContent=ctas.length?'🌙 Día cuadrado: Movimientos ya refleja todo lo cobrado. Nada que hacer.':'';
+    msg.textContent=Object.keys(BANCOS_INIT).length?'🌙 Día cuadrado: Movimientos ya refleja todo lo cobrado. Nada que hacer.':'';
     return;
   }
   btn.style.display='';
@@ -8848,7 +8913,9 @@ function cierreRegistrar(){
   const mes=parseInt(f.split('-')[1],10)-1;
   const crear=SEL.map(x=>{
     const esZ=x.suc==='Zibata';
-    const mv={tipo:'Entrada',concepto:esZ?'ZIBATA':x.cuenta.toUpperCase(),desc:(esZ?'Zibata ventas ':'VENTAS ')+f+' (cierre del día)',cuenta:x.cuenta,cta_destino:'',monto:x.monto,fecha:f,mes:mes};
+    const mv=banEsCustodia(x.cuenta)
+      ?{tipo:'Entrada',concepto:PUENTE_IN,desc:'Venta Tranquilo en Zibata '+f+' (cierre del día) · efectivo por entregar a Tranquilo',cuenta:x.cuenta,cta_destino:'',monto:x.monto,fecha:f,mes:mes,tercero:'Tranquilo'}
+      :{tipo:'Entrada',concepto:esZ?'ZIBATA':x.cuenta.toUpperCase(),desc:(esZ?'Zibata ventas ':'VENTAS ')+f+' (cierre del día)',cuenta:x.cuenta,cta_destino:'',monto:x.monto,fecha:f,mes:mes};
     return fetch('/api/movimientos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(mv)})
       .then(r=>{if(!r.ok)throw 0;return r.json();})
       .then(srv=>{if(srv&&srv.id)movs.unshift(srv);});
@@ -9099,6 +9166,7 @@ function edoAceptarTodos(){
 }
 function metGrupoCob(met){
   const m=(met||'').toLowerCase();
+  if(m.includes('tranquilo'))return 'Tranquilo';
   if(m.includes('efectivo'))return 'Efectivo';
   if(m.includes('tarjeta')||m.includes('inbursa'))return 'Tarjeta';
   if(m.includes('hsbc')||m.includes('transfer'))return 'Transferencia';
@@ -12225,7 +12293,7 @@ function loadData(){
     loadAuditExcl();
     cargarPuentePct();
     ajCargar().then(function(){try{if(document.querySelector('#page-mov.active'))ajPintaBanner();}catch(e){}});
-    loadBancosCfg().then(()=>{pintarCuentasSelects();try{if(document.querySelector('#page-ban.active'))rBancos();}catch(e){}});
+    loadBancosCfg().then(()=>{pintarCuentasSelects();tqzAsegurarCuenta();try{if(document.querySelector('#page-ban.active'))rBancos();}catch(e){}});
     if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
     ORDENES=ords||[];
     ABONOS=abns||[];
