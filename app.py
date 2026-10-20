@@ -1127,10 +1127,11 @@ class Vendedor(db.Model):
     suc       = db.Column(db.String(50))
     comision  = db.Column(db.Float, default=0)        # % sobre marcos
     comision_arte = db.Column(db.Float, default=10)   # % sobre arte
+    comision_tranquilo = db.Column(db.Float, default=10)   # % sobre ventas de Tranquilo
     estatus   = db.Column(db.String(20), default='activo')
 
 def vend_dict(v):
-    return {'id':v.id,'nombre':v.nombre,'suc':v.suc,'comision':v.comision,'comision_arte':(v.comision_arte if v.comision_arte is not None else 10),'estatus':v.estatus}
+    return {'id':v.id,'nombre':v.nombre,'suc':v.suc,'comision':v.comision,'comision_arte':(v.comision_arte if v.comision_arte is not None else 10),'comision_tranquilo':(v.comision_tranquilo if v.comision_tranquilo is not None else 10),'estatus':v.estatus}
 
 @app.route('/api/vendedores', methods=['GET'])
 @requiere_login
@@ -1141,7 +1142,7 @@ def get_vendedores():
 @requiere_login
 def crear_vendedor():
     d = request.json or {}
-    v = Vendedor(nombre=d.get('nombre'), suc=d.get('suc',''), comision=d.get('comision',0), comision_arte=d.get('comision_arte',10), estatus=d.get('estatus','activo'))
+    v = Vendedor(nombre=d.get('nombre'), suc=d.get('suc',''), comision=d.get('comision',0), comision_arte=d.get('comision_arte',10), comision_tranquilo=d.get('comision_tranquilo',10), estatus=d.get('estatus','activo'))
     db.session.add(v)
     db.session.commit()
     return jsonify(vend_dict(v)), 201
@@ -1151,7 +1152,7 @@ def crear_vendedor():
 def actualizar_vendedor(vid):
     v = Vendedor.query.get_or_404(vid)
     d = request.json or {}
-    for campo in ['nombre','suc','comision','comision_arte','estatus']:
+    for campo in ['nombre','suc','comision','comision_arte','comision_tranquilo','estatus']:
         if campo in d:
             setattr(v, campo, d[campo])
     db.session.commit()
@@ -1221,6 +1222,7 @@ def migrar_columnas():
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS fecha_baja VARCHAR(20) DEFAULT ''",
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS tipo_prod VARCHAR(20) DEFAULT 'marcos'",
         "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_arte FLOAT DEFAULT 10",
+        "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_tranquilo FLOAT DEFAULT 10",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS diapago VARCHAR(15) DEFAULT ''",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS cumple VARCHAR(10) DEFAULT ''",
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS entrega_real VARCHAR(20)",
