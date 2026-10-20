@@ -679,13 +679,14 @@ tr:hover .ent-edit{opacity:1}
         <div style="display:flex;gap:1.5rem;margin-top:4px">
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="radio" name="mp-tp" value="marcos" checked> 🖼️ Marcos / enmarcado</label>
           <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="radio" name="mp-tp" value="arte"> 🎨 Arte / obra</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px"><input type="radio" name="mp-tp" value="tranquilo"> 🟪 Tranquilo</label>
         </div>
       </div>
       <div class="field"><label>Cliente (opcional)</label><input id="mp-c" placeholder="Nombre del cliente" oninput="checkVIP(this.value)"></div><div id="mp-vip-badge" style="display:none;grid-column:span 2;background:var(--amber-l);border:1px solid #F59E0B;border-radius:6px;padding:6px 10px;font-size:12px;color:#92400E;font-weight:600">⭐ Cliente VIP — 10% aplicado</div>
       <div class="field"><label>Teléfono</label><input id="mp-t" placeholder="(442)..."></div>
       <div class="field"><label>Vendedor</label><select id="mp-vend"></select></div>
       <div class="field" id="mp-suc-wrap" style="display:none"><label>Sucursal del pedido</label><select id="mp-suc" onchange="mpSucChange()"><option>Jardines</option><option>Zibata</option></select></div>
-      <div class="field"><label>Método de pago</label><select id="mp-m"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Efectivo Tranquilo</option><option>Scotiabank Tranquilo</option><option value="Tranquilo" hidden>Tranquilo (sin especificar)</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
+      <div class="field"><label>Método de pago</label><select id="mp-m" onchange="tqzAutoTipo(this.value)"><option>Efectivo</option><option>Tarjeta INBURSA</option><option>Transferencia INBURSA</option><option>HSBC</option><option>Efectivo Tranquilo</option><option>Scotiabank Tranquilo</option><option value="Tranquilo" hidden>Tranquilo (sin especificar)</option><option>Galería</option><option>No dejó anticipo</option><option>Intercambio Galería</option></select></div>
       <div class="field gc2"><label>Descuento</label><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px"><button type="button" onclick="applyDesc(0)" id="desc-0" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">Sin desc</button><button type="button" onclick="applyDesc(5)" id="desc-5" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">5%</button><button type="button" onclick="applyDesc(10)" id="desc-10" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">10%</button><button type="button" onclick="applyDesc(15)" id="desc-15" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">15%</button><button type="button" onclick="applyDesc(16)" id="desc-16" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">16%</button><button type="button" onclick="applyDesc(50)" id="desc-50" style="padding:4px 10px;border:1.5px solid #ccc;border-radius:6px;cursor:pointer;font-size:12px">50%</button></div></div>
       <div class="field"><label>Anticipo ($) <span style="font-weight:400;color:var(--text3);font-size:11.5px">lo que deja hoy</span></label><input type="number" id="mp-a" placeholder="0.00" oninput="calcMR()"></div>
       <div class="field"><label>Total <span style="font-size:9px;color:var(--text3);font-weight:400">(editable)</span></label><input id="mp-tot" style="font-weight:700" oninput="onTotEdit(this)" placeholder="$0.00"></div>
@@ -1919,6 +1920,7 @@ tr:hover .ent-edit{opacity:1}
       <div class="field"><label>Sucursal</label><select id="vd-s"><option>Jardines</option><option>Zibata</option><option>Galeria</option></select></div>
       <div class="field"><label>% Comisión marcos 🖼️</label><input type="number" id="vd-c" step="0.1" placeholder="ej. 2"></div>
       <div class="field"><label>% Comisión arte 🎨</label><input type="number" id="vd-ca" step="0.1" placeholder="ej. 10"></div>
+      <div class="field"><label>% Comisión Tranquilo 🟪</label><input type="number" id="vd-ct" step="0.1" placeholder="ej. 10"></div>
       <div class="field"><label>Estatus</label><select id="vd-e"><option value="activo">Activo</option><option value="inactivo">Inactivo</option></select></div>
     </div>
     <div style="display:flex;gap:7px;justify-content:flex-end">
@@ -3002,8 +3004,8 @@ function rPed(f){
     const btn=p.est==='Pendiente'?`<button class="btn btn-s btn-xs" onclick="openEnt(${idx})">📦 Entregar</button>`:'';
     const tvB=p.tipo_venta==='factura'?'<span class="badge bb" style="font-size:10px">📄 Factura</span>':'<span class="badge bgr" style="font-size:10px">Gral</span>';
     const tvBtn=`<button class="btn btn-s btn-xs" onclick="toggleTV(${idx})" style="padding:1px 5px;font-size:10px" title="Cambiar tipo">&#8644;</button>`;
-    const tpB=p.tipo_prod==='arte'?'<span class="badge" style="font-size:10px;background:var(--red-l);color:#9D174D">🎨 Arte</span>':'<span class="badge bgr" style="font-size:10px">🖼️</span>';
-    const tpBtn=`<button class="btn btn-s btn-xs" onclick="toggleTP(${idx})" style="padding:1px 5px;font-size:10px" title="Marcos/Arte">&#8644;</button>`;
+    const tpB=p.tipo_prod==='arte'?'<span class="badge" style="font-size:10px;background:var(--red-l);color:#9D174D">🎨 Arte</span>':p.tipo_prod==='tranquilo'?'<span class="badge" style="font-size:10px;background:#EDE9FE;color:#5B21B6">🟪 Tranquilo</span>':'<span class="badge bgr" style="font-size:10px">🖼️</span>';
+    const tpBtn=`<button class="btn btn-s btn-xs" onclick="toggleTP(${idx})" style="padding:1px 5px;font-size:10px" title="Marcos / Arte / Tranquilo">&#8644;</button>`;
     return `<tr><td class="mono" style="font-weight:600">${p.folio}</td><td style="color:var(--text2)">${p.fecha}</td><td>${p.cli}<div style="margin-top:2px">${celTel(p)}</div></td><td>${p.vend||'—'}</td><td style="white-space:nowrap">${tvB} ${tvBtn}<br>${tpB} ${tpBtn}</td><td>${p.suc}</td><td>${p.met||'—'}</td>
       <td class="mono">${fmt(p.total)}</td><td class="mono">${fmt(p.ant)}</td>
       <td class="mono" style="${p.rest>0?'color:var(--amber);font-weight:600':''}">${fmt(p.rest)}</td>
@@ -10494,18 +10496,18 @@ function rVends(){
   for(var i=0;i<VENDEDORES.length;i++){
     var v=VENDEDORES[i];
     h+='<tr><td style="font-weight:500">'+v.nombre+'</td><td>'+v.suc+'</td>';
-    h+='<td style="white-space:nowrap"><span class="badge" style="background:#EDE9FE;color:#5B21B6">🖼️ '+v.comision+'%</span> <span class="badge" style="background:var(--red-l);color:#9D174D">🎨 '+pctArteDe(v)+'%</span></td>';
+    h+='<td style="white-space:nowrap"><span class="badge" style="background:#EDE9FE;color:#5B21B6">🖼️ '+v.comision+'%</span> <span class="badge" style="background:var(--red-l);color:#9D174D">🎨 '+pctArteDe(v)+'%</span> <span class="badge" style="background:#EDE9FE;color:#5B21B6">🟪 '+pctTqDe(v)+'%</span></td>';
     h+='<td><span class="badge '+(v.estatus==='activo'?'bg':'bgr')+'">'+v.estatus+'</span></td>';
     h+='<td style="display:flex;gap:4px"><button class="btn btn-s btn-xs" onclick="editVend('+i+')">Editar</button>';
     h+='<button class="btn btn-d btn-xs" onclick="delVend('+i+')">Eliminar</button></td></tr>';
   }
   document.getElementById('vend-body').innerHTML=h||'<tr><td colspan="5" class="tbl-empty">Sin vendedores</td></tr>';
 }
-function openAddVend(){editVendIdx=null;document.getElementById('vend-form-ttl').textContent='+ Nuevo vendedor';document.getElementById('vd-n').value='';document.getElementById('vd-c').value='2';document.getElementById('vd-ca').value='10';document.getElementById('vd-e').value='activo';document.getElementById('vend-form').style.display='block';}
-function editVend(i){editVendIdx=i;var v=VENDEDORES[i];document.getElementById('vend-form-ttl').textContent='Editar: '+v.nombre;document.getElementById('vd-n').value=v.nombre;document.getElementById('vd-s').value=v.suc;document.getElementById('vd-c').value=v.comision;document.getElementById('vd-ca').value=pctArteDe(v);document.getElementById('vd-e').value=v.estatus;document.getElementById('vend-form').style.display='block';}
+function openAddVend(){editVendIdx=null;document.getElementById('vend-form-ttl').textContent='+ Nuevo vendedor';document.getElementById('vd-n').value='';document.getElementById('vd-c').value='2';document.getElementById('vd-ca').value='10';document.getElementById('vd-ct').value='10';document.getElementById('vd-e').value='activo';document.getElementById('vend-form').style.display='block';}
+function editVend(i){editVendIdx=i;var v=VENDEDORES[i];document.getElementById('vend-form-ttl').textContent='Editar: '+v.nombre;document.getElementById('vd-n').value=v.nombre;document.getElementById('vd-s').value=v.suc;document.getElementById('vd-c').value=v.comision;document.getElementById('vd-ca').value=pctArteDe(v);document.getElementById('vd-ct').value=pctTqDe(v);document.getElementById('vd-e').value=v.estatus;document.getElementById('vend-form').style.display='block';}
 function saveVend(){
   var nom=document.getElementById('vd-n').value.trim();if(!nom){alert('Ingresa el nombre');return;}
-  var v={nombre:nom,suc:document.getElementById('vd-s').value,comision:parseFloat(document.getElementById('vd-c').value)||0,comision_arte:parseFloat(document.getElementById('vd-ca').value)||0,estatus:document.getElementById('vd-e').value};
+  var v={nombre:nom,suc:document.getElementById('vd-s').value,comision:parseFloat(document.getElementById('vd-c').value)||0,comision_arte:parseFloat(document.getElementById('vd-ca').value)||0,comision_tranquilo:parseFloat(document.getElementById('vd-ct').value)||0,estatus:document.getElementById('vd-e').value};
   const isEdit=editVendIdx!==null;
   const vid=isEdit?VENDEDORES[editVendIdx].id:null;
   const url=isEdit&&vid?'/api/vendedores/'+vid:'/api/vendedores';
@@ -10543,7 +10545,7 @@ function comDesglose(v,mes){
     if(parseInt(p.mes)!==mes)continue;
     if(porSuc?(p.suc!==v.suc):(p.vend!==v.nombre))continue;
     var antOrig=antIni(p);
-    if(antOrig>0)nuevos.push({folio:p.folio,cli:p.cli,suc:p.suc,vend:p.vend||'—',fecha:p.fecha,monto:antOrig,tp:(p.tipo_prod==='arte'?'arte':'marcos')});
+    if(antOrig>0)nuevos.push({folio:p.folio,cli:p.cli,suc:p.suc,vend:p.vend||'—',fecha:p.fecha,monto:antOrig,tp:(p.tipo_prod==='arte'?'arte':p.tipo_prod==='tranquilo'?'tranquilo':'marcos')});
   }
   for(var j=0;j<ABONOS.length;j++){
     var a=ABONOS[j];if(!a.fecha)continue;
@@ -10551,13 +10553,14 @@ function comDesglose(v,mes){
     var ped=null;
     for(var k=0;k<pedidos.length;k++){if((a.pedido_id&&pedidos[k].id===a.pedido_id)||(pedidos[k].folio===a.folio&&pedidos[k].suc===a.suc)){ped=pedidos[k];break;}}
     var ok=porSuc?(a.suc===v.suc||(ped&&ped.suc===v.suc)):(ped&&ped.vend===v.nombre);
-    if(ok)abonos.push({folio:a.folio,cli:a.cli||(ped?ped.cli:'—'),suc:a.suc||(ped?ped.suc:'—'),vend:(ped?ped.vend:'')||'—',fecha:a.fecha,fechaPed:ped?ped.fecha:'—',monto:a.monto||0,tipo:a.tipo||'Abono',tp:(ped&&ped.tipo_prod==='arte'?'arte':'marcos')});
+    if(ok)abonos.push({folio:a.folio,cli:a.cli||(ped?ped.cli:'—'),suc:a.suc||(ped?ped.suc:'—'),vend:(ped?ped.vend:'')||'—',fecha:a.fecha,fechaPed:ped?ped.fecha:'—',monto:a.monto||0,tipo:a.tipo||'Abono',tp:(ped&&ped.tipo_prod==='tranquilo')?'tranquilo':(ped&&ped.tipo_prod==='arte'?'arte':'marcos')});
   }
   var tN=nuevos.reduce(function(s,x){return s+x.monto;},0),tA=abonos.reduce(function(s,x){return s+x.monto;},0);
   var todo=nuevos.concat(abonos);
-  var cobM=todo.filter(function(x){return x.tp!=='arte';}).reduce(function(s,x){return s+x.monto;},0);
+  var cobM=todo.filter(function(x){return x.tp==='marcos';}).reduce(function(s,x){return s+x.monto;},0);
+  var cobT=todo.filter(function(x){return x.tp==='tranquilo';}).reduce(function(s,x){return s+x.monto;},0);
   var cobA=todo.filter(function(x){return x.tp==='arte';}).reduce(function(s,x){return s+x.monto;},0);
-  return {nuevos:nuevos,abonos:abonos,totNuevos:tN,totAbonos:tA,cobrado:tN+tA,cobMarcos:cobM,cobArte:cobA,porSuc:porSuc};
+  return {nuevos:nuevos,abonos:abonos,totNuevos:tN,totAbonos:tA,cobrado:tN+tA,cobMarcos:cobM,cobArte:cobA,cobTq:cobT,porSuc:porSuc};
 }
 // ── ¿ES CLIENTE NUEVO O YA COMPRABA? ──────────────────────────────────────
 // Se decide por el nombre, comparando contra TODAS las notas de las dos
@@ -10612,7 +10615,7 @@ function expComRecibo(vidx,mes){
    +'.nota{font-size:9.5px;color:#888;margin-top:10px;line-height:1.5}'
    +'</style></head><body>';
   h+='<h1>Recibo de comisión — '+esc(v.nombre)+'</h1>';
-  h+='<div class="sub">'+M[mes]+' 2026 · '+esc(v.suc||'')+' · Marcos '+v.comision+'% · Arte '+pctArteDe(v)+'%<br>Impulso Galería</div>';
+  h+='<div class="sub">'+M[mes]+' 2026 · '+esc(v.suc||'')+' · Marcos '+v.comision+'% · Arte '+pctArteDe(v)+'% · Tranquilo '+pctTqDe(v)+'%<br>Impulso Galería</div>';
   h+='<div class="sec">Pedidos nuevos del mes (comisiona el anticipo)</div>';
   if(d.nuevos.length){
     h+='<table><tr><th>Folio</th><th>Cliente</th><th>¿Nuevo?</th><th>Sucursal</th><th>Fecha</th><th class="r">Anticipo</th></tr>';
@@ -10630,7 +10633,7 @@ function expComRecibo(vidx,mes){
     });
     h+='<tr class="st"><td colspan="6">Subtotal abonos del mes</td><td class="r">'+f(d.totAbonos)+'</td></tr></table>';
   } else h+='<div style="color:#999;padding:3px 0">Sin abonos de notas pasadas este mes.</div>';
-  if(d.cobArte>0)h+='<div style="margin-top:10px;font-size:10.5px">Marcos '+f(d.cobMarcos)+' × '+v.comision+'% &nbsp;·&nbsp; Arte '+f(d.cobArte)+' × '+pctArteDe(v)+'%</div>';
+  if(d.cobArte>0||d.cobTq>0)h+='<div style="margin-top:10px;font-size:10.5px">Marcos '+f(d.cobMarcos)+' × '+v.comision+'% &nbsp;·&nbsp; Arte '+f(d.cobArte)+' × '+pctArteDe(v)+'% &nbsp;·&nbsp; Tranquilo '+f(d.cobTq)+' × '+pctTqDe(v)+'%</div>';
   h+='<div class="tot"><span>Total cobrado: '+f(d.cobrado)+'</span><span>Comisión a pagar: '+f(com)+'</span></div>';
   h+='<div class="nota">Cada anticipo se cuenta sin los abonos ya registrados de esa nota, y cada abono comisiona una sola vez, en el mes en que se cobró. "Nuevo" quiere decir que es la primera nota de ese cliente en cualquiera de las dos sucursales.</div>';
   h+='<div class="firma"><div>Recibí de conformidad — '+esc(v.nombre)+'</div><div>Entregó</div></div>';
@@ -10639,7 +10642,16 @@ function expComRecibo(vidx,mes){
   if(!w)alert('Permite ventanas emergentes para abrir el recibo');
 }
 function pctArteDe(v){return (v.comision_arte!==undefined&&v.comision_arte!==null)?+v.comision_arte:10;}
-function comisionDe(v,d){return d.cobMarcos*((+v.comision||0)/100)+d.cobArte*(pctArteDe(v)/100);}
+function pctTqDe(v){return (v.comision_tranquilo!==undefined&&v.comision_tranquilo!==null)?+v.comision_tranquilo:10;}
+function comisionDe(v,d){return d.cobMarcos*((+v.comision||0)/100)+d.cobArte*(pctArteDe(v)/100)+(d.cobTq||0)*(pctTqDe(v)/100);}
+// Tipo de producto al crear la nota: si el anticipo se cobra con un método Tranquilo, se marca Tranquilo solo
+function tqzAutoTipo(met){
+  var esT=/tranquilo/i.test(met||'');
+  var r=document.querySelector('input[name="mp-tp"][value="'+(esT?'tranquilo':'marcos')+'"]');
+  var act=document.querySelector('input[name="mp-tp"]:checked');
+  if(esT&&r)r.checked=true;
+  else if(!esT&&act&&act.value==='tranquilo'&&r)r.checked=true;
+}
 function comCobradoDe(v,mes){return comDesglose(v,mes).cobrado;}
 function detalleCom(vidx,mes){
   var v=VENDEDORES[vidx];if(!v)return;
@@ -10647,8 +10659,8 @@ function detalleCom(vidx,mes){
   var d=comDesglose(v,mes),com=comisionDe(v,d);
   document.getElementById('comdet-ttl').textContent='Detalle: '+v.nombre+' — '+M[mes]+' 2026';
   var h='';
-  h+='<div style="background:#F3F4F6;border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px">👤 Comisiona solo por sus notas (campo Vendedor) · 🖼️ Marcos '+v.comision+'% · 🎨 Arte '+pctArteDe(v)+'%</div>';
-  if(d.cobArte>0||d.cobMarcos>0)h+='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin-bottom:12px"><span>🖼️ Marcos: <b>'+fmt(d.cobMarcos)+'</b> × '+v.comision+'% = <b>'+fmt(d.cobMarcos*(v.comision/100))+'</b></span><span>🎨 Arte: <b>'+fmt(d.cobArte)+'</b> × '+pctArteDe(v)+'% = <b>'+fmt(d.cobArte*(pctArteDe(v)/100))+'</b></span><span style="color:var(--green);font-weight:700">Total comisión: '+fmt(com)+'</span></div>';
+  h+='<div style="background:#F3F4F6;border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px">👤 Comisiona solo por sus notas (campo Vendedor) · 🖼️ Marcos '+v.comision+'% · 🎨 Arte '+pctArteDe(v)+'% · 🟪 Tranquilo '+pctTqDe(v)+'%</div>';
+  if(d.cobArte>0||d.cobMarcos>0||d.cobTq>0)h+='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin-bottom:12px"><span>🖼️ Marcos: <b>'+fmt(d.cobMarcos)+'</b> × '+v.comision+'% = <b>'+fmt(d.cobMarcos*(v.comision/100))+'</b></span><span>🎨 Arte: <b>'+fmt(d.cobArte)+'</b> × '+pctArteDe(v)+'% = <b>'+fmt(d.cobArte*(pctArteDe(v)/100))+'</b></span><span>🟪 Tranquilo: <b>'+fmt(d.cobTq)+'</b> × '+pctTqDe(v)+'% = <b>'+fmt(d.cobTq*(pctTqDe(v)/100))+'</b></span><span style="color:var(--green);font-weight:700">Total comisión: '+fmt(com)+'</span></div>';
   h+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">🧾 Pedidos nuevos del mes (comisiona el anticipo)</div>';
   h+=d.nuevos.length?'<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>¿Nuevo?</th><th>Sucursal</th><th>Vend. capturado</th><th>Fecha</th><th style="text-align:right">Anticipo</th></tr></thead><tbody>'+
     d.nuevos.map(function(x){return '<tr><td class="mono" style="font-weight:600">'+x.folio+'</td><td>'+x.cli+'</td><td>'+cliBadge(x.cli,x.fecha,x.folio)+'</td><td>'+(x.suc||'—')+'</td><td style="color:var(--text3)">'+x.vend+'</td><td style="color:var(--text3)">'+(x.fecha||'—')+'</td><td class="mono" style="text-align:right">'+fmt(x.monto)+'</td></tr>';}).join('')+
@@ -10661,7 +10673,7 @@ function detalleCom(vidx,mes){
     :'<div style="color:var(--text3);padding:4px 0 10px">Sin abonos de notas pasadas este mes.</div>';
   h+='<div style="margin-top:14px;background:var(--green-l);border:1.5px solid var(--green);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-weight:700">'+
      '<span>Total cobrado: <span class="mono">'+fmt(d.cobrado)+'</span></span>'+
-     '<span>× '+v.comision+'% = Comisión: <span class="mono" style="color:var(--green)">'+fmt(com)+'</span></span></div>';
+     '<span>Comisión: <span class="mono" style="color:var(--green)">'+fmt(com)+'</span></span></div>';
   h+='<div style="font-size:11px;color:var(--text3);margin-top:8px">Anti-duplicado: el anticipo de un pedido nuevo se cuenta sin los abonos ya registrados de esa nota, y cada abono comisiona una sola vez, en el mes en que se cobró.</div>';
   h+='<div style="margin-top:14px;text-align:right"><button class="btn btn-p btn-s" onclick="expComRecibo('+vidx+','+mes+')">\ud83e\uddfe Recibo con este detalle</button></div>';
   document.getElementById('comdet-body').innerHTML=h;
@@ -10679,8 +10691,8 @@ function rCom(){
     var com=comisionDe(v,dsg);totCob+=cob;totCom+=com;if(cob>0)nv++;
     var pInfo=pag[v.nombre+'_'+mes];
     h+='<tr><td style="font-weight:500">'+v.nombre+'</td><td>'+v.suc+'</td>';
-    h+='<td style="white-space:nowrap"><span class="badge" style="background:#EDE9FE;color:#5B21B6">🖼️ '+v.comision+'%</span> <span class="badge" style="background:var(--red-l);color:#9D174D">🎨 '+pctArteDe(v)+'%</span></td>';
-    h+='<td class="mono">'+fmt(cob)+(dsg.cobArte>0?'<div style="font-size:10px;color:var(--text3)">🖼️ '+fmt(dsg.cobMarcos)+' · 🎨 '+fmt(dsg.cobArte)+'</div>':'')+'</td><td class="mono" style="font-weight:700;color:var(--green)">'+fmt(com)+'</td>';
+    h+='<td style="white-space:nowrap"><span class="badge" style="background:#EDE9FE;color:#5B21B6">🖼️ '+v.comision+'%</span> <span class="badge" style="background:var(--red-l);color:#9D174D">🎨 '+pctArteDe(v)+'%</span> <span class="badge" style="background:#EDE9FE;color:#5B21B6">🟪 '+pctTqDe(v)+'%</span></td>';
+    h+='<td class="mono">'+fmt(cob)+((dsg.cobArte>0||dsg.cobTq>0)?'<div style="font-size:10px;color:var(--text3)">🖼️ '+fmt(dsg.cobMarcos)+' · 🎨 '+fmt(dsg.cobArte)+' · 🟪 '+fmt(dsg.cobTq)+'</div>':'')+'</td><td class="mono" style="font-weight:700;color:var(--green)">'+fmt(com)+'</td>';
     h+='<td style="white-space:nowrap"><button class="btn btn-s btn-xs" onclick="detalleCom('+i+','+mes+')">🔍 Detalle</button> <button class="btn btn-s btn-xs" onclick="genReciboCom('+i+',\''+v.comision+'% marcos / '+pctArteDe(v)+'% arte\','+cob.toFixed(2)+','+com.toFixed(2)+','+mes+')">Recibo</button> '+(pInfo?'<span class="badge bg">✓ Pagada '+pInfo.fecha+'</span>':(com>0?'<button class="btn btn-xs" style="background:var(--green);color:#fff;border:none" onclick="pagarCom('+i+','+mes+','+com.toFixed(2)+')">💸 Pagar</button>':''))+'</td></tr>';
   }
   document.getElementById('com-tot').textContent=fmtK(totCob);document.getElementById('com-sum').textContent=fmtK(totCom);document.getElementById('com-nv').textContent=nv;
@@ -10734,8 +10746,8 @@ function genReciboCom(vidx,pct,cobrado,com,mes){
   h+='<scr'+'ipt>window.onload=function(){window.print();}<'+'/scr'+'ipt></body></html>';
   var blob=new Blob([h],{type:'text/html'});var url=URL.createObjectURL(blob);var w=window.open(url,'_blank');if(!w)alert('Permite ventanas emergentes para imprimir');
 }
-function expComXlsx(){var mes=parseInt(document.getElementById('com-mes').value);var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var rows=[['COMISIONES '+M[mes].toUpperCase()+' 2026'],['Vendedor','Sucursal','% Comision','Cobrado','Comision']];for(var i=0;i<VENDEDORES.length;i++){var v=VENDEDORES[i];if(v.estatus!=='activo')continue;var c=comCobradoDe(v,mes);rows.push([v.nombre,v.suc,v.comision+'%',c,c*(v.comision/100)]);}xlsxExp(rows,'Comisiones');}
-function expComPDF(){var mes=parseInt(document.getElementById('com-mes').value);var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var rows=[];for(var i=0;i<VENDEDORES.length;i++){var v=VENDEDORES[i];if(v.estatus!=='activo')continue;var c=comCobradoDe(v,mes);rows.push([v.nombre,v.suc,v.comision+'%',fmt(c),fmt(c*(v.comision/100))]);}printTbl('COMISIONES '+M[mes].toUpperCase(),['Vendedor','Sucursal','%','Cobrado','Comision'],rows);}
+function expComXlsx(){var mes=parseInt(document.getElementById('com-mes').value);var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var rows=[['COMISIONES '+M[mes].toUpperCase()+' 2026'],['Vendedor','Sucursal','% Comision','Cobrado','Comision']];for(var i=0;i<VENDEDORES.length;i++){var v=VENDEDORES[i];if(v.estatus!=='activo')continue;var dd=comDesglose(v,mes);rows.push([v.nombre,v.suc,v.comision+'% / '+pctArteDe(v)+'% / '+pctTqDe(v)+'%',dd.cobrado,comisionDe(v,dd)]);}xlsxExp(rows,'Comisiones');}
+function expComPDF(){var mes=parseInt(document.getElementById('com-mes').value);var M=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];var rows=[];for(var i=0;i<VENDEDORES.length;i++){var v=VENDEDORES[i];if(v.estatus!=='activo')continue;var dd=comDesglose(v,mes);rows.push([v.nombre,v.suc,v.comision+'% / '+pctArteDe(v)+'% / '+pctTqDe(v)+'%',fmt(dd.cobrado),fmt(comisionDe(v,dd))]);}printTbl('COMISIONES '+M[mes].toUpperCase(),['Vendedor','Sucursal','%','Cobrado','Comision'],rows);}
 
 // === EMPLEADOS + RH ===
 const EMPLEADOS_DEFAULT=[
@@ -12195,12 +12207,12 @@ function expFacXlsx(){var mes=parseInt(document.getElementById('fac-mes').value)
 function toggleTP(idx){
   var p=pedidos[idx];if(!p)return;
   var previo=p.tipo_prod;
-  p.tipo_prod=(p.tipo_prod==='arte')?'marcos':'arte';
+  p.tipo_prod=(p.tipo_prod==='arte')?'tranquilo':(p.tipo_prod==='tranquilo')?'marcos':'arte';
   rPed();
   if(p.id){
     fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({tipo_prod:p.tipo_prod})})
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);})
-    .catch(function(){p.tipo_prod=previo;rPed();alert('Sin conexión — el cambio Marcos/Arte NO se guardó');});
+    .catch(function(){p.tipo_prod=previo;rPed();alert('Sin conexión — el cambio de tipo NO se guardó');});
   }
 }
 function toggleTV(idx){
@@ -12342,7 +12354,9 @@ function guardarPed(){
   const totalFinal=totEl&&totEl._raw?totEl._raw:sub*1.16;
   const hoy=todayStr();
   const tpEl=document.querySelector('input[name="mp-tp"]:checked');
-  const newPed={folio,tipo_venta:tvEl?tvEl.value:'general',tipo_prod:tpEl?tpEl.value:'marcos',
+  let tipoProd=tpEl?tpEl.value:'marcos';
+  { const mEl=document.getElementById('mp-m'); if(mEl&&/tranquilo/i.test(mEl.value||'')&&tipoProd==='marcos')tipoProd='tranquilo'; }
+  const newPed={folio,tipo_venta:tvEl?tvEl.value:'general',tipo_prod:tipoProd,
     cli:(cliEl?cliEl.value.trim():'')||'—',
     tel:telEl?telEl.value.trim():'',
     suc:(function(){const w=document.getElementById('mp-suc-wrap'),ms=document.getElementById('mp-suc');return (w&&w.style.display!=='none'&&ms)?ms.value:u.suc;})(),vend:vendEl?vendEl.value:'',
