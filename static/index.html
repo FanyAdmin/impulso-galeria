@@ -1051,6 +1051,14 @@ tr:hover .ent-edit{opacity:1}
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-tqz')">Cerrar</button></div>
 </div>
 </div>
+<div class="modal-bg" id="mod-stk" style="display:none">
+<div class="modal" style="width:620px">
+  <div class="modal-hdr"><div class="modal-ttl" id="stk-ttl">📦 De stock</div><button class="modal-x" onclick="CM('mod-stk')">✕</button></div>
+  <div class="modal-body"><div style="font-size:12.5px;color:var(--text2);margin-bottom:10px">Palomea las notas cuya moldura <b>sale de lo que ya tenemos</b>. Salen de pendientes sin hacer orden de compra; si te equivocas, se regresan desde el historial.</div>
+    <div id="stk-lista" style="max-height:50vh;overflow:auto;border:1px solid var(--border);border-radius:10px"></div></div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-stk')">Cancelar</button><button class="btn btn-p" onclick="stkGuardarSel()">📦 Tomar de stock</button></div>
+</div>
+</div>
 <datalist id="dl-terceros"></datalist>
 <div class="modal-bg" id="mod-ptdev" style="display:none">
 <div class="modal" style="width:540px">
@@ -4388,6 +4396,7 @@ function itemsPedidos(){
   // Pares folio|moldura que ya fueron pedidos a proveedor
   const s=new Set();
   ORDENES.forEach(o=>(o.items||[]).forEach(it=>(it.fols||[]).forEach(f=>s.add(claveItem(f,it.mol)))));
+  Object.keys(ORD_STOCK||{}).forEach(k=>s.add(k));   // tomadas de stock: no se piden
   return s;
 }
 // ═══ REVISIÓN DE NOTAS FÍSICAS ═════════════════════════════════════════════
@@ -6499,7 +6508,7 @@ function rOrd(){
           <div id="sel-row-${i}-${j}" class="ord-row${pv==='MM'?'':' sinm'}" style="opacity:${fuera?'.4':'1'};background:${fuera?'var(--surface2)':'transparent'}">
             ${soloMira()?'<span></span>':`<input type="checkbox" id="sel-chk-${i}-${j}" ${fuera?'':'checked'} onchange="togSelOrd(${i},${j})" style="width:16px;height:16px;accent-color:${st.c};cursor:pointer">`}
             <span class="mono" style="text-align:right;font-size:13px;font-weight:800;color:${st.c}">${it.pzas}</span>
-            <span class="cel" style="font-size:12.5px;font-weight:600" title="${it.mol}">${it.mol}${al?`<span class="ord-alerta" style="background:${al.bg};color:${al.c}">${al.t}</span>`:''}</span>
+            <span class="cel" style="font-size:12.5px;font-weight:600" title="${it.mol}">${it.mol}${al?`<span class="ord-alerta" style="background:${al.bg};color:${al.c}">${al.t}</span>`:''}${soloMira()?'':` <button class="btn btn-s btn-xs" style="font-size:10.5px;padding:1px 6px" title="La tenemos en stock: sale de pendientes sin pedirla" onclick="stkAbrir('${pv}',${JSON.stringify(String(it.mol)).replace(/"/g,'&quot;')})">📦 De stock</button>`}</span>
             <span class="cel cel-med" style="font-size:11.5px;color:var(--text2)">${meds}</span>
             ${pv==='MM'?`<span class="cel cel-ml mono" style="text-align:right;font-size:11.5px;color:var(--text2)">${ordML(it).toFixed(1)}</span>`:''}
             <span class="cel cel-nota mono" style="font-size:11px;color:var(--text3)" title="${fols.join(', ')}">${fols.join(', ')}</span>
@@ -6669,7 +6678,7 @@ function ordIrPend(mol){
 }
 function rOrdHist(){
   const h=document.getElementById('ord-hist');if(!h)return;
-  if(!ORDENES.length){h.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Sin historial de órdenes pedidas</div>';return;}
+  if(!ORDENES.length){h.innerHTML='<div style="text-align:center;color:var(--text3);padding:3rem">Sin historial de órdenes pedidas</div>'+stkHistHTML();return;}
   const u=USERS.find(x=>x.key===CU);const esAdm=u&&(u.role==='admin'||u.role==='owner');
   h.innerHTML='<div style="font-size:12px;color:var(--text2);background:var(--surface2);border-radius:var(--rad);padding:8px 14px;margin-bottom:12px">📦 <strong>Cuando llegue el material:</strong> palomea cada moldura conforme la saques de la caja. Lo que el proveedor no surtió, mándalo de vuelta a Pendientes con un clic.</div>'+ORDENES.map(e=>{
     const its=e.items||[];
@@ -6707,7 +6716,19 @@ function rOrdHist(){
         }).join('');
       }).join('')}</tbody></table></div>
     </div>`;
-  }).join('');
+  }).join('')+stkHistHTML();
+}
+function stkHistHTML(){
+  var L=Object.keys(ORD_STOCK||{}).map(function(k){var o=ORD_STOCK[k];return Object.assign({k:k},o);})
+    .sort(function(a,b){return String(b.f||'').localeCompare(String(a.f||''));});
+  if(!L.length)return '';
+  var pz=L.reduce(function(s,x){return s+(+x.pz||0);},0);
+  return '<div class="card"><div style="font-size:13px;font-weight:700;margin-bottom:8px">📦 Tomadas de stock <span style="font-weight:400;color:var(--text3);font-size:12px">· '+L.length+' renglón(es) · '+pz+' piezas · no se pidieron al proveedor</span></div>'+
+    '<div class="tw" style="margin:0"><table class="tbl"><thead><tr><th>Fecha</th><th>Nota</th><th>Moldura</th><th>Proveedor</th><th style="text-align:center">Pzas</th><th>Medidas</th><th>Quién</th><th></th></tr></thead><tbody>'+
+    L.map(function(x){var fol=x.k.split('|')[0];return '<tr><td>'+ptFec(x.f)+'</td><td class="mono">'+ptEsc(fol)+'</td><td style="font-weight:600">'+ptEsc(x.mol||x.k.split('|')[1])+'</td><td>'+ptEsc(PROVS[x.prov]||x.prov||'')+'</td>'+
+      '<td style="text-align:center">'+(x.pz||'')+'</td><td style="font-size:11px;color:var(--text3)">'+ptEsc(x.meds||'')+'</td><td style="font-size:11px">'+ptEsc(x.u||'')+'</td>'+
+      '<td>'+(soloMira()?'':'<button class="btn btn-s btn-xs" title="Regresar a pendientes de pedir" onclick="stkDeshacer(\''+x.k.replace(/'/g,"\\'")+'\')">↩︎</button>')+'</td></tr>';}).join('')+
+    '</tbody></table></div></div>';
 }
 function marcarRec(id,ix,val){
   const o=ORDENES.find(x=>x.id===id);if(!o||!o.items||!o.items[ix])return;
@@ -8540,6 +8561,54 @@ function tqzAbrir(){
     L.slice(0,200).map(function(x){return '<tr><td>'+ptFec(x.f)+'</td><td>F.'+ptEsc(x.folio)+'</td><td>'+ptEsc(x.suc||'')+'</td><td>'+ptEsc(x.met)+'</td><td class="mono" style="text-align:right">'+fmt(x.m)+'</td></tr>';}).join('')+'</tbody></table>';
   document.getElementById('tqz-body').innerHTML=h;
   OM('mod-tqz');
+}
+
+
+// ═══ MOLDURAS TOMADAS DE STOCK ════════════════════════════════════════════════
+// Si una moldura de una nota ya la teníamos, se marca "de stock": sale de pendientes
+// sin crear OC (no gasta folio ni aparece en la hoja de facturas). Se guarda aparte.
+var ORD_STOCK={},STK_CTX=null;
+function stkCargar(){
+  return fetch('/api/config/ord_stock',{credentials:'include'}).then(function(r){return r.json();})
+    .then(function(d){ORD_STOCK=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};}).catch(function(){});
+}
+function stkGuardar(){
+  return fetch('/api/config/ord_stock',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:ORD_STOCK})})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);});
+}
+function stkAbrir(pv,mol){
+  var ya=itemsPedidos(),filas=[];
+  pedidos.filter(function(p){return p.est==='Pendiente'&&p.items;}).forEach(function(p){
+    var its=(p.items||[]).filter(function(it){return it.mol&&String(it.mol)===String(mol)&&provDe(it)===pv&&!ya.has(claveItem(p.folio,it.mol));});
+    if(!its.length)return;
+    var pz=its.reduce(function(s,it){return s+(+it.q||1);},0);
+    var meds=its.filter(function(it){return it.l1&&it.l2;}).map(function(it){return it.l1+'×'+it.l2+((it.q||1)>1?' ×'+it.q:'');}).join(' · ');
+    filas.push({folio:p.folio,suc:p.suc||'',cli:p.cli||'',pz:pz,meds:meds});
+  });
+  if(!filas.length){alert('No hay notas pendientes con esa moldura.');return;}
+  STK_CTX={pv:pv,mol:mol,filas:filas};
+  document.getElementById('stk-ttl').textContent='📦 '+mol+' · '+(PROVS[pv]||pv);
+  document.getElementById('stk-lista').innerHTML='<table class="tbl" style="font-size:12.5px"><thead><tr><th style="width:30px"></th><th>Nota</th><th>Sucursal</th><th>Cliente</th><th style="text-align:center">Pzas</th><th>Medidas</th></tr></thead><tbody>'+
+    filas.map(function(f,i){return '<tr><td><input type="checkbox" class="stk-chk" data-i="'+i+'" checked style="width:15px;height:15px;cursor:pointer"></td><td class="mono">'+ptEsc(f.folio)+'</td><td>'+ptEsc(f.suc)+'</td><td>'+ptEsc(f.cli)+'</td><td style="text-align:center;font-weight:700">'+f.pz+'</td><td style="font-size:11px;color:var(--text3)">'+ptEsc(f.meds||'—')+'</td></tr>';}).join('')+'</tbody></table>';
+  OM('mod-stk');
+}
+function stkGuardarSel(){
+  if(!STK_CTX)return;
+  var sel=[].slice.call(document.querySelectorAll('.stk-chk:checked')).map(function(c){return STK_CTX.filas[+c.dataset.i];});
+  if(!sel.length){alert('Palomea al menos una nota.');return;}
+  var u=_u()||{};
+  sel.forEach(function(f){ORD_STOCK[claveItem(f.folio,STK_CTX.mol)]={f:todayStr(),u:u.display||u.name||CU||'',pz:f.pz,meds:f.meds,prov:STK_CTX.pv,mol:STK_CTX.mol,suc:f.suc};});
+  stkGuardar().then(function(){
+    logActivity('Tomó moldura de stock',STK_CTX.mol+' · notas '+sel.map(function(f){return f.folio;}).join(', '));
+    CM('mod-stk');STK_CTX=null;rOrd();try{rOrdHist();}catch(e){}
+  }).catch(function(e){alert('⚠️ No se guardó ('+e.message+')');stkCargar().then(rOrd);});
+}
+function stkDeshacer(k){
+  var x=ORD_STOCK[k];if(!x)return;
+  if(!confirm('¿Regresar '+(x.mol||k.split('|')[1])+' de la nota '+k.split('|')[0]+' a pendientes de pedir?'))return;
+  delete ORD_STOCK[k];
+  stkGuardar().then(function(){logActivity('Regresó moldura a pendientes',k);rOrd();try{rOrdHist();}catch(e){}})
+    .catch(function(e){alert('⚠️ No se guardó ('+e.message+')');stkCargar().then(function(){rOrd();rOrdHist();});});
 }
 
 // ─── ESTADO DE RESULTADOS ─────────────────────────────────────────────────────
@@ -12374,6 +12443,7 @@ function loadData(){
     loadERCats().then(()=>{try{rMvCat();}catch(e){}try{if(document.querySelector('#page-er.active'))rER();}catch(e){}});
     loadAuditExcl();
     cargarPuentePct();
+    stkCargar().then(function(){try{if(document.querySelector('#page-ord.active'))rOrd();}catch(e){}});
     ajCargar().then(function(){try{if(document.querySelector('#page-mov.active'))ajPintaBanner();}catch(e){}});
     loadBancosCfg().then(()=>{pintarCuentasSelects();tqzAsegurarCuenta();try{if(document.querySelector('#page-ban.active'))rBancos();}catch(e){}});
     if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
