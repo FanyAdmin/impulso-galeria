@@ -5530,17 +5530,22 @@ function fpUnirOC(id){
   var conDatos=function(x){return !!(x.factura||(x.monto||0)>0||(x.abonado||0)>0);};
   ocs.sort(function(a,b){var da=porOC[a].some(conDatos)?0:1,db=porOC[b].some(conDatos)?0:1;return da-db||a.localeCompare(b);});
   var principal=ocs[0],otras=ocs.slice(1);
-  var conflictivas=otras.filter(function(o){return porOC[o].some(conDatos);});
-  if(conflictivas.length){alert('No se pueden unir solas: '+conflictivas.join(', ')+' ya tiene(n) factura, monto o pago.\n\nPasa esos datos a '+principal+' (o bórralos) y vuelve a picar el botón.');return;}
   var todas=[];ocs.forEach(function(o){fpOCsDe(o).forEach(function(x){if(todas.indexOf(x)<0)todas.push(x);});});
   todas.sort();
   var nombre=todas[0]+(todas.length>1?' + '+todas.slice(1).map(function(x){return x.replace(/^OC-/,'');}).join(' + '):'');
-  if(!confirm('El pedido '+f.ped_prov+' de '+(PROVS[f.prov]||f.prov)+' es uno solo para '+todas.join(' y ')+'.\n\nQuedan en una sola fila: "'+nombre+'".\nSe borra(n) la(s) fila(s) vacía(s) de '+otras.join(', ')+'. ¿Unir?'))return;
-  var filasP=porOC[principal],p=Promise.resolve();
-  filasP.forEach(function(x){p=p.then(function(){return fetch('/api/facprov/'+x.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({oc:nombre})})
+  // Las filas vacías de las otras OC se borran; las que ya traen factura, monto o pago
+  // se quedan como otra factura del mismo pedido ("factura 2 de 2")
+  var borrar=[],renombrar=[];
+  ocs.forEach(function(o){porOC[o].forEach(function(x){if(o!==principal&&!conDatos(x))borrar.push(x);else renombrar.push(x);});});
+  var conDatosOtras=renombrar.filter(function(x){return x.oc!==principal;});
+  if(!confirm('El pedido '+f.ped_prov+' de '+(PROVS[f.prov]||f.prov)+' es uno solo para '+todas.join(' y ')+'.\n\nQuedan juntas como "'+nombre+'".'+
+    (borrar.length?'\nSe borra(n) '+borrar.length+' fila(s) vacía(s).':'')+
+    (conDatosOtras.length?'\n'+conDatosOtras.length+' fila(s) con monto se queda(n) como otra factura del mismo pedido (revisa que no sea el mismo monto capturado dos veces).':'')+'\n\n¿Unir?'))return;
+  var p=Promise.resolve();
+  renombrar.forEach(function(x){p=p.then(function(){return fetch('/api/facprov/'+x.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({oc:nombre})})
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){var i=FP.findIndex(function(y){return y.id===x.id;});if(i>=0)FP[i]=d;});});});
-  otras.forEach(function(o){porOC[o].forEach(function(x){p=p.then(function(){return fetch('/api/facprov/'+x.id,{method:'DELETE',credentials:'include'})
-    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);FP=FP.filter(function(y){return y.id!==x.id;});});});});});
+  borrar.forEach(function(x){p=p.then(function(){return fetch('/api/facprov/'+x.id,{method:'DELETE',credentials:'include'})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);FP=FP.filter(function(y){return y.id!==x.id;});});});});
   p.then(function(){logActivity('Unió órdenes de compra',nombre+' · pedido '+f.ped_prov);rFP();})
    .catch(function(e){alert('⚠️ No se terminó de unir ('+e.message+'). Recarga y revisa la hoja.');rFP();});
 }
