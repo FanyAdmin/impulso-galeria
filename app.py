@@ -1223,6 +1223,7 @@ def migrar_columnas():
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS tipo_prod VARCHAR(20) DEFAULT 'marcos'",
         "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_arte FLOAT DEFAULT 10",
         "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_tranquilo FLOAT DEFAULT 10",
+        "ALTER TABLE fac_prov ALTER COLUMN oc TYPE VARCHAR(60)",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS diapago VARCHAR(15) DEFAULT ''",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS cumple VARCHAR(10) DEFAULT ''",
         "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS entrega_real VARCHAR(20)",
@@ -1450,7 +1451,7 @@ def del_revnota(rid):
 class FacProv(db.Model):
     __tablename__ = 'fac_prov'
     id          = db.Column(db.Integer, primary_key=True)
-    oc          = db.Column(db.String(20))     # OC-0036 (o vacio si es manual)
+    oc          = db.Column(db.String(60))     # OC-0036, o varias unidas: OC-0132 + 0133
     ped_prov    = db.Column(db.String(40))     # el numero de pedido del proveedor
     prov        = db.Column(db.String(60))
     fecha_ped   = db.Column(db.String(20))     # cuando se pidio
