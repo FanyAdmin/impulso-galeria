@@ -1059,6 +1059,14 @@ tr:hover .ent-edit{opacity:1}
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-stk')">Cancelar</button><button class="btn btn-p" onclick="stkGuardarSel()">📦 Tomar de stock</button></div>
 </div>
 </div>
+<div class="modal-bg" id="mod-agt" style="display:none">
+<div class="modal" style="width:820px">
+  <div class="modal-hdr"><div class="modal-ttl">📋 Aguinaldos de todos</div><button class="modal-x" onclick="CM('mod-agt')">✕</button></div>
+  <div class="modal-body"><div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;font-size:12.5px">Acumulado al <input type="date" id="agt-fecha" onchange="aguTodosPinta()" style="max-width:170px"></div>
+    <div id="agt-body" style="max-height:60vh;overflow:auto"></div></div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-agt')">Cerrar</button><button class="btn btn-p" onclick="aguTodosImprimir()">🖨 Imprimir</button></div>
+</div>
+</div>
 <datalist id="dl-terceros"></datalist>
 <div class="modal-bg" id="mod-ptdev" style="display:none">
 <div class="modal" style="width:540px">
@@ -2013,7 +2021,7 @@ tr:hover .ent-edit{opacity:1}
 </div>
 <!-- LFT -->
 <div class="page" id="page-lft">
-  <div class="ph"><div><div class="ph-title">Calculadora LFT</div></div></div>
+  <div class="ph"><div><div class="ph-title">Calculadora LFT</div></div><button class="btn btn-s btn-sm" onclick="aguTodosAbrir()">📋 Aguinaldos de todos</button></div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
     <div class="card">
       <div class="card-title">Empleado</div>
@@ -11505,9 +11513,9 @@ function genReciboNom(empId,sv,ap,faltas,desc){
 function populateLFT(){var h='<option value="">- Selecciona -</option>';for(var i=0;i<EMPLEADOS.length;i++){var e=EMPLEADOS[i];h+='<option value="'+e.id+'">'+e.nombre+((e.estatus||'activo')==='baja'?' (baja'+(e.fecha_baja?' '+e.fecha_baja:'')+')':'')+'</option>';}var el=document.getElementById('lft-emp');if(el)el.innerHTML=h;}
 function lftFecha(s){var p=String(s).split('-');return new Date(parseInt(p[0]),parseInt(p[1])-1,parseInt(p[2]),12);}
 function lftDiasEntre(f1,f2){return Math.round((f2-f1)/864e5)+1;} // inclusive de ambos días
-function lftVals(emp){
+function lftVals(emp,bajaStr){
   var bEl=document.getElementById('lft-baja');
-  var baja=(bEl&&bEl.value)?lftFecha(bEl.value):new Date();
+  var baja=bajaStr?lftFecha(bajaStr):(bEl&&bEl.value)?lftFecha(bEl.value):new Date();
   var ing=lftFecha(emp.ingreso);
   if(baja<ing)baja=new Date(ing);
   var ms=baja-ing;
@@ -11526,15 +11534,19 @@ function lftVals(emp){
   var vacPropDias=Math.max(0,dvCurso*(dAniv/365)-vAdel);
   var vacProp=vacPropDias*sd;
   var priProp=vacProp*0.25;
+  // Faltas marcadas en Asistencias dentro del año del aguinaldo (hasta el último día)
+  var fal=lftFaltas(emp,iniAgui,baja);
+  var dAguiBr=dAgui;dAgui=Math.max(0,dAgui-fal.n);
   var aguProp=15*(dAgui/365)*sd;
-  var finAnio=new Date(baja.getFullYear(),11,31,12),dDic=Math.max(0,lftDiasEntre(iniAgui,finAnio));
-  var aguDic=15*(Math.min(dDic,365)/365)*sd;
+  var finAnio=new Date(baja.getFullYear(),11,31,12),dDicBr=Math.max(0,lftDiasEntre(iniAgui,finAnio));
+  var dDic=Math.max(0,Math.min(dDicBr,365)-fal.n);
+  var aguDic=15*(dDic/365)*sd;
   var aguFull=15*sd;
   var aniosExactos=ms/(365.25*864e5);
   // Vacaciones ya ganadas y no tomadas: entran al finiquito (art. 79) solo si su saldo está capturado
   var vpD=0,vpSup=0;try{if(VAC_OK){var _sv=vacSaldo(emp,baja);vpSup=Math.max(0,_sv.pendGan);if(_sv.conf)vpD=vpSup;}}catch(e){}
   return {vacAdel:vAdel,vacPropDias:vacPropDias,vacPendDias:vpD,vacPendSup:vpSup,vacPendMonto:vpD*sd,vacPendPrima:vpD*sd*0.25,baja:baja,sd:sd,anos:anos,meses:meses,txt:anos+' ano'+(anos!==1?'s':'')+', '+meses+' mes'+(meses!==1?'es':''),
-    dvCurso:dvCurso,dAniv:dAniv,dAgui:dAgui,dDic:dDic,aguDic:aguDic,vacProp:vacProp,priProp:priProp,aguProp:aguProp,aguFull:aguFull,aniosExactos:aniosExactos};
+    dvCurso:dvCurso,dAniv:dAniv,dAgui:dAgui,dAguiBr:dAguiBr,dDic:dDic,dDicBr:Math.min(dDicBr,365),fal:fal,aguDic:aguDic,vacProp:vacProp,priProp:priProp,aguProp:aguProp,aguFull:aguFull,aniosExactos:aniosExactos};
 }
 function calcLFT(){
   var empId=parseInt(document.getElementById('lft-emp').value);
@@ -11545,8 +11557,8 @@ function calcLFT(){
   VAC_PAGO=null;LFT_COM={agu:false,aguTipo:'dic',pri:false,priDias:null,vac:false,vacDias:null,otro:false,otroDesc:'',otroMonto:0};
   var v=lftVals(emp);
   document.getElementById('lft-datos').innerHTML='<div class="srow"><span>Empleado</span><span style="font-weight:500">'+emp.nombre+'</span></div><div class="srow"><span>Ingreso</span><span>'+emp.ingreso+'</span></div><div class="srow"><span>Antiguedad al ultimo dia</span><span>'+v.txt+'</span></div><div class="srow"><span>Salario semanal</span><span class="mono">'+fmt(emp.salario)+'</span></div><div class="srow"><span>Salario diario (÷7)</span><span class="mono">'+fmt(v.sd)+'</span></div>'+
-    '<div class="srow" style="border-top:1px dashed var(--border);margin-top:4px;padding-top:6px"><span>Aguinaldo acumulado al '+v.baja.toLocaleDateString('es-MX')+' <span style="color:var(--text3);font-size:11px">('+v.dAgui+' días)</span></span><span class="mono" style="font-weight:700">'+fmt(v.aguProp)+'</span></div>'+
-    '<div class="srow"><span>Aguinaldo a diciembre si sigue <span style="color:var(--text3);font-size:11px">('+v.dDic+' días)</span></span><span class="mono">'+fmt(v.aguDic)+'</span></div>';
+    '<div class="srow" style="border-top:1px dashed var(--border);margin-top:4px;padding-top:6px"><span>Aguinaldo acumulado al '+v.baja.toLocaleDateString('es-MX')+' <span style="color:var(--text3);font-size:11px">('+v.dAguiBr+' días'+lftFalTxt(v)+')</span></span><span class="mono" style="font-weight:700">'+fmt(v.aguProp)+'</span></div>'+
+    '<div class="srow"><span>Aguinaldo a diciembre si sigue <span style="color:var(--text3);font-size:11px">('+v.dDicBr+' días'+lftFalTxt(v)+')</span></span><span class="mono">'+fmt(v.aguDic)+'</span></div>';
   lftTabAct='vac';var tabs=document.querySelectorAll('#page-lft .tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.toggle('active',i===0);renderLFT(emp,v);
 }
 function lftTab(tab,el){var tabs=document.querySelectorAll('#page-lft .tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');el.classList.add('active');lftTabAct=tab;var empId=parseInt(document.getElementById('lft-emp').value);var emp=null;for(var i=0;i<EMPLEADOS.length;i++){if(EMPLEADOS[i].id===empId){emp=EMPLEADOS[i];break;}}if(emp)renderLFT(emp,lftVals(emp));}
@@ -11560,7 +11572,7 @@ function renderLFT(emp,v){
     h=lftComHTML(emp,v);
   }
   else if(lftTabAct==='agu'){
-    h='<div class="sbox"><div class="srow"><span>15 dias x '+fmt(v.sd)+'</span><span class="mono">'+fmt(v.aguFull)+'</span></div><div class="srow tot"><span>Aguinaldo completo</span><span class="mono">'+fmt(v.aguFull)+'</span></div><div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:4px">PROPORCIONAL AL '+v.baja.toLocaleDateString('es-MX')+' ('+v.dAgui+' dias del ano)</div><div class="srow"><span>15 × ('+v.dAgui+'/365) × '+fmt(v.sd)+'</span><span class="mono">'+fmt(v.aguProp)+'</span></div></div></div>';
+    h='<div class="sbox"><div class="srow"><span>15 dias x '+fmt(v.sd)+'</span><span class="mono">'+fmt(v.aguFull)+'</span></div><div class="srow tot"><span>Aguinaldo completo</span><span class="mono">'+fmt(v.aguFull)+'</span></div><div style="margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)"><div style="font-size:10px;color:var(--text3);font-weight:600;margin-bottom:4px">PROPORCIONAL AL '+v.baja.toLocaleDateString('es-MX')+' ('+v.dAgui+' dias del ano)</div><div class="srow"><span>15 × ('+v.dAgui+'/365) × '+fmt(v.sd)+'</span><span class="mono">'+fmt(v.aguProp)+'</span></div></div></div>'+lftFalNota(v);
   }
   else if(lftTabAct==='fin'){
     var tot=v.vacProp+v.priProp+v.aguProp+v.vacPendMonto+v.vacPendPrima;
@@ -11571,6 +11583,69 @@ function renderLFT(emp,v){
     h='<div style="font-size:11px;padding:7px;background:var(--red-l);border-radius:4px;margin-bottom:.75rem">Empresa despide sin causa · ultimo dia '+v.baja.toLocaleDateString('es-MX')+'</div><div class="sbox"><div class="srow" style="font-weight:600"><span>3 meses indemnizacion (90 dias)</span><span class="mono">'+fmt(t3)+'</span></div><div class="srow" style="font-weight:600"><span>20 dias/ano ('+v.aniosExactos.toFixed(2)+' anos)</span><span class="mono">'+fmt(t20)+'</span></div><div style="font-size:10px;color:var(--text3);padding:4px 0;font-weight:600">PARTES PROPORCIONALES</div><div class="srow"><span>Vacaciones'+(v.vacAdel>0?' ('+v.vacPropDias.toFixed(2)+' dias: ya se restan '+v.vacAdel+' tomados)':'')+'</span><span class="mono">'+fmt(v.vacProp)+'</span></div><div class="srow"><span>Prima</span><span class="mono">'+fmt(v.priProp)+'</span></div><div class="srow"><span>Aguinaldo</span><span class="mono">'+fmt(v.aguProp)+'</span></div>'+vacFiniqRows(v)+'<div class="srow tot"><span>TOTAL LIQUIDACION</span><span class="mono" style="color:var(--green)">'+fmt(tot2)+'</span></div></div>';
   }
   document.getElementById('lft-cont').innerHTML=h;
+}
+
+
+// ── Faltas para el aguinaldo ──
+// Se descuentan las faltas injustificadas (✗ en Asistencias). Opcional: también
+// las justificadas y las incapacidades (criterio discutible: apagado por default).
+// Nunca se descuentan vacaciones, descansos ni domingos.
+var LFT_AGU_JUST=(function(){try{return localStorage.getItem('lft_agu_just')==='1';}catch(e){return false;}})();
+function lftAguJustSet(v){LFT_AGU_JUST=!!v;try{localStorage.setItem('lft_agu_just',v?'1':'0');}catch(e){}
+  var emp=vacEmpSel();if(emp)calcLFTKeep();if(document.getElementById('mod-agt')&&document.getElementById('mod-agt').style.display!=='none')aguTodosPinta();}
+function calcLFTKeep(){var t=lftTabAct;calcLFT();var tabs=document.querySelectorAll('#page-lft .tab'),ord=['vac','agu','fin','liq','com'],i=ord.indexOf(t);
+  if(i>0&&tabs[i])lftTab(t,tabs[i]);}
+function lftFaltas(emp,desde,hasta){
+  var r={n:0,inj:0,just:0,inc:0};if(!emp||!ASISTENCIAS)return r;
+  var d=new Date(desde.getFullYear(),desde.getMonth(),desde.getDate(),12),fin=new Date(hasta.getFullYear(),hasta.getMonth(),hasta.getDate(),12);
+  while(d<=fin){
+    var k=emp.id+'_'+d.getFullYear()+'_'+d.getMonth(),m=ASISTENCIAS[k];
+    if(m){var e=m[d.getDate()];
+      if(e===false){r.inj++;r.n++;}
+      else if(e==='just'){r.just++;if(LFT_AGU_JUST)r.n++;}
+      else if(e==='inc'){r.inc++;if(LFT_AGU_JUST)r.n++;}}
+    d.setDate(d.getDate()+1);
+  }
+  return r;
+}
+function lftFalTxt(v){
+  if(!v.fal||!v.fal.n)return '';
+  return ' − '+v.fal.n+' falta'+(v.fal.n===1?'':'s');
+}
+function lftFalNota(v){
+  var f=v.fal||{inj:0,just:0,inc:0};
+  return '<div style="font-size:11.5px;color:var(--text2);margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">'+
+    'Asistencias en el año: <b>'+f.inj+'</b> falta(s) injustificada(s) · '+f.just+' justificada(s) · '+f.inc+' incapacidad(es). '+
+    'Se descuentan las injustificadas; vacaciones y descansos no.'+
+    '<label style="display:flex;align-items:center;gap:6px;margin-top:5px;cursor:pointer"><input type="checkbox" '+(LFT_AGU_JUST?'checked':'')+' onchange="lftAguJustSet(this.checked)"> Descontar también justificadas e incapacidades <span style="color:var(--text3)">(criterio discutible: confírmalo con tu contador)</span></label></div>';
+}
+// ── Aguinaldos de todos ──
+function aguTodosAbrir(){
+  var f=document.getElementById('agt-fecha');if(f&&!f.value)f.value=todayStr();
+  aguTodosPinta();OM('mod-agt');
+}
+function aguTodosLista(){
+  return (EMPLEADOS||[]).filter(function(e){return (e.estatus||'activo')==='activo'&&!e.fecha_baja&&e.ingreso&&(+e.salario||0)>0;});
+}
+function aguTodosPinta(){
+  var f=(document.getElementById('agt-fecha')||{}).value||todayStr();
+  var L=aguTodosLista().map(function(e){return {e:e,v:lftVals(e,f)};});
+  var tH=0,tD=0;
+  var h='<table class="tbl" style="font-size:12.5px"><thead><tr><th>Empleado</th><th>Ingreso</th><th style="text-align:right">Salario diario</th><th style="text-align:center">Días</th><th style="text-align:center">Faltas</th><th style="text-align:right">Acumulado al '+ptFec(f)+'</th><th style="text-align:right">A diciembre</th></tr></thead><tbody>'+
+    L.map(function(x){var v=x.v;tH+=v.aguProp;tD+=v.aguDic;
+      return '<tr><td style="font-weight:600">'+ptEsc(x.e.nombre)+'</td><td>'+ptEsc(x.e.ingreso)+'</td><td class="mono" style="text-align:right">'+fmt(v.sd)+'</td>'+
+        '<td style="text-align:center">'+v.dAgui+'</td><td style="text-align:center;'+(v.fal.n?'color:var(--borgona);font-weight:700':'color:var(--text3)')+'">'+(v.fal.n||'—')+'</td>'+
+        '<td class="mono" style="text-align:right">'+fmt(v.aguProp)+'</td><td class="mono" style="text-align:right;font-weight:700">'+fmt(v.aguDic)+'</td></tr>';}).join('')+
+    '</tbody><tfoot><tr style="font-weight:800"><td colspan="5">Total ('+L.length+' empleados)</td><td class="mono" style="text-align:right">'+fmt(tH)+'</td><td class="mono" style="text-align:right">'+fmt(tD)+'</td></tr></tfoot></table>';
+  h+='<div style="font-size:11.5px;color:var(--text3);margin-top:8px">"A diciembre" supone que siguen trabajando hasta el 31/12 y descuenta las faltas que ya llevan en el año; si faltan más, baja. '+
+    '<label style="display:inline-flex;align-items:center;gap:5px;margin-left:6px;cursor:pointer;color:var(--text2)"><input type="checkbox" '+(LFT_AGU_JUST?'checked':'')+' onchange="lftAguJustSet(this.checked)"> descontar también justificadas e incapacidades</label></div>';
+  document.getElementById('agt-body').innerHTML=L.length?h:'<div class="tbl-empty">No hay empleados activos con fecha de ingreso y salario.</div>';
+}
+function aguTodosImprimir(){
+  var f=(document.getElementById('agt-fecha')||{}).value||todayStr();
+  var w=window.open('','_blank');if(!w){alert('Permite ventanas emergentes para imprimir');return;}
+  w.document.write('<html><head><meta charset="utf-8"><title>Aguinaldos</title><style>body{font-family:Calibri,sans-serif;padding:28px;font-size:12px}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #ddd;padding:5px 6px;text-align:left}td.mono,th.r{text-align:right}tfoot td{font-weight:700}</style></head><body><h2 style="margin:0 0 4px">Aguinaldos '+f.slice(0,4)+'</h2><div style="color:#777;margin-bottom:12px">Corte al '+ptFec(f)+' · Impulso Galería</div>'+document.getElementById('agt-body').innerHTML.replace(/<label[\s\S]*?<\/label>/g,'')+'<script>window.onload=function(){window.print();}<\/script></body></html>');
+  w.document.close();
 }
 
 // ── Valor en dinero de las vacaciones disponibles ──
@@ -12011,7 +12086,7 @@ function genRecibo(){
   var tipo=lftTabAct==='vac'?'Prima Vacacional':lftTabAct==='agu'?'Aguinaldo':lftTabAct==='fin'?'Finiquito':'Liquidacion';
   var total=0,det='';
   if(lftTabAct==='vac'){var dv=diasVac(v.anos),pv=dv*v.sd,pr=pv*.25;total=pv+pr;det='<div class="r"><span>'+dv+' dias</span><span>'+fmt(pv)+'</span></div><div class="r"><span>Prima 25%</span><span>'+fmt(pr)+'</span></div>';}
-  else if(lftTabAct==='agu'){total=v.aguFull;det='<div class="r"><span>15 dias x '+fmt(v.sd)+'</span><span>'+fmt(total)+'</span></div>';}
+  else if(lftTabAct==='agu'){total=v.aguDic;det='<div class="r"><span>Aguinaldo '+v.baja.getFullYear()+': 15 dias × '+v.dDic+'/365 × '+fmt(v.sd)+(v.fal&&v.fal.n?' ('+v.dDicBr+' dias − '+v.fal.n+' faltas)':'')+'</span><span>'+fmt(total)+'</span></div>';}
   else if(lftTabAct==='fin'){total=v.vacProp+v.priProp+v.aguProp+v.vacPendMonto+v.vacPendPrima;det='<div class="r"><span>Vacaciones prop. ('+v.dvCurso+' dias × '+v.dAniv+'/365'+(v.vacAdel>0?' − '+v.vacAdel+' ya tomados':'')+')</span><span>'+fmt(v.vacProp)+'</span></div><div class="r"><span>Prima vacacional prop. 25%</span><span>'+fmt(v.priProp)+'</span></div><div class="r"><span>Aguinaldo prop. (15 × '+v.dAgui+'/365)</span><span>'+fmt(v.aguProp)+'</span></div>'+(v.vacPendDias>0?'<div class="r"><span>Vacaciones ganadas sin tomar ('+v.vacPendDias+' dias)</span><span>'+fmt(v.vacPendMonto)+'</span></div><div class="r"><span>Prima de esas vacaciones 25%</span><span>'+fmt(v.vacPendPrima)+'</span></div>':'');}
   else{var t3=v.sd*90,t20=20*v.sd*v.aniosExactos;total=t3+t20+v.vacProp+v.priProp+v.aguProp+v.vacPendMonto+v.vacPendPrima;det='<div class="r"><span>3 meses (90 dias)</span><span>'+fmt(t3)+'</span></div><div class="r"><span>20 dias/ano ('+v.aniosExactos.toFixed(2)+' anos)</span><span>'+fmt(t20)+'</span></div><div class="r"><span>Partes prop.</span><span>'+fmt(v.vacProp+v.priProp+v.aguProp)+'</span></div>'+(v.vacPendDias>0?'<div class="r"><span>Vacaciones ganadas sin tomar + prima ('+v.vacPendDias+' dias)</span><span>'+fmt(v.vacPendMonto+v.vacPendPrima)+'</span></div>':'');}
   if(lftTabAct==='com'){var _c=lftComCalc(emp,v);if(_c.total<=0){alert('Elige al menos un concepto.');return;}tipo='Pago de prestaciones';total=_c.total;det=_c.det;}
