@@ -2381,6 +2381,7 @@ function aplicarMenuDueno(verTodo){
   document.querySelectorAll('.sb-item').forEach(function(el){
     // La dirección tiene permisos completos, así que al abrir se ve todo.
     el.style.display=verTodo?'':((lista.indexOf(el.id)>=0)?'':'none');
+    if(['nav-cal','nav-rev','nav-hoy'].indexOf(el.id)>=0)el.style.display='none';   // pantallas retiradas
   });
   // Una sección solo aparece si le quedó algún renglón visible
   document.querySelectorAll('.sb-section').forEach(function(sec){
@@ -2481,7 +2482,7 @@ function doLogin(){
     // solo Conciliación bancaria; de RH solo Asistencias y Nómina.
     if(u.role==='admin'){
       var ADMIN_MENU=[
-        'nav-cal','nav-cot','nav-ped','nav-cxc','nav-dia','nav-cob','nav-ord','nav-pend','nav-vip',  // Ventas
+        'nav-tab','nav-cot','nav-ped','nav-cxc','nav-dia','nav-cob','nav-ord','nav-pend','nav-vip',  // Ventas
         'nav-cat',                                                                                   // Catálogo
         'nav-dash','nav-mov','nav-cxp','nav-er','nav-ban','nav-fac',                                 // Admin
         'nav-conban',                                                                                // Auditoría
@@ -2524,6 +2525,17 @@ function doLogin(){
       document.querySelectorAll('.sb-item,.sb-sec,.sb-section').forEach(el=>el.style.display='none');
       ['nav-pend','nav-ord'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
     }
+    // Pantallas retiradas: no se muestran a nadie (se esconden, no se borran)
+    ['nav-cal','nav-rev','nav-hoy'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
+    // Una sección solo se ve si le quedó al menos un renglón visible
+    document.querySelectorAll('.sb-section').forEach(function(sec){
+      var vis=false,n=sec.nextElementSibling;
+      while(n&&!n.classList.contains('sb-section')){
+        if(n.classList.contains('sb-item')&&n.style.display!=='none'){vis=true;break;}
+        n=n.nextElementSibling;
+      }
+      sec.style.display=vis?'':'none';
+    });
     // Cargar badge de actividad para owner
   if(u.role==='owner'){
     fetch('/api/activity',{credentials:'include'}).then(r=>r.json()).then(logs=>{
