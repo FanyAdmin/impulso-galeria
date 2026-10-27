@@ -771,15 +771,48 @@ def get_config(clave):
     c = Config.query.get(clave)
     return jsonify({'clave': clave, 'valor': json.loads(c.valor) if c and c.valor else None})
 
+# Configuraciones que también guardan las sucursales (candados y tablero).
+# Todo lo demás solo lo guarda admin / dueña.
+CONFIG_SUCURSAL = {'cierres_suc', 'notas_fis', 'tablero_hist', 'ord_stock'}
+
+def _suc_de_sesion():
+    s = str(session.get('suc') or '').lower()
+    return 'Zibata' if 'zibata' in s else ('Jardines' if 'jardines' in s else '')
+
 @app.route('/api/config/<clave>', methods=['PUT'])
-@requiere_admin
+@requiere_login
 def set_config(clave):
+    rol = session.get('rol')
+    es_gestor = rol in ('admin', 'owner', 'dueno')
+    if not es_gestor and clave not in CONFIG_SUCURSAL:
+        return jsonify({'error': 'Sin permisos'}), 403
     d = request.json or {}
     c = Config.query.get(clave)
     if not c:
         c = Config(clave=clave)
         db.session.add(c)
-    c.valor = json.dumps(d.get('valor'))
+    nuevo = d.get('valor')
+    # Una sucursal solo puede escribir SUS cierres / notas físicas, y no puede
+    # marcar como recibido el dinero (eso lo decide la dueña).
+    if not es_gestor and clave in ('cierres_suc', 'notas_fis'):
+        suc = _suc_de_sesion()
+        try:
+            actual = json.loads(c.valor) if c.valor else {}
+        except Exception:
+            actual = {}
+        if not isinstance(actual, dict):
+            actual = {}
+        if isinstance(nuevo, dict) and suc:
+            for k, v in nuevo.items():
+                if not str(k).startswith(suc + '|'):
+                    continue
+                if k in actual and isinstance(actual[k], dict) and isinstance(v, dict):
+                    for campo in ('est', 'estF', 'estU'):
+                        if campo in actual[k]:
+                            v[campo] = actual[k][campo]
+                actual[k] = v
+        nuevo = actual
+    c.valor = json.dumps(nuevo)
     db.session.commit()
     return jsonify({'ok': True})
 
