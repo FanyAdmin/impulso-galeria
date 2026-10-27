@@ -169,6 +169,12 @@ body.riel-on .content{margin-right:300px}
    vencido, ámbar por vencer, gris sin factura). El hover genérico lo tapaba con
    blanco y se perdía la lectura de un vistazo. Aquí el renglón solo se oscurece
    un poco, conservando su color. */
+/* Cobranza: el color del renglón (tarjeta, conciliado, etc.) se queda al pasar
+   el mouse; solo se oscurece un poco, igual que en la hoja de proveedores. */
+#page-cob .tbl tbody tr:not(.cob-dia):hover td{background:transparent}
+#page-cob .tbl tbody tr:not(.cob-dia):hover{filter:brightness(.955)}
+#page-cob .tw table.tbl tbody tr:not(.cob-dia):hover>td:last-child{background:var(--surface)}
+#page-cob .tbl tbody tr.sel:hover td{background:#E9E9ED}
 #fp-tbl tbody tr:hover td{background:transparent}
 #fp-tbl tbody tr:hover{filter:brightness(.955)}
 .tw table.tbl#fp-tbl tbody tr:hover>td:last-child{background:var(--surface)}
