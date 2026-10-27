@@ -1101,6 +1101,17 @@ tr:hover .ent-edit{opacity:1}
   <div class="modal-foot"><button class="btn btn-p" id="cs-ok" onclick="cieGuardar()">🌙 Cerrar el día</button></div>
 </div>
 </div>
+<div class="modal-bg" id="mod-nf" style="display:none">
+<div class="modal" style="width:500px">
+  <div class="modal-hdr"><div class="modal-ttl">📝 Notas físicas · <span id="nf-suc"></span></div></div>
+  <div class="modal-body">
+    <div id="nf-tarde" style="background:var(--borgona-l);color:var(--borgona);border-radius:10px;padding:9px 12px;font-size:13px;font-weight:600;margin-bottom:10px">Ya pasaron las 11. Para seguir trabajando, registra las notas que falten y deja un comentario para Estefania.</div>
+    <div style="font-size:13.5px;margin-bottom:10px">Revisa tus notas en papel de ayer y de hoy: <b>¿todas están registradas en la plataforma?</b> Si falta alguna, regístrala antes de aceptar.</div>
+    <div class="field" id="nf-com-wrap"><label>Comentario para Estefania</label><input id="nf-com" placeholder="Qué faltaba registrar, o por qué se revisó tarde"></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" id="nf-posp" onclick="nfPosponer()">Posponer (antes de las 11)</button><button class="btn btn-p" onclick="nfAceptar()">✓ Todas están registradas</button></div>
+</div>
+</div>
 <datalist id="dl-terceros"></datalist>
 <div class="modal-bg" id="mod-ptdev" style="display:none">
 <div class="modal" style="width:540px">
@@ -2733,7 +2744,9 @@ function go(id){
     lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},tab:()=>{rTab();cargarAuditOK().then(function(){try{pintaAvisoAudit();}catch(e){}try{pintaAvisoTerceros();}catch(e){}});},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:()=>{cargarBcoOK().then(rCuadre);}
   })[id]?.();
   try{rRiel();}catch(e){}
-  try{var _mc=document.getElementById('mod-cie-suc');if(!(_mc&&_mc.style.display&&_mc.style.display!=='none'))cieCandado();}catch(e){}
+  try{var _mc=document.getElementById('mod-cie-suc'),_mn=document.getElementById('mod-nf');
+    var _ab=function(m){return m&&m.style.display&&m.style.display!=='none';};
+    if(!_ab(_mc)&&!_ab(_mn)){if(!cieCandado())nfCandado();}}catch(e){}
 }
 
 // ─── COTIZADOR ────────────────────────────────────────────────────────────────
@@ -8726,7 +8739,7 @@ function cieGuardar(){
   if((noab||Math.abs(dif)>=1)&&!com){alert(noab?'Escribe por qué no abrió la sucursal.':'Hay diferencia: escribe qué pasó.');return;}
   var u=_u()||{},now=new Date();
   var reg={suc:x.suc,f:x.f,u:u.display||u.name||CU||'',hora:now.toTimeString().slice(0,5),fReg:todayStr(),tarde:x.f!==todayStr()||now.getHours()>=20,
-    noab:noab,notas:c.ef,contado:noab?0:v,dif:dif,com:com};
+    noab:noab,notas:c.ef,contado:noab?0:v,dif:dif,com:com,est:(noab||!(v>0))?'rec':'pend'};
   var b=document.getElementById('cs-ok');b.disabled=true;
   fetch('/api/config/cierres_suc',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){
     var C=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};C[x.suc+'|'+x.f]=reg;CIERRES=C;
@@ -8734,19 +8747,125 @@ function cieGuardar(){
   }).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);
     logActivity('Cierre de sucursal',x.suc+' '+x.f+(noab?' · no abrió':' · contado '+fmt(v)+(Math.abs(dif)>=1?' · diferencia '+fmt(dif):''))+(com?' · '+com:''));
     CM('mod-cie-suc');CIE_SUC_CTX=null;try{rTab();}catch(e){}
-    if(!cieCandado())alert('🌙 Día cerrado.');
+    if(!cieCandado()){if(!nfCandado())alert('🌙 Día cerrado.');}
   }).catch(function(e){alert('⚠️ No se guardó el cierre ('+e.message+'). Inténtalo de nuevo.');}).then(function(){b.disabled=false;});
 }
+
+// ── 3. Entrega de caja ──
+// Cada cierre con efectivo queda "por entregar". Estefania decide: Recibí (el dinero
+// pasa a su cuenta Efectivo) o Que se quede (se acumula en la caja de la sucursal,
+// a su nombre, hasta que lo entregue). Jardines ya cobra en la cuenta Efectivo, así
+// que su "Recibí" solo deja constancia; Zibata hace traspaso de Efectivo Zibata.
+function cajaPend(suc){
+  return Object.keys(CIERRES).map(function(k){return CIERRES[k];})
+    .filter(function(c){return c&&c.suc===suc&&(c.est==='pend'||c.est==='acum')&&(+c.contado||0)>0;})
+    .sort(function(a,b){return a.f<b.f?-1:1;});
+}
+function cajaGuardarEst(suc,est,extra){
+  return fetch('/api/config/cierres_suc',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){
+    var C=(d&&d.valor&&typeof d.valor==='object')?d.valor:{},u=_u()||{};
+    Object.keys(C).forEach(function(k){var c=C[k];if(c&&c.suc===suc&&(c.est==='pend'||(est==='rec'&&c.est==='acum'))&&(+c.contado||0)>0){
+      c.est=est;c.estF=todayStr();c.estU=u.display||u.name||CU||'';if(extra)Object.assign(c,extra);}});
+    CIERRES=C;
+    return fetch('/api/config/cierres_suc',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:C})});
+  }).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);});
+}
+function cajaRecibi(suc){
+  var L=cajaPend(suc);if(!L.length)return;
+  var tot=Math.round(L.reduce(function(s,c){return s+(+c.contado||0);},0)*100)/100,dias=L.map(function(c){return ptFec(c.f).slice(0,5);}).join(', ');
+  if(!confirm('¿Recibiste '+fmt(tot)+' de '+suc+' (cierres del '+dias+')?'))return;
+  var p=Promise.resolve(),ctaSuc=suc==='Zibata'?Object.keys(BANCOS_INIT).find(function(c){return /efectivo/i.test(c)&&/zibata/i.test(c);}):null;
+  if(ctaSuc&&BANCOS_INIT['Efectivo']!==undefined){
+    var f=todayStr();
+    p=ptPostMov({tipo:'Traspaso',concepto:'Traspaso entre cuentas',desc:'Entrega de caja '+suc+' (cierres del '+dias+')',cuenta:ctaSuc,cta_destino:'Efectivo',socio:'',monto:tot,fecha:f,mes:parseInt(f.split('-')[1],10)-1});
+  }
+  p.then(function(){return cajaGuardarEst(suc,'rec');})
+   .then(function(){logActivity('Recibió entrega de caja',suc+' · '+fmt(tot)+' · '+dias);try{rTab();}catch(e){}})
+   .catch(function(e){alert('⚠️ No se terminó de registrar ('+e.message+'). Revisa Movimientos antes de reintentar.');});
+}
+function cajaQueSeQuede(suc){
+  cajaGuardarEst(suc,'acum').then(function(){logActivity('Caja se queda en sucursal',suc);try{rTab();}catch(e){}})
+    .catch(function(e){alert('⚠️ No se guardó ('+e.message+')');});
+}
+function cajaHTMLDueña(suc){
+  var L=cajaPend(suc);if(!L.length)return '';
+  var tot=L.reduce(function(s,c){return s+(+c.contado||0);},0),nuevo=L.some(function(c){return c.est==='pend';});
+  var dias=ptDias(L[0].f);
+  return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:4px 0 6px 0;padding:7px 10px;border-radius:9px;'+(nuevo?'background:var(--mant-l)':'background:var(--surface2)')+'">'+
+    '<span style="flex:1;font-size:12.5px">💵 <b>'+suc+'</b> '+(nuevo?'te entrega':'tiene en su caja')+' <b class="mono">'+fmt(tot)+'</b> '+
+    '<span style="color:var(--text3)">· '+L.length+' cierre'+(L.length===1?'':'s')+(dias?' · el más viejo de hace '+dias+' día'+(dias===1?'':'s'):'')+'</span></span>'+
+    '<button class="btn btn-p btn-xs" onclick="cajaRecibi(\''+suc+'\')">Recibí</button>'+
+    (nuevo?'<button class="btn btn-s btn-xs" onclick="cajaQueSeQuede(\''+suc+'\')">Que se quede</button>':'')+'</div>';
+}
+function cajaHTMLSuc(suc){
+  var L=cajaPend(suc);if(!L.length)return '';
+  var tot=L.reduce(function(s,c){return s+(+c.contado||0);},0);
+  return '<div style="font-size:12.5px;margin-top:6px;color:var(--text2)">💵 En tu caja, por entregar a Estefania: <b class="mono">'+fmt(tot)+'</b> (desde el '+ptFec(L[0].f)+')</div>';
+}
+// ── 4. Notas físicas (11:00) ──
+// Cada mañana la sucursal confirma que todas sus notas en papel están registradas.
+// Antes de las 11 puede posponer; después, candado hasta registrar lo que falte y
+// dejar un comentario para Estefania.
+var NOTAS_FIS={},NF_POSP=false;
+function nfCargar(){return fetch('/api/config/notas_fis',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){NOTAS_FIS=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};}).catch(function(){});}
+function nfHoy(suc){return NOTAS_FIS[suc+'|'+todayStr()]||null;}
+function nfAplica(){var d=new Date();return d.getDay()!==0&&CIERRES_DESDE&&todayStr()>=CIERRES_DESDE;}
+function nfCandado(){
+  var suc=cieSucDe();if(!suc||!nfAplica()||nfHoy(suc))return false;
+  var tarde=new Date().getHours()>=11;
+  if(!tarde&&NF_POSP)return false;
+  nfAbrir(suc,tarde);return true;
+}
+function nfAbrir(suc,tarde){
+  document.getElementById('nf-suc').textContent=suc;
+  document.getElementById('nf-tarde').style.display=tarde?'':'none';
+  document.getElementById('nf-posp').style.display=tarde?'none':'';
+  document.getElementById('nf-com-wrap').style.display=tarde?'':'none';
+  document.getElementById('nf-com').value='';
+  OM('mod-nf');
+}
+function nfPosponer(){NF_POSP=true;CM('mod-nf');try{rTab();}catch(e){}}
+function nfAceptar(){
+  var suc=cieSucDe();if(!suc)return;
+  var tarde=new Date().getHours()>=11,com=document.getElementById('nf-com').value.trim();
+  if(tarde&&!com){alert('Ya pasaron las 11: escribe para Estefania qué faltaba registrar o por qué se revisó tarde.');return;}
+  var u=_u()||{},reg={suc:suc,f:todayStr(),hora:new Date().toTimeString().slice(0,5),u:u.display||u.name||CU||'',tarde:tarde,com:com};
+  fetch('/api/config/notas_fis',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){
+    var N=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};N[suc+'|'+reg.f]=reg;
+    var ks=Object.keys(N).sort();if(ks.length>400)ks.slice(0,ks.length-400).forEach(function(k){delete N[k];});
+    NOTAS_FIS=N;
+    return fetch('/api/config/notas_fis',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:N})});
+  }).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);
+    logActivity('Notas físicas revisadas',suc+(tarde?' · tarde ('+reg.hora+')':'')+(com?' · '+com:''));CM('mod-nf');try{rTab();}catch(e){}})
+    .catch(function(e){alert('⚠️ No se guardó ('+e.message+')');});
+}
+function nfTabHTML(){
+  var suc=cieSucDe();
+  if(suc){
+    if(!nfAplica())return '';
+    var r=nfHoy(suc);
+    if(r)return '';
+    return '<div class="card" style="padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--azul-l);border-color:#BCD3F3">'+
+      '<div style="flex:1;font-size:13px">📝 <b>Revisa tus notas físicas</b> antes de las 11: que todas las de papel estén registradas.</div>'+
+      '<button class="btn btn-p btn-sm" onclick="nfAbrir(\''+suc+'\',new Date().getHours()>=11)">Revisar</button></div>';
+  }
+  var u=_u()||{};if(u.role!=='owner'&&u.role!=='admin')return '';
+  var fila=function(sc){var r=NOTAS_FIS[sc+'|'+todayStr()];
+    if(!r)return '<span style="color:'+(new Date().getHours()>=11?'var(--borgona)':'var(--text3)')+'">'+sc+': sin revisar</span>';
+    return sc+': ✓ '+r.hora+(r.tarde?' <b style="color:var(--borgona)">tarde</b>':'')+(r.com?' <span style="color:var(--text3)">· '+ptEsc(r.com)+'</span>':'');};
+  return '<div style="font-size:12.5px;padding:3px 0;border-top:1px dashed var(--border);margin-top:4px">📝 Notas físicas hoy · '+fila('Jardines')+' · '+fila('Zibata')+'</div>';
+}
+
 // En Mi tablero: botón para cerrar el día y, para Estefania, cómo van los cierres
 function cieTabHTML(){
   var suc=cieSucDe(),hoy=todayStr(),h=new Date().getHours(),out='';
   if(suc){
     var hecho=CIERRES[suc+'|'+hoy];
-    if(hecho)out='<div class="card" style="padding:10px 14px;margin-bottom:12px;font-size:13px">🌙 Tu día ya está cerrado ('+hecho.hora+').</div>';
+    if(hecho)out='<div class="card" style="padding:10px 14px;margin-bottom:12px;font-size:13px">🌙 Tu día ya está cerrado ('+hecho.hora+').'+cajaHTMLSuc(suc)+'</div>';
     else out='<div class="card" style="padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;'+(h>=19?'background:var(--mant-l);border-color:#F3DC8A':'')+'">'+
       '<div style="flex:1;font-size:13px">'+(h>=19?'<b>Ya son las 7.</b> Cierra tu día antes de irte.':'Al terminar el día, cierra tu caja aquí.')+'</div>'+
-      '<button class="btn btn-p btn-sm" onclick="cieAbrir(\''+suc+'\',todayStr(),false)">🌙 Cerrar mi día</button></div>';
-    return out;
+      '<button class="btn btn-p btn-sm" onclick="cieAbrir(\''+suc+'\',todayStr(),false)">🌙 Cerrar mi día</button>'+cajaHTMLSuc(suc)+'</div>';
+    return nfTabHTML()+out;
   }
   var u=_u()||{};if(u.role!=='owner'&&u.role!=='admin')return '';
   var ayer=cieDiaAnterior();
@@ -8754,7 +8873,8 @@ function cieTabHTML(){
     var tx=function(c,lbl){if(!c)return '<span style="color:var(--borgona)">'+lbl+': sin cierre</span>';
       return lbl+': '+(c.noab?'no abrió':'✓ '+c.hora+(Math.abs(c.dif)>=1?' <b style="color:var(--borgona)">'+(c.dif>0?'+':'')+fmt(c.dif)+'</b>':''))+(c.com?' <span style="color:var(--text3)">· '+ptEsc(c.com)+'</span>':'');};
     return '<div style="font-size:12.5px;padding:3px 0"><b>'+sc+'</b> · '+(ayer>=(CIERRES_DESDE||'9999')?tx(a,'ayer'):'ayer: —')+' · '+tx(t,'hoy')+'</div>';};
-  return '<div class="card" style="padding:10px 14px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">🌙 Cierres de caja</div>'+fila('Jardines')+fila('Zibata')+'</div>';
+  return '<div class="card" style="padding:10px 14px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">🌙 Cierres de caja</div>'+fila('Jardines')+fila('Zibata')+
+    cajaHTMLDueña('Jardines')+cajaHTMLDueña('Zibata')+nfTabHTML()+'</div>';
 }
 
 // ═══ MI TABLERO: el avance del día ═══════════════════════════════════════════
@@ -12871,7 +12991,7 @@ function loadData(){
     loadAuditExcl();
     cargarPuentePct();
     stkCargar().then(function(){try{if(document.querySelector('#page-ord.active'))rOrd();}catch(e){}});
-    cieCargar().then(function(){try{rTab();}catch(e){}try{cieCandado();}catch(e){}});
+    Promise.all([cieCargar(),nfCargar()]).then(function(){try{rTab();}catch(e){}try{if(!cieCandado())nfCandado();}catch(e){}});
     ajCargar().then(function(){try{if(document.querySelector('#page-mov.active'))ajPintaBanner();}catch(e){}});
     loadBancosCfg().then(()=>{pintarCuentasSelects();tqzAsegurarCuenta();try{if(document.querySelector('#page-ban.active'))rBancos();}catch(e){}});
     if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
