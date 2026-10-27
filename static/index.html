@@ -571,6 +571,32 @@ tr:hover .ent-edit{opacity:1}
 .tb-card.ro{background:#FDE8EE;border-color:#F0B8CB;border-left:4px solid #C2325F}
 .tb-card .d{font-size:11px;color:var(--text3)}
 .tb-card .acc{margin-top:5px;display:flex;gap:5px;flex-wrap:wrap}
+
+/* ── Mi tablero a color (paleta de la plataforma: ciruela, azul, mantequilla, menta, rosa) ── */
+.tb2-sem{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.tb2-s{border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;cursor:pointer;border:2px solid transparent;transition:transform .15s,box-shadow .15s,border-color .15s;user-select:none}
+.tb2-s:hover{transform:translateY(-2px);box-shadow:0 6px 16px -8px rgba(0,0,0,.25)}
+.tb2-s.on{border-color:currentColor}
+.tb2-s .n{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:800;flex-shrink:0}
+.tb2-s .t{font-size:15px;font-weight:800}.tb2-s .st{font-size:12px;opacity:.85}
+.tb2-cols{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:1000px){.tb2-cols{grid-template-columns:repeat(2,minmax(0,1fr))}.tb2-sem{grid-template-columns:1fr}}
+.tb2-col{border-radius:14px;padding:8px;min-height:140px}
+.tb2-hd{border-radius:10px;padding:9px 11px;display:flex;align-items:center;justify-content:space-between;color:#fff;margin-bottom:8px;font-weight:800;font-size:13.5px}
+.tb2-hd b{font-size:20px}
+.tb2-c{background:var(--surface);border-radius:0 10px 10px 0;border-left:6px solid;padding:9px 10px;margin-bottom:7px;cursor:pointer;transition:transform .15s,box-shadow .15s,opacity .2s;animation:tbIn .35s ease both}
+.tb2-c:hover{transform:translateX(3px);box-shadow:0 5px 14px -8px rgba(0,0,0,.3)}
+.tb2-c.off{opacity:.18}
+.tb2-c .pill{display:inline-block;color:#fff;font-size:11px;font-weight:800;padding:2px 9px;border-radius:20px}
+.tb2-c .pill.pulse{animation:tbPulse 1.6s ease-in-out infinite}
+.tb2-c .nm{margin:5px 0 0;font-size:14.5px;font-weight:700;color:var(--text)}
+.tb2-c .fr{margin:1px 0 0;font-size:12.5px;color:var(--text2)}
+.tb2-c .det{display:none;margin-top:7px;padding-top:7px;border-top:1px dashed var(--border);font-size:12px;color:var(--text2)}
+.tb2-c.abierta .det{display:block}
+.tb2-vacio{font-size:12.5px;color:var(--text3);padding:10px 4px;text-align:center}
+@keyframes tbIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes tbPulse{0%,100%{box-shadow:0 0 0 0 rgba(194,50,95,.5)}50%{box-shadow:0 0 0 6px rgba(194,50,95,0)}}
+.tb-ring{transition:stroke-dasharray 1.1s cubic-bezier(.2,.8,.2,1)}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -8947,8 +8973,8 @@ function tbRacha(){
 }
 function tbAnilloSVG(A){
   var r=function(rad,p,col){var c=2*Math.PI*rad,l=c*Math.min(100,p)/100;
-    return '<circle cx="50" cy="50" r="'+rad+'" fill="none" stroke="var(--border)" stroke-width="9"/><circle cx="50" cy="50" r="'+rad+'" fill="none" stroke="'+col+'" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+l.toFixed(1)+' '+c.toFixed(1)+'" transform="rotate(-90 50 50)"/>';};
-  return '<svg width="104" height="104" viewBox="0 0 100 100" role="img" aria-label="Anillos del día">'+r(43,A.ped,'#1D9E75')+r(31,A.tal,'#7F77DD')+r(19,A.ent,'#D4537E')+'</svg>';
+    return '<circle cx="50" cy="50" r="'+rad+'" fill="none" stroke="var(--border)" stroke-width="9"/><circle class="tb-ring" data-l="'+l.toFixed(1)+'" data-c="'+c.toFixed(1)+'" cx="50" cy="50" r="'+rad+'" fill="none" stroke="'+col+'" stroke-width="9" stroke-linecap="round" stroke-dasharray="0 '+c.toFixed(1)+'" transform="rotate(-90 50 50)"/>';};
+  return '<svg width="104" height="104" viewBox="0 0 100 100" role="img" aria-label="Anillos del día">'+r(43,A.ped,'#6E3B57')+r(31,A.tal,'#C99A2E')+r(19,A.ent,'#12A37A')+'</svg>';
 }
 function tbCard(c){
   var p=c.p,acc='',ce=!soloMira();
@@ -8975,6 +9001,87 @@ function tbLista(id,on){
       logActivity(on?'Trabajo listo':'Trabajo regresó a taller','Nota '+p.folio);rTab();})
     .catch(function(e){p.taller_est=prev;alert('⚠️ No se guardó ('+e.message+')');rTab();});
 }
+
+// ── Vista a color ──
+var TB_FILTRO=null;
+var TB_EST={atr:{t:'Atrasada',c:'#C2325F'},urg:{t:'Urge',c:'#E0A21B'},ok:{t:'En tiempo',c:'#12A37A'},avi:{t:'Avisar',c:'#12A37A'}};
+var TB_ETA={pedir:{t:'Por pedir',ic:'🛒',hd:'#6E3B57',bg:'#F4ECF1'},prov:{t:'Con proveedor',ic:'🚚',hd:'#2F6FB3',bg:'#E9F1FA'},
+  taller:{t:'En taller',ic:'🛠',hd:'#B7861C',bg:'#FBF3DF'},lista:{t:'Listas',ic:'🎁',hd:'#12865F',bg:'#E4F5EE'}};
+function tbEstado(c){
+  if(c.etapa==='lista')return c.color==='ro'?'atr':'avi';
+  return c.color==='ro'?'atr':c.color==='am'?'urg':'ok';
+}
+function tbFraseEntrega(f){
+  var hoy=new Date(todayStr()+'T12:00:00'),e=new Date(String(f).slice(0,10)+'T12:00:00'),d=Math.round((e-hoy)/864e5);
+  if(d<0)return 'venció hace '+(-d)+' día'+(d===-1?'':'s');
+  if(d===0)return 'se entrega hoy';if(d===1)return 'se entrega mañana';
+  if(d<7)return 'se entrega el '+['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][e.getDay()];
+  return 'se entrega el '+ptFec(f).slice(0,5);
+}
+function tbFrase(c){
+  var p=c.p,d=c.dias;
+  if(c.etapa==='lista')return d>=1?'lista hace '+d+' día'+(d===1?'':'s')+', falta avisar o que recoja':'lista hoy, falta avisar';
+  if(p.entrega&&(c.vencida||c.color==='am'))return tbFraseEntrega(p.entrega);
+  if(c.etapa==='pedir')return d===0?'entró hoy':d===1?'entró ayer':d+' días sin pedir';
+  if(c.etapa==='prov')return d===0?'pedida hoy':d+' día'+(d===1?'':'s')+' con el proveedor';
+  return d===0?'entró hoy a taller':d+' día'+(d===1?'':'s')+' en taller';
+}
+function tbCard2(c,i){
+  var p=c.p,e=tbEstado(c),E=TB_EST[e],acc='',ce=!soloMira();
+  if(c.etapa==='pedir'&&ce)acc='<button class="btn btn-s btn-xs" onclick="event.stopPropagation();go(\'ord\')">Ir a pedir</button>';
+  if(c.etapa==='prov'&&ce)acc='<button class="btn btn-s btn-xs" onclick="event.stopPropagation();go(\'ord\')">Marcar recibido</button>';
+  if(c.etapa==='taller'&&ce)acc='<button class="btn btn-p btn-xs" onclick="event.stopPropagation();tbLista('+p.id+',true)">✓ Ya está lista</button>';
+  if(c.etapa==='lista'){
+    var tel=String(p.tel||'').replace(/\D/g,'');if(tel.length===10)tel='52'+tel;
+    var msg=encodeURIComponent('Hola '+(p.cli||'')+', le escribimos de Impulso Galería: su pedido (nota '+p.folio+') ya está listo para recoger. ¡Gracias!');
+    acc=(tel?'<a class="btn btn-p btn-xs" onclick="event.stopPropagation()" target="_blank" rel="noopener" href="https://wa.me/'+tel+'?text='+msg+'">WhatsApp al cliente</a>':'<span>sin teléfono</span>')+
+      (ce?' <button class="btn btn-s btn-xs" onclick="event.stopPropagation();tbLista('+p.id+',false)">Regresar a taller</button>':'');
+  }
+  // Atrasada o con la fecha encima: avisar al cliente y reprogramar desde aquí
+  if(c.etapa!=='lista'&&p.entrega&&(c.vencida||c.color==='am')&&ce){
+    var sug=addBiz(todayStr(),3);
+    acc+='<div style="width:100%;margin-top:6px;padding:7px 8px;border-radius:8px;background:#FBE4EC" onclick="event.stopPropagation()">'+
+      '<div style="font-size:11.5px;font-weight:700;color:#8E1F45;margin-bottom:4px">'+(c.vencida?'Avisar al cliente del retraso':'Avisar antes de que venza')+'</div>'+
+      '<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap"><span style="font-size:11.5px">Nueva fecha</span><input type="date" id="tbnf-'+p.id+'" value="'+sug+'" style="max-width:140px;padding:3px 6px;font-size:12px">'+
+      '<button class="btn btn-p btn-xs" onclick="tbAvisarRetraso('+p.id+')">WhatsApp al cliente</button></div></div>';
+  }
+  var off=TB_FILTRO&&TB_FILTRO!==(e==='avi'?'ok':e);
+  return '<div class="tb2-c'+(off?' off':'')+'" style="border-left-color:'+E.c+';animation-delay:'+(i*45)+'ms" onclick="this.classList.toggle(\'abierta\')">'+
+    '<span class="pill'+(e==='atr'?' pulse':'')+'" style="background:'+E.c+'">'+E.t+'</span>'+
+    '<p class="nm">'+ptEsc(p.folio)+' · '+ptEsc(p.cli||'')+'</p><p class="fr">'+tbFrase(c)+'</p>'+
+    '<div class="det">'+ptEsc(p.suc||'')+(c.info?' · '+ptEsc(c.info):'')+(p.entrega?'<br>Prometida: '+ptFec(p.entrega):'')+(p.tel?'<br>Tel. '+ptEsc(p.tel):'')+
+      (acc?'<div style="margin-top:6px;display:flex;gap:5px;flex-wrap:wrap">'+acc+'</div>':'')+'</div></div>';
+}
+
+// Retraso: guarda la nueva fecha prometida, deja constancia y abre WhatsApp con el mensaje listo
+function tbAvisarRetraso(id){
+  var p=(pedidos||[]).find(function(x){return x.id===id;});if(!p)return;
+  var el=document.getElementById('tbnf-'+id),nf=el&&el.value;
+  if(!nf||nf<todayStr()){alert('Elige la nueva fecha de entrega (de hoy en adelante).');return;}
+  var tel=String(p.tel||'').replace(/\D/g,'');if(tel.length===10)tel='52'+tel;
+  var fl=new Date(nf+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  var msg='Hola '+(p.cli||'')+', le escribimos de Impulso Galería sobre su pedido (nota '+p.folio+'). Tuvimos un retraso y queremos avisarle a tiempo: estará listo el '+fl+'. Le agradecemos mucho su paciencia.';
+  var w=tel?window.open('https://wa.me/'+tel+'?text='+encodeURIComponent(msg),'_blank'):null;
+  var ant=p.entrega;p.entrega=nf;
+  fetch('/api/pedidos/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({entrega:nf})})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);
+      logActivity('Retraso avisado al cliente','Nota '+p.folio+' · de '+(ant||'—')+' a '+nf+(tel?'':' · sin teléfono, no se mandó WhatsApp'));
+      if(!tel)alert('La nota no tiene teléfono: se cambió la fecha, pero avísale al cliente por otro medio.');
+      rTab();})
+    .catch(function(e){p.entrega=ant;alert('⚠️ No se guardó la nueva fecha ('+e.message+')');rTab();});
+}
+
+function tbFiltrar(k){TB_FILTRO=TB_FILTRO===k?null:k;rTab();}
+function tbContar(el){
+  var fin=+el.dataset.n||0,t0=null;
+  var paso=function(ts){if(!t0)t0=ts;var k=Math.min(1,(ts-t0)/600);el.textContent=Math.round(fin*k);if(k<1)requestAnimationFrame(paso);};
+  requestAnimationFrame(paso);
+}
+function tbAnimar(){
+  setTimeout(function(){document.querySelectorAll('#page-tab .tb-ring').forEach(function(r){r.setAttribute('stroke-dasharray',r.dataset.l+' '+r.dataset.c);});},60);
+  document.querySelectorAll('#page-tab [data-n]').forEach(tbContar);
+}
+
 function rTab(){
   var c=document.getElementById('tab-c');if(!c)return;
   var u=_u()||{},E=tbEtapas(),A=tbAnillos(E);
@@ -8987,11 +9094,19 @@ function rTab(){
     '<div style="flex:1;min-width:220px"><div style="font-family:Caveat,cursive;font-size:26px;color:var(--text)">'+sal+(nombre?', '+ptEsc(nombre):'')+'.</div>'+
     '<div style="font-size:13.5px;color:var(--text2);margin:2px 0 8px">'+(cerr?'Tus tres anillos van cerrados. Así se ve un buen día.':'Te falta'+(A.faltan===1?'':'n')+' <b>'+A.faltan+'</b> movimiento'+(A.faltan===1?'':'s')+' para cerrar tus anillos de hoy.')+'</div>'+
     '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text2)">'+
-      '<span><span style="color:#1D9E75">●</span> Pedidos al día '+A.ped+'%</span><span><span style="color:#7F77DD">●</span> Taller fluyendo '+A.tal+'%</span><span><span style="color:#D4537E">●</span> Entregas a tiempo '+A.ent+'%</span>'+
+      '<span><span style="color:#6E3B57">●</span> Pedidos al día '+A.ped+'%</span><span><span style="color:#C99A2E">●</span> Taller fluyendo '+A.tal+'%</span><span><span style="color:#12A37A">●</span> Entregas a tiempo '+A.ent+'%</span>'+
       (racha?'<span style="color:var(--mant-d);font-weight:700">🔥 '+racha+' día'+(racha===1?'':'s')+' seguidos</span>':'')+'</div></div></div>';
-  var col=function(k,t){var L=E[k];return '<div class="tb-col"><h4><span>'+t+'</span><span>'+L.length+'</span></h4>'+(L.length?L.map(tbCard).join(''):'<div class="d" style="font-size:12px;color:var(--text3)">Nada aquí.</div>')+'</div>';};
-  c.innerHTML=cieTabHTML()+'<div class="tb-cols">'+col('pedir','Por pedir')+col('prov','Esperando proveedor')+col('taller','En taller')+col('lista','Listas para entregar')+'</div>'+
-    '<div style="font-size:12px;color:var(--text3);margin-top:8px">✓ Las '+tot+' notas abiertas están en alguna columna. Amarillo y rojo = lleva más días de lo normal o la fecha prometida está encima.</div>';
+  var todas=[].concat(E.pedir,E.prov,E.taller,E.lista),cnt={atr:0,urg:0,ok:0};
+  todas.forEach(function(x){var e=tbEstado(x);cnt[e==='avi'?'ok':e]++;});
+  var sem=function(k,t,st,bg,fg,nb,nf){return '<div class="tb2-s'+(TB_FILTRO===k?' on':'')+'" style="background:'+bg+';color:'+fg+'" onclick="tbFiltrar(\''+k+'\')" title="Toca para ver solo estas">'+
+    '<div class="n" style="background:'+nb+';color:'+nf+'" data-n="'+cnt[k]+'">0</div><div><div class="t">'+t+'</div><div class="st">'+st+'</div></div></div>';};
+  var n=0,col=function(k){var M=TB_ETA[k],L=E[k];return '<div class="tb2-col" style="background:'+M.bg+'"><div class="tb2-hd" style="background:'+M.hd+'"><span>'+M.ic+' '+M.t+'</span><b data-n="'+L.length+'">0</b></div>'+
+    (L.length?L.map(function(x){return tbCard2(x,n++);}).join(''):'<div class="tb2-vacio">Nada aquí ✨</div>')+'</div>';};
+  c.innerHTML=cieTabHTML()+
+    '<div class="tb2-sem">'+sem('atr','Atrasadas','Atiéndelas primero','#FBE4EC','#8E1F45','#C2325F','#fff')+sem('urg','Urgen','La fecha está encima','#FDF1D6','#7A5208','#E0A21B','#3D2A02')+sem('ok','Van bien','En tiempo','#E1F5EC','#0B5E41','#12A37A','#fff')+'</div>'+
+    '<div class="tb2-cols">'+col('pedir')+col('prov')+col('taller')+col('lista')+'</div>'+
+    '<div style="font-size:12px;color:var(--text3);margin-top:8px">✓ Las '+tot+' notas abiertas están en su lugar. Toca una nota para ver sus datos y botones; toca un semáforo para ver solo esas.</div>';
+  tbAnimar();
   tbRachaGuardar(A);
 }
 
