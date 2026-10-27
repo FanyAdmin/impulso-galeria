@@ -560,6 +560,17 @@ tr:hover .ent-edit{opacity:1}
   .modal{max-height:92vh;overflow-y:auto}
   input,select{font-size:16px}
 }
+
+/* ── Mi tablero ── */
+.tb-cols{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media(max-width:900px){.tb-cols{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.tb-col{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:10px;min-height:120px}
+.tb-col h4{margin:0 0 8px;font-size:12.5px;font-weight:700;color:var(--text2);display:flex;justify-content:space-between}
+.tb-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:7px 9px;margin-bottom:6px;font-size:12px;line-height:1.35}
+.tb-card.am{background:#FFF7DB;border-color:#F3DC8A;border-left:4px solid #E0B341}
+.tb-card.ro{background:#FDE8EE;border-color:#F0B8CB;border-left:4px solid #C2325F}
+.tb-card .d{font-size:11px;color:var(--text3)}
+.tb-card .acc{margin-top:5px;display:flex;gap:5px;flex-wrap:wrap}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -1067,6 +1078,29 @@ tr:hover .ent-edit{opacity:1}
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-agt')">Cerrar</button><button class="btn btn-p" onclick="aguTodosImprimir()">🖨 Imprimir</button></div>
 </div>
 </div>
+<div class="modal-bg" id="mod-cfolio" style="display:none">
+<div class="modal" style="width:540px">
+  <div class="modal-hdr"><div class="modal-ttl">🔒 Falta un folio</div><button class="modal-x" onclick="CM('mod-cfolio')">✕</button></div>
+  <div class="modal-body"><div id="cf-txt" style="font-size:13.5px;margin-bottom:8px"></div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Para cada folio que falta: si esta captura en realidad es ese folio, corrígelo; si la nota se canceló, regístrala como CANCELADA. Si la nota existe y no se ha capturado, cierra este aviso y captúrala primero.</div>
+    <div id="cf-lista"></div></div>
+</div>
+</div>
+<div class="modal-bg" id="mod-cie-suc" style="display:none">
+<div class="modal" style="width:520px">
+  <div class="modal-hdr"><div class="modal-ttl" id="cs-ttl">🌙 Cierre</div><button class="modal-x" id="cs-x" onclick="CM('mod-cie-suc');CIE_SUC_CTX=null">✕</button></div>
+  <div class="modal-body">
+    <div id="cs-aviso"></div>
+    <div class="srow" style="font-size:13.5px"><span>Efectivo cobrado según las notas</span><b class="mono" id="cs-ef"></b></div>
+    <div id="cs-otros" style="font-size:11.5px;color:var(--text3);margin:2px 0 10px"></div>
+    <div id="cs-cont-wrap" class="field"><label>¿Cuánto efectivo de ese día contaste? <span style="font-weight:400;color:var(--text3)">(sin el fondo de caja ni lo de días anteriores)</span></label><input type="number" step="0.01" id="cs-cont" oninput="cieCalc()"></div>
+    <div id="cs-dif" style="font-size:13px;margin:6px 0 10px"></div>
+    <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="cs-noab" onchange="cieCalc()"> Ese día la sucursal no abrió</label>
+    <div class="field"><label>Comentario para Estefania</label><input id="cs-com" placeholder="Obligatorio si hay diferencia o si no abrió"></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-p" id="cs-ok" onclick="cieGuardar()">🌙 Cerrar el día</button></div>
+</div>
+</div>
 <datalist id="dl-terceros"></datalist>
 <div class="modal-bg" id="mod-ptdev" style="display:none">
 <div class="modal" style="width:540px">
@@ -1094,7 +1128,7 @@ tr:hover .ent-edit{opacity:1}
 <!-- SIDEBAR -->
 <div class="sidebar">
   <div class="sb-logo">
-    <div class="sb-mark" onclick="go('hoy')" title="Impulso Galería">
+    <div class="sb-mark" onclick="go('tab')" title="Impulso Galería">
       <img src="/static/logo-impulso-sb.png" alt="Impulso Galería" style="display:none"
            onload="this.style.display='block';document.getElementById('sb-wm').style.display='none'"
            onerror="this.remove()">
@@ -1105,7 +1139,8 @@ tr:hover .ent-edit{opacity:1}
   </div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
-  <div class="sb-item active" onclick="go('cal')" id="nav-cal" style="font-weight:700">📆 Calendario</div>
+  <div class="sb-item active" onclick="go('tab')" id="nav-tab" style="font-weight:700">🏁 Mi tablero</div>
+  <div class="sb-item" onclick="go('cal')" id="nav-cal" style="display:none">📆 Calendario</div>
   <div class="sb-item" onclick="go('cot')" id="nav-cot">🧮 Cotizador</div>
   <div class="sb-item" onclick="go('ped')" id="nav-ped">📋 Pedidos</div>
   <div class="sb-item" onclick="go('cxc')" id="nav-cxc">💰 Cuentas x cobrar</div>
@@ -1130,7 +1165,7 @@ tr:hover .ent-edit{opacity:1}
   <div class="sb-item admin-only" style="display:none" onclick="go('conban')" id="nav-conban">🧮 Conciliación bancaria</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('cuadre')" id="nav-cuadre">⚖️ Cuadre de banco</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('audit2')" id="nav-audit2">🔎 Revisión automática <span id="aud2-badge" style="background:#D81B60;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
-  <div class="sb-item" onclick="go('rev')" id="nav-rev">📸 Revisión de notas</div>
+  <div class="sb-item" onclick="go('rev')" id="nav-rev" style="display:none">📸 Revisión de notas</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('audit')" id="nav-audit">🔍 Auditoría Efectivo</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('activity');clearActivityBadge()" id="nav-activity">🔔 Actividad <span id="activity-badge" style="background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
 
@@ -1448,8 +1483,6 @@ tr:hover .ent-edit{opacity:1}
     <div class="ph-title">📆 Calendario</div>
     <div class="ph-sub">Lo del negocio y lo de la gente, en un solo lugar. Pica un día para anotar algo.</div>
   </div></div>
-  <div id="cal-audit"></div>
-  <div id="cal-ter"></div>
   <div class="cal-top">
     <button class="cal-nav" onclick="calMover(-1)">‹</button>
     <div class="cal-mes" id="cal-mes"></div>
@@ -1461,6 +1494,14 @@ tr:hover .ent-edit{opacity:1}
   <div class="cal-grid" id="cal-dow"></div>
   <div class="cal-grid" id="cal-grid" style="margin-top:6px"></div>
   <div id="cal-det" style="margin-top:16px"></div>
+</div>
+
+<!-- MI TABLERO: avances del día -->
+<div class="page" id="page-tab">
+  <div id="tab-hola"></div>
+  <div id="cal-audit"></div>
+  <div id="cal-ter"></div>
+  <div id="tab-c"></div>
 </div>
 
 <!-- HOY -->
@@ -2689,9 +2730,10 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:()=>{cargarMapaCta().then(rDia);},cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:()=>{cargarBcoOK().then(function(){banInitCta();return cargarEdoCta(vgCtaBan());}).then(rBancos);},conban:()=>{cargarBcoOK().then(function(){banInitCta();return cargarEdoCta(vgCtaBan());}).then(function(){rBancos();banPinta();});},usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:()=>{cargarBcoOK().then(rCuadre);}
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},tab:()=>{rTab();cargarAuditOK().then(function(){try{pintaAvisoAudit();}catch(e){}try{pintaAvisoTerceros();}catch(e){}});},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:()=>{cargarBcoOK().then(rCuadre);}
   })[id]?.();
   try{rRiel();}catch(e){}
+  try{var _mc=document.getElementById('mod-cie-suc');if(!(_mc&&_mc.style.display&&_mc.style.display!=='none'))cieCandado();}catch(e){}
 }
 
 // ─── COTIZADOR ────────────────────────────────────────────────────────────────
@@ -6742,6 +6784,7 @@ function stkHistHTML(){
 function marcarRec(id,ix,val){
   const o=ORDENES.find(x=>x.id===id);if(!o||!o.items||!o.items[ix])return;
   o.items[ix].rec=!!val;
+  if(val)o.items[ix].rec_f=todayStr();else delete o.items[ix].rec_f;
   fetch('/api/ordenes/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:o.items})})
   .then(r=>r.json()).then(()=>{
     if(val)logActivity('Recepción de material',(o.oc||'')+' — llegó '+o.items[ix].mol);
@@ -8572,6 +8615,265 @@ function tqzAbrir(){
   OM('mod-tqz');
 }
 
+
+
+
+// ═══ CANDADOS ════════════════════════════════════════════════════════════════
+// Integridad: folios sin huecos y ningún día sin cerrar.
+// ── 1. Folio saltado ──
+var FOLIO_OK=false,FOLIO_CTX=null;
+function candadoFolio(suc,folio){
+  var n=parseInt(folio,10);if(isNaN(n)||!suc)return false;
+  var nums=(pedidos||[]).filter(function(p){return p.suc===suc;}).map(function(p){return parseInt(p.folio,10);}).filter(function(x){return !isNaN(x);});
+  if(!nums.length)return false;
+  var max=Math.max.apply(null,nums);
+  if(n<=max+1)return false;                       // va en orden, o está llenando un hueco viejo
+  var faltan=[];for(var i=max+1;i<n&&faltan.length<15;i++)faltan.push(i);
+  FOLIO_CTX={suc:suc,folio:n,faltan:faltan};
+  document.getElementById('cf-txt').innerHTML='Vas a guardar la <b>'+n+'</b>, pero en '+ptEsc(suc)+' la última registrada es la <b>'+max+'</b>. '+
+    'Falta'+(faltan.length===1?'':'n')+': <b>'+faltan.join(', ')+'</b>. No se puede saltar un folio.';
+  document.getElementById('cf-lista').innerHTML=faltan.map(function(f){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border)"><b class="mono" style="width:60px">'+f+'</b>'+
+      '<button class="btn btn-s btn-sm" onclick="folioEsEsta('+f+')">Esta captura es la '+f+'</button>'+
+      '<button class="btn btn-s btn-sm" onclick="folioCancelada('+f+')">La '+f+' fue cancelada</button></div>';
+  }).join('');
+  OM('mod-cfolio');
+  return true;
+}
+// Se equivocaron de folio: esta captura es la que falta
+function folioEsEsta(f){
+  var el=document.getElementById('mp-f');if(el)el.value=String(f);
+  CM('mod-cfolio');FOLIO_OK=false;guardarPed();
+}
+// La nota sí se canceló: se registra con el nombre CANCELADA (en $0) y te llega a ti
+function folioCancelada(f){
+  if(!FOLIO_CTX)return;
+  var u=_u()||{},hoy=todayStr();
+  if(!confirm('¿Registrar la nota '+f+' de '+FOLIO_CTX.suc+' como CANCELADA?\n\nQueda registrada en $0 con tu nombre, y Estefania la ve en sus avisos.'))return;
+  var np={folio:String(f),tipo_venta:'general',tipo_prod:'marcos',cli:'CANCELADA',tel:'',suc:FOLIO_CTX.suc,vend:'',fecha:hoy,mes:new Date().getMonth(),
+    items:[],sub:0,total:0,met:'',ant:0,rest:0,obs:'Folio cancelado · registrado por '+(u.display||u.name||CU||''),est:'Entregado',entrega:hoy};
+  fetch('/api/pedidos',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(np)})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(d){pedidos.unshift(Object.assign({},np,{id:d.id}));logActivity('Folio cancelado',FOLIO_CTX.suc+' · nota '+f);
+      FOLIO_CTX.faltan=FOLIO_CTX.faltan.filter(function(x){return x!==f;});
+      if(FOLIO_CTX.faltan.length){candadoFolio(FOLIO_CTX.suc,FOLIO_CTX.folio);return;}
+      CM('mod-cfolio');FOLIO_OK=true;guardarPed();})
+    .catch(function(e){alert('⚠️ No se registró ('+e.message+')');});
+}
+// ── 2. Cierre de ayer ──
+// Cada sucursal cierra su día: cuenta su efectivo y lo compara contra lo cobrado.
+// Si el día anterior quedó sin cerrar, al abrir la plataforma no se puede hacer
+// nada hasta cerrarlo. Corre desde el día en que se activó.
+var CIERRES={},CIERRES_DESDE=null,CIE_SUC_CTX=null;
+function cieSucDe(u){u=u||_u()||{};if(u.role!=='venta')return null;var s=String(u.suc||'');return /zibata/i.test(s)?'Zibata':/jardines/i.test(s)?'Jardines':null;}
+function cieCargar(){
+  return Promise.all([
+    fetch('/api/config/cierres_suc',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){CIERRES=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};}),
+    fetch('/api/config/cierres_desde',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){CIERRES_DESDE=(d&&d.valor)||null;})
+  ]).then(function(){
+    var u=_u()||{};
+    if(!CIERRES_DESDE&&(u.role==='owner'||u.role==='admin')){CIERRES_DESDE=todayStr();
+      return fetch('/api/config/cierres_desde',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:CIERRES_DESDE})});}
+  }).catch(function(){});
+}
+// Último día laborable antes de hoy (lunes a sábado)
+function cieDiaAnterior(){var d=new Date();do{d.setDate(d.getDate()-1);}while(d.getDay()===0);return dateStrLocal(d);}
+function ciePendiente(suc){
+  if(!suc||!CIERRES_DESDE)return null;
+  var f=cieDiaAnterior();if(f<CIERRES_DESDE)return null;
+  return CIERRES[suc+'|'+f]?null:f;
+}
+function cieCandado(){
+  var suc=cieSucDe();if(!suc)return false;
+  var f=ciePendiente(suc);if(!f)return false;
+  cieAbrir(suc,f,true);return true;
+}
+function cieEfectivoNotas(suc,f){
+  var r=cierreCalc(f),ef=0,otros=[];
+  Object.values(r.porCta).forEach(function(v){
+    if((v.suc||'Jardines')!==suc&&!(suc==='Jardines'&&!v.suc))return;
+    if(/efectivo/i.test(v.cta||'')&&!banEsCustodia(v.cta))ef+=v.cob||0;else if(v.cob)otros.push(v.cta+' '+fmt(v.cob));
+  });
+  return {ef:Math.round(ef*100)/100,otros:otros};
+}
+function cieAbrir(suc,f,bloquea){
+  CIE_SUC_CTX={suc:suc,f:f,bloquea:!!bloquea};
+  var c=cieEfectivoNotas(suc,f),hoy=f===todayStr();
+  document.getElementById('cs-ttl').textContent='🌙 Cierre de '+suc+' · '+ptFec(f);
+  document.getElementById('cs-aviso').innerHTML=bloquea?'<div style="background:var(--borgona-l);color:var(--borgona);border-radius:10px;padding:9px 12px;font-size:13px;font-weight:600;margin-bottom:10px">El '+ptFec(f)+' quedó sin cerrar. Para seguir trabajando hoy, primero cierra ese día.</div>':'';
+  document.getElementById('cs-ef').textContent=fmt(c.ef);
+  document.getElementById('cs-otros').textContent=c.otros.length?'Además, cobrado por otros medios: '+c.otros.join(' · '):'';
+  document.getElementById('cs-cont').value='';document.getElementById('cs-com').value='';document.getElementById('cs-noab').checked=false;
+  document.getElementById('cs-x').style.display=bloquea?'none':'';
+  cieCalc();OM('mod-cie-suc');
+}
+function cieCalc(){
+  var c=cieEfectivoNotas(CIE_SUC_CTX.suc,CIE_SUC_CTX.f),noab=document.getElementById('cs-noab').checked;
+  var v=parseFloat(document.getElementById('cs-cont').value),r=document.getElementById('cs-dif');
+  document.getElementById('cs-cont-wrap').style.display=noab?'none':'';
+  if(noab){r.innerHTML='Se registra que la sucursal no abrió. Escribe el motivo.';return;}
+  if(isNaN(v)){r.innerHTML='';return;}
+  var d=Math.round((v-c.ef)*100)/100;
+  r.innerHTML=Math.abs(d)<1?'<span style="color:#12724C;font-weight:700">✓ Cuadra con lo cobrado en efectivo.</span>':
+    '<span style="color:var(--borgona);font-weight:700">'+(d>0?'Sobran ':'Faltan ')+fmt(Math.abs(d))+'.</span> Escribe abajo qué pasó; le llega a Estefania.';
+}
+function cieGuardar(){
+  var x=CIE_SUC_CTX;if(!x)return;
+  var c=cieEfectivoNotas(x.suc,x.f),noab=document.getElementById('cs-noab').checked;
+  var v=parseFloat(document.getElementById('cs-cont').value),com=document.getElementById('cs-com').value.trim();
+  if(!noab&&isNaN(v)){alert('Escribe cuánto efectivo contaste en caja.');return;}
+  var dif=noab?0:Math.round((v-c.ef)*100)/100;
+  if((noab||Math.abs(dif)>=1)&&!com){alert(noab?'Escribe por qué no abrió la sucursal.':'Hay diferencia: escribe qué pasó.');return;}
+  var u=_u()||{},now=new Date();
+  var reg={suc:x.suc,f:x.f,u:u.display||u.name||CU||'',hora:now.toTimeString().slice(0,5),fReg:todayStr(),tarde:x.f!==todayStr()||now.getHours()>=20,
+    noab:noab,notas:c.ef,contado:noab?0:v,dif:dif,com:com};
+  var b=document.getElementById('cs-ok');b.disabled=true;
+  fetch('/api/config/cierres_suc',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){
+    var C=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};C[x.suc+'|'+x.f]=reg;CIERRES=C;
+    return fetch('/api/config/cierres_suc',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:C})});
+  }).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);
+    logActivity('Cierre de sucursal',x.suc+' '+x.f+(noab?' · no abrió':' · contado '+fmt(v)+(Math.abs(dif)>=1?' · diferencia '+fmt(dif):''))+(com?' · '+com:''));
+    CM('mod-cie-suc');CIE_SUC_CTX=null;try{rTab();}catch(e){}
+    if(!cieCandado())alert('🌙 Día cerrado.');
+  }).catch(function(e){alert('⚠️ No se guardó el cierre ('+e.message+'). Inténtalo de nuevo.');}).then(function(){b.disabled=false;});
+}
+// En Mi tablero: botón para cerrar el día y, para Estefania, cómo van los cierres
+function cieTabHTML(){
+  var suc=cieSucDe(),hoy=todayStr(),h=new Date().getHours(),out='';
+  if(suc){
+    var hecho=CIERRES[suc+'|'+hoy];
+    if(hecho)out='<div class="card" style="padding:10px 14px;margin-bottom:12px;font-size:13px">🌙 Tu día ya está cerrado ('+hecho.hora+').</div>';
+    else out='<div class="card" style="padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;'+(h>=19?'background:var(--mant-l);border-color:#F3DC8A':'')+'">'+
+      '<div style="flex:1;font-size:13px">'+(h>=19?'<b>Ya son las 7.</b> Cierra tu día antes de irte.':'Al terminar el día, cierra tu caja aquí.')+'</div>'+
+      '<button class="btn btn-p btn-sm" onclick="cieAbrir(\''+suc+'\',todayStr(),false)">🌙 Cerrar mi día</button></div>';
+    return out;
+  }
+  var u=_u()||{};if(u.role!=='owner'&&u.role!=='admin')return '';
+  var ayer=cieDiaAnterior();
+  var fila=function(sc){var a=CIERRES[sc+'|'+ayer],t=CIERRES[sc+'|'+hoy];
+    var tx=function(c,lbl){if(!c)return '<span style="color:var(--borgona)">'+lbl+': sin cierre</span>';
+      return lbl+': '+(c.noab?'no abrió':'✓ '+c.hora+(Math.abs(c.dif)>=1?' <b style="color:var(--borgona)">'+(c.dif>0?'+':'')+fmt(c.dif)+'</b>':''))+(c.com?' <span style="color:var(--text3)">· '+ptEsc(c.com)+'</span>':'');};
+    return '<div style="font-size:12.5px;padding:3px 0"><b>'+sc+'</b> · '+(ayer>=(CIERRES_DESDE||'9999')?tx(a,'ayer'):'ayer: —')+' · '+tx(t,'hoy')+'</div>';};
+  return '<div class="card" style="padding:10px 14px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">🌙 Cierres de caja</div>'+fila('Jardines')+fila('Zibata')+'</div>';
+}
+
+// ═══ MI TABLERO: el avance del día ═══════════════════════════════════════════
+// Cada nota abierta está en una etapa, con sus días y su color. Tres anillos dicen
+// cómo va el día; la racha cuenta los días seguidos con los tres cerrados.
+var TB_UMB={pedir:[2,3],prov:[3,5],taller:[4,6],lista:[1,3]};   // [amarillo, rojo] en días
+function tbDias(f){if(!f)return 0;var d=ordDias(String(f).slice(0,10));return d==null?0:d;}
+function tbEtapas(){
+  var u=_u()||{},soloZ=u.role==='venta'&&String(u.suc||'').toLowerCase().indexOf('zibata')>=0;
+  var mapa={};   // folio|mol → {oc,f,rec,rec_f}
+  (ORDENES||[]).forEach(function(o){
+    var fo=o.created_at||o.fecha_iso||'';var fOC=fo?String(fo).slice(0,10):(function(){var x=String(o.fecha||'').split('/');return x.length===3?x[2]+'-'+('0'+x[1]).slice(-2)+'-'+('0'+x[0]).slice(-2):'';})();
+    (o.items||[]).forEach(function(it){(it.fols||[]).forEach(function(fl){mapa[claveItem(fl,it.mol)]={oc:o.oc,f:fOC,rec:!!it.rec,rec_f:it.rec_f||''};});});
+  });
+  var E={pedir:[],prov:[],taller:[],lista:[]},hoy=todayStr();
+  (pedidos||[]).forEach(function(p){
+    if(p.est==='Entregado')return;
+    if(soloZ&&p.suc!=='Zibata')return;
+    var its=(p.items||[]).filter(function(it){return it.mol;});
+    var c={p:p,etapa:'',dias:0,info:''};
+    if(String(p.taller_est||'')==='Lista'){c.etapa='lista';c.dias=tbDias(p.lista_f||p.fecha);}
+    else{
+      var falta=its.filter(function(it){var k=claveItem(p.folio,it.mol);return !mapa[k]&&!(ORD_STOCK||{})[k];});
+      if(falta.length){c.etapa='pedir';c.dias=tbDias(p.fecha);c.info=falta.map(function(it){return it.mol;}).join(', ');}
+      else{
+        var noRec=its.filter(function(it){var m=mapa[claveItem(p.folio,it.mol)];return m&&!m.rec;});
+        if(noRec.length){c.etapa='prov';var m0=mapa[claveItem(p.folio,noRec[0].mol)];c.dias=tbDias(m0.f||p.fecha);c.info=(m0.oc||'')+' · '+noRec.map(function(it){return it.mol;}).join(', ');}
+        else{
+          var fEnt='';its.forEach(function(it){var k=claveItem(p.folio,it.mol),m=mapa[k],st=(ORD_STOCK||{})[k];var f=m?(m.rec_f||m.f):(st?st.f:'');if(f>fEnt)fEnt=f;});
+          c.etapa='taller';c.dias=tbDias(fEnt||p.fecha);c.info=its.length?'':'sin moldura';
+        }
+      }
+    }
+    var u2=TB_UMB[c.etapa];c.color=c.dias>=u2[1]?'ro':c.dias>=u2[0]?'am':'';
+    if(p.entrega&&p.entrega<hoy&&c.etapa!=='lista')c.color='ro',c.vencida=true;
+    else if(p.entrega&&c.etapa!=='lista'&&tbDias(hoy)>=0&&p.entrega<=dateStrLocal(new Date(Date.now()+2*864e5))&&!c.color)c.color='am';
+    E[c.etapa].push(c);
+  });
+  Object.keys(E).forEach(function(k){E[k].sort(function(a,b){return b.dias-a.dias;});});
+  return E;
+}
+function tbAnillos(E){
+  var pct=function(ok,tot){return tot?Math.round(ok/tot*100):100;};
+  var ped=pct(E.pedir.filter(function(c){return c.color!=='ro';}).length,E.pedir.length);
+  var tal=pct(E.taller.filter(function(c){return c.color!=='ro';}).length,E.taller.length);
+  var abiertas=[].concat(E.pedir,E.prov,E.taller);
+  var conFecha=abiertas.filter(function(c){return c.p.entrega;});
+  var ent=pct(conFecha.filter(function(c){return !c.vencida;}).length,conFecha.length);
+  var faltan=E.pedir.filter(function(c){return c.color==='ro';}).length+E.taller.filter(function(c){return c.color==='ro';}).length+conFecha.filter(function(c){return c.vencida;}).length;
+  return {ped:ped,tal:tal,ent:ent,faltan:faltan};
+}
+function tbRachaGuardar(A){
+  var u=_u()||{};if(u.role==='venta'&&String(u.suc||'').toLowerCase().indexOf('zibata')>=0)return Promise.resolve();
+  var hoy=todayStr();
+  return fetch('/api/config/tablero_hist',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){
+    var H=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};
+    H[hoy]=[A.ped,A.tal,A.ent];
+    var ks=Object.keys(H).sort();if(ks.length>120)ks.slice(0,ks.length-120).forEach(function(k){delete H[k];});
+    window.TB_HIST=H;
+    return fetch('/api/config/tablero_hist',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:H})});
+  }).catch(function(){});
+}
+function tbRacha(){
+  var H=window.TB_HIST||{},n=0,d=new Date();d.setDate(d.getDate()-1);
+  for(var i=0;i<120;i++){
+    if(d.getDay()===0){d.setDate(d.getDate()-1);continue;}   // domingos no cuentan
+    var v=H[dateStrLocal(d)];if(!v||v[0]<90||v[1]<90||v[2]<90)break;n++;d.setDate(d.getDate()-1);
+  }
+  return n;
+}
+function tbAnilloSVG(A){
+  var r=function(rad,p,col){var c=2*Math.PI*rad,l=c*Math.min(100,p)/100;
+    return '<circle cx="50" cy="50" r="'+rad+'" fill="none" stroke="var(--border)" stroke-width="9"/><circle cx="50" cy="50" r="'+rad+'" fill="none" stroke="'+col+'" stroke-width="9" stroke-linecap="round" stroke-dasharray="'+l.toFixed(1)+' '+c.toFixed(1)+'" transform="rotate(-90 50 50)"/>';};
+  return '<svg width="104" height="104" viewBox="0 0 100 100" role="img" aria-label="Anillos del día">'+r(43,A.ped,'#1D9E75')+r(31,A.tal,'#7F77DD')+r(19,A.ent,'#D4537E')+'</svg>';
+}
+function tbCard(c){
+  var p=c.p,acc='',ce=!soloMira();
+  if(c.etapa==='pedir'&&ce)acc='<button class="btn btn-s btn-xs" onclick="go(\'ord\')">Ir a pedir</button>';
+  if(c.etapa==='prov'&&ce)acc='<button class="btn btn-s btn-xs" onclick="go(\'ord\')">Marcar recibido</button>';
+  if(c.etapa==='taller'&&ce)acc='<button class="btn btn-s btn-xs" onclick="tbLista('+p.id+',true)">✓ Lista</button>';
+  if(c.etapa==='lista'){
+    var tel=String(p.tel||'').replace(/\D/g,'');if(tel.length===10)tel='52'+tel;
+    var msg=encodeURIComponent('Hola '+(p.cli||'')+', le escribimos de Impulso Galería: su pedido (nota '+p.folio+') ya está listo para recoger. ¡Gracias!');
+    acc=(tel?'<a class="btn btn-s btn-xs" target="_blank" rel="noopener" href="https://wa.me/'+tel+'?text='+msg+'">WhatsApp al cliente</a>':'<span class="d">sin teléfono</span>')+
+      (ce?' <button class="btn btn-s btn-xs" title="Regresar a taller" onclick="tbLista('+p.id+',false)">↩︎</button>':'');
+  }
+  var dt=c.dias===0?'hoy':c.dias===1?'1 día':c.dias+' días';
+  return '<div class="tb-card '+(c.color||'')+'"><b>'+ptEsc(p.folio)+'</b> · '+ptEsc(p.cli||'')+' <span class="d">· '+ptEsc(p.suc||'')+'</span>'+
+    (c.info?'<div class="d">'+ptEsc(c.info)+'</div>':'')+
+    '<div class="d">'+dt+(p.entrega?' · prometida '+ptFec(p.entrega)+(c.vencida?' <b style="color:var(--borgona)">vencida</b>':''):'')+'</div>'+
+    (acc?'<div class="acc">'+acc+'</div>':'')+'</div>';
+}
+function tbLista(id,on){
+  var p=(pedidos||[]).find(function(x){return x.id===id;});if(!p)return;
+  var prev=p.taller_est;p.taller_est=on?'Lista':'En taller';
+  fetch('/api/pedidos/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({taller_est:p.taller_est})})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);
+      logActivity(on?'Trabajo listo':'Trabajo regresó a taller','Nota '+p.folio);rTab();})
+    .catch(function(e){p.taller_est=prev;alert('⚠️ No se guardó ('+e.message+')');rTab();});
+}
+function rTab(){
+  var c=document.getElementById('tab-c');if(!c)return;
+  var u=_u()||{},E=tbEtapas(),A=tbAnillos(E);
+  var h=new Date().getHours(),sal=h<12?'Buenos días':h<19?'Buenas tardes':'Buenas noches';
+  var nombre=(u.display||u.name||'').split(' ')[0];
+  var tot=E.pedir.length+E.prov.length+E.taller.length+E.lista.length;
+  var cerr=A.ped>=90&&A.tal>=90&&A.ent>=90;
+  var racha=tbRacha();
+  document.getElementById('tab-hola').innerHTML='<div class="card" style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;margin-bottom:12px">'+tbAnilloSVG(A)+
+    '<div style="flex:1;min-width:220px"><div style="font-family:Caveat,cursive;font-size:26px;color:var(--text)">'+sal+(nombre?', '+ptEsc(nombre):'')+'.</div>'+
+    '<div style="font-size:13.5px;color:var(--text2);margin:2px 0 8px">'+(cerr?'Tus tres anillos van cerrados. Así se ve un buen día.':'Te falta'+(A.faltan===1?'':'n')+' <b>'+A.faltan+'</b> movimiento'+(A.faltan===1?'':'s')+' para cerrar tus anillos de hoy.')+'</div>'+
+    '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text2)">'+
+      '<span><span style="color:#1D9E75">●</span> Pedidos al día '+A.ped+'%</span><span><span style="color:#7F77DD">●</span> Taller fluyendo '+A.tal+'%</span><span><span style="color:#D4537E">●</span> Entregas a tiempo '+A.ent+'%</span>'+
+      (racha?'<span style="color:var(--mant-d);font-weight:700">🔥 '+racha+' día'+(racha===1?'':'s')+' seguidos</span>':'')+'</div></div></div>';
+  var col=function(k,t){var L=E[k];return '<div class="tb-col"><h4><span>'+t+'</span><span>'+L.length+'</span></h4>'+(L.length?L.map(tbCard).join(''):'<div class="d" style="font-size:12px;color:var(--text3)">Nada aquí.</div>')+'</div>';};
+  c.innerHTML=cieTabHTML()+'<div class="tb-cols">'+col('pedir','Por pedir')+col('prov','Esperando proveedor')+col('taller','En taller')+col('lista','Listas para entregar')+'</div>'+
+    '<div style="font-size:12px;color:var(--text3);margin-top:8px">✓ Las '+tot+' notas abiertas están en alguna columna. Amarillo y rojo = lleva más días de lo normal o la fecha prometida está encima.</div>';
+  tbRachaGuardar(A);
+}
 
 // ═══ MOLDURAS TOMADAS DE STOCK ════════════════════════════════════════════════
 // Si una moldura de una nota ya la teníamos, se marca "de stock": sale de pendientes
@@ -12569,6 +12871,7 @@ function loadData(){
     loadAuditExcl();
     cargarPuentePct();
     stkCargar().then(function(){try{if(document.querySelector('#page-ord.active'))rOrd();}catch(e){}});
+    cieCargar().then(function(){try{rTab();}catch(e){}try{cieCandado();}catch(e){}});
     ajCargar().then(function(){try{if(document.querySelector('#page-mov.active'))ajPintaBanner();}catch(e){}});
     loadBancosCfg().then(()=>{pintarCuentasSelects();tqzAsegurarCuenta();try{if(document.querySelector('#page-ban.active'))rBancos();}catch(e){}});
     if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
@@ -12581,7 +12884,7 @@ function loadData(){
     const uAct=USERS.find(x=>x.key===CU);
     if(uAct&&uAct.role==='taller'){go('ord');switchOrdTab('seguimiento',document.getElementById('chip-ord-seg'));}
     else if(uAct&&uAct.menuCorto)go('dash');   // la dirección entra al Dashboard
-    else go('cal');   // se entra al calendario
+    else go('tab');   // se entra al tablero del día
     console.log('Data loaded: '+pedidos.length+' pedidos, '+movs.length+' movs');
     // Re-render active page in case user navigated before data arrived
     const activePage=document.querySelector('.page.active');
@@ -12618,6 +12921,10 @@ function guardarPed(){
   const sub=cart.reduce((a,i)=>a+i.sub,0);
   const totalFinal=totEl&&totEl._raw?totEl._raw:sub*1.16;
   const hoy=todayStr();
+  // Candado: no se guarda una nota si falta un folio anterior de la sucursal
+  { const w=document.getElementById('mp-suc-wrap'),ms=document.getElementById('mp-suc');
+    const sucF=(w&&w.style.display!=='none'&&ms)?ms.value:u.suc;
+    if(!FOLIO_OK&&candadoFolio(sucF,folio))return; FOLIO_OK=false; }
   const tpEl=document.querySelector('input[name="mp-tp"]:checked');
   let tipoProd=tpEl?tpEl.value:'marcos';
   { const mEl=document.getElementById('mp-m'); if(mEl&&/tranquilo/i.test(mEl.value||'')&&tipoProd==='marcos')tipoProd='tranquilo'; }
