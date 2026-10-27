@@ -1541,6 +1541,76 @@ def del_facprov(fid):
     return jsonify({'ok': True})
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# COTIZACIONES GUARDADAS  ·  el cliente vino, cotizó y regresa otro día
+# ═══════════════════════════════════════════════════════════════════════════════
+class Cotizacion(db.Model):
+    __tablename__ = 'cotizaciones'
+    id        = db.Column(db.Integer, primary_key=True)
+    folio     = db.Column(db.String(20))       # C-0012
+    cli       = db.Column(db.String(120))
+    tel       = db.Column(db.String(40))
+    suc       = db.Column(db.String(40))
+    usuario   = db.Column(db.String(60))
+    fecha     = db.Column(db.String(20))       # YYYY-MM-DD en que se guardó
+    vence     = db.Column(db.String(20))       # YYYY-MM-DD
+    items     = db.Column(db.Text)             # JSON del carrito
+    descu     = db.Column(db.Float, default=0) # % de descuento
+    total     = db.Column(db.Float, default=0) # con IVA
+    estado    = db.Column(db.String(20), default='abierta')   # abierta · convertida · perdida
+    pedido    = db.Column(db.String(30))       # folio del pedido si se convirtió
+    seguim    = db.Column(db.String(20))       # última vez que se le escribió al cliente
+    nota      = db.Column(db.String(300))
+
+def cot_dict(c):
+    try:
+        its = json.loads(c.items) if c.items else []
+    except Exception:
+        its = []
+    return {'id': c.id, 'folio': c.folio or '', 'cli': c.cli or '', 'tel': c.tel or '', 'suc': c.suc or '',
+            'usuario': c.usuario or '', 'fecha': c.fecha or '', 'vence': c.vence or '', 'items': its,
+            'descu': c.descu or 0, 'total': c.total or 0, 'estado': c.estado or 'abierta',
+            'pedido': c.pedido or '', 'seguim': c.seguim or '', 'nota': c.nota or ''}
+
+@app.route('/api/cotizaciones', methods=['GET'])
+@requiere_login
+def get_cotizaciones():
+    return jsonify([cot_dict(c) for c in Cotizacion.query.order_by(Cotizacion.id.desc()).limit(1000).all()])
+
+@app.route('/api/cotizaciones', methods=['POST'])
+@requiere_login
+def crear_cotizacion():
+    d = request.json or {}
+    c = Cotizacion(cli=d.get('cli', ''), tel=d.get('tel', ''), suc=d.get('suc', ''), usuario=d.get('usuario', ''),
+                   fecha=d.get('fecha', ''), vence=d.get('vence', ''), items=json.dumps(d.get('items', [])),
+                   descu=d.get('descu', 0) or 0, total=d.get('total', 0) or 0, estado=d.get('estado', 'abierta'),
+                   nota=d.get('nota', ''))
+    db.session.add(c); db.session.commit()
+    c.folio = 'C-%04d' % c.id
+    db.session.commit()
+    return jsonify(cot_dict(c)), 201
+
+@app.route('/api/cotizaciones/<int:cid>', methods=['PUT'])
+@requiere_login
+def actualizar_cotizacion(cid):
+    c = Cotizacion.query.get_or_404(cid)
+    d = request.json or {}
+    for campo in ['cli', 'tel', 'suc', 'usuario', 'fecha', 'vence', 'descu', 'total', 'estado', 'pedido', 'seguim', 'nota']:
+        if campo in d:
+            setattr(c, campo, d[campo])
+    if 'items' in d:
+        c.items = json.dumps(d['items'])
+    db.session.commit()
+    return jsonify(cot_dict(c))
+
+@app.route('/api/cotizaciones/<int:cid>', methods=['DELETE'])
+@requiere_admin
+def borrar_cotizacion(cid):
+    c = Cotizacion.query.get(cid)
+    if c: db.session.delete(c); db.session.commit()
+    return jsonify({'ok': True})
+
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ASISTENTE  ·  la plataforma contesta en español sobre los datos del negocio
