@@ -7241,11 +7241,13 @@ function molBase(nombre){
   return null;
 }
 function provDe(it){
-  if(it.esServicio)return 'SERVICIO';
   // El catálogo manda: nombre exacto o su base sin sufijo de color (1008-04 → 1008).
-  // Así, corregir el proveedor en Molduras reacomoda la OC automáticamente.
+  // Así, corregir el proveedor en Molduras reacomoda la OC automáticamente, y una
+  // nota que entró como servicio y después se le puso una moldura real (por ejemplo
+  // NAT-01-01 de Servimarco) se va con su proveedor en lugar de quedarse en Servicio.
   const m=molBase(it.mol);
   if(m&&m.proveedor)return m.proveedor;
+  if(it.esServicio)return 'SERVICIO';
   if(it.prov)return it.prov;
   return 'PROPIO';
 }
