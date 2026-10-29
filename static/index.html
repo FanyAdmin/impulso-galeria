@@ -9107,7 +9107,10 @@ function tbEtapas(){
   });
   var E={pedir:[],prov:[],taller:[],lista:[]},hoy=todayStr();
   (pedidos||[]).forEach(function(p){
-    if(p.est==='Entregado')return;
+    // Lo cerrado no va en el tablero: entregado (aunque venga escrito distinto o
+    // solo tenga fecha real de entrega), cancelado, o nota registrada como CANCELADA
+    var est=String(p.est||'').trim().toLowerCase();
+    if(est.indexOf('entreg')===0||est.indexOf('cancel')===0||p.entrega_real||String(p.cli||'').trim().toUpperCase()==='CANCELADA')return;
     if(soloZ&&p.suc!=='Zibata')return;
     var its=(p.items||[]).filter(function(it){return it.mol;});
     var c={p:p,etapa:'',dias:0,info:''};
@@ -9117,7 +9120,7 @@ function tbEtapas(){
       if(falta.length){c.etapa='pedir';c.dias=tbDias(p.fecha);c.info=falta.map(function(it){return it.mol;}).join(', ');}
       else{
         var noRec=its.filter(function(it){var m=mapa[claveItem(p.folio,it.mol)];return m&&!m.rec;});
-        if(noRec.length){c.etapa='prov';var m0=mapa[claveItem(p.folio,noRec[0].mol)];c.dias=tbDias(m0.f||p.fecha);c.info=(m0.oc||'')+' · '+noRec.map(function(it){return it.mol;}).join(', ');}
+        if(noRec.length){c.etapa='prov';var m0=mapa[claveItem(p.folio,noRec[0].mol)];c.dias=tbDias(m0.f||p.fecha);c.info=(m0.oc?m0.oc+' · ':'')+noRec.map(function(it){return it.mol;}).join(', ');}
         else{
           var fEnt='';its.forEach(function(it){var k=claveItem(p.folio,it.mol),m=mapa[k],st=(ORD_STOCK||{})[k];var f=m?(m.rec_f||m.f):(st?st.f:'');if(f>fEnt)fEnt=f;});
           c.etapa='taller';c.dias=tbDias(fEnt||p.fecha);c.info=its.length?'':'sin moldura';
