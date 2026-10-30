@@ -1128,6 +1128,7 @@ tr:hover .ent-edit{opacity:1}
     <div id="cs-cont-wrap" class="field"><label>¿Cuánto efectivo de ese día contaste? <span style="font-weight:400;color:var(--text3)">(sin el fondo de caja ni lo de días anteriores)</span></label><input type="number" step="0.01" id="cs-cont" oninput="cieCalc()"></div>
     <div id="cs-dif" style="font-size:13px;margin:6px 0 10px"></div>
     <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="cs-noab" onchange="cieCalc()"> Ese día la sucursal no abrió</label>
+    <label id="cs-limpio-wrap" style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;margin:4px 0 10px;padding:9px 11px;background:var(--menta-l);border-radius:10px;cursor:pointer"><input type="checkbox" id="cs-limpio" style="width:17px;height:17px"> 🧹 Dejé limpio y ordenado mi lugar de trabajo</label>
     <div class="field"><label>Comentario para Estefania</label><input id="cs-com" placeholder="Obligatorio si hay diferencia o si no abrió"></div>
   </div>
   <div class="modal-foot"><button class="btn btn-p" id="cs-ok" onclick="cieGuardar()">🌙 Cerrar el día</button></div>
@@ -1139,6 +1140,7 @@ tr:hover .ent-edit{opacity:1}
   <div class="modal-body">
     <div id="nf-tarde" style="background:var(--borgona-l);color:var(--borgona);border-radius:10px;padding:9px 12px;font-size:13px;font-weight:600;margin-bottom:10px">Ya pasaron las 11. Para seguir trabajando, registra las notas que falten y deja un comentario para Estefania.</div>
     <div style="font-size:13.5px;margin-bottom:10px">Revisa tus notas en papel de ayer y de hoy: <b>¿todas están registradas en la plataforma?</b> Si falta alguna, regístrala antes de aceptar.</div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;margin:4px 0 12px;padding:9px 11px;background:var(--menta-l);border-radius:10px;cursor:pointer"><input type="checkbox" id="nf-limpio" style="width:17px;height:17px"> 🧹 Mi lugar está limpio y listo para abrir</label>
     <div class="field" id="nf-com-wrap"><label>Comentario para Estefania</label><input id="nf-com" placeholder="Qué faltaba registrar, o por qué se revisó tarde"></div>
   </div>
   <div class="modal-foot"><button class="btn btn-s" id="nf-posp" onclick="nfPosponer()">Posponer (antes de las 11)</button><button class="btn btn-p" onclick="nfAceptar()">✓ Todas están registradas</button></div>
@@ -6820,6 +6822,7 @@ function rOrdHist(){
         <div><div style="font-size:13px;font-weight:700"><span class="mono" style="color:var(--green)">${e.oc||''}</span> · ${e.prov_nombre||e.prov}</div>
         <div style="font-size:11px;color:var(--text3);margin-top:1px">Pedida el ${e.fecha} · ${its.reduce((a,b)=>a+b.pzas,0)} piezas · ${completa?'<span style="color:var(--green);font-weight:700">✓ Todo llegó</span>':rec>0?'<span style="color:#B45309;font-weight:700">'+rec+'/'+its.length+' molduras llegaron</span>':'<span>Esperando entrega</span>'}</div></div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
+          ${soloMira()||!its.length?'':(completa?`<button class="btn btn-s btn-sm" onclick="marcarRecTodo(${e.id},false)" title="Quitar todas las palomitas">↩︎ Desmarcar todo</button>`:`<button class="btn btn-p btn-sm" onclick="marcarRecTodo(${e.id},true)">✓ Llegó todo</button>`)}
           ${soloMira()?'':`<button class="btn btn-s btn-sm" onclick="copiarOrdenWA(${e.id})">📱 Copiar WA</button>`}
           <button class="btn btn-s btn-sm" onclick="reimprimirOrd(${e.id})">🖨️ Reimprimir</button>
           <button class="btn btn-s btn-sm" onclick="ticketOrd(${e.id})">🧾 Ticket (3 copias)</button>
@@ -6868,6 +6871,19 @@ function marcarRec(id,ix,val){
     if(val)logActivity('Recepción de material',(o.oc||'')+' — llegó '+o.items[ix].mol);
     rOrdHist();
   }).catch(()=>{alert('Error de conexión al guardar');o.items[ix].rec=!val;rOrdHist();});
+}
+// Palomea (o quita) todas las molduras de la orden de un jalón
+function marcarRecTodo(id,val){
+  const o=ORDENES.find(x=>x.id===id);if(!o||!o.items||!o.items.length)return;
+  if(!val&&!confirm('¿Quitar la palomita a todas las molduras de '+(o.oc||'esta orden')+'?'))return;
+  const antes=o.items.map(it=>({rec:it.rec,rec_f:it.rec_f}));
+  const hoy=todayStr();
+  o.items.forEach(it=>{if(val){if(!it.rec){it.rec=true;it.rec_f=hoy;}}else{it.rec=false;delete it.rec_f;}});
+  fetch('/api/ordenes/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:o.items})})
+  .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(()=>{
+    logActivity('Recepción de material',(o.oc||'')+(val?' — llegó todo el pedido':' — se quitaron las palomitas'));
+    rOrdHist();try{rTab();}catch(e){}
+  }).catch(e=>{alert('⚠️ No se guardó ('+e.message+')');o.items.forEach((it,i)=>{it.rec=antes[i].rec;if(antes[i].rec_f)it.rec_f=antes[i].rec_f;else delete it.rec_f;});rOrdHist();});
 }
 function faltantesAPendientes(id){
   const o=ORDENES.find(x=>x.id===id);if(!o)return;
@@ -8784,6 +8800,7 @@ function cieAbrir(suc,f,bloquea){
   document.getElementById('cs-ef').textContent=fmt(c.ef);
   document.getElementById('cs-otros').textContent=c.otros.length?'Además, cobrado por otros medios: '+c.otros.join(' · '):'';
   document.getElementById('cs-cont').value='';document.getElementById('cs-com').value='';document.getElementById('cs-noab').checked=false;
+  document.getElementById('cs-limpio').checked=false;
   document.getElementById('cs-x').style.display=bloquea?'none':'';
   cieCalc();OM('mod-cie-suc');
 }
@@ -8791,6 +8808,7 @@ function cieCalc(){
   var c=cieEfectivoNotas(CIE_SUC_CTX.suc,CIE_SUC_CTX.f),noab=document.getElementById('cs-noab').checked;
   var v=parseFloat(document.getElementById('cs-cont').value),r=document.getElementById('cs-dif');
   document.getElementById('cs-cont-wrap').style.display=noab?'none':'';
+  document.getElementById('cs-limpio-wrap').style.display=noab?'none':'flex';
   if(noab){r.innerHTML='Se registra que la sucursal no abrió. Escribe el motivo.';return;}
   if(isNaN(v)){r.innerHTML='';return;}
   var d=Math.round((v-c.ef)*100)/100;
@@ -8804,9 +8822,10 @@ function cieGuardar(){
   if(!noab&&isNaN(v)){alert('Escribe cuánto efectivo contaste en caja.');return;}
   var dif=noab?0:Math.round((v-c.ef)*100)/100;
   if((noab||Math.abs(dif)>=1)&&!com){alert(noab?'Escribe por qué no abrió la sucursal.':'Hay diferencia: escribe qué pasó.');return;}
+  if(!noab&&!document.getElementById('cs-limpio').checked){alert('Antes de irte: deja tu lugar limpio y palomea "Dejé limpio y ordenado mi lugar de trabajo".');return;}
   var u=_u()||{},now=new Date();
   var reg={suc:x.suc,f:x.f,u:u.display||u.name||CU||'',hora:now.toTimeString().slice(0,5),fReg:todayStr(),tarde:x.f!==todayStr()||now.getHours()>=20,
-    noab:noab,notas:c.ef,contado:noab?0:v,dif:dif,com:com,est:(noab||!(v>0))?'rec':'pend'};
+    noab:noab,notas:c.ef,contado:noab?0:v,dif:dif,com:com,limpio:!noab,est:(noab||!(v>0))?'rec':'pend'};
   var b=document.getElementById('cs-ok');b.disabled=true;
   fetch('/api/config/cierres_suc',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){
     var C=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};C[x.suc+'|'+x.f]=reg;CIERRES=C;
@@ -8889,6 +8908,7 @@ function nfAbrir(suc,tarde){
   document.getElementById('nf-posp').style.display=tarde?'none':'';
   document.getElementById('nf-com-wrap').style.display=tarde?'':'none';
   document.getElementById('nf-com').value='';
+  var lc=document.getElementById('nf-limpio');if(lc)lc.checked=false;
   OM('mod-nf');
 }
 function nfPosponer(){NF_POSP=true;CM('mod-nf');try{rTab();}catch(e){}}
@@ -8896,7 +8916,8 @@ function nfAceptar(){
   var suc=cieSucDe();if(!suc)return;
   var tarde=new Date().getHours()>=11,com=document.getElementById('nf-com').value.trim();
   if(tarde&&!com){alert('Ya pasaron las 11: escribe para Estefania qué faltaba registrar o por qué se revisó tarde.');return;}
-  var u=_u()||{},reg={suc:suc,f:todayStr(),hora:new Date().toTimeString().slice(0,5),u:u.display||u.name||CU||'',tarde:tarde,com:com};
+  var lc=document.getElementById('nf-limpio');if(lc&&!lc.checked){alert('Antes de empezar: deja tu lugar limpio y palomea "Mi lugar está limpio y listo para abrir".');return;}
+  var u=_u()||{},reg={suc:suc,f:todayStr(),hora:new Date().toTimeString().slice(0,5),u:u.display||u.name||CU||'',tarde:tarde,com:com,limpio:true};
   fetch('/api/config/notas_fis',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){
     var N=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};N[suc+'|'+reg.f]=reg;
     var ks=Object.keys(N).sort();if(ks.length>400)ks.slice(0,ks.length-400).forEach(function(k){delete N[k];});
@@ -8919,8 +8940,8 @@ function nfTabHTML(){
   var u=_u()||{};if(u.role!=='owner'&&u.role!=='admin')return '';
   var fila=function(sc){var r=NOTAS_FIS[sc+'|'+todayStr()];
     if(!r)return '<span style="color:'+(new Date().getHours()>=11?'var(--borgona)':'var(--text3)')+'">'+sc+': sin revisar</span>';
-    return sc+': ✓ '+r.hora+(r.tarde?' <b style="color:var(--borgona)">tarde</b>':'')+(r.com?' <span style="color:var(--text3)">· '+ptEsc(r.com)+'</span>':'');};
-  return '<div style="font-size:12.5px;padding:3px 0;border-top:1px dashed var(--border);margin-top:4px">📝 Notas físicas hoy · '+fila('Jardines')+' · '+fila('Zibata')+'</div>';
+    return sc+': ✓ '+r.hora+(r.limpio?' 🧹':'')+(r.tarde?' <b style="color:var(--borgona)">tarde</b>':'')+(r.com?' <span style="color:var(--text3)">· '+ptEsc(r.com)+'</span>':'');};
+  return '<div style="font-size:12.5px;padding:3px 0;border-top:1px dashed var(--border);margin-top:4px">📝 Notas físicas y lugar limpio hoy · '+fila('Jardines')+' · '+fila('Zibata')+'</div>';
 }
 
 // En Mi tablero: botón para cerrar el día y, para Estefania, cómo van los cierres
@@ -8938,7 +8959,7 @@ function cieTabHTML(){
   var ayer=cieDiaAnterior();
   var fila=function(sc){var a=CIERRES[sc+'|'+ayer],t=CIERRES[sc+'|'+hoy];
     var tx=function(c,lbl){if(!c)return '<span style="color:var(--borgona)">'+lbl+': sin cierre</span>';
-      return lbl+': '+(c.noab?'no abrió':'✓ '+c.hora+(Math.abs(c.dif)>=1?' <b style="color:var(--borgona)">'+(c.dif>0?'+':'')+fmt(c.dif)+'</b>':''))+(c.com?' <span style="color:var(--text3)">· '+ptEsc(c.com)+'</span>':'');};
+      return lbl+': '+(c.noab?'no abrió':'✓ '+c.hora+(c.limpio?' 🧹':'')+(Math.abs(c.dif)>=1?' <b style="color:var(--borgona)">'+(c.dif>0?'+':'')+fmt(c.dif)+'</b>':''))+(c.com?' <span style="color:var(--text3)">· '+ptEsc(c.com)+'</span>':'');};
     return '<div style="font-size:12.5px;padding:3px 0"><b>'+sc+'</b> · '+(ayer>=(CIERRES_DESDE||'9999')?tx(a,'ayer'):'ayer: —')+' · '+tx(t,'hoy')+'</div>';};
   return '<div class="card" style="padding:10px 14px;margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:4px">🌙 Cierres de caja</div>'+fila('Jardines')+fila('Zibata')+
     cajaHTMLDueña('Jardines')+cajaHTMLDueña('Zibata')+nfTabHTML()+'</div>';
