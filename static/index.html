@@ -1319,7 +1319,7 @@ tr:hover .ent-edit{opacity:1}
         <input id="x-mlcolor" placeholder="🎨 Color de la ML (ej. blanco, nogal, lino...)" style="font-size:12px;margin-bottom:.75rem" oninput="calcP()">
         <div class="pbar">
           <div><div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.05em">Vista previa</div><div id="p-det" style="font-size:11px;color:var(--text3);margin-top:2px">Selecciona moldura y medidas</div></div>
-          <div><div id="p-sin" style="font-size:12.5px;text-align:right;font-weight:500">$0.00</div><div style="font-size:10px;text-align:right;margin-top:1px">sin IVA</div><div class="pval" id="p-con">$0.00</div><div style="font-size:10.5px;text-align:right;margin-top:2px;font-weight:600">con IVA</div></div>
+          <div><div id="p-sin" style="display:none">$0.00</div><div class="pval" id="p-con">$0.00</div><div style="font-size:10.5px;text-align:right;margin-top:2px;font-weight:600">precio</div></div>
         </div>
         <div style="margin-top:.9rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><button class="btn btn-p" onclick="addCart()" style="padding:10px 20px;font-size:14px;border-radius:10px">🛒 Agregar a cotización</button><span id="cot-cuantos" style="font-size:12px;color:var(--text3)"></span></div>
       </div>
@@ -1334,10 +1334,9 @@ tr:hover .ent-edit{opacity:1}
         <div style="background:var(--surface2);border-radius:var(--rad);padding:.75rem .875rem;display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem">
           <div style="font-size:11px;color:var(--text3)" id="svc-det">Ingresa descripcion y precio</div>
           <div style="text-align:right">
-            <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace" id="svc-sin">$0.00</div>
-            <div style="font-size:9px;color:var(--text3)">sin IVA</div>
-            <div style="font-size:14px;font-weight:600;color:var(--green);font-family:'JetBrains Mono',monospace" id="svc-con">$0.00</div>
-            <div style="font-size:9px;color:var(--green)">con IVA</div>
+            <div style="display:none" id="svc-sin">$0.00</div>
+            <div style="font-size:18px;font-weight:700;color:var(--green);font-family:'JetBrains Mono',monospace" id="svc-con">$0.00</div>
+            <div style="font-size:9px;color:var(--green)">precio</div>
           </div>
         </div>
         <div style="display:flex;justify-content:flex-end"><button class="btn btn-s" onclick="addSvc()">+ Agregar servicio</button></div>
@@ -1354,9 +1353,9 @@ tr:hover .ent-edit{opacity:1}
           <div id="cot-act"></div>
           <div id="c-list" style="margin-bottom:.75rem"></div>
           <div class="sbox">
-            <div class="srow"><span>Subtotal sin IVA</span><span class="mono" id="cs-sub">$0.00</span></div>
-            <div class="srow"><span>IVA 16%</span><span class="mono" id="cs-iva">$0.00</span></div>
-            <div class="srow tot"><span>Total con IVA</span><span class="mono" id="cs-tot">$0.00</span></div>
+            <div class="srow" id="cs-sub-row" style="display:none"><span>Antes del descuento</span><span class="mono" id="cs-sub">$0.00</span></div>
+            <div class="srow" style="display:none"><span>IVA</span><span class="mono" id="cs-iva">$0.00</span></div>
+            <div class="srow tot"><span>Total</span><span class="mono" id="cs-tot">$0.00</span></div>
           </div>
           <div style="display:flex;flex-direction:column;gap:5px">
             <div style="display:flex;gap:5px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
@@ -2936,13 +2935,13 @@ function rCart(){
       </div>
       <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:4px;align-items:flex-end">
         ${x.regalo?'<div class="mono" style="font-size:11px;color:var(--text3);text-decoration:line-through">'+fmt(x.subIvaOrig||0)+'</div>':''}
-        <div style="text-align:right"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em">Sin IVA</div><div class="mono" style="font-size:12px;font-weight:600">${fmt(x.sub)}</div></div>
-        <div style="text-align:right"><div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.04em">Con IVA</div><div class="mono" style="font-size:12px;font-weight:600;color:var(--green)">${fmt(x.subIva)}</div></div>
+        <div style="text-align:right"><div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.04em">Precio</div><div class="mono" style="font-size:12px;font-weight:600;color:var(--green)">${fmt(x.subIva)}</div></div>
       </div>
     </div>`).join('');
   const subRaw=cart.reduce((a,b)=>a+b.sub,0);
   const desc=subRaw*(cotDesc||0)/100,subFinal=subRaw-desc,iva=subFinal*.16;
-  document.getElementById('cs-sub').textContent=fmt(subRaw)+(cotDesc>0?' → '+fmt(subFinal)+' (−'+cotDesc+'%)':'');
+  document.getElementById('cs-sub').textContent=fmt(subRaw*1.16)+(cotDesc>0?' (−'+cotDesc+'%)':'');
+  document.getElementById('cs-sub-row').style.display=cotDesc>0?'':'none';
   document.getElementById('cs-iva').textContent=fmt(iva);
   document.getElementById('cs-tot').textContent=fmt(subFinal+iva);
 }
@@ -2968,7 +2967,7 @@ function genPDF(){
   if(!cart.length){alert('El carrito está vacío');return;}
   const subRaw=cart.reduce((a,b)=>a+b.sub,0),descMonto=subRaw*cotDesc/100,sub=subRaw-descMonto,iva=sub*.16,total=sub+iva;
   const fecha=new Date().toLocaleDateString('es-MX');
-  const rows=cart.map(x=>`<tr><td>${x.mol}</td><td style="text-align:center">${x.q}</td><td style="text-align:center">${x.l1}×${x.l2} cm</td><td>${x.en.join(', ')||'—'}</td><td style="text-align:right">${fmt(x.pm)}</td><td style="text-align:right">${fmt(x.sub)}</td></tr>`).join('');
+  const rows=cart.map(x=>`<tr><td>${x.mol}</td><td style="text-align:center">${x.q}</td><td style="text-align:center">${x.l1}×${x.l2} cm</td><td>${x.en.join(', ')||'—'}</td><td style="text-align:right">${fmt((x.subIva||0)/(x.q||1))}</td><td style="text-align:right">${fmt(x.subIva||0)}</td></tr>`).join('');
   const u=USERS.find(x=>x.key===CU);
   const html=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cotización Impulso</title>
   <style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Calibri',Calibri,sans-serif;padding:40px;color:#1a1a1a;font-size:13px}
@@ -2996,8 +2995,8 @@ function genPDF(){
     <span class="lbl">Vendedor</span><strong>${u.name}</strong>
     <span class="lbl">No. Cotización</span><strong>#${Date.now().toString().slice(-5)}</strong></div>
   </div>
-  <table><thead><tr><th>Moldura</th><th style="text-align:center">Pzas</th><th style="text-align:center">Medidas</th><th>Extras</th><th style="text-align:right">Precio Unit.</th><th style="text-align:right">Subtotal</th></tr></thead><tbody>${rows}</tbody></table>
-  <table class="tots">${cotDesc>0?`<tr><td>Subtotal</td><td style="text-align:right">${fmt(subRaw)}</td></tr><tr><td style="color:#cc3333">Descuento ${cotDesc}%</td><td style="text-align:right;color:#cc3333">−${fmt(descMonto)}</td></tr>`:''}<tr><td>Subtotal sin IVA</td><td style="text-align:right">${fmt(sub)}</td></tr><tr><td>IVA 16%</td><td style="text-align:right">${fmt(iva)}</td></tr><tr><td>TOTAL</td><td style="text-align:right">${fmt(total)}</td></tr></table>
+  <table><thead><tr><th>Moldura</th><th style="text-align:center">Pzas</th><th style="text-align:center">Medidas</th><th>Extras</th><th style="text-align:right">Precio Unit.</th><th style="text-align:right">Importe</th></tr></thead><tbody>${rows}</tbody></table>
+  <table class="tots">${cotDesc>0?`<tr><td>Subtotal</td><td style="text-align:right">${fmt(subRaw*1.16)}</td></tr><tr><td style="color:#cc3333">Descuento ${cotDesc}%</td><td style="text-align:right;color:#cc3333">−${fmt(descMonto*1.16)}</td></tr>`:''}<tr><td>TOTAL</td><td style="text-align:right">${fmt(total)}</td></tr></table>
   <div class="thanks">GRACIAS</div>
   <div class="ftr"><div class="sign">Firma autorizada</div><div class="sign">Fecha</div></div>
   <script>window.onload=()=>window.print();<\/script></body></html>`;
@@ -3020,8 +3019,8 @@ function openModPed(){
   const _totEl=document.getElementById('mp-tot');if(_totEl){_totEl.value=fmt(total);_totEl._raw=total;_totEl._manual=false;}
   document.getElementById('mp-r').value=fmt(total);
   document.getElementById('mp-res').innerHTML=
-    cart.map(x=>`<div class="srow"><span>${x.mol} (${x.l1}×${x.l2}cm ×${x.q})</span><span class="mono">${fmt(x.sub)}</span></div>`).join('')+
-    `<div class="srow tot"><span>Total con IVA</span><span class="mono">${fmt(total)}</span></div>`;
+    cart.map(x=>`<div class="srow"><span>${x.mol} (${x.l1}×${x.l2}cm ×${x.q})</span><span class="mono">${fmt(x.subIva||0)}</span></div>`).join('')+
+    `<div class="srow tot"><span>Total</span><span class="mono">${fmt(total)}</span></div>`;
   populateVendSel(); // siempre con la lista actual de la BD
   OM('mod-ped');
 }
