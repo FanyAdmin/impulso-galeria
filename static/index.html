@@ -1157,6 +1157,17 @@ tr:hover .ent-edit{opacity:1}
   <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-cot-g')">Cancelar</button><button class="btn btn-p" onclick="cotGuardar()">💾 Guardar</button></div>
 </div>
 </div>
+<div class="modal-bg" id="mod-limp" style="display:none">
+<div class="modal" style="width:560px">
+  <div class="modal-hdr"><div class="modal-ttl">🧹 Limpiar lo viejo</div><button class="modal-x" onclick="CM('mod-limp')">✕</button></div>
+  <div class="modal-body">
+    <div style="font-size:13px;color:var(--text2);margin-bottom:10px">Todo lo anterior a esta fecha se da por cerrado: las notas pasan a <b>Entregado</b> y las molduras de las órdenes, a <b>llegadas</b>. Lo que es de esta fecha en adelante no se toca.</div>
+    <div class="field"><label>Cerrar todo lo anterior al</label><input type="date" id="limp-f" onchange="limpCalc()" style="max-width:180px"></div>
+    <div id="limp-res" style="font-size:13px;margin-top:8px"></div>
+  </div>
+  <div class="modal-foot"><button class="btn btn-s" onclick="CM('mod-limp')">Cerrar</button><button class="btn btn-s" id="limp-b2" onclick="limpOCs()">Marcar como llegadas</button><button class="btn btn-p" id="limp-b1" onclick="limpNotas()">Marcar como entregadas</button></div>
+</div>
+</div>
 <datalist id="dl-terceros"></datalist>
 <div class="modal-bg" id="mod-ptdev" style="display:none">
 <div class="modal" style="width:540px">
@@ -9124,7 +9135,7 @@ function tbEtapas(){
   var mapa={};   // folio|mol → {oc,f,rec,rec_f}
   (ORDENES||[]).forEach(function(o){
     var fo=o.created_at||o.fecha_iso||'';var fOC=fo?String(fo).slice(0,10):(function(){var x=String(o.fecha||'').split('/');return x.length===3?x[2]+'-'+('0'+x[1]).slice(-2)+'-'+('0'+x[0]).slice(-2):'';})();
-    (o.items||[]).forEach(function(it){(it.fols||[]).forEach(function(fl){mapa[claveItem(fl,it.mol)]={oc:o.oc,f:fOC,rec:!!it.rec,rec_f:it.rec_f||''};});});
+    (o.items||[]).forEach(function(it){(it.fols||[]).forEach(function(fl){mapa[claveItem(fl,it.mol)]={oc:o.oc,ocId:o.id,prov:o.prov_nombre||o.prov||'',f:fOC,rec:!!it.rec,rec_f:it.rec_f||''};});});
   });
   var E={pedir:[],prov:[],taller:[],lista:[]},hoy=todayStr();
   (pedidos||[]).forEach(function(p){
@@ -9141,10 +9152,14 @@ function tbEtapas(){
       if(falta.length){c.etapa='pedir';c.dias=tbDias(p.fecha);c.info=falta.map(function(it){return it.mol;}).join(', ');}
       else{
         var noRec=its.filter(function(it){var m=mapa[claveItem(p.folio,it.mol)];return m&&!m.rec;});
-        if(noRec.length){c.etapa='prov';var m0=mapa[claveItem(p.folio,noRec[0].mol)];c.dias=tbDias(m0.f||p.fecha);c.info=(m0.oc?m0.oc+' · ':'')+noRec.map(function(it){return it.mol;}).join(', ');}
+        if(noRec.length){c.etapa='prov';var m0=mapa[claveItem(p.folio,noRec[0].mol)];c.dias=tbDias(m0.f||p.fecha);c.info=noRec.map(function(it){return it.mol;}).join(', ');
+          c.oc=m0.oc||'Sin número';c.ocId=m0.ocId;c.ocF=m0.f||'';c.ocProv=m0.prov;}
         else{
           var fEnt='';its.forEach(function(it){var k=claveItem(p.folio,it.mol),m=mapa[k],st=(ORD_STOCK||{})[k];var f=m?(m.rec_f||m.f):(st?st.f:'');if(f>fEnt)fEnt=f;});
           c.etapa='taller';c.dias=tbDias(fEnt||p.fecha);c.info=its.length?'':'sin moldura';
+          // A los 12 días hábiles desde que la dejaron, se pregunta si ya está lista
+          var hab=tbHabiles(p.fecha),snz=/^Taller:(\d{4}-\d{2}-\d{2})/.exec(String(p.taller_est||''));
+          if(hab>=12&&!(snz&&tbHabiles(snz[1])<2)){c.etapa='lista';c.preg=true;c.hab=hab;}
         }
       }
     }
@@ -9218,10 +9233,11 @@ function tbLista(id,on){
 
 // ── Vista a color ──
 var TB_FILTRO=null;
-var TB_EST={atr:{t:'Atrasada',c:'#C2325F'},urg:{t:'Urge',c:'#E0A21B'},ok:{t:'En tiempo',c:'#12A37A'},avi:{t:'Avisar',c:'#12A37A'}};
+var TB_EST={preg:{t:'¿Ya está lista?',c:'#2F6FB3'},atr:{t:'Atrasada',c:'#C2325F'},urg:{t:'Urge',c:'#E0A21B'},ok:{t:'En tiempo',c:'#12A37A'},avi:{t:'Avisar',c:'#12A37A'}};
 var TB_ETA={pedir:{t:'Por pedir',ic:'🛒',hd:'#6E3B57',bg:'#F4ECF1'},prov:{t:'Con proveedor',ic:'🚚',hd:'#2F6FB3',bg:'#E9F1FA'},
-  taller:{t:'En taller',ic:'🛠',hd:'#B7861C',bg:'#FBF3DF'},lista:{t:'Listas',ic:'🎁',hd:'#12865F',bg:'#E4F5EE'}};
+  taller:{t:'En taller',ic:'🛠',hd:'#B7861C',bg:'#FBF3DF'},lista:{t:'Casillero',ic:'🗄',hd:'#12865F',bg:'#E4F5EE'}};
 function tbEstado(c){
+  if(c.preg)return 'preg';
   if(c.etapa==='lista')return c.color==='ro'?'atr':'avi';
   return c.color==='ro'?'atr':c.color==='am'?'urg':'ok';
 }
@@ -9234,6 +9250,7 @@ function tbFraseEntrega(f){
 }
 function tbFrase(c){
   var p=c.p,d=c.dias;
+  if(c.preg)return 'cumplió '+c.hab+' días hábiles en taller: ¿ya está en casillero?';
   if(c.etapa==='lista')return d>=1?'lista hace '+d+' día'+(d===1?'':'s')+', falta avisar o que recoja':'lista hoy, falta avisar';
   if(p.entrega&&(c.vencida||c.color==='am'))return tbFraseEntrega(p.entrega);
   if(c.etapa==='pedir')return d===0?'entró hoy':d===1?'entró ayer':d+' días sin pedir';
@@ -9245,7 +9262,9 @@ function tbCard2(c,i){
   if(c.etapa==='pedir'&&ce)acc='<button class="btn btn-s btn-xs" onclick="event.stopPropagation();go(\'ord\')">Ir a pedir</button>';
   if(c.etapa==='prov'&&ce)acc='<button class="btn btn-s btn-xs" onclick="event.stopPropagation();go(\'ord\')">Marcar recibido</button>';
   if(c.etapa==='taller'&&ce)acc='<button class="btn btn-p btn-xs" onclick="event.stopPropagation();tbLista('+p.id+',true)">✓ Ya está lista</button>';
-  if(c.etapa==='lista'){
+  if(c.preg&&ce)acc='<button class="btn btn-p btn-xs" onclick="event.stopPropagation();tbLista('+p.id+',true)">Sí, ya está en casillero</button>'+
+    '<button class="btn btn-s btn-xs" onclick="event.stopPropagation();tbTodaviaNo('+p.id+')">Todavía no</button>';
+  else if(c.etapa==='lista'){
     var tel=String(p.tel||'').replace(/\D/g,'');if(tel.length===10)tel='52'+tel;
     var msg=encodeURIComponent('Hola '+(p.cli||'')+', le escribimos de Impulso Galería: su pedido (nota '+p.folio+') ya está listo para recoger. ¡Gracias!');
     acc=(tel?'<a class="btn btn-p btn-xs" onclick="event.stopPropagation()" target="_blank" rel="noopener" href="https://wa.me/'+tel+'?text='+msg+'">WhatsApp al cliente</a>':'<span>sin teléfono</span>')+
@@ -9285,6 +9304,70 @@ function tbAvisarRetraso(id){
     .catch(function(e){p.entrega=ant;alert('⚠️ No se guardó la nueva fecha ('+e.message+')');rTab();});
 }
 
+// Días hábiles (lunes a viernes) desde una fecha hasta hoy
+function tbHabiles(f){
+  if(!f)return 0;var d=new Date(String(f).slice(0,10)+'T12:00:00'),h=new Date(todayStr()+'T12:00:00'),n=0;
+  if(isNaN(d))return 0;
+  while(d<h){d.setDate(d.getDate()+1);var w=d.getDay();if(w!==0&&w!==6)n++;}
+  return n;
+}
+// "Todavía no": se queda en taller y se vuelve a preguntar en 2 días hábiles
+function tbTodaviaNo(id){
+  var p=(pedidos||[]).find(function(x){return x.id===id;});if(!p)return;
+  var prev=p.taller_est;p.taller_est='Taller:'+todayStr();
+  fetch('/api/pedidos/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({taller_est:p.taller_est})})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);logActivity('Todavía en taller','Nota '+p.folio);rTab();})
+    .catch(function(e){p.taller_est=prev;alert('⚠️ No se guardó ('+e.message+')');rTab();});
+}
+// ── Limpieza de lo viejo: notas ya entregadas y OCs ya llegadas que nunca se cerraron ──
+function limpTab(){
+  var u=_u()||{};if(u.role!=='owner'&&u.role!=='admin')return '';
+  var lim=dateStrLocal(new Date(Date.now()-60*864e5));
+  var E=tbEtapas(),n=[].concat(E.pedir,E.prov,E.taller,E.lista).filter(function(c){return String(c.p.fecha||'')<lim;}).length;
+  if(!n)return '';
+  return '<div class="card" style="padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface2)">'+
+    '<div style="flex:1;font-size:13px">🧹 Hay <b>'+n+'</b> notas de hace más de 2 meses que siguen abiertas en la plataforma. Casi seguro ya se entregaron y nunca se cerraron.</div>'+
+    '<button class="btn btn-p btn-sm" onclick="limpAbrir()">Limpiar lo viejo</button></div>';
+}
+function limpAbrir(){var f=document.getElementById('limp-f');if(f&&!f.value)f.value='2026-10-01';limpCalc();OM('mod-limp');}
+function limpFechaOC(o){var x=String(o.fecha||'').split('/');return x.length===3?x[2]+'-'+('0'+x[1]).slice(-2)+'-'+('0'+x[0]).slice(-2):'';}
+function limpDatos(){
+  var corte=(document.getElementById('limp-f')||{}).value||'2026-10-01';
+  var E=tbEtapas(),notas=[].concat(E.pedir,E.prov,E.taller,E.lista).map(function(c){return c.p;}).filter(function(p){return String(p.fecha||'')<corte;});
+  var ocs=(ORDENES||[]).filter(function(o){var f=limpFechaOC(o);return f&&f<corte&&(o.items||[]).some(function(it){return !it.rec;});});
+  return {corte:corte,notas:notas,ocs:ocs};
+}
+function limpCalc(){
+  var D=limpDatos(),porEst={};D.notas.forEach(function(p){var k=String(p.est||'(vacío)');porEst[k]=(porEst[k]||0)+1;});
+  document.getElementById('limp-res').innerHTML=
+    '<div class="srow"><span>Notas abiertas con fecha anterior al '+ptFec(D.corte)+'</span><b>'+D.notas.length+'</b></div>'+
+    '<div style="font-size:11.5px;color:var(--text3);margin:-2px 0 6px">Estatus que traen hoy: '+(Object.keys(porEst).map(function(k){return ptEsc(k)+' ('+porEst[k]+')';}).join(' · ')||'—')+'</div>'+
+    '<div class="srow"><span>Órdenes de compra anteriores con molduras sin marcar como llegadas</span><b>'+D.ocs.length+'</b></div>';
+  document.getElementById('limp-b1').disabled=!D.notas.length;document.getElementById('limp-b2').disabled=!D.ocs.length;
+}
+function limpNotas(){
+  var D=limpDatos();if(!D.notas.length)return;
+  if(!confirm('¿Marcar como ENTREGADAS '+D.notas.length+' notas con fecha anterior al '+ptFec(D.corte)+'?\n\nSu saldo y sus cobros no cambian; solo dejan de aparecer como trabajo pendiente.'))return;
+  var b=document.getElementById('limp-b1');b.disabled=true;var ok=0,fal=0,p=Promise.resolve();
+  D.notas.forEach(function(x,i){p=p.then(function(){b.textContent='Cerrando '+(i+1)+' de '+D.notas.length+'…';
+    var er=x.entrega||x.fecha||D.corte;
+    return fetch('/api/pedidos/'+x.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({est:'Entregado',entrega_real:er})})
+      .then(function(r){if(!r.ok)throw 0;x.est='Entregado';x.entrega_real=er;ok++;}).catch(function(){fal++;});});});
+  p.then(function(){logActivity('Limpieza de notas viejas',ok+' notas marcadas entregadas (antes del '+D.corte+')');
+    b.textContent='Marcar como entregadas';limpCalc();rTab();alert('✅ '+ok+' notas cerradas.'+(fal?'\n⚠️ '+fal+' no se pudieron; vuelve a intentar.':''));});
+}
+function limpOCs(){
+  var D=limpDatos();if(!D.ocs.length)return;
+  if(!confirm('¿Marcar como LLEGADAS todas las molduras de '+D.ocs.length+' órdenes anteriores al '+ptFec(D.corte)+'?'))return;
+  var b=document.getElementById('limp-b2');b.disabled=true;var ok=0,p=Promise.resolve();
+  D.ocs.forEach(function(o,i){p=p.then(function(){b.textContent='Marcando '+(i+1)+' de '+D.ocs.length+'…';
+    (o.items||[]).forEach(function(it){if(!it.rec){it.rec=true;it.rec_f=limpFechaOC(o)||D.corte;}});
+    return fetch('/api/ordenes/'+o.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:o.items})})
+      .then(function(r){if(r.ok)ok++;}).catch(function(){});});});
+  p.then(function(){logActivity('Limpieza de OCs viejas',ok+' órdenes marcadas como llegadas (antes del '+D.corte+')');
+    b.textContent='Marcar como llegadas';limpCalc();rTab();alert('✅ '+ok+' órdenes marcadas como llegadas.');});
+}
+
 function tbFiltrar(k){TB_FILTRO=TB_FILTRO===k?null:k;rTab();}
 function tbContar(el){
   var fin=+el.dataset.n||0,t0=null;
@@ -9314,9 +9397,19 @@ function rTab(){
   todas.forEach(function(x){var e=tbEstado(x);cnt[e==='avi'?'ok':e]++;});
   var sem=function(k,t,st,bg,fg,nb,nf){return '<div class="tb2-s'+(TB_FILTRO===k?' on':'')+'" style="background:'+bg+';color:'+fg+'" onclick="tbFiltrar(\''+k+'\')" title="Toca para ver solo estas">'+
     '<div class="n" style="background:'+nb+';color:'+nf+'" data-n="'+cnt[k]+'">0</div><div><div class="t">'+t+'</div><div class="st">'+st+'</div></div></div>';};
-  var n=0,col=function(k){var M=TB_ETA[k],L=E[k];return '<div class="tb2-col" style="background:'+M.bg+'"><div class="tb2-hd" style="background:'+M.hd+'"><span>'+M.ic+' '+M.t+'</span><b data-n="'+L.length+'">0</b></div>'+
-    (L.length?L.map(function(x){return tbCard2(x,n++);}).join(''):'<div class="tb2-vacio">Nada aquí ✨</div>')+'</div>';};
-  c.innerHTML=cieTabHTML()+cotTabHTML()+
+  var n=0,cuerpo=function(k,L){
+    if(!L.length)return '<div class="tb2-vacio">Nada aquí ✨</div>';
+    if(k!=='prov')return L.map(function(x){return tbCard2(x,n++);}).join('');
+    var G={};L.forEach(function(x){(G[x.oc]=G[x.oc]||{oc:x.oc,id:x.ocId,f:x.ocF,prov:x.ocProv,L:[]}).L.push(x);});
+    return Object.keys(G).map(function(k2){return G[k2];}).sort(function(a,b){return String(a.f).localeCompare(String(b.f));}).map(function(g){
+      var d=ptDias(g.f);
+      return '<div style="display:flex;align-items:center;gap:6px;margin:6px 2px;font-size:12px;color:#1F4E80;flex-wrap:wrap"><b>'+ptEsc(g.oc)+'</b><span style="flex:1;color:var(--text2)">· '+ptEsc(g.prov||'')+' · pedida '+(g.f?ptFec(g.f).slice(0,5):'—')+(d?' · hace '+d+' d':'')+' · '+g.L.length+' nota'+(g.L.length===1?'':'s')+'</span>'+
+        (g.id&&!soloMira()?'<button class="btn btn-s btn-xs" onclick="marcarRecTodo('+g.id+',true)">✓ Llegó</button>':'')+'</div>'+
+        g.L.map(function(x){return tbCard2(x,n++);}).join('');}).join('');
+  };
+  var col=function(k){var M=TB_ETA[k],L=E[k];return '<div class="tb2-col" style="background:'+M.bg+'"><div class="tb2-hd" style="background:'+M.hd+'"><span>'+M.ic+' '+M.t+'</span><b data-n="'+L.length+'">0</b></div>'+cuerpo(k,L)+'</div>';};
+
+  c.innerHTML=limpTab()+cieTabHTML()+cotTabHTML()+
     '<div class="tb2-sem">'+sem('atr','Atrasadas','Atiéndelas primero','#FBE4EC','#8E1F45','#C2325F','#fff')+sem('urg','Urgen','La fecha está encima','#FDF1D6','#7A5208','#E0A21B','#3D2A02')+sem('ok','Van bien','En tiempo','#E1F5EC','#0B5E41','#12A37A','#fff')+'</div>'+
     '<div class="tb2-cols">'+col('pedir')+col('prov')+col('taller')+col('lista')+'</div>'+
     '<div style="font-size:12px;color:var(--text3);margin-top:8px">✓ Las '+tot+' notas abiertas están en su lugar. Toca una nota para ver sus datos y botones; toca un semáforo para ver solo esas.</div>';
