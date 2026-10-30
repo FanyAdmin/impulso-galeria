@@ -11675,9 +11675,9 @@ function detalleCom(vidx,mes){
     '<tr style="font-weight:700;background:var(--green-l)"><td colspan="6">Subtotal pedidos nuevos</td><td class="mono" style="text-align:right">'+fmt(d.totNuevos)+'</td></tr></tbody></table></div>'
     :'<div style="color:var(--text3);padding:4px 0 10px">Sin pedidos nuevos este mes.</div>';
   h+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 5px">💵 Saldos cobrados de notas pasadas (abonos/liquidaciones del mes)</div>';
-  h+=d.abonos.length?'<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>Sucursal</th><th>Vend. capturado</th><th>Nota del</th><th>Cobrado el</th><th>Tipo</th><th style="text-align:right">Monto</th></tr></thead><tbody>'+
-    d.abonos.map(function(x){return '<tr><td class="mono" style="font-weight:600">'+x.folio+'</td><td>'+x.cli+'</td><td>'+(x.suc||'—')+'</td><td style="color:var(--text3)">'+x.vend+'</td><td style="color:var(--text3)">'+(x.fechaPed||'—')+'</td><td style="color:var(--text3)">'+x.fecha+'</td><td><span class="badge '+(x.tipo==='Liquidacion'?'bg':'by')+'">'+(x.tipo==='Liquidacion'?'Liquidación':'Abono')+'</span></td><td class="mono" style="text-align:right">'+fmt(x.monto)+'</td></tr>';}).join('')+
-    '<tr style="font-weight:700;background:var(--green-l)"><td colspan="7">Subtotal abonos del mes</td><td class="mono" style="text-align:right">'+fmt(d.totAbonos)+'</td></tr></tbody></table></div>'
+  h+=d.abonos.length?'<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>¿De quién?</th><th>Sucursal</th><th>Vend. capturado</th><th>Nota del</th><th>Cobrado el</th><th>Tipo</th><th style="text-align:right">Monto</th></tr></thead><tbody>'+
+    d.abonos.map(function(x){return '<tr><td class="mono" style="font-weight:600">'+x.folio+'</td><td>'+x.cli+'</td><td>'+cliBadge(x.cli,x.fechaPed,x.folio,d.desde)+'</td><td>'+(x.suc||'—')+'</td><td style="color:var(--text3)">'+x.vend+'</td><td style="color:var(--text3)">'+(x.fechaPed||'—')+'</td><td style="color:var(--text3)">'+x.fecha+'</td><td><span class="badge '+(x.tipo==='Liquidacion'?'bg':'by')+'">'+(x.tipo==='Liquidacion'?'Liquidación':'Abono')+'</span></td><td class="mono" style="text-align:right">'+fmt(x.monto)+'</td></tr>';}).join('')+
+    '<tr style="font-weight:700;background:var(--green-l)"><td colspan="8">Subtotal abonos del mes</td><td class="mono" style="text-align:right">'+fmt(d.totAbonos)+'</td></tr></tbody></table></div>'
     :'<div style="color:var(--text3);padding:4px 0 10px">Sin abonos de notas pasadas este mes.</div>';
   if(d.antiguos.length){
     h+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 5px">🚫 Clientes antiguos · no comisionan (ya compraban antes del '+ptFec(d.desde)+')</div>';
@@ -11688,6 +11688,10 @@ function detalleCom(vidx,mes){
   h+='<div style="margin-top:14px;background:var(--green-l);border:1.5px solid var(--green);border-radius:10px;padding:12px 14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;font-weight:700">'+
      '<span>Total cobrado: <span class="mono">'+fmt(d.cobrado)+'</span></span>'+
      '<span>Comisión: <span class="mono" style="color:var(--green)">'+fmt(com)+'</span></span></div>';
+  if(d.antiguos&&d.antiguos.length){
+    var antCom=d.antiguos.reduce(function(t,x){var pc=x.tp==='arte'?pctArteDe(v):x.tp==='tranquilo'?pctTqDe(v):(+v.comision||0);return t+x.monto*pc/100;},0);
+    h+='<div style="margin-top:8px;font-size:12.5px;color:var(--text2);background:var(--surface2);border-radius:8px;padding:8px 12px">Sin la regla de clientes antiguos hubiera sido <b class="mono">'+fmt(com+antCom)+'</b> · diferencia <b class="mono">'+fmt(antCom)+'</b> ('+fmt(d.totAntiguos)+' cobrado a clientes antiguos)</div>';
+  }
   h+='<div style="font-size:11px;color:var(--text3);margin-top:8px">Anti-duplicado: el anticipo de un pedido nuevo se cuenta sin los abonos ya registrados de esa nota, y cada abono comisiona una sola vez, en el mes en que se cobró.</div>';
   h+='<div style="margin-top:14px;text-align:right"><button class="btn btn-p btn-s" onclick="expComRecibo('+vidx+','+mes+')">\ud83e\uddfe Recibo con este detalle</button></div>';
   document.getElementById('comdet-body').innerHTML=h;
