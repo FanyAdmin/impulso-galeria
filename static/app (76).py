@@ -1,0 +1,1805 @@
+from flask import Flask, jsonify, request, session, send_from_directory, send_file
+from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
+import os, json
+
+app = Flask(__name__)
+app.secret_key = os.environ.get('CLAVE_SECRETA', 'impulso-secreto-2026')
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+CORS(app, supports_credentials=True, origins='*')
+
+db_url = os.environ.get('DATABASE_URL', 'sqlite:///impulso.db')
+if db_url.startswith('postgres://'):
+    db_url = db_url.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+class Pedido(db.Model):
+    __tablename__ = 'pedidos_v3'
+    id         = db.Column(db.Integer, primary_key=True)
+    folio      = db.Column(db.String(30))
+    tipo_venta = db.Column(db.String(30))
+    tipo_prod  = db.Column(db.String(20), default='marcos')  # marcos | arte
+    cli        = db.Column(db.String(100))
+    tel        = db.Column(db.String(20))
+    suc        = db.Column(db.String(50))
+    vend       = db.Column(db.String(50))
+    fecha      = db.Column(db.String(20))
+    mes        = db.Column(db.Integer)
+    items      = db.Column(db.Text)
+    sub        = db.Column(db.Float, default=0)
+    total      = db.Column(db.Float, default=0)
+    met        = db.Column(db.String(30))
+    ant        = db.Column(db.Float, default=0)   # TOTAL PAGADO — ya no se escribe a mano: ant_ini + cobros
+    rest       = db.Column(db.Float, default=0)
+    ant_ini    = db.Column(db.Float)              # lo que dejó al abrir la nota (NULL = nota por confirmar)
+    orig_total = db.Column(db.Float)              # REGISTRO ORIGINAL: total el día que se capturó (no se edita)
+    orig_ant   = db.Column(db.Float)              # REGISTRO ORIGINAL: a cuenta el día que se capturó (no se edita)
+    orig_ts    = db.Column(db.String(30))         # cuándo se capturó
+    obs        = db.Column(db.String(300))
+    est        = db.Column(db.String(30), default='Pendiente')
+    entrega    = db.Column(db.String(20))   # la PROMETIDA al cliente
+    entrega_real = db.Column(db.String(20)) # cuando se entrego de verdad
+    taller_est = db.Column(db.String(30))
+    casillero  = db.Column(db.String(30))
+    factura_num = db.Column(db.String(30))
+
+class Movimiento(db.Model):
+    __tablename__ = 'movimientos_v3'
+    id          = db.Column(db.Integer, primary_key=True)
+    tipo        = db.Column(db.String(20))
+    concepto    = db.Column(db.String(100))
+    desc        = db.Column(db.String(200))
+    monto       = db.Column(db.Float, default=0)
+    fecha       = db.Column(db.String(20))
+    mes         = db.Column(db.Integer)
+    suc         = db.Column(db.String(50))
+    cuenta      = db.Column(db.String(50))
+    cta_destino = db.Column(db.String(50))
+    socio       = db.Column(db.String(50))
+    # ── CONCILIACIÓN ───────────────────────────────────────────────────────
+    # Lo que le faltaba a la plataforma: cada movimiento sabe si YA se vio en
+    # el banco. Mientras no esté conciliado, el saldo es "en libros", no real.
+    conciliado  = db.Column(db.String(20), default='')   # fecha en que se concilió
+    banco_ref   = db.Column(db.String(40), default='')   # referencia del banco
+    # ── PUENTE DE TERCEROS ─────────────────────────────────────────────────
+    # tercero: por quién se cobró (en cobros) o a quién se devolvió (en devoluciones).
+    # puente_liga: JSON en las salidas puente con los cobros que salda, ej.
+    #   {"g":"grupo","e":[[id_cobro,monto],...],"r":1}  (r=1: retención que pasa a ingreso)
+    tercero     = db.Column(db.String(80), default='')
+    puente_liga = db.Column(db.Text, default='')
+
+# ── USUARIOS EN BD ────────────────────────────────────────────────────────────
+
+class Usuario(db.Model):
+    __tablename__ = 'usuarios'
+    id       = db.Column(db.Integer, primary_key=True)
+    key      = db.Column(db.String(50), unique=True, nullable=False)
+    password = db.Column(db.String(100), nullable=False)
+    name     = db.Column(db.String(100))
+    display  = db.Column(db.String(50))
+    role     = db.Column(db.String(20), default='venta')
+    suc      = db.Column(db.String(50))
+
+USUARIOS_SEED = [
+    {'key':'jardines',  'password':'jardines123', 'name':'Alondra',   'display':'Jardines',  'role':'venta', 'suc':'Jardines'},
+    {'key':'zibata',    'password':'zibata123',   'name':'Zibata',    'display':'Zibata',    'role':'venta', 'suc':'Zibata'},
+    {'key':'admin',     'password':'admin123',    'name':'Ana Karen', 'display':'Admin',     'role':'admin', 'suc':'Admin'},
+    {'key':'estefania', 'password':'impulso2026', 'name':'Estefania', 'display':'Estefania', 'role':'owner', 'suc':'Admin'},
+    {'key':'taller',    'password':'taller2026',  'name':'Taller',    'display':'Taller',    'role':'taller','suc':'Taller'},
+    # Carmen y Raul son los duenos del negocio y entran juntos, con una sola
+    # cuenta. Rol 'dueno': mismos permisos que 'owner' (retiros de utilidades
+    # incluidos), pero el menu arranca corto y el resto se despliega con
+    # "Ver todo". Ojo: al compartir cuenta, el log de Actividad no distingue
+    # quien de los dos hizo cada movimiento.
+    {'key':'carmen',    'password':'carmen2026',  'name':'Carmen y Raúl', 'display':'Dirección', 'role':'dueno', 'suc':'Admin'},
+]
+USUARIOS_PROTEGIDOS = ('admin', 'estefania', 'carmen')  # no se pueden borrar
+
+def usr_dict(u, incluir_pwd=False):
+    d = {'id':u.id,'key':u.key,'name':u.name,'display':u.display,'role':u.role,'suc':u.suc}
+    if incluir_pwd:
+        d['pwd'] = u.password
+    return d
+
+def seed_usuarios():
+    """Inserta los usuarios base solo si no existen. Nunca pisa contraseñas ya cambiadas."""
+    for s in USUARIOS_SEED:
+        if not Usuario.query.filter_by(key=s['key']).first():
+            db.session.add(Usuario(**s))
+    db.session.commit()
+    # AUTO-RESCATE: el sistema no puede quedarse sin dueña. Si ninguna cuenta tiene
+    # rol owner (p.ej. se degradó por accidente al editarla), se restaura estefania.
+    if not Usuario.query.filter_by(role='owner').first():
+        u = Usuario.query.filter_by(key='estefania').first()
+        if u:
+            u.role = 'owner'
+            u.display = 'Estefania'
+            u.suc = 'Admin'
+            db.session.commit()
+
+# ── EMPLEADOS EN BD ───────────────────────────────────────────────────────────
+
+class Empleado(db.Model):
+    __tablename__ = 'empleados'
+    id      = db.Column(db.Integer, primary_key=True)
+    nombre  = db.Column(db.String(100), nullable=False)
+    puesto  = db.Column(db.String(100))
+    suc     = db.Column(db.String(50))
+    ingreso = db.Column(db.String(20))
+    salario = db.Column(db.Float, default=0)
+    metpago = db.Column(db.String(50))
+    banco   = db.Column(db.String(100))
+    curp    = db.Column(db.String(30))
+    rfc     = db.Column(db.String(20))
+    tel     = db.Column(db.String(30))
+    dir     = db.Column(db.String(300))
+    diapago    = db.Column(db.String(15), default='')          # dia de la semana en que se le paga
+    cumple     = db.Column(db.String(10), default='')          # MM-DD, para el calendario
+    estatus    = db.Column(db.String(20), default='activo')   # activo | baja
+    fecha_baja = db.Column(db.String(20), default='')
+
+def emp_dict(e):
+    return {'id':e.id,'nombre':e.nombre,'puesto':e.puesto,'suc':e.suc,
+            'ingreso':e.ingreso,'salario':e.salario,'metpago':e.metpago,
+            'banco':e.banco,'curp':e.curp,'rfc':e.rfc,'tel':e.tel,'dir':e.dir,
+            'diapago':e.diapago or '','cumple':e.cumple or '','estatus':e.estatus or 'activo','fecha_baja':e.fecha_baja or ''}
+
+# ── HELPERS DE AUTORIZACIÓN ───────────────────────────────────────────────────
+
+def requiere_login(f):
+    from functools import wraps
+    @wraps(f)
+    def decorado(*args, **kwargs):
+        if not session.get('usuario'):
+            return jsonify({'error': 'No autenticado'}), 401
+        return f(*args, **kwargs)
+    return decorado
+
+def requiere_admin(f):
+    """Solo admin u owner."""
+    from functools import wraps
+    @wraps(f)
+    def decorado(*args, **kwargs):
+        if not session.get('usuario'):
+            return jsonify({'error': 'No autenticado'}), 401
+        if session.get('rol') not in ('admin', 'owner', 'dueno'):
+            return jsonify({'error': 'Sin permisos'}), 403
+        return f(*args, **kwargs)
+    return decorado
+
+def serve_static(filename):
+    # Try multiple folder names
+    for folder in ['static', 'estático', 'estatico']:
+        path = os.path.join(BASE_DIR, folder, filename)
+        if os.path.exists(path):
+            return send_from_directory(os.path.join(BASE_DIR, folder), filename)
+    return jsonify({'error': f'{filename} no encontrado'}), 404
+
+@app.route('/')
+def index():
+    return serve_static('index.html')
+
+@app.route('/cotizador')
+def cotizador():
+    return serve_static('Cotizador_Impulso.html')
+
+@app.route('/cotizador-movil')
+def cotizador_movil():
+    return serve_static('cotizador_movil.html')
+
+@app.route('/sw-cotizador.js')
+def sw_cotizador():
+    return serve_static('sw-cotizador.js')
+
+# ── AUTH (contra la BD) ───────────────────────────────────────────────────────
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json or {}
+    key = data.get('key', '').strip()
+    pwd = data.get('pwd', '').strip()
+    u = Usuario.query.filter_by(key=key).first()
+    if u and u.password == pwd:
+        session.permanent = True
+        session['usuario'] = key
+        session['suc'] = u.suc
+        session['rol'] = u.role
+        return jsonify({'ok': True, 'user': usr_dict(u, incluir_pwd=True)})
+    return jsonify({'ok': False, 'msg': 'Credenciales incorrectas'}), 401
+
+@app.route('/api/logout', methods=['POST'])
+def logout():
+    session.clear()
+    return jsonify({'ok': True})
+
+@app.route('/api/me')
+def me():
+    key = session.get('usuario')
+    if not key:
+        return jsonify({'ok': False}), 401
+    u = Usuario.query.filter_by(key=key).first()
+    if not u:
+        session.clear()
+        return jsonify({'ok': False}), 401
+    return jsonify({'ok': True, 'user': usr_dict(u)})
+
+# ── CRUD USUARIOS ─────────────────────────────────────────────────────────────
+
+@app.route('/api/usuarios', methods=['GET'])
+def get_usuarios():
+    # Sin sesión: lista sanitizada (para las tarjetas de login).
+    # Con sesión admin/owner: incluye contraseña (para el modal de edición).
+    es_gestor = session.get('rol') in ('admin', 'owner', 'dueno')
+    usuarios = Usuario.query.order_by(Usuario.id).all()
+    return jsonify([usr_dict(u, incluir_pwd=es_gestor) for u in usuarios])
+
+@app.route('/api/usuarios', methods=['POST'])
+@requiere_admin
+def crear_usuario():
+    d = request.json or {}
+    key = (d.get('key') or '').strip().lower()
+    pwd = (d.get('pwd') or '').strip()
+    if not key or not pwd or not d.get('name'):
+        return jsonify({'error': 'Faltan campos'}), 400
+    if Usuario.query.filter_by(key=key).first():
+        return jsonify({'error': 'Ya existe un usuario con ese login'}), 400
+    # Solo la dueña puede crear otros owners
+    if d.get('role') == 'owner' and session.get('rol') != 'owner':
+        return jsonify({'error': 'Solo la dueña puede crear usuarios owner'}), 403
+    u = Usuario(key=key, password=pwd, name=d.get('name'),
+                display=d.get('display', d.get('suc','')),
+                role=d.get('role','venta'), suc=d.get('suc',''))
+    db.session.add(u)
+    db.session.commit()
+    return jsonify(usr_dict(u, incluir_pwd=True)), 201
+
+@app.route('/api/usuarios/<int:uid>', methods=['PUT'])
+@requiere_admin
+def actualizar_usuario(uid):
+    u = Usuario.query.get_or_404(uid)
+    # Solo la dueña puede modificar cuentas owner
+    if u.role == 'owner' and session.get('rol') != 'owner':
+        return jsonify({'error': 'Solo la dueña puede modificar esta cuenta'}), 403
+    d = request.json or {}
+    if 'role' in d and d['role'] == 'owner' and session.get('rol') != 'owner':
+        return jsonify({'error': 'Solo la dueña puede asignar rol owner'}), 403
+    # Candado: no se puede degradar al único owner (el sistema quedaría sin dueña)
+    if u.role == 'owner' and d.get('role') and d['role'] != 'owner':
+        if Usuario.query.filter_by(role='owner').count() <= 1:
+            return jsonify({'error': 'No se puede quitar el rol de Dueña: es la única cuenta owner del sistema'}), 400
+    nueva_key = (d.get('key') or u.key).strip().lower()
+    if nueva_key != u.key:
+        if u.key in USUARIOS_PROTEGIDOS:
+            return jsonify({'error': 'No se puede cambiar el login de este usuario base'}), 400
+        if Usuario.query.filter_by(key=nueva_key).first():
+            return jsonify({'error': 'Ya existe un usuario con ese login'}), 400
+        u.key = nueva_key
+    for campo in ['name', 'display', 'role', 'suc']:
+        if campo in d:
+            setattr(u, campo, d[campo])
+    if d.get('pwd'):
+        u.password = d['pwd'].strip()
+    db.session.commit()
+    return jsonify(usr_dict(u, incluir_pwd=True))
+
+@app.route('/api/usuarios/<int:uid>', methods=['DELETE'])
+@requiere_admin
+def borrar_usuario(uid):
+    u = Usuario.query.get_or_404(uid)
+    if u.key in USUARIOS_PROTEGIDOS:
+        return jsonify({'error': 'Este usuario no se puede eliminar'}), 400
+    if u.role == 'owner' and session.get('rol') != 'owner':
+        return jsonify({'error': 'Solo la dueña puede eliminar cuentas owner'}), 403
+    db.session.delete(u)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+# ── CRUD EMPLEADOS ────────────────────────────────────────────────────────────
+
+@app.route('/api/empleados', methods=['GET'])
+@requiere_login
+def get_empleados():
+    return jsonify([emp_dict(e) for e in Empleado.query.order_by(Empleado.id).all()])
+
+@app.route('/api/empleados', methods=['POST'])
+@requiere_admin
+def crear_empleado():
+    d = request.json or {}
+    if not d.get('nombre'):
+        return jsonify({'error': 'Nombre requerido'}), 400
+    e = Empleado(nombre=d.get('nombre'), puesto=d.get('puesto',''),
+                 suc=d.get('suc',''), ingreso=d.get('ingreso',''),
+                 salario=d.get('salario',0), metpago=d.get('metpago',''),
+                 banco=d.get('banco',''), curp=d.get('curp',''),
+                 rfc=d.get('rfc',''), tel=d.get('tel',''), dir=d.get('dir',''),
+                 diapago=d.get('diapago',''), cumple=d.get('cumple',''),
+                 estatus=d.get('estatus','activo'), fecha_baja=d.get('fecha_baja',''))
+    db.session.add(e)
+    db.session.commit()
+    return jsonify(emp_dict(e)), 201
+
+@app.route('/api/empleados/<int:eid>', methods=['PUT'])
+@requiere_admin
+def actualizar_empleado(eid):
+    e = Empleado.query.get_or_404(eid)
+    d = request.json or {}
+    for campo in ['nombre','puesto','suc','ingreso','salario','metpago','banco','curp','rfc','tel','dir','diapago','cumple','estatus','fecha_baja']:
+        if campo in d:
+            setattr(e, campo, d[campo])
+    db.session.commit()
+    return jsonify(emp_dict(e))
+
+@app.route('/api/empleados/<int:eid>', methods=['DELETE'])
+@requiere_admin
+def borrar_empleado(eid):
+    e = Empleado.query.get_or_404(eid)
+    db.session.delete(e)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+# ── PEDIDOS ───────────────────────────────────────────────────────────────────
+
+@app.route('/api/pedidos', methods=['GET'])
+@requiere_login
+def get_pedidos():
+    # Todos los roles reciben el concentrado completo: las vistas por sucursal
+    # (Pedidos, CxC, Mi Dia) filtran en el frontend, y Ordenes de Compra
+    # necesita ambas sucursales para que quien pida, pida todo.
+    q = Pedido.query
+    return jsonify([p_dict(p) for p in q.order_by(Pedido.id.desc()).all()])
+
+@app.route('/api/pedidos', methods=['POST'])
+@requiere_login
+def crear_pedido():
+    d = request.json or {}
+    p = Pedido(
+        folio=d.get('folio'), tipo_venta=d.get('tipo_venta','general'), tipo_prod=d.get('tipo_prod','marcos'),
+        cli=d.get('cli'), tel=d.get('tel'),
+        suc=d.get('suc', session.get('suc')), vend=d.get('vend'),
+        fecha=d.get('fecha'), mes=d.get('mes'),
+        items=json.dumps(d.get('items',[])),
+        sub=d.get('sub',0), total=d.get('total',0),
+        met=d.get('met'), ant=d.get('ant',0), rest=d.get('rest',0),
+        obs=d.get('obs'), est=d.get('est','Pendiente'), entrega=d.get('entrega'),
+        taller_est=d.get('taller_est','Por pedir'), casillero=d.get('casillero','')
+    )
+    # Lo que deja al abrir la nota es su anticipo inicial; el pagado sale de ahí
+    p.ant_ini = _num(d.get('ant_ini', d.get('ant', 0)))
+    p.ant = round(p.ant_ini, 2)
+    p.rest = round(max(0.0, _num(p.total) - p.ant), 2)
+    from datetime import datetime
+    p.orig_total = _num(p.total); p.orig_ant = p.ant_ini; p.orig_ts = datetime.utcnow().isoformat()
+    db.session.add(p)
+    db.session.commit()
+    return jsonify(p_dict(p)), 201
+
+@app.route('/api/pedidos/<int:pid>', methods=['PUT'])
+@requiere_login
+def actualizar_pedido(pid):
+    p = Pedido.query.get_or_404(pid)
+    d = request.json or {}
+    antes = {'total': _num(p.total), 'ant_ini': p.ant_ini, 'fecha': p.fecha}
+    for campo in ['folio','tipo_venta','tipo_prod','cli','tel','suc','vend','fecha','mes','sub','total','met','obs','est','entrega','entrega_real','taller_est','casillero','factura_num']:
+        if campo in d:
+            setattr(p, campo, d[campo])
+    if 'items' in d:
+        p.items = json.dumps(d['items'])
+    if 'ant_ini' in d and d['ant_ini'] is not None:
+        # Corregir lo que dejó al abrir la nota (o confirmar una nota por revisar)
+        p.ant_ini = _num(d['ant_ini'])
+    if p.ant_ini is None:
+        # Nota por confirmar: se conserva el comportamiento anterior hasta que alguien la confirme
+        if 'ant' in d:  p.ant = d['ant']
+        if 'rest' in d: p.rest = d['rest']
+    # Con anticipo inicial conocido, 'ant' y 'rest' que manden se ignoran: se calculan aquí
+    recalc_pagado(p)
+    cambios = []
+    if abs(_num(p.total) - antes['total']) > 0.009: cambios.append('total %.2f → %.2f' % (antes['total'], _num(p.total)))
+    if antes['ant_ini'] is not None and p.ant_ini is not None and abs(_num(p.ant_ini) - _num(antes['ant_ini'])) > 0.009:
+        cambios.append('a cuenta %.2f → %.2f' % (_num(antes['ant_ini']), _num(p.ant_ini)))
+    if (antes['fecha'] or '') != (p.fecha or ''): cambios.append('fecha %s → %s' % (antes['fecha'], p.fecha))
+    if cambios: _bitacora_srv('Cambio de dinero en nota', 'Folio %s · %s' % (p.folio, ' · '.join(cambios)))
+    db.session.commit()
+    return jsonify(p_dict(p))
+
+def _bitacora_srv(accion, detalle):
+    from datetime import datetime
+    db.session.add(ActivityLog(ts=datetime.utcnow().isoformat(), user=session.get('usuario', '?'),
+                               user_name=session.get('usuario', '?'), accion=accion, detalle=detalle[:300]))
+
+@app.route('/api/pedidos/<int:pid>', methods=['DELETE'])
+@requiere_login
+def borrar_pedido(pid):
+    p = Pedido.query.get_or_404(pid)
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+def p_dict(p):
+    return {
+        'id':p.id,'folio':p.folio,'tipo_venta':p.tipo_venta,'tipo_prod':p.tipo_prod or 'marcos',
+        'cli':p.cli,'tel':p.tel,'suc':p.suc,'vend':p.vend,
+        'fecha':p.fecha,'mes':p.mes,
+        'items':json.loads(p.items) if p.items else [],
+        'sub':p.sub,'total':p.total,'met':p.met,
+        'ant':p.ant,'rest':p.rest,'obs':p.obs,
+        'ant_ini':p.ant_ini,'pagado_ok':p.ant_ini is not None,
+        'orig_total':p.orig_total,'orig_ant':p.orig_ant,'orig_ts':p.orig_ts or '',
+        'est':p.est,'entrega':p.entrega,'entrega_real':p.entrega_real or '',
+        'factura_num':p.factura_num or '',
+        'taller_est':p.taller_est,'casillero':p.casillero
+    }
+
+# ── MOVIMIENTOS ───────────────────────────────────────────────────────────────
+
+@app.route('/api/movimientos', methods=['GET'])
+@requiere_login
+def get_movimientos():
+    rol = session.get('rol')
+    suc = session.get('suc')
+    q = Movimiento.query
+    if rol not in ('admin','owner','dueno'):
+        q = q.filter_by(suc=suc)
+    return jsonify([m_dict(m) for m in q.order_by(Movimiento.id.desc()).all()])
+
+@app.route('/api/movimientos', methods=['POST'])
+@requiere_login
+def crear_movimiento():
+    d = request.json or {}
+    m = Movimiento(
+        tipo=d.get('tipo'), concepto=d.get('concepto'), desc=d.get('desc'),
+        monto=d.get('monto',0), fecha=d.get('fecha'), mes=d.get('mes'),
+        suc=d.get('suc', session.get('suc')),
+        cuenta=d.get('cuenta'), cta_destino=d.get('cta_destino'), socio=d.get('socio',''),
+        conciliado=d.get('conciliado','') or '', banco_ref=d.get('banco_ref','') or '',
+        tercero=d.get('tercero','') or '', puente_liga=d.get('puente_liga','') or ''
+    )
+    db.session.add(m)
+    db.session.commit()
+    return jsonify(m_dict(m)), 201
+
+@app.route('/api/movimientos/<int:mid>', methods=['PUT'])
+@requiere_login
+def actualizar_movimiento(mid):
+    m = Movimiento.query.get_or_404(mid)
+    d = request.json or {}
+    for campo in ['tipo','concepto','desc','monto','fecha','mes','suc','cuenta','cta_destino','socio','conciliado','banco_ref','tercero','puente_liga']:
+        if campo in d:
+            setattr(m, campo, d[campo])
+    db.session.commit()
+    return jsonify(m_dict(m))
+
+@app.route('/api/movimientos/<int:mid>', methods=['DELETE'])
+@requiere_login
+def borrar_movimiento(mid):
+    m = Movimiento.query.get_or_404(mid)
+    db.session.delete(m)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+def m_dict(m):
+    return {
+        'id':m.id,'tipo':m.tipo,'concepto':m.concepto,'desc':m.desc,
+        'monto':m.monto,'fecha':m.fecha,'mes':m.mes,'suc':m.suc,
+        'cuenta':m.cuenta,'cta_destino':m.cta_destino,'socio':m.socio,
+        'conciliado':m.conciliado or '','banco_ref':m.banco_ref or '',
+        'tercero':m.tercero or '','puente_liga':m.puente_liga or ''
+    }
+
+# ── FACTURAS EN BD ────────────────────────────────────────────────────────────
+
+class CuentaPagar(db.Model):
+    __tablename__ = 'cxp'
+    id            = db.Column(db.Integer, primary_key=True)
+    proveedor     = db.Column(db.String(150), nullable=False)
+    factura_num   = db.Column(db.String(60))     # folio de la factura del proveedor
+    concepto      = db.Column(db.String(300))
+    monto         = db.Column(db.Float, default=0)
+    fecha_recibida= db.Column(db.String(20))
+    fecha_vence   = db.Column(db.String(20))
+    estatus       = db.Column(db.String(20), default='pendiente')  # pendiente | pagada
+    fecha_pago    = db.Column(db.String(20))
+    cuenta_pago   = db.Column(db.String(80))
+    ref_pago      = db.Column(db.String(150))
+    mov_id        = db.Column(db.Integer)        # enlace al movimiento de salida generado
+    oc            = db.Column(db.String(40))     # orden de compra relacionada (opcional)
+
+def cxp_dict(c):
+    return {'id':c.id,'proveedor':c.proveedor,'factura_num':c.factura_num or '','concepto':c.concepto or '',
+            'monto':c.monto or 0,'fecha_recibida':c.fecha_recibida or '','fecha_vence':c.fecha_vence or '',
+            'estatus':c.estatus or 'pendiente','fecha_pago':c.fecha_pago or '','cuenta_pago':c.cuenta_pago or '',
+            'ref_pago':c.ref_pago or '','mov_id':c.mov_id,'oc':c.oc or ''}
+
+# ── LECTOR DE ESTADO DE CUENTA INBURSA (PDF) ─────────────────────────────────
+MESES_EDO = {'ENE':1,'FEB':2,'MAR':3,'ABR':4,'MAY':5,'JUN':6,'JUL':7,'AGO':8,'SEP':9,'OCT':10,'NOV':11,'DIC':12}
+
+@app.route('/api/edocta', methods=['POST'])
+@requiere_admin
+def leer_edocta():
+    try:
+        from pypdf import PdfReader
+    except Exception:
+        return jsonify({'error': 'Falta la librería pypdf en el servidor: agrega la línea "pypdf" a requirements.txt y vuelve a desplegar.'}), 500
+    f = request.files.get('file')
+    if not f:
+        return jsonify({'error': 'No llegó ningún archivo'}), 400
+    import re as _re, io
+    try:
+        reader = PdfReader(io.BytesIO(f.read()))
+        texto = '\n'.join((p.extract_text() or '') for p in reader.pages)
+    except Exception as e:
+        return jsonify({'error': 'No pude leer el PDF: ' + str(e)}), 400
+    # ── FORMATO 2: "Detalle de movimientos" (se descarga por rango de días) ──
+    # Trae la fecha completa 17/08/2026 y el signo en el propio monto, en vez de
+    # "AGO. 17" con saldo corrido. Se detecta y se procesa aparte.
+    det_re = _re.compile(r'^(\d{2})/(\d{2})/(\d{4})\s+(.+?)\s+(\d{6,})\s+(-?[\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*$')
+    det_lineas = [l.strip() for l in texto.split('\n') if det_re.match(l.strip())]
+    if len(det_lineas) >= 5:
+        depositos, otros, cargos, n = [], [], [], 0
+        for lin in det_lineas:
+            g = det_re.match(lin)
+            dia, mes, anio_l = int(g.group(1)), int(g.group(2)), int(g.group(3))
+            concepto = g.group(4).strip()
+            ref = g.group(5)
+            monto = float(g.group(6).replace(',', ''))
+            n += 1
+            if monto <= 0:            # cargos: comisiones, transferencias enviadas, TDC
+                cu2 = concepto.upper()
+                # comision del banco = lo que cobra por operar, NO los pagos que ella hace.
+                # Ojo: "TRANSFERENCIA - ENVIO - SPEI" es la comision de $4.50;
+                # "TRANSFERENCIA SPEI" a secas es la transferencia de verdad.
+                es_com = ('TASA DE DESCTO' in cu2 or 'TASA DESCUENTO' in cu2
+                          or 'CUOTA MENSUAL' in cu2 or cu2.startswith('IVA')
+                          or 'TRANSFERENCIA - ENVIO' in cu2)
+                cargos.append({'fecha': '%04d-%02d-%02d' % (anio_l, mes, dia),
+                               'monto': round(-monto, 2), 'det': concepto[:70],
+                               'ref': ref, 'comision': es_com})
+                continue
+            fecha = '%04d-%02d-%02d' % (anio_l, mes, dia)
+            cu = concepto.upper()
+            if cu.startswith('LIQUIDACION ADQUIRENTE'):
+                sub = 'AMEX' if 'AMEX' in cu else ('CREDITO' if 'CREDITO' in cu else 'DEBITO')
+                depositos.append({'fecha': fecha, 'monto': monto, 'tipo': 'terminal', 'det': sub, 'terminal': ref})
+            elif cu.startswith('DEPOSITO') or cu.startswith('TRASPASO DE ('):
+                depositos.append({'fecha': fecha, 'monto': monto, 'tipo': 'spei',
+                                  'det': concepto[:70], 'terminal': ref})
+            else:
+                otros.append({'fecha': fecha, 'monto': monto, 'det': concepto[:50] or 'abono'})
+        msaldo = _re.search(r'Saldo\s+Saldo disponible', texto)
+        sfin = None
+        msf = _re.search(r'([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+0\s+0', texto)
+        if msf:
+            try: sfin = float(msf.group(1).replace(',', ''))
+            except Exception: sfin = None
+        fechas_ok = sorted(d['fecha'] for d in depositos + cargos if d.get('fecha'))
+        return jsonify({'depositos': depositos, 'otros_abonos': otros, 'cargos': cargos,
+                        'anio': anio_l if det_lineas else 2026, 'n_movs': n,
+                        'saldo_final': sfin,
+                        'desde': fechas_ok[0] if fechas_ok else None,
+                        'hasta': fechas_ok[-1] if fechas_ok else None,
+                        'formato': 'detalle_movimientos'})
+
+    m = _re.search(r'Del\s+\d{1,2}\s+\w+\.?\s+(\d{4})', texto)
+    anio = int(m.group(1)) if m else 2026
+    ini = _re.compile(r'^([A-Z]{3})\.?\s+(\d{1,2})\s+(\d{6,})\s+(.*)$')
+    lmonto = _re.compile(r'^\$?\s*([\d,]+\.\d{2})(?:\s+([\d,]+\.\d{2}))?\s*$')
+    tailm = _re.compile(r'^(.*?)\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s*$')
+    finre = _re.compile(r'RESUMEN GRAFICO|Tipo Comprobante|CONSULTAS Y RECLAMACIONES')
+    movs, cur = [], None
+    for lin in texto.split('\n'):
+        lin = lin.strip()
+        if not lin: continue
+        if finre.search(lin): break
+        mm = ini.match(lin)
+        if mm and mm.group(1) in MESES_EDO:
+            resto = mm.group(4).strip()
+            cur = {'mes': MESES_EDO[mm.group(1)], 'dia': int(mm.group(2)), 'concepto': resto, 'extra': ''}
+            tm = tailm.match(resto)  # caso: montos en la misma línea (ej. INTERESES GANADOS)
+            if tm:
+                cur['concepto'] = tm.group(1).strip()
+                cur['monto'] = float(tm.group(2).replace(',', ''))
+                cur['saldo'] = float(tm.group(3).replace(',', ''))
+                movs.append(cur); cur = None
+            continue
+        lm = lmonto.match(lin)
+        if lm and cur is not None:
+            cur['monto'] = float(lm.group(1).replace(',', ''))
+            cur['saldo'] = float(lm.group(2).replace(',', '')) if lm.group(2) else None
+            movs.append(cur); cur = None
+            continue
+        if cur is not None:
+            cur['extra'] += ' ' + lin
+    saldo_prev = None
+    m = _re.search(r'SALDO\s+ANTERIOR\s+([\d,]+\.\d{2})', texto)
+    if m: saldo_prev = float(m.group(1).replace(',', ''))
+    depositos, otros = [], []
+    for mv in movs:
+        monto, saldo = mv.get('monto'), mv.get('saldo')
+        if monto is None: continue
+        es = None
+        if saldo_prev is not None and saldo is not None:
+            if abs(saldo_prev + monto - saldo) < 0.02: es = True
+            elif abs(saldo_prev - monto - saldo) < 0.02: es = False
+        if es is None:
+            cu = mv['concepto'].upper()
+            es = cu.startswith('LIQUIDACION ADQUIRENTE') or cu.startswith('DEPOSITO') or cu.startswith('DEVOLUCION') or 'INTERESES' in cu
+        if saldo is not None: saldo_prev = saldo
+        if not es: continue
+        fecha = '%04d-%02d-%02d' % (anio, mv['mes'], mv['dia'])
+        cu = mv['concepto'].upper()
+        if cu.startswith('LIQUIDACION ADQUIRENTE'):
+            sub = 'AMEX' if 'AMEX' in cu else ('CREDITO' if 'CREDITO' in cu else 'DEBITO')
+            t = _re.search(r'-(\d{6,})', mv['extra'])
+            depositos.append({'fecha': fecha, 'monto': monto, 'tipo': 'terminal', 'det': sub, 'terminal': t.group(1) if t else ''})
+        elif cu.startswith('DEPOSITO'):
+            depositos.append({'fecha': fecha, 'monto': monto, 'tipo': 'spei', 'det': _re.sub(r'\s+', ' ', mv['extra']).strip()[:70] or 'DEPOSITO SPEI', 'terminal': ''})
+        else:
+            otros.append({'fecha': fecha, 'monto': monto, 'det': mv['concepto'][:50] or 'abono'})
+    return jsonify({'depositos': depositos, 'otros_abonos': otros, 'anio': anio, 'n_movs': len(movs)})
+
+@app.route('/api/cxp', methods=['GET'])
+@requiere_admin
+def get_cxp():
+    return jsonify([cxp_dict(c) for c in CuentaPagar.query.order_by(CuentaPagar.id.desc()).all()])
+
+@app.route('/api/cxp', methods=['POST'])
+@requiere_admin
+def crear_cxp():
+    d = request.json or {}
+    c = CuentaPagar(proveedor=d.get('proveedor','').strip(), factura_num=d.get('factura_num',''),
+                    concepto=d.get('concepto',''), monto=d.get('monto',0),
+                    fecha_recibida=d.get('fecha_recibida',''), fecha_vence=d.get('fecha_vence',''),
+                    estatus='pendiente', oc=d.get('oc',''))
+    if not c.proveedor:
+        return jsonify({'error':'Falta el proveedor'}), 400
+    db.session.add(c); db.session.commit()
+    return jsonify(cxp_dict(c))
+
+@app.route('/api/cxp/<int:cid>', methods=['PUT'])
+@requiere_admin
+def actualizar_cxp(cid):
+    c = CuentaPagar.query.get_or_404(cid)
+    d = request.json or {}
+    for campo in ['proveedor','factura_num','concepto','monto','fecha_recibida','fecha_vence',
+                  'estatus','fecha_pago','cuenta_pago','ref_pago','mov_id','oc']:
+        if campo in d:
+            setattr(c, campo, d[campo])
+    db.session.commit()
+    return jsonify(cxp_dict(c))
+
+@app.route('/api/cxp/<int:cid>', methods=['DELETE'])
+@requiere_admin
+def borrar_cxp(cid):
+    c = CuentaPagar.query.get_or_404(cid)
+    db.session.delete(c); db.session.commit()
+    return jsonify({'ok': True})
+
+class Factura(db.Model):
+    __tablename__ = 'facturas'
+    id     = db.Column(db.Integer, primary_key=True)
+    num    = db.Column(db.String(40), nullable=False)
+    rfc    = db.Column(db.String(20))
+    fecha  = db.Column(db.String(20))
+    folios = db.Column(db.Text)          # JSON: lista de folios
+    total  = db.Column(db.Float, default=0)
+    # Forma de pago del CFDI. PUE = se paga de una vez y no lleva complementos.
+    # PPD = van a abonar en parcialidades y CADA abono posterior necesita su
+    # complemento de pago. Las facturas viejas llegan sin dato: se tratan como
+    # PUE para que no empiecen pidiendo complementos que no les tocan.
+    metodo = db.Column(db.String(4), default='PUE')
+    # Complementos emitidos, JSON { llave_del_abono: {folio, fecha} }.
+    # Cuelgan del abono que amparan, no son otra factura: por eso viven aqui
+    # y no como registro aparte.
+    comp   = db.Column(db.Text)
+
+def fac_dict(f):
+    try:
+        comp = json.loads(f.comp) if f.comp else {}
+        if not isinstance(comp, dict):
+            comp = {}
+    except Exception:
+        comp = {}
+    return {'id':f.id,'num':f.num,'rfc':f.rfc,'fecha':f.fecha,
+            'folios':json.loads(f.folios) if f.folios else [],'total':f.total,
+            'metodo':(f.metodo or 'PUE'),'comp':comp}
+
+@app.route('/api/facturas', methods=['GET'])
+@requiere_login
+def get_facturas():
+    return jsonify([fac_dict(f) for f in Factura.query.order_by(Factura.id.desc()).all()])
+
+@app.route('/api/facturas', methods=['POST'])
+@requiere_login
+def crear_factura():
+    d = request.json or {}
+    if not d.get('num'):
+        return jsonify({'error': 'No. de factura requerido'}), 400
+    metodo = 'PPD' if str(d.get('metodo','')).upper() == 'PPD' else 'PUE'
+    f = Factura(num=d.get('num'), rfc=d.get('rfc',''), fecha=d.get('fecha',''),
+                folios=json.dumps(d.get('folios',[])), total=d.get('total',0),
+                metodo=metodo, comp=json.dumps(d.get('comp') or {}))
+    db.session.add(f)
+    db.session.commit()
+    return jsonify(fac_dict(f)), 201
+
+@app.route('/api/facturas/<int:fid>', methods=['PUT'])
+@requiere_login
+def editar_factura(fid):
+    """Actualiza la forma de pago y los complementos de una factura ya emitida.
+
+    Solo toca los campos que vengan en el cuerpo: mandar 'comp' sin 'metodo'
+    no borra el metodo, y al reves igual. 'comp' se manda COMPLETO (el front
+    guarda el objeto entero), asi quitar un complemento es mandarlo sin el.
+    """
+    f = Factura.query.get_or_404(fid)
+    d = request.json or {}
+
+    if 'metodo' in d:
+        f.metodo = 'PPD' if str(d.get('metodo','')).upper() == 'PPD' else 'PUE'
+
+    if 'comp' in d:
+        c = d.get('comp') or {}
+        if not isinstance(c, dict):
+            return jsonify({'error': 'comp debe ser un objeto'}), 400
+        limpio = {}
+        for k, v in c.items():
+            if not isinstance(v, dict):
+                continue
+            folio = str(v.get('folio','')).strip()
+            if not folio:      # sin folio no es complemento, es renglon vacio
+                continue
+            limpio[str(k)] = {'folio': folio, 'fecha': str(v.get('fecha','')).strip()}
+        f.comp = json.dumps(limpio)
+
+    # Por si algun dia se corrige un dato de captura de la factura misma
+    for campo in ['num','rfc','fecha','total']:
+        if campo in d:
+            setattr(f, campo, d.get(campo))
+    if 'folios' in d:
+        f.folios = json.dumps(d.get('folios') or [])
+
+    db.session.commit()
+    return jsonify(fac_dict(f))
+
+@app.route('/api/facturas/<int:fid>', methods=['DELETE'])
+@requiere_login
+def borrar_factura(fid):
+    f = Factura.query.get_or_404(fid)
+    db.session.delete(f)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+# ── CONFIG (clave-valor JSON, p.ej. conceptos del Estado de Resultados) ──────
+
+class Config(db.Model):
+    __tablename__ = 'config'
+    clave = db.Column(db.String(50), primary_key=True)
+    valor = db.Column(db.Text)
+
+@app.route('/api/config/<clave>', methods=['GET'])
+@requiere_login
+def get_config(clave):
+    c = Config.query.get(clave)
+    return jsonify({'clave': clave, 'valor': json.loads(c.valor) if c and c.valor else None})
+
+# Configuraciones que también guardan las sucursales (candados y tablero).
+# Todo lo demás solo lo guarda admin / dueña.
+CONFIG_SUCURSAL = {'cierres_suc', 'notas_fis', 'tablero_hist', 'ord_stock'}
+
+def _suc_de_sesion():
+    s = str(session.get('suc') or '').lower()
+    return 'Zibata' if 'zibata' in s else ('Jardines' if 'jardines' in s else '')
+
+@app.route('/api/config/<clave>', methods=['PUT'])
+@requiere_login
+def set_config(clave):
+    rol = session.get('rol')
+    es_gestor = rol in ('admin', 'owner', 'dueno')
+    if not es_gestor and clave not in CONFIG_SUCURSAL:
+        return jsonify({'error': 'Sin permisos'}), 403
+    d = request.json or {}
+    c = Config.query.get(clave)
+    if not c:
+        c = Config(clave=clave)
+        db.session.add(c)
+    nuevo = d.get('valor')
+    # Una sucursal solo puede escribir SUS cierres / notas físicas, y no puede
+    # marcar como recibido el dinero (eso lo decide la dueña).
+    if not es_gestor and clave in ('cierres_suc', 'notas_fis'):
+        suc = _suc_de_sesion()
+        try:
+            actual = json.loads(c.valor) if c.valor else {}
+        except Exception:
+            actual = {}
+        if not isinstance(actual, dict):
+            actual = {}
+        if isinstance(nuevo, dict) and suc:
+            for k, v in nuevo.items():
+                if not str(k).startswith(suc + '|'):
+                    continue
+                if k in actual and isinstance(actual[k], dict) and isinstance(v, dict):
+                    for campo in ('est', 'estF', 'estU'):
+                        if campo in actual[k]:
+                            v[campo] = actual[k][campo]
+                actual[k] = v
+        nuevo = actual
+    c.valor = json.dumps(nuevo)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+@app.route('/debug')
+def debug():
+    folders = os.listdir(BASE_DIR)
+    return jsonify({'base_dir': BASE_DIR, 'files': folders})
+
+
+@app.route('/api/import_pedidos', methods=['POST'])
+def import_pedidos():
+    data = request.json or {}
+    secret = data.get('secret', '')
+    if secret != 'impulso2026':
+        return jsonify({'error': 'No autorizado'}), 401
+    pedidos_data = data.get('pedidos', [])
+    count = 0
+    for d in pedidos_data:
+        try:
+            import json as _json
+            p = Pedido(
+                folio=d.get('folio'), tipo_venta=d.get('tipo_venta','general'), tipo_prod=d.get('tipo_prod','marcos'),
+                cli=d.get('cli'), tel=d.get('tel'),
+                suc=d.get('suc','Jardines'), vend=d.get('vend'),
+                fecha=d.get('fecha'), mes=d.get('mes'),
+                items=_json.dumps(d.get('items',[])),
+                sub=d.get('sub',0), total=d.get('total',0),
+                met=d.get('met','Efectivo'), ant=d.get('ant',0), ant_ini=d.get('ant',0),
+                rest=d.get('rest',0), obs=d.get('obs',''),
+                est=d.get('est','Pendiente'), entrega=d.get('entrega','')
+            )
+            db.session.add(p)
+            count += 1
+        except Exception as e:
+            pass
+    db.session.commit()
+    return jsonify({'ok': True, 'imported': count})
+
+
+
+
+
+# ── CATÁLOGO DE MOLDURAS EN BD ────────────────────────────────────────────────
+
+class Moldura(db.Model):
+    __tablename__ = 'molduras'
+    id           = db.Column(db.Integer, primary_key=True)
+    nombre       = db.Column(db.String(150), nullable=False)
+    precio_lista = db.Column(db.Float, default=0)
+    desp_cm      = db.Column(db.Float, default=0)
+    proveedor    = db.Column(db.String(50), default='PROPIO')
+    estatus      = db.Column(db.String(20), default='activa')
+
+def mol_dict(m):
+    return {'id':m.id,'nombre':m.nombre,'precio_lista':m.precio_lista,
+            'desp_cm':m.desp_cm,'proveedor':m.proveedor,'estatus':m.estatus}
+
+@app.route('/api/molduras', methods=['GET'])
+@requiere_login
+def get_molduras():
+    return jsonify([mol_dict(m) for m in Moldura.query.order_by(Moldura.id).all()])
+
+@app.route('/api/molduras/bulk', methods=['POST'])
+@requiere_admin
+def seed_molduras():
+    """Siembra inicial del catálogo (solo si la tabla está vacía)."""
+    if Moldura.query.first():
+        return jsonify({'error': 'El catálogo ya está sembrado'}), 400
+    items = (request.json or {}).get('items', [])
+    for it in items:
+        db.session.add(Moldura(nombre=it.get('nombre',''), precio_lista=it.get('precio_lista',0),
+                               desp_cm=it.get('desp_cm',0), proveedor=it.get('proveedor','PROPIO'),
+                               estatus=it.get('estatus','activa')))
+    db.session.commit()
+    return jsonify({'ok': True, 'sembradas': len(items)}), 201
+
+@app.route('/api/molduras', methods=['POST'])
+@requiere_login
+def crear_moldura():
+    """Todos los roles logueados (incluye venta) pueden dar de alta molduras."""
+    d = request.json or {}
+    if not d.get('nombre'):
+        return jsonify({'error': 'Nombre requerido'}), 400
+    m = Moldura(nombre=d.get('nombre'), precio_lista=d.get('precio_lista',0),
+                desp_cm=d.get('desp_cm',0), proveedor=d.get('proveedor','PROPIO'),
+                estatus=d.get('estatus','activa'))
+    db.session.add(m)
+    db.session.commit()
+    return jsonify(mol_dict(m)), 201
+
+@app.route('/api/molduras/<int:mid>', methods=['PUT'])
+@requiere_login
+def actualizar_moldura(mid):
+    """Todos los roles logueados (incluye venta) pueden editar molduras."""
+    m = Moldura.query.get_or_404(mid)
+    d = request.json or {}
+    for campo in ['nombre','precio_lista','desp_cm','proveedor','estatus']:
+        if campo in d:
+            setattr(m, campo, d[campo])
+    db.session.commit()
+    return jsonify(mol_dict(m))
+
+@app.route('/api/molduras/<int:mid>', methods=['DELETE'])
+@requiere_admin
+def borrar_moldura(mid):
+    """Eliminar moldura (solo admin/owner) — para duplicados."""
+    m = Moldura.query.get_or_404(mid)
+    db.session.delete(m)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ── ABONOS (cobros con fecha: liquidaciones y pagos parciales) ────────────────
+
+class Abono(db.Model):
+    __tablename__ = 'abonos'
+    id        = db.Column(db.Integer, primary_key=True)
+    pedido_id = db.Column(db.Integer)
+    folio     = db.Column(db.String(30))
+    cli       = db.Column(db.String(100))
+    suc       = db.Column(db.String(50))
+    monto     = db.Column(db.Float, default=0)
+    met       = db.Column(db.String(30))
+    fecha     = db.Column(db.String(20))
+    tipo      = db.Column(db.String(20), default='Abono')  # Abono | Liquidacion
+    orig_monto = db.Column(db.Float)       # REGISTRO ORIGINAL del cobro (no se edita)
+    orig_fecha = db.Column(db.String(20))
+
+def ab_dict(a):
+    return {'id':a.id,'pedido_id':a.pedido_id,'folio':a.folio,'cli':a.cli,'suc':a.suc,
+            'monto':a.monto,'met':a.met,'fecha':a.fecha,'tipo':a.tipo,
+            'orig_monto':a.orig_monto,'orig_fecha':a.orig_fecha or ''}
+
+# ── TOTAL PAGADO CALCULADO ────────────────────────────────────────────────────
+# Antes el pagado (ant) era un número que cada pantalla sumaba a mano; si una
+# suma fallaba (nota 95: liquidación de $1,725 que nunca se sumó), el saldo
+# quedaba mal para siempre. Ahora: pagado = lo que dejó al abrir + sus cobros,
+# y lo calcula SOLO el servidor cada vez que cambia un cobro o la nota.
+def _num(v):
+    try: return round(float(v or 0), 2)
+    except (TypeError, ValueError): return 0.0
+
+def _pedido_de_abono(a):
+    """La nota a la que pertenece un cobro: por pedido_id, o por folio+sucursal si es única."""
+    if a.pedido_id:
+        return Pedido.query.get(a.pedido_id)
+    c = Pedido.query.filter_by(folio=str(a.folio or ''), suc=a.suc).all()
+    return c[0] if len(c) == 1 else None
+
+def recalc_pagado(p, delta_legacy=0):
+    if p is None:
+        return
+    if p.ant_ini is None:
+        # Nota por confirmar: suma/resta como antes, sin adivinar su anticipo inicial
+        if delta_legacy:
+            p.ant = round(_num(p.ant) + delta_legacy, 2)
+            p.rest = round(max(0.0, _num(p.total) - p.ant), 2)
+        return
+    suma = sum(_num(a.monto) for a in Abono.query.filter_by(pedido_id=p.id).all())
+    p.ant = round(_num(p.ant_ini) + suma, 2)
+    p.rest = round(max(0.0, _num(p.total) - p.ant), 2)
+
+def _con_pedido(a, p):
+    r = ab_dict(a)
+    r['pedido'] = p_dict(p) if p else None
+    return r
+
+@app.route('/api/abonos', methods=['GET'])
+@requiere_login
+def get_abonos():
+    abonos = Abono.query.order_by(Abono.id.desc()).limit(10000).all()
+    return jsonify([ab_dict(a) for a in abonos])
+
+@app.route('/api/abonos', methods=['POST'])
+@requiere_login
+def crear_abono():
+    d = request.json or {}
+    a = Abono(pedido_id=d.get('pedido_id') or None, folio=d.get('folio',''), cli=d.get('cli',''),
+              suc=d.get('suc',''), monto=d.get('monto',0), met=d.get('met',''),
+              fecha=d.get('fecha',''), tipo=d.get('tipo','Abono'))
+    a.orig_monto = _num(a.monto); a.orig_fecha = a.fecha
+    p = _pedido_de_abono(a)
+    if p and not a.pedido_id:
+        a.pedido_id = p.id
+    db.session.add(a)
+    db.session.flush()
+    recalc_pagado(p, _num(a.monto))
+    db.session.commit()
+    return jsonify(_con_pedido(a, p)), 201
+
+@app.route('/api/abonos/<int:aid>', methods=['PUT'])
+@requiere_admin
+def actualizar_abono(aid):
+    a = Abono.query.get_or_404(aid)
+    d = request.json or {}
+    antes = _num(a.monto)
+    f_antes = a.fecha or ''
+    for campo in ['monto', 'met', 'fecha', 'tipo']:
+        if campo in d:
+            setattr(a, campo, d[campo])
+    if abs(_num(a.monto) - antes) > 0.009 or (a.fecha or '') != f_antes:
+        _bitacora_srv('Cambio de dinero en cobro', 'Folio %s · %.2f (%s) → %.2f (%s)' % (a.folio, antes, f_antes, _num(a.monto), a.fecha))
+    db.session.flush()
+    p = _pedido_de_abono(a)
+    recalc_pagado(p, _num(a.monto) - antes)
+    db.session.commit()
+    return jsonify(_con_pedido(a, p))
+
+@app.route('/api/abonos/<int:aid>', methods=['DELETE'])
+@requiere_admin
+def borrar_abono(aid):
+    a = Abono.query.get_or_404(aid)
+    p = _pedido_de_abono(a)
+    monto = _num(a.monto)
+    _bitacora_srv('Cambio de dinero en cobro', 'Folio %s · se eliminó el cobro de %.2f del %s' % (a.folio, monto, a.fecha))
+    db.session.delete(a)
+    db.session.flush()
+    recalc_pagado(p, -monto)
+    db.session.commit()
+    return jsonify({'ok': True, 'pedido': p_dict(p) if p else None})
+
+
+@app.route('/api/pagado/revisar', methods=['GET'])
+@requiere_admin
+def pagado_por_revisar():
+    """Notas cuyos cobros suman MÁS que su pagado: no se adivina cuál fue su anticipo, se confirma a mano."""
+    out = []
+    for p in Pedido.query.filter(Pedido.ant_ini.is_(None)).order_by(Pedido.fecha).all():
+        abs_ = Abono.query.filter_by(pedido_id=p.id).order_by(Abono.fecha).all()
+        out.append({'pedido': p_dict(p), 'suma': round(sum(_num(a.monto) for a in abs_), 2),
+                    'cobros': [ab_dict(a) for a in abs_]})
+    return jsonify(out)
+
+
+# ── ÓRDENES DE COMPRA (lotes pedidos a proveedores) ───────────────────────────
+
+class OrdenCompra(db.Model):
+    __tablename__ = 'ordenes_compra'
+    id          = db.Column(db.Integer, primary_key=True)
+    oc          = db.Column(db.String(20))  # folio: OC-0001
+    prov        = db.Column(db.String(50))
+    prov_nombre = db.Column(db.String(100))
+    fecha       = db.Column(db.String(30))
+    items       = db.Column(db.Text)  # JSON: [{mol,pzas,meds,fols}]
+
+def ord_dict(o):
+    return {'id':o.id,'oc':o.oc,'prov':o.prov,'prov_nombre':o.prov_nombre,'fecha':o.fecha,
+            'items':json.loads(o.items) if o.items else []}
+
+@app.route('/api/ordenes', methods=['GET'])
+@requiere_login
+def get_ordenes():
+    return jsonify([ord_dict(o) for o in OrdenCompra.query.order_by(OrdenCompra.id.desc()).all()])
+
+@app.route('/api/ordenes', methods=['POST'])
+@requiere_login
+def crear_orden():
+    d = request.json or {}
+    o = OrdenCompra(prov=d.get('prov',''), prov_nombre=d.get('prov_nombre',''),
+                    fecha=d.get('fecha',''), items=json.dumps(d.get('items',[])))
+    db.session.add(o)
+    db.session.commit()
+    o.oc = 'OC-%04d' % o.id  # folio consecutivo de orden de compra
+    db.session.commit()
+    return jsonify(ord_dict(o)), 201
+
+@app.route('/api/ordenes/<int:oid>', methods=['PUT'])
+@requiere_login
+def actualizar_orden(oid):
+    o = OrdenCompra.query.get_or_404(oid)
+    d = request.json or {}
+    if 'items' in d:
+        o.items = json.dumps(d['items'])
+    db.session.commit()
+    return jsonify(ord_dict(o))
+
+@app.route('/api/ordenes/<int:oid>', methods=['DELETE'])
+@requiere_admin
+def borrar_orden(oid):
+    o = OrdenCompra.query.get_or_404(oid)
+    db.session.delete(o)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ── PENDIENTES ────────────────────────────────────────────────────────────────
+
+class Pendiente(db.Model):
+    __tablename__ = 'pendientes'
+    id        = db.Column(db.Integer, primary_key=True)
+    desc      = db.Column(db.String(300))
+    cliente   = db.Column(db.String(100))
+    folio_ref = db.Column(db.String(50))
+    asignado  = db.Column(db.String(100))
+    fecha     = db.Column(db.String(20))
+    est       = db.Column(db.String(30), default='abierto')
+    suc       = db.Column(db.String(50))
+
+def pend_dict(p):
+    return {'id':p.id,'desc':p.desc,'cliente':p.cliente,'folio_ref':p.folio_ref,
+            'asignado':p.asignado,'fecha':p.fecha,'est':p.est,'suc':p.suc}
+
+@app.route('/api/pendientes', methods=['GET'])
+@requiere_login
+def get_pendientes():
+    rol = session.get('rol')
+    suc = session.get('suc')
+    q = Pendiente.query
+    if rol not in ('admin','owner','dueno','taller'):
+        q = q.filter_by(suc=suc)
+    return jsonify([pend_dict(p) for p in q.order_by(Pendiente.id.desc()).all()])
+
+@app.route('/api/pendientes', methods=['POST'])
+@requiere_login
+def crear_pendiente():
+    d = request.json or {}
+    p = Pendiente(
+        desc=d.get('desc'), cliente=d.get('cliente',''),
+        folio_ref=d.get('folio_ref',''), asignado=d.get('asignado','Todos'),
+        fecha=d.get('fecha'), est=d.get('est','abierto'),
+        suc=d.get('suc', session.get('suc'))
+    )
+    db.session.add(p)
+    db.session.commit()
+    return jsonify(pend_dict(p)), 201
+
+@app.route('/api/pendientes/<int:pid>', methods=['PUT'])
+@requiere_login
+def actualizar_pendiente(pid):
+    p = Pendiente.query.get_or_404(pid)
+    d = request.json or {}
+    for campo in ['desc','cliente','folio_ref','asignado','fecha','est','suc']:
+        if campo in d:
+            setattr(p, campo, d[campo])
+    db.session.commit()
+    return jsonify(pend_dict(p))
+
+@app.route('/api/pendientes/<int:pid>', methods=['DELETE'])
+@requiere_login
+def borrar_pendiente(pid):
+    p = Pendiente.query.get_or_404(pid)
+    db.session.delete(p)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ── VENDEDORES ────────────────────────────────────────────────────────────────
+
+class Vendedor(db.Model):
+    __tablename__ = 'vendedores'
+    id        = db.Column(db.Integer, primary_key=True)
+    nombre    = db.Column(db.String(100))
+    suc       = db.Column(db.String(50))
+    comision  = db.Column(db.Float, default=0)        # % sobre marcos
+    comision_arte = db.Column(db.Float, default=10)   # % sobre arte
+    comision_tranquilo = db.Column(db.Float, default=10)   # % sobre ventas de Tranquilo
+    estatus   = db.Column(db.String(20), default='activo')
+    clientes_desde = db.Column(db.String(20), default='')  # sus clientes cuentan si compraron por primera vez desde esta fecha
+
+def vend_dict(v):
+    return {'id':v.id,'nombre':v.nombre,'suc':v.suc,'comision':v.comision,'comision_arte':(v.comision_arte if v.comision_arte is not None else 10),'comision_tranquilo':(v.comision_tranquilo if v.comision_tranquilo is not None else 10),'estatus':v.estatus,'clientes_desde':v.clientes_desde or ''}
+
+@app.route('/api/vendedores', methods=['GET'])
+@requiere_login
+def get_vendedores():
+    return jsonify([vend_dict(v) for v in Vendedor.query.order_by(Vendedor.nombre).all()])
+
+@app.route('/api/vendedores', methods=['POST'])
+@requiere_login
+def crear_vendedor():
+    d = request.json or {}
+    v = Vendedor(nombre=d.get('nombre'), suc=d.get('suc',''), comision=d.get('comision',0), comision_arte=d.get('comision_arte',10), comision_tranquilo=d.get('comision_tranquilo',10), estatus=d.get('estatus','activo'), clientes_desde=d.get('clientes_desde',''))
+    db.session.add(v)
+    db.session.commit()
+    return jsonify(vend_dict(v)), 201
+
+@app.route('/api/vendedores/<int:vid>', methods=['PUT'])
+@requiere_login
+def actualizar_vendedor(vid):
+    v = Vendedor.query.get_or_404(vid)
+    d = request.json or {}
+    for campo in ['nombre','suc','comision','comision_arte','comision_tranquilo','estatus','clientes_desde']:
+        if campo in d:
+            setattr(v, campo, d[campo])
+    db.session.commit()
+    return jsonify(vend_dict(v))
+
+@app.route('/api/vendedores/<int:vid>', methods=['DELETE'])
+@requiere_login
+def borrar_vendedor(vid):
+    v = Vendedor.query.get_or_404(vid)
+    db.session.delete(v)
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ── ACTIVITY LOG ──────────────────────────────────────────────────────────────
+
+class ActivityLog(db.Model):
+    __tablename__ = 'activity_log'
+    id        = db.Column(db.Integer, primary_key=True)
+    ts        = db.Column(db.String(30))
+    user      = db.Column(db.String(50))
+    user_name = db.Column(db.String(100))
+    accion    = db.Column(db.String(100))
+    detalle   = db.Column(db.String(300))
+
+def act_dict(a):
+    return {'id':a.id,'ts':a.ts,'user':a.user,'userName':a.user_name,'accion':a.accion,'detalle':a.detalle}
+
+@app.route('/api/activity', methods=['GET'])
+@requiere_login
+def get_activity():
+    logs = ActivityLog.query.order_by(ActivityLog.id.desc()).limit(200).all()
+    return jsonify([act_dict(a) for a in logs])
+
+@app.route('/api/activity/ediciones', methods=['GET'])
+@requiere_admin
+def get_ediciones():
+    acciones = ['Editó pedido', 'Confirmó pagado de nota', 'Editó cobro', 'Eliminó cobro',
+                'Cambio de dinero en nota', 'Cambio de dinero en cobro']
+    desde = request.args.get('desde', '')
+    q = ActivityLog.query.filter(ActivityLog.accion.in_(acciones))
+    if desde:
+        q = q.filter(ActivityLog.ts >= desde)
+    return jsonify([act_dict(x) for x in q.order_by(ActivityLog.id.asc()).limit(5000).all()])
+
+@app.route('/api/activity', methods=['POST'])
+@requiere_login
+def post_activity():
+    d = request.json or {}
+    from datetime import datetime
+    a = ActivityLog(
+        ts=datetime.utcnow().isoformat(),
+        user=session.get('usuario','?'),
+        user_name=d.get('userName','?'),
+        accion=d.get('accion',''),
+        detalle=d.get('detalle','')
+    )
+    db.session.add(a)
+    db.session.commit()
+    return jsonify(act_dict(a)), 201
+
+@app.route('/api/activity', methods=['DELETE'])
+@requiere_login
+def clear_activity():
+    ActivityLog.query.delete()
+    db.session.commit()
+    return jsonify({'ok': True})
+
+def migrar_columnas():
+    """Agrega columnas nuevas a tablas existentes (create_all no altera tablas ya creadas)."""
+    from sqlalchemy import text
+    for stmt in [
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS taller_est VARCHAR(30)",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS casillero VARCHAR(30)",
+        "ALTER TABLE ordenes_compra ADD COLUMN IF NOT EXISTS oc VARCHAR(20)",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS factura_num VARCHAR(30)",
+        "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS estatus VARCHAR(20) DEFAULT 'activo'",
+        "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS fecha_baja VARCHAR(20) DEFAULT ''",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS tipo_prod VARCHAR(20) DEFAULT 'marcos'",
+        "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_arte FLOAT DEFAULT 10",
+        "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_tranquilo FLOAT DEFAULT 10",
+        "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS clientes_desde VARCHAR(20) DEFAULT ''",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS orig_total FLOAT",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS orig_ant FLOAT",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS orig_ts VARCHAR(30)",
+        "ALTER TABLE abonos ADD COLUMN IF NOT EXISTS orig_monto FLOAT",
+        "ALTER TABLE abonos ADD COLUMN IF NOT EXISTS orig_fecha VARCHAR(20)",
+        "ALTER TABLE fac_prov ALTER COLUMN oc TYPE VARCHAR(60)",
+        "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS diapago VARCHAR(15) DEFAULT ''",
+        "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS cumple VARCHAR(10) DEFAULT ''",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS entrega_real VARCHAR(20)",
+        "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS conciliado VARCHAR(20) DEFAULT ''",
+        "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS banco_ref VARCHAR(40) DEFAULT ''",
+        "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS tercero VARCHAR(80) DEFAULT ''",
+        "ALTER TABLE movimientos_v3 ADD COLUMN IF NOT EXISTS puente_liga TEXT DEFAULT ''",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS ant_ini FLOAT",
+        "ALTER TABLE fac_prov ADD COLUMN IF NOT EXISTS ped_prov VARCHAR(40) DEFAULT ''",
+        "ALTER TABLE facturas ADD COLUMN IF NOT EXISTS metodo VARCHAR(4) DEFAULT 'PUE'",
+        "ALTER TABLE facturas ADD COLUMN IF NOT EXISTS comp TEXT",
+    ]:
+        try:
+            db.session.execute(text(stmt)); db.session.commit()
+        except Exception:
+            db.session.rollback()
+            try:  # SQLite local no soporta IF NOT EXISTS en columnas
+                db.session.execute(text(stmt.replace(' IF NOT EXISTS',''))); db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# REVISIÓN DE NOTAS FÍSICAS  ·  la foto de la nota manuscrita contra lo capturado
+# ───────────────────────────────────────────────────────────────────────────────
+# No se guarda ninguna foto: se lee, se compara y solo queda el resultado.
+# Usa urllib de la librería estándar a propósito — no hace falta tocar
+# requirements.txt ni instalar el SDK.
+# Requiere la variable de entorno ANTHROPIC_API_KEY en Railway.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class RevNota(db.Model):
+    __tablename__ = 'rev_notas'
+    id       = db.Column(db.Integer, primary_key=True)
+    folio    = db.Column(db.String(30))
+    suc      = db.Column(db.String(30))
+    fecha    = db.Column(db.String(20))     # día de la revisión
+    veredicto= db.Column(db.String(20))     # cuadra | difiere | sin_pedido
+    difs     = db.Column(db.Text)           # JSON con las diferencias
+    lectura  = db.Column(db.Text)           # JSON con lo que se leyó de la foto
+    quien    = db.Column(db.String(50))
+
+def rev_dict(r):
+    def _j(v):
+        try: return json.loads(v) if v else None
+        except Exception: return None
+    return {'id': r.id, 'folio': r.folio, 'suc': r.suc, 'fecha': r.fecha,
+            'veredicto': r.veredicto, 'difs': _j(r.difs), 'lectura': _j(r.lectura),
+            'quien': r.quien}
+
+INSTRUCCION_NOTA = """Esta es la foto de una ORDEN DE TRABAJO escrita a mano de Impulso Galería, un taller de enmarcado en Querétaro.
+
+Lee lo que ALCANCES A LEER y devuelve SOLO un objeto JSON, sin explicaciones, sin ```.
+
+Estructura exacta:
+{
+  "folio": "el número que viene junto a N° arriba a la derecha, como string, o null",
+  "cliente": "nombre del cliente o null",
+  "fecha": "fecha de la nota en formato AAAA-MM-DD, o null",
+  "entrega": "fecha de entrega prometida en AAAA-MM-DD si viene escrita, o null",
+  "articulos": [
+    {"moldura":"clave de la moldura","ancho":número en cm o null,
+     "alto":número en cm o null,"cantidad":número,"extras":"texto o null"}
+  ],
+  "subtotal": número o null,
+  "anticipo": número o null,
+  "resta": número o null,
+  "total": número o null,
+  "ilegible": ["nombre de cada campo que no se pudo leer con seguridad"],
+  "confianza": número del 0 al 100
+}
+
+CÓMO SE LEE UNA NOTA DE ESTE TALLER:
+- Un ARTÍCULO es una moldura con su medida. La clave de moldura se ve como Cen-03-005,
+  32-05, CLAVE-43, ML-2140 y parecidas.
+- Lo que viene DEBAJO de una moldura y NO trae clave ni medida propia son EXTRAS de ese
+  mismo marco, NO artículos aparte. Los extras típicos son: V. Anti o Vid. Antireflex
+  (vidrio antirreflejante), Vidrio Normal, /2 Vidrio, Vid. Museo, ML, 2ML, Cama Justa,
+  "con placa", "con plaza". Mételos en el campo "extras" del artículo de arriba y NO
+  los cuentes como artículo.
+- Las medidas vienen como 31x43, 31 x 43 o 31X43 y son ANCHO por ALTO en centímetros.
+- La CANTIDAD suele estar en la primera columna, a la izquierda de la descripción.
+- Importes: SUB TOTAL es el subtotal; "A CUENTA" es el ANTICIPO que ya pagó el cliente;
+  "RESTA" es lo que queda a deber. Devuélvelos como número sin $ ni comas.
+- Ojo: a estas notas les engrapan el ticket del banco (INBURSA, terminal). Ese ticket es
+  el comprobante del anticipo, NO es la nota. No tomes su folio ni su fecha como los de la
+  orden; su importe sí suele coincidir con el anticipo.
+
+Reglas:
+- Si un dato no se ve o no estás seguro, pon null y agrégalo a "ilegible". NUNCA inventes.
+- Si la foto no es una orden de trabajo, devuelve {"error":"no es una nota"}."""
+
+@app.route('/api/diag-nota', methods=['GET'])
+@requiere_login
+def diag_nota():
+    """Abrir en el navegador para saber por qué falla la lectura de notas."""
+    k = os.environ.get('ANTHROPIC_API_KEY') or ''
+    try:
+        n_rev = RevNota.query.count(); tabla = True
+    except Exception as e:
+        n_rev = str(e)[:120]; tabla = False
+    import sys
+    return jsonify({
+        'llave_configurada': bool(k),
+        'llave_empieza_con': (k[:7] + '…') if k else '(vacía)',
+        'llave_largo': len(k),
+        'llave_con_espacios': k != k.strip(),
+        'tabla_rev_notas': tabla,
+        'notas_guardadas': n_rev,
+        'python': sys.version.split()[0],
+        'modelo': 'claude-sonnet-5'
+    })
+
+@app.route('/api/leer-nota', methods=['POST'])
+@requiere_login
+def leer_nota():
+  try:
+      api_key = os.environ.get('ANTHROPIC_API_KEY')
+      if not api_key:
+          return jsonify({'error': 'Falta la llave ANTHROPIC_API_KEY en las variables de entorno de Railway. '
+                                   'Agrégala en Railway > Variables y vuelve a desplegar.'}), 500
+      f = request.files.get('file')
+      if not f:
+          return jsonify({'error': 'No llegó ninguna foto'}), 400
+
+      import base64, urllib.request, urllib.error
+      raw = f.read()
+      if len(raw) > 5 * 1024 * 1024:
+          return jsonify({'error': 'La foto pesa más de 5 MB. Tómala de nuevo con menos resolución.'}), 400
+      media = (f.mimetype or 'image/jpeg').lower()
+      if media not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif'):
+          media = 'image/jpeg'
+
+      payload = {
+          'model': 'claude-sonnet-5',
+          'max_tokens': 900,
+          'messages': [{'role': 'user', 'content': [
+              {'type': 'image', 'source': {'type': 'base64', 'media_type': media,
+                                           'data': base64.b64encode(raw).decode()}},
+              {'type': 'text', 'text': INSTRUCCION_NOTA}
+          ]}]
+      }
+      req = urllib.request.Request(
+          'https://api.anthropic.com/v1/messages',
+          data=json.dumps(payload).encode('utf-8'),
+          headers={'content-type': 'application/json', 'x-api-key': api_key,
+                   'anthropic-version': '2023-06-01'})
+      try:
+          with urllib.request.urlopen(req, timeout=60) as r:
+              data = json.loads(r.read().decode('utf-8'))
+      except urllib.error.HTTPError as e:
+          try: det = e.read().decode('utf-8')[:300]
+          except Exception: det = ''
+          msg = 'La API de Anthropic respondió ' + str(e.code)
+          if e.code == 401: msg = 'La llave ANTHROPIC_API_KEY no es válida o está vencida.'
+          elif e.code == 429: msg = 'La API está saturada o se acabó el saldo. Espera un momento e intenta de nuevo.'
+          return jsonify({'error': msg, 'detalle': det}), 502
+      except Exception as e:
+          return jsonify({'error': 'No se pudo contactar la API: ' + str(e)}), 502
+
+      txt = ''.join(b.get('text', '') for b in data.get('content', []) if b.get('type') == 'text')
+      limpio = txt.strip()
+      if limpio.startswith('```'):
+          limpio = limpio.split('```')[1] if '```' in limpio[3:] else limpio
+          limpio = limpio.replace('json', '', 1).strip()
+      try:
+          lectura = json.loads(limpio)
+      except Exception:
+          return jsonify({'error': 'No se pudo interpretar la lectura de la foto', 'crudo': txt[:400]}), 502
+
+      u = data.get('usage', {}) or {}
+      return jsonify({'lectura': lectura,
+                      'uso': {'entrada': u.get('input_tokens', 0), 'salida': u.get('output_tokens', 0)}})
+  except Exception as e:
+      import traceback
+      app.logger.error('leer_nota reventó: %s', traceback.format_exc())
+      return jsonify({'error': 'El servidor falló al leer la foto: ' + type(e).__name__ + ': ' + str(e)[:200],
+                      'detalle': 'Mándale esta línea a Claude.'}), 500
+
+@app.route('/api/revnotas', methods=['GET'])
+@requiere_login
+def get_revnotas():
+    q = RevNota.query
+    fecha = request.args.get('fecha')
+    if fecha: q = q.filter(RevNota.fecha == fecha)
+    return jsonify([rev_dict(r) for r in q.order_by(RevNota.id.desc()).limit(500).all()])
+
+@app.route('/api/revnotas', methods=['POST'])
+@requiere_login
+def post_revnota():
+    d = request.json or {}
+    prev = RevNota.query.filter_by(folio=str(d.get('folio') or ''), fecha=d.get('fecha')).first()
+    r = prev or RevNota()
+    r.folio     = str(d.get('folio') or '')
+    r.suc       = d.get('suc')
+    r.fecha     = d.get('fecha')
+    r.veredicto = d.get('veredicto')
+    r.difs      = json.dumps(d.get('difs'))
+    r.lectura   = json.dumps(d.get('lectura'))
+    r.quien     = session.get('usuario')
+    if not prev: db.session.add(r)
+    db.session.commit()
+    return jsonify(rev_dict(r))
+
+@app.route('/api/revnotas/<int:rid>', methods=['DELETE'])
+@requiere_login
+def del_revnota(rid):
+    r = RevNota.query.get(rid)
+    if r:
+        db.session.delete(r); db.session.commit()
+    return jsonify({'ok': True})
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SEGUIMIENTO DE PEDIDOS A PROVEEDOR  ·  la hoja que Ana y Estefania llenan
+# ───────────────────────────────────────────────────────────────────────────────
+# Una fila POR FACTURA, no por pedido: Servimarco manda dos facturas de un mismo
+# pedido y eso rompia cualquier estructura de una-a-una. La fila nace sola con la
+# orden de compra (fecha y numero ya los sabe la plataforma) y ellas completan
+# factura, monto y pagos. Vencimiento, saldo, atraso y estatus se calculan solos.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class FacProv(db.Model):
+    __tablename__ = 'fac_prov'
+    id          = db.Column(db.Integer, primary_key=True)
+    oc          = db.Column(db.String(60))     # OC-0036, o varias unidas: OC-0132 + 0133
+    ped_prov    = db.Column(db.String(40))     # el numero de pedido del proveedor
+    prov        = db.Column(db.String(60))
+    fecha_ped   = db.Column(db.String(20))     # cuando se pidio
+    factura     = db.Column(db.String(40))
+    fecha_fac   = db.Column(db.String(20))
+    venc        = db.Column(db.String(20))     # se calcula, pero editable
+    monto       = db.Column(db.Float, default=0)
+    abonado     = db.Column(db.Float, default=0)
+    fecha_pago  = db.Column(db.String(20))
+    mov_id      = db.Column(db.Integer)        # salida ligada en Movimientos
+    nota        = db.Column(db.String(200))
+
+def fp_dict(f):
+    return {'id':f.id,'oc':f.oc or '','ped_prov':f.ped_prov or '','prov':f.prov or '','fecha_ped':f.fecha_ped or '',
+            'factura':f.factura or '','fecha_fac':f.fecha_fac or '','venc':f.venc or '',
+            'monto':f.monto or 0,'abonado':f.abonado or 0,'fecha_pago':f.fecha_pago or '',
+            'mov_id':f.mov_id,'nota':f.nota or ''}
+
+@app.route('/api/facprov', methods=['GET'])
+@requiere_login
+def get_facprov():
+    q = FacProv.query
+    prov = request.args.get('prov')
+    if prov: q = q.filter(FacProv.prov == prov)
+    return jsonify([fp_dict(f) for f in q.order_by(FacProv.id.desc()).limit(800).all()])
+
+@app.route('/api/facprov', methods=['POST'])
+@requiere_admin
+def post_facprov():
+    d = request.json or {}
+    f = FacProv(oc=d.get('oc',''), ped_prov=d.get('ped_prov',''), prov=d.get('prov',''), fecha_ped=d.get('fecha_ped',''),
+                factura=d.get('factura',''), fecha_fac=d.get('fecha_fac',''),
+                venc=d.get('venc',''), monto=d.get('monto',0) or 0,
+                abonado=d.get('abonado',0) or 0, fecha_pago=d.get('fecha_pago',''),
+                mov_id=d.get('mov_id'), nota=d.get('nota',''))
+    db.session.add(f); db.session.commit()
+    return jsonify(fp_dict(f))
+
+@app.route('/api/facprov/<int:fid>', methods=['PUT'])
+@requiere_admin
+def put_facprov(fid):
+    f = FacProv.query.get_or_404(fid)
+    d = request.json or {}
+    for c in ['oc','ped_prov','prov','fecha_ped','factura','fecha_fac','venc','monto','abonado','fecha_pago','mov_id','nota']:
+        if c in d: setattr(f, c, d[c])
+    db.session.commit()
+    return jsonify(fp_dict(f))
+
+@app.route('/api/facprov/<int:fid>', methods=['DELETE'])
+@requiere_admin
+def del_facprov(fid):
+    f = FacProv.query.get(fid)
+    if f: db.session.delete(f); db.session.commit()
+    return jsonify({'ok': True})
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# COTIZACIONES GUARDADAS  ·  el cliente vino, cotizó y regresa otro día
+# ═══════════════════════════════════════════════════════════════════════════════
+class Cotizacion(db.Model):
+    __tablename__ = 'cotizaciones'
+    id        = db.Column(db.Integer, primary_key=True)
+    folio     = db.Column(db.String(20))       # C-0012
+    cli       = db.Column(db.String(120))
+    tel       = db.Column(db.String(40))
+    suc       = db.Column(db.String(40))
+    usuario   = db.Column(db.String(60))
+    fecha     = db.Column(db.String(20))       # YYYY-MM-DD en que se guardó
+    vence     = db.Column(db.String(20))       # YYYY-MM-DD
+    items     = db.Column(db.Text)             # JSON del carrito
+    descu     = db.Column(db.Float, default=0) # % de descuento
+    total     = db.Column(db.Float, default=0) # con IVA
+    estado    = db.Column(db.String(20), default='abierta')   # abierta · convertida · perdida
+    pedido    = db.Column(db.String(30))       # folio del pedido si se convirtió
+    seguim    = db.Column(db.String(20))       # última vez que se le escribió al cliente
+    nota      = db.Column(db.String(300))
+
+def cot_dict(c):
+    try:
+        its = json.loads(c.items) if c.items else []
+    except Exception:
+        its = []
+    return {'id': c.id, 'folio': c.folio or '', 'cli': c.cli or '', 'tel': c.tel or '', 'suc': c.suc or '',
+            'usuario': c.usuario or '', 'fecha': c.fecha or '', 'vence': c.vence or '', 'items': its,
+            'descu': c.descu or 0, 'total': c.total or 0, 'estado': c.estado or 'abierta',
+            'pedido': c.pedido or '', 'seguim': c.seguim or '', 'nota': c.nota or ''}
+
+@app.route('/api/cotizaciones', methods=['GET'])
+@requiere_login
+def get_cotizaciones():
+    return jsonify([cot_dict(c) for c in Cotizacion.query.order_by(Cotizacion.id.desc()).limit(1000).all()])
+
+@app.route('/api/cotizaciones', methods=['POST'])
+@requiere_login
+def crear_cotizacion():
+    d = request.json or {}
+    c = Cotizacion(cli=d.get('cli', ''), tel=d.get('tel', ''), suc=d.get('suc', ''), usuario=d.get('usuario', ''),
+                   fecha=d.get('fecha', ''), vence=d.get('vence', ''), items=json.dumps(d.get('items', [])),
+                   descu=d.get('descu', 0) or 0, total=d.get('total', 0) or 0, estado=d.get('estado', 'abierta'),
+                   nota=d.get('nota', ''))
+    db.session.add(c); db.session.commit()
+    c.folio = 'C-%04d' % c.id
+    db.session.commit()
+    return jsonify(cot_dict(c)), 201
+
+@app.route('/api/cotizaciones/<int:cid>', methods=['PUT'])
+@requiere_login
+def actualizar_cotizacion(cid):
+    c = Cotizacion.query.get_or_404(cid)
+    d = request.json or {}
+    for campo in ['cli', 'tel', 'suc', 'usuario', 'fecha', 'vence', 'descu', 'total', 'estado', 'pedido', 'seguim', 'nota']:
+        if campo in d:
+            setattr(c, campo, d[campo])
+    if 'items' in d:
+        c.items = json.dumps(d['items'])
+    db.session.commit()
+    return jsonify(cot_dict(c))
+
+@app.route('/api/cotizaciones/<int:cid>', methods=['DELETE'])
+@requiere_admin
+def borrar_cotizacion(cid):
+    c = Cotizacion.query.get(cid)
+    if c: db.session.delete(c); db.session.commit()
+    return jsonify({'ok': True})
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ASISTENTE  ·  la plataforma contesta en español sobre los datos del negocio
+# ───────────────────────────────────────────────────────────────────────────────
+# El frontend arma un RESUMEN de los datos (no manda la base completa) y lo envía
+# junto con la conversación. Aquí solo se reenvía a la API y se devuelve el texto.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+SISTEMA_ASISTENTE = """Eres la asistente administrativa de Impulso Galería, un taller de enmarcado
+en Querétaro con dos sucursales: Jardines y Zibata. Hablas con Estefania, la dueña, o con Ana Karen
+de administración.
+
+Cómo respondes:
+- En español de México, directo y corto. Nada de rodeos ni de "según los datos proporcionados".
+- Con NÚMEROS concretos: folios, montos, nombres, fechas. Si no está en los datos, dilo claro
+  ("eso no lo tengo aquí") en vez de suponer.
+- Cuando algo esté mal, dilo sin adornos y explica qué conviene hacer.
+- Si te preguntan algo que requiere datos que no vienen en el resumen, di exactamente qué
+  pantalla de la plataforma lo tiene.
+- No inventes NUNCA un folio, un monto ni un nombre. Es dinero real.
+- Máximo 6 renglones salvo que te pidan detalle.
+
+Del negocio: se cotiza por metro lineal de moldura más extras (vidrio, ML, cama justa).
+Se pide moldura a proveedor lunes, miércoles y viernes. Los cobros con tarjeta entran al banco
+un día HÁBIL después. Servimarco es el proveedor principal, a 30 días de crédito."""
+
+@app.route('/api/asistente', methods=['POST'])
+@requiere_login
+def asistente():
+  try:
+    api_key = os.environ.get('ANTHROPIC_API_KEY')
+    if not api_key:
+        return jsonify({'error': 'Falta la llave ANTHROPIC_API_KEY en Railway.'}), 500
+    d = request.json or {}
+    msgs = d.get('mensajes') or []
+    datos = d.get('datos') or {}
+    if not msgs:
+        return jsonify({'error': 'No llegó ninguna pregunta'}), 400
+
+    contexto = 'DATOS DE HOY (' + str(d.get('hoy','')) + '):\n' + json.dumps(datos, ensure_ascii=False)
+    if len(contexto) > 120000:
+        contexto = contexto[:120000] + '\n[...resumen recortado]'
+
+    mensajes = []
+    for i, m in enumerate(msgs[-12:]):
+        rol = 'assistant' if m.get('rol') == 'asistente' else 'user'
+        txt = str(m.get('txt', ''))[:4000]
+        if rol == 'user' and i == len(msgs[-12:]) - 1:
+            txt = contexto + '\n\nPREGUNTA: ' + txt
+        mensajes.append({'role': rol, 'content': txt})
+
+    import urllib.request, urllib.error
+    payload = {'model': 'claude-sonnet-5', 'max_tokens': 1200,
+               'system': SISTEMA_ASISTENTE, 'messages': mensajes}
+    req = urllib.request.Request('https://api.anthropic.com/v1/messages',
+        data=json.dumps(payload).encode('utf-8'),
+        headers={'content-type': 'application/json', 'x-api-key': api_key,
+                 'anthropic-version': '2023-06-01'})
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            data = json.loads(r.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        try: det = e.read().decode('utf-8')[:200]
+        except Exception: det = ''
+        msg = 'La API respondió ' + str(e.code)
+        if e.code == 401: msg = 'La llave de API no es válida.'
+        elif e.code == 429: msg = 'Se acabó el saldo o hay demasiadas peticiones. Revisa tu saldo en console.anthropic.com'
+        return jsonify({'error': msg, 'detalle': det}), 502
+    except Exception as e:
+        return jsonify({'error': 'No se pudo contactar la API: ' + str(e)}), 502
+
+    txt = ''.join(b.get('text','') for b in data.get('content',[]) if b.get('type')=='text')
+    u = data.get('usage',{}) or {}
+    if not txt.strip():
+        # Vino vacío: hay que saber POR QUÉ, no tragárselo en silencio
+        return jsonify({'error': 'La respuesta llegó vacía.',
+                        'motivo': data.get('stop_reason'),
+                        'bloques': [b.get('type') for b in data.get('content',[])],
+                        'tokens_entrada': u.get('input_tokens',0),
+                        'tokens_salida': u.get('output_tokens',0),
+                        'crudo': json.dumps(data)[:400]}), 502
+    return jsonify({'texto': txt, 'uso': {'entrada': u.get('input_tokens',0), 'salida': u.get('output_tokens',0)}})
+  except Exception as e:
+    import traceback
+    app.logger.error('asistente reventó: %s', traceback.format_exc())
+    return jsonify({'error': 'El servidor falló: ' + type(e).__name__ + ': ' + str(e)[:200]}), 500
+
+
+
+@app.route('/api/conciliar', methods=['POST'])
+@requiere_admin
+def conciliar_movs():
+    """Marca movimientos como vistos en el banco. Lo que NO se marca es lo que
+    hay que investigar — la plataforma ya no lo olvida entre sesiones."""
+    d = request.json or {}
+    hoy = d.get('fecha') or ''
+    n = 0
+    for it in (d.get('items') or []):
+        m = Movimiento.query.get(it.get('id'))
+        if not m: continue
+        m.conciliado = '' if it.get('quitar') else (hoy or 'sí')
+        m.banco_ref = '' if it.get('quitar') else str(it.get('ref') or '')
+        n += 1
+    db.session.commit()
+    return jsonify({'ok': True, 'actualizados': n})
+
+def migrar_pagado():
+    """Separa, una sola vez por nota, lo que dejó al abrir (ant_ini) de sus cobros.
+    - Liga a su nota los cobros viejos sin pedido_id cuando folio+sucursal apunta a UNA sola nota.
+    - Si el pagado de hoy cubre sus cobros: ant_ini = pagado - cobros. La nota queda IDÉNTICA
+      (mismo pagado, mismo restante), así que cobranza y comisiones pasadas no se mueven.
+    - Si los cobros suman MÁS que el pagado (cobros que nunca se sumaron, como la nota 95),
+      no se adivina: ant_ini queda NULL y la nota sale en /api/pagado/revisar para confirmarla.
+    Es idempotente: solo toca notas que aún no tienen ant_ini."""
+    try:
+        peds = Pedido.query.filter(Pedido.ant_ini.is_(None)).all()
+        if not peds:
+            return
+        idx = {}
+        for p in Pedido.query.all():
+            idx.setdefault((str(p.folio or ''), p.suc), []).append(p.id)
+        from sqlalchemy import or_
+        for a in Abono.query.filter(or_(Abono.pedido_id.is_(None), Abono.pedido_id == 0)).all():
+            c = idx.get((str(a.folio or ''), a.suc), [])
+            if len(c) == 1:
+                a.pedido_id = c[0]
+        db.session.commit()
+        sumas = {}
+        for a in Abono.query.all():
+            if a.pedido_id:
+                sumas[a.pedido_id] = sumas.get(a.pedido_id, 0) + _num(a.monto)
+        for p in peds:
+            s = round(sumas.get(p.id, 0), 2)
+            ant = _num(p.ant)
+            if ant + 0.01 >= s:
+                p.ant_ini = round(max(0.0, ant - s), 2)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+with app.app_context():
+    db.create_all()
+    migrar_columnas()
+    migrar_pagado()
+    seed_usuarios()
+
+if __name__ == '__main__':
+    app.run(debug=True)
