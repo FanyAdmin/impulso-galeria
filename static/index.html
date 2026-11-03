@@ -1232,7 +1232,7 @@ tr:hover .ent-edit{opacity:1}
   <div class="sb-item admin-only" style="display:none" onclick="go('conban')" id="nav-conban">🧮 Conciliación bancaria</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('cuadre')" id="nav-cuadre">⚖️ Cuadre de banco</div>
   <div class="sb-item admin-only" style="display:none" onclick="go('audit2')" id="nav-audit2">🔎 Revisión automática <span id="aud2-badge" style="background:#D81B60;color:#fff;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
-  <div class="sb-item" onclick="go('rev')" id="nav-rev" style="display:none">📸 Revisión de notas</div>
+  <div class="sb-item" onclick="go('rev')" id="nav-rev">🔍 Revisión de notas</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('audit')" id="nav-audit">🔍 Auditoría Efectivo</div>
   <div class="sb-item owner-only" style="display:none" onclick="go('activity');clearActivityBadge()" id="nav-activity">🔔 Actividad <span id="activity-badge" style="background:#dc2626;color:white;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:700;display:none;margin-left:4px"></span></div>
 
@@ -1606,32 +1606,19 @@ tr:hover .ent-edit{opacity:1}
 <div class="page" id="page-rev">
   <div class="ph"><div>
     <div class="ph-title">Revisión de notas</div>
-    <div class="ph-sub">Fotografía las notas del día y se comparan contra lo capturado</div>
+    <div class="ph-sub">Cada nota contra lo que se registró en su día, y quién quedó debiendo después de entregado</div>
   </div></div>
-
-  <div class="card" style="padding:18px;margin-bottom:14px">
-    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-      <div style="flex:1;min-width:230px">
-        <div style="font-size:14px;font-weight:700;margin-bottom:3px">Sube las fotos de las notas</div>
-        <div style="font-size:12px;color:var(--text3)">Una foto por nota. Se leen y se comparan contra el pedido de ese folio.
-        <strong>Las fotos no se guardan</strong> — solo queda el resultado.</div>
-      </div>
-      <input type="date" id="rev-fecha" style="max-width:170px" onchange="cargarRev()">
-      <button class="btn btn-p" onclick="document.getElementById('rev-file').click()">📸 Elegir fotos</button>
-      <input type="file" id="rev-file" accept="image/*" multiple style="display:none" onchange="revSubir(this.files)">
-    </div>
-    <div id="rev-prog" style="display:none;margin-top:12px">
-      <div style="font-size:12px;color:var(--text2);margin-bottom:5px" id="rev-prog-txt"></div>
-      <div style="height:8px;border-radius:99px;background:var(--surface2);overflow:hidden">
-        <div id="rev-prog-bar" style="height:100%;width:0%;background:var(--green);border-radius:99px;transition:width .2s"></div>
-      </div>
-    </div>
+  <div class="card" style="padding:12px 14px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px">
+    <label>Mes de ingreso <input type="month" id="rv-mes" onchange="rRev2()" style="max-width:160px"></label>
+    <label>Sucursal <select id="rv-suc" onchange="revPinta()" style="max-width:150px"><option value="">Todas</option><option>Jardines</option><option>Zibata</option></select></label>
+    <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="rv-solo" onchange="revPinta()"> Solo las que tienen algo raro</label>
+    <span style="flex:1"></span>
+    <button class="btn btn-s btn-sm" onclick="revExcel()">⬇️ Excel</button>
   </div>
-
-  <div id="rev-res"></div>
+  <div id="rv-res" style="margin-bottom:12px"></div>
+  <div id="rv-tabla"></div>
 </div>
 
-<!-- ÓRDENES -->
 <div class="page" id="page-ord">
   <div class="ph"><div><div class="ph-title">Órdenes de Compra</div><div class="ph-sub">Molduras pendientes de surtir por proveedor</div><button class="btn btn-s admin-only" style="display:none" onclick="openOrdManual()">➕ Orden manual</button> <button class="btn btn-s" onclick="openInsumosSem()">🧰 Insumos de taller (consejo)</button></div></div>
   <div style="margin:2px 0 10px">
@@ -2415,7 +2402,7 @@ function aplicarMenuDueno(verTodo){
   document.querySelectorAll('.sb-item').forEach(function(el){
     // La dirección tiene permisos completos, así que al abrir se ve todo.
     el.style.display=verTodo?'':((lista.indexOf(el.id)>=0)?'':'none');
-    if(['nav-cal','nav-rev','nav-hoy'].indexOf(el.id)>=0)el.style.display='none';   // pantallas retiradas
+    if(['nav-cal','nav-hoy'].indexOf(el.id)>=0)el.style.display='none';   // pantallas retiradas
   });
   // Una sección solo aparece si le quedó algún renglón visible
   document.querySelectorAll('.sb-section').forEach(function(sec){
@@ -2519,7 +2506,7 @@ function doLogin(){
         'nav-tab','nav-cot','nav-ped','nav-cxc','nav-dia','nav-cob','nav-ord','nav-pend','nav-vip',  // Ventas
         'nav-cat',                                                                                   // Catálogo
         'nav-dash','nav-mov','nav-cxp','nav-er','nav-ban','nav-fac',                                 // Admin
-        'nav-conban',                                                                                // Auditoría
+        'nav-conban','nav-rev',                                                                      // Auditoría
         'nav-asist','nav-nom'                                                                        // Recursos Humanos
       ];
       document.querySelectorAll('.sb-item').forEach(function(el){
@@ -2560,7 +2547,9 @@ function doLogin(){
       ['nav-pend','nav-ord'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
     }
     // Pantallas retiradas: no se muestran a nadie (se esconden, no se borran)
-    ['nav-cal','nav-rev','nav-hoy'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
+    ['nav-cal','nav-hoy'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
+    // Revisión de notas: solo la dueña, la dirección y admin
+    (function(){var r=document.getElementById('nav-rev');if(r&&['owner','admin','dueno'].indexOf(u.role)<0)r.style.display='none';})();
     // Una sección solo se ve si le quedó al menos un renglón visible
     document.querySelectorAll('.sb-section').forEach(function(sec){
       var vis=false,n=sec.nextElementSibling;
@@ -2813,7 +2802,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:()=>{cargarMapaCta().then(rDia);},cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:()=>{cargarBcoOK().then(function(){banInitCta();return cargarEdoCta(vgCtaBan());}).then(rBancos);},conban:()=>{cargarBcoOK().then(function(){banInitCta();return cargarEdoCta(vgCtaBan());}).then(function(){rBancos();banPinta();});},usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},tab:()=>{rTab();cargarAuditOK().then(function(){try{pintaAvisoAudit();}catch(e){}try{pintaAvisoTerceros();}catch(e){}});},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev,cuadre:()=>{cargarBcoOK().then(rCuadre);}
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},tab:()=>{rTab();cargarAuditOK().then(function(){try{pintaAvisoAudit();}catch(e){}try{pintaAvisoTerceros();}catch(e){}});},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev2,cuadre:()=>{cargarBcoOK().then(rCuadre);}
   })[id]?.();
   try{rRiel();}catch(e){}
   try{var _mc=document.getElementById('mod-cie-suc'),_mn=document.getElementById('mod-nf');
@@ -9123,6 +9112,93 @@ function cotTabHTML(){
   return '<div class="card" style="padding:10px 14px;margin-bottom:12px"><div style="font-size:12.5px;font-weight:800;color:var(--text2);margin-bottom:6px">📨 Cotizaciones por cerrar · nadie les ha vuelto a escribir</div>'+
     L.map(function(c){var d=ptDias(c.fecha);return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12.5px;flex-wrap:wrap"><span style="flex:1"><b>'+ptEsc(c.folio)+'</b> · '+ptEsc(c.cli)+' · <b class="mono">'+fmt(c.total)+'</b> <span style="color:var(--text3)">· hace '+d+' días'+(esG&&!suc?' · '+ptEsc(c.suc||''):'')+'</span></span>'+
       '<button class="btn btn-p btn-xs" onclick="cotWA('+c.id+')">WhatsApp</button><button class="btn btn-s btn-xs" onclick="go(\'cot\');cotAbrir('+c.id+')">Abrir</button><button class="btn btn-s btn-xs" onclick="cotMarcar('+c.id+',\'perdida\')">Perdida</button></div>';}).join('')+'</div>';
+}
+
+// ═══ REVISIÓN DE NOTAS: ¿lo de hoy coincide con lo que se registró en su día? ═══
+// Por nota: lo que dejó al ingresar y lo que pagó después, si sigue igual que el día que
+// se registró (registro original guardado por el servidor, o la bitácora de cambios
+// para notas anteriores) y si el cliente quedó debiendo después de entregarle.
+var REV2={eds:[],mes:'',suc:'',solo:false};
+function rRev2(){
+  var m=document.getElementById('rv-mes');if(m&&!m.value){var d=new Date();d.setMonth(d.getMonth()-1);m.value='2026-10';}
+  var desde=(m&&m.value?m.value:'2026-10')+'-01';
+  fetch('/api/activity/ediciones?desde='+desde,{credentials:'include'}).then(function(r){return r.ok?r.json():[];})
+    .then(function(d){REV2.eds=Array.isArray(d)?d:[];revPinta();}).catch(function(){REV2.eds=[];revPinta();});
+}
+function revEdsDe(folio){
+  var f=String(folio),re=new RegExp('Folio '+f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\b|\\s|—|·)');
+  return REV2.eds.filter(function(e){return re.test(e.detalle||'');});
+}
+function revFila(p){
+  var total=+p.total||0,a1=(p.ant_ini!=null?+p.ant_ini:+p.ant||0);
+  var abs=(ABONOS||[]).filter(function(a){return a.pedido_id===p.id||(String(a.folio)===String(p.folio)&&(!a.suc||!p.suc||a.suc===p.suc));});
+  var a2=abs.reduce(function(s,a){return s+(+a.monto||0);},0);
+  var fIng=String(p.fecha||'').slice(0,10);
+  // ¿Coincide lo del ingreso?
+  var c1={ok:true,txt:'sí'};
+  if(p.orig_total!=null||p.orig_ant!=null){
+    var cam=[];
+    if(p.orig_total!=null&&Math.abs((+p.orig_total)-total)>0.009)cam.push('total '+fmt(+p.orig_total)+' → '+fmt(total));
+    if(p.orig_ant!=null&&Math.abs((+p.orig_ant)-a1)>0.009)cam.push('a cuenta '+fmt(+p.orig_ant)+' → '+fmt(a1));
+    if(cam.length)c1={ok:false,txt:'no · '+cam.join(' · ')};
+  }
+  var edN=revEdsDe(p.folio).filter(function(e){return /nota|pedido|pagado/i.test(e.accion)&&String(e.ts).slice(0,10)>fIng;});
+  if(edN.length){var u=edN[edN.length-1];c1={ok:false,txt:'no · '+(c1.ok?'editada':c1.txt.slice(5))+' el '+ptFec(String(u.ts).slice(0,10))+' por '+(u.userName||u.user||'?')};}
+  // ¿Coinciden los pagos después?
+  var c2={ok:true,txt:abs.length?'sí':'—'};
+  var camA=abs.filter(function(a){return a.orig_monto!=null&&(Math.abs((+a.orig_monto)-(+a.monto||0))>0.009||(a.orig_fecha&&a.orig_fecha!==a.fecha));});
+  if(camA.length)c2={ok:false,txt:'no · '+camA.map(function(a){return fmt(+a.orig_monto)+' → '+fmt(+a.monto);}).join(', ')};
+  var edA=revEdsDe(p.folio).filter(function(e){return /cobro/i.test(e.accion);});
+  edA=edA.filter(function(e){var fa=(abs[0]||{}).fecha||fIng;return String(e.ts).slice(0,10)>String(fa).slice(0,10);});
+  if(edA.length){var u2=edA[edA.length-1];c2={ok:false,txt:'no · cobro editado el '+ptFec(String(u2.ts).slice(0,10))+' por '+(u2.userName||u2.user||'?')};}
+  var r1=Math.max(0,total-a1),r2=Math.max(0,total-a1-a2);
+  var ent=/^entreg/i.test(String(p.est||''));
+  var fEnt=ent?String(p.entrega_real||p.entrega||'').slice(0,10):'';
+  var debe=ent&&r2>0.5;
+  var atraso=debe&&fEnt?Math.max(0,ptDias(fEnt)||0):0;
+  return {p:p,fIng:fIng,total:total,a1:a1,c1:c1,r1:r1,fEnt:fEnt,a2:a2,nAb:abs.length,c2:c2,r2:r2,debe:debe,atraso:atraso,ent:ent};
+}
+function revDatos(){
+  var mes=(document.getElementById('rv-mes')||{}).value||'2026-10',suc=(document.getElementById('rv-suc')||{}).value||'';
+  var solo=(document.getElementById('rv-solo')||{}).checked;
+  var L=(pedidos||[]).filter(function(p){return String(p.fecha||'').slice(0,7)===mes&&(!suc||p.suc===suc)&&String(p.cli||'').toUpperCase()!=='CANCELADA'&&!/^cancel/i.test(String(p.est||''));})
+    .map(revFila);
+  if(solo)L=L.filter(function(x){return !x.c1.ok||!x.c2.ok||x.debe;});
+  L.sort(function(a,b){return String(a.p.folio).localeCompare(String(b.p.folio),'es',{numeric:true});});
+  return L;
+}
+function revPinta(){
+  var el=document.getElementById('rv-tabla');if(!el)return;
+  var L=revDatos(),nNo=L.filter(function(x){return !x.c1.ok||!x.c2.ok;}).length,nDebe=L.filter(function(x){return x.debe;}).length;
+  var tDebe=L.filter(function(x){return x.debe;}).reduce(function(s,x){return s+x.r2;},0);
+  document.getElementById('rv-res').innerHTML=
+    '<div class="card" style="padding:10px 14px;display:flex;gap:22px;flex-wrap:wrap;font-size:13px">'+
+    '<span><b>'+L.length+'</b> notas</span>'+
+    '<span style="color:'+(nNo?'#C2325F':'#12724C')+'"><b>'+nNo+'</b> ya no coinciden con su día</span>'+
+    '<span style="color:'+(nDebe?'#C2325F':'#12724C')+'"><b>'+nDebe+'</b> clientes deben después de entregado · <b class="mono">'+fmt(tDebe)+'</b></span></div>';
+  var si=function(c){return '<span style="font-weight:700;color:'+(c.ok?'#12724C':'#C2325F')+'">'+ptEsc(c.txt)+'</span>';};
+  var rojo='color:#C2325F;font-weight:700';
+  el.innerHTML='<div class="tw"><table class="tbl" style="font-size:12.5px"><thead><tr>'+
+    '<th>Nota</th><th>Sucursal</th><th>Fecha de ingreso</th><th style="text-align:right">Total</th><th style="text-align:right">A cuenta</th><th>¿Coincide en su día?</th><th style="text-align:right">Resta</th>'+
+    '<th>Entrega</th><th style="text-align:right">Pagó después</th><th>¿Coincide en su día?</th><th style="text-align:right">Resta</th><th>¿Cliente debe?</th><th style="text-align:right">Días de atraso</th></tr></thead><tbody>'+
+    (L.length?L.map(function(x){
+      return '<tr><td class="mono"><b>'+ptEsc(x.p.folio)+'</b><div style="font-size:11px;color:var(--text3)">'+ptEsc(x.p.cli||'')+'</div></td><td>'+ptEsc(x.p.suc||'')+'</td><td>'+ptFec(x.fIng)+'</td>'+
+        '<td class="mono" style="text-align:right">'+fmt(x.total)+'</td><td class="mono" style="text-align:right">'+fmt(x.a1)+'</td><td>'+si(x.c1)+'</td>'+
+        '<td class="mono" style="text-align:right;'+(x.r1>0.5?rojo:'')+'">'+fmt(x.r1)+'</td>'+
+        '<td>'+(x.fEnt?ptFec(x.fEnt):'<span style="color:var(--text3)">sin entregar</span>')+'</td>'+
+        '<td class="mono" style="text-align:right">'+(x.nAb?fmt(x.a2):'—')+'</td><td>'+(x.nAb?si(x.c2):'<span style="color:var(--text3)">—</span>')+'</td>'+
+        '<td class="mono" style="text-align:right;'+(x.r2>0.5?rojo:'')+'">'+fmt(x.r2)+'</td>'+
+        '<td style="'+(x.debe?rojo:'color:#12724C;font-weight:700')+'">'+(x.debe?'SÍ':(x.ent?'no':'—'))+'</td>'+
+        '<td class="mono" style="text-align:right;'+(x.atraso?rojo:'')+'">'+(x.debe?x.atraso:'—')+'</td></tr>';}).join('')
+     :'<tr><td colspan="13" class="tbl-empty">No hay notas con esos filtros.</td></tr>')+'</tbody></table></div>'+
+    '<div style="font-size:11.5px;color:var(--text3);margin-top:8px">"Coincide en su día": lo que dice hoy la nota contra lo que se registró el día que se capturó. Si alguien cambió el total, el anticipo o un cobro después, sale en rojo con quién y cuándo. Las notas anteriores a esta versión se revisan con la bitácora de cambios.</div>';
+}
+function revExcel(){
+  var L=revDatos();if(!L.length){alert('No hay notas para exportar.');return;}
+  var rows=[['Nota','Cliente','Sucursal','Fecha de ingreso','Total','A cuenta','Coincide en su día','Resta','Entrega','Pagó después','Coincide en su día','Resta','Cliente debe','Días de atraso']];
+  L.forEach(function(x){rows.push([x.p.folio,x.p.cli||'',x.p.suc||'',x.fIng,x.total,x.a1,x.c1.txt,x.r1,x.fEnt||'sin entregar',x.nAb?x.a2:'',x.nAb?x.c2.txt:'',x.r2,x.debe?'SÍ':(x.ent?'no':''),x.debe?x.atraso:'']);});
+  var ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Revisión');
+  XLSX.writeFile(wb,'Revision_notas_'+((document.getElementById('rv-mes')||{}).value||'')+'.xlsx');
 }
 
 // ═══ MI TABLERO: el avance del día ═══════════════════════════════════════════
