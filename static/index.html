@@ -1609,14 +1609,14 @@ tr:hover .ent-edit{opacity:1}
     <div class="ph-sub">Cada nota contra lo que se registró en su día, y quién quedó debiendo después de entregado</div>
   </div></div>
   <div class="card" style="padding:12px 14px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px">
-    <label>Mes de ingreso <input type="month" id="rv-mes" onchange="rRev2()" style="max-width:160px"></label>
+    <label>Mes <input type="month" id="rv-mes" onchange="REV_SEL=null;rRev2()" style="max-width:160px"></label>
     <label>Sucursal <select id="rv-suc" onchange="revPinta()" style="max-width:150px"><option value="">Todas</option><option>Jardines</option><option>Zibata</option></select></label>
     <label style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="rv-solo" onchange="revPinta()"> Solo las que tienen algo raro</label>
     <span style="flex:1"></span>
     <button class="btn btn-s btn-sm" onclick="revExcel()">⬇️ Excel</button>
   </div>
   <div id="rv-res" style="margin-bottom:12px"></div>
-  <div id="rv-tabla"></div>
+  <details style="margin-top:6px"><summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--text2);margin-bottom:8px">📋 Detalle nota por nota del mes</summary><div id="rv-sum"></div><div id="rv-tabla"></div></details>
 </div>
 
 <div class="page" id="page-ord">
@@ -8087,6 +8087,7 @@ function ajCargar(){
       .then(function(d){AJ2_DONE=(d&&d.valor&&d.valor.fecha)?d.valor:null;});})
     .then(function(){return fetch('/api/config/'+AJ3_KEY,{credentials:'include'}).then(function(r){return r.json();})
       .then(function(d){AJ3_DONE=(d&&d.valor&&d.valor.fecha)?d.valor:null;});})
+    .then(function(){return aj4Cargar();})
     .then(function(){
       // Si el cuadre se aplicó antes de saber qué era el pago de 6,683 del 05/10,
       // aquí se le pone su categoría (vidrio de museo), una sola vez.
@@ -8108,6 +8109,75 @@ function ajCargar(){
       if(m.length===1)return ptPutMov(m[0],{concepto:PUENTE_OUT})
         .then(function(){logActivity('Clasificó salida 24/09','20,000.00 → Devolución a terceros');});
     }).catch(function(){});
+}
+
+// ═══ AJUSTE 4: TERCEROS YA PAGADOS (encontrados nov 2026) ══════════════════════
+// · Matabuena 10,000 (08/09) se pagó con "CGO Familiar" 10,000 (21/09, HSBC).
+// · Tranquilo 15,000 + 2,900 + 2,500 = 20,400 se pagaron con "CGO Septiembre"
+//   20,000 (24/09) + 400 (23/09).
+// · Fibra shop 37,143.20 (24/07) se pagó con 10,700 (28/07, HSBC) + 26,443.20 del
+//   pago a la galería del 04/08 (58,793 = 26,443.20 de Fibra + 32,349.80 de Grupo
+//   Hospitalario).
+// · De Grupo Hospitalario (58,931.53 el 30/07) a la galería le tocaban 32,349.80;
+//   lo demás es venta de Impulso: 138.53 ya registrados + 26,443.20 que se pasan a
+//   INGRESO POR TERMINAL (par que no mueve el banco).
+var AJ4_KEY='ajuste_terceros_2026_11',AJ4_DONE=null;
+function aj4Cargar(){return fetch('/api/config/'+AJ4_KEY,{credentials:'include'}).then(function(r){return r.json();}).then(function(d){AJ4_DONE=(d&&d.valor)||null;}).catch(function(){});}
+function aj4Busca(){
+  var uno=function(q,txt){var r=ajFind(q);return {m:r.length===1?r[0]:null,n:r.length,txt:txt};};
+  return {
+    cMata:uno({f:'2026-09-08',tipo:'Entrada',cuenta:'INBURSA',monto:10000,concepto:PUENTE_IN},'Cobro Matabuena 10,000 (08/09)'),
+    sFam:uno({f:'2026-09-21',tipo:'Salida',cuenta:'HSBC',monto:10000},'Pago "CGO Familiar" 10,000 (21/09)'),
+    c15:uno({f:'2026-07-16',tipo:'Entrada',cuenta:'INBURSA',monto:15000,concepto:PUENTE_IN},'Cobro Tranquilo 15,000 (16/07)'),
+    c29:uno({f:'2026-07-20',tipo:'Entrada',cuenta:'INBURSA',monto:2900,concepto:PUENTE_IN},'Cobro 2,900 (20/07)'),
+    c25:uno({f:'2026-09-19',tipo:'Entrada',cuenta:'Efectivo Zibata',monto:2500,concepto:PUENTE_IN},'Cobro Tranquilo Zibata 2,500 (19/09)'),
+    s20:uno({f:'2026-09-24',tipo:'Salida',cuenta:'HSBC',monto:20000,concepto:PUENTE_OUT},'Pago "CGO Septiembre" 20,000 (24/09)'),
+    s4:uno({f:'2026-09-23',tipo:'Salida',cuenta:'HSBC',monto:400},'Pago "CGO Septiembre" 400 (23/09)'),
+    cFib:uno({f:'2026-07-24',tipo:'Entrada',cuenta:'INBURSA',monto:37143.2,concepto:PUENTE_IN},'Cobro Fibra shop 37,143.20 (24/07)'),
+    sVic:uno({f:'2026-07-28',tipo:'Salida',cuenta:'HSBC',monto:10700,concepto:PUENTE_OUT},'Pago Victoria 10,700 (28/07)'),
+    cGH:uno({f:'2026-07-30',tipo:'Entrada',cuenta:'INBURSA',monto:58931.53,concepto:PUENTE_IN},'Cobro Grupo Hospitalario 58,931.53 (30/07)'),
+    sGal:uno({f:'2026-08-04',tipo:'Salida',cuenta:'INBURSA',monto:58793,concepto:PUENTE_OUT},'Pago a la galería 58,793 (04/08)')
+  };
+}
+function aj4Banner(){
+  var u=_u()||{};if(AJ4_DONE||(u.role!=='owner'&&u.role!=='admin')||!movs||!movs.length)return '';
+  return '<div onclick="aj4Aplicar()" style="cursor:pointer;background:var(--azul-l);border:1px solid #BCD3F3;border-radius:12px;padding:11px 15px;margin-bottom:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
+    '<div style="font-size:22px">🔁</div><div style="flex:1;min-width:220px"><div style="font-size:14px;font-weight:800;color:#2A4F8A">Terceros que ya pagaste: listo para dejarlo registrado</div>'+
+    '<div style="font-size:12px;color:var(--text2);margin-top:2px">Matabuena, Tranquilo y Fibra shop ya devueltos · la parte de Impulso de Grupo Hospitalario ($26,443.20) pasa a ingreso · el banco no se mueve · pica para aplicar</div></div>'+
+    '<div style="font-size:20px;color:#2A4F8A">›</div></div>';
+}
+function aj4Aplicar(){
+  var B=aj4Busca(),falta=Object.keys(B).filter(function(k){return !B[k].m;});
+  if(falta.length){alert('⚠️ No se aplicó nada: no encontré exactamente estos movimientos:\n\n• '+falta.map(function(k){return B[k].txt+(B[k].n>1?' (hay '+B[k].n+' iguales)':' (no está)');}).join('\n• ')+'\n\nMándame captura y lo ajusto.');return;}
+  if(!confirm('Se van a hacer estos cambios:\n\n'+
+    '1. "CGO Familiar" 10,000 → devolución a Matabuena.\n'+
+    '2. "CGO Septiembre" 20,000 + 400 → devolución a Tranquilo de 15,000 + 2,900 + 2,500.\n'+
+    '3. Pago Victoria 10,700 + 26,443.20 del pago del 04/08 → Fibra shop queda devuelto.\n'+
+    '4. Del pago del 04/08, 32,349.80 quedan para Grupo Hospitalario.\n'+
+    '5. 26,443.20 de Grupo Hospitalario pasan a ingreso de Impulso (no mueve el banco).\n\n¿Aplicar?'))return;
+  var g='Laj4'+Date.now(),f=todayStr(),L=function(e,r){var o={g:g,e:e};if(r)o.r=1;return JSON.stringify(o);};
+  var p=Promise.resolve(),hechos=[],fallos=[];
+  var paso=function(txt,fn){p=p.then(function(){return fn();}).then(function(){hechos.push(txt);}).catch(function(e){fallos.push(txt+' ('+(e&&e.message||e)+')');});};
+  paso('Matabuena: tercero',function(){return ptPutMov(B.cMata.m,{tercero:'Matabuena'});});
+  paso('Matabuena: devolución',function(){return ptPutMov(B.sFam.m,{concepto:PUENTE_OUT,tercero:'Matabuena',puente_liga:L([[B.cMata.m.id,10000]])});});
+  paso('Tranquilo: tercero del 2,900',function(){return ptPutMov(B.c29.m,{tercero:'Tranquilo'});});
+  paso('Tranquilo: devolución 20,000',function(){return ptPutMov(B.s20.m,{tercero:'Tranquilo',puente_liga:L([[B.c15.m.id,15000],[B.c29.m.id,2900],[B.c25.m.id,2100]])});});
+  paso('Tranquilo: devolución 400',function(){return ptPutMov(B.s4.m,{concepto:PUENTE_OUT,tercero:'Tranquilo',puente_liga:L([[B.c25.m.id,400]])});});
+  paso('Fibra shop: tercero',function(){return ptPutMov(B.cFib.m,{tercero:'Fibra shop'});});
+  paso('Fibra shop: pago Victoria 10,700',function(){return ptPutMov(B.sVic.m,{tercero:'Fibra shop',puente_liga:L([[B.cFib.m.id,10700]])});});
+  paso('Pago del 04/08 repartido',function(){return ptPutMov(B.sGal.m,{puente_liga:L([[B.cFib.m.id,26443.2],[B.cGH.m.id,32349.8]])});});
+  paso('Parte de Impulso de Grupo Hospitalario',function(){
+    return ptPostMov({tipo:'Salida',concepto:PUENTE_OUT,desc:'Parte de Impulso del pago de Grupo Hospitalario → pasa a INGRESO POR TERMINAL',cuenta:'INBURSA',cta_destino:'',socio:'',monto:26443.2,fecha:'2026-08-04',mes:7,tercero:'Grupo Hospitalario',puente_liga:L([[B.cGH.m.id,26443.2]],1),banco_ref:'ajuste terceros nov'})
+      .then(function(){return ptPostMov({tipo:'Entrada',concepto:'INGRESO POR TERMINAL',desc:'Venta de Impulso incluida en el pago de Grupo Hospitalario (30/07)',cuenta:'INBURSA',cta_destino:'',socio:'',monto:26443.2,fecha:'2026-08-04',mes:7,puente_liga:L(null,1).replace('"e":null,',''),banco_ref:'ajuste terceros nov'});});
+  });
+  p.then(function(){
+    AJ4_DONE={fecha:f,hechos:hechos.length,fallos:fallos.length};
+    return fetch('/api/config/'+AJ4_KEY,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:AJ4_DONE})});
+  }).then(function(){
+    logActivity('Ajuste de terceros ya pagados',hechos.length+' cambios'+(fallos.length?' · '+fallos.length+' fallaron':''));
+    try{rMovsRe();}catch(e){}
+    alert('✅ Listo: '+hechos.length+' cambios.'+(fallos.length?'\n\n⚠️ No se pudieron hacer:\n• '+fallos.join('\n• '):''));
+  });
 }
 
 // ═══ AJUSTE ÚNICO 3: CUADRE HSBC 1 JUL – 16 OCT 2026 ════════════════════════
@@ -8301,7 +8371,7 @@ function ajPintaBanner(){
   var c=document.getElementById('aj-banner');if(!c)return;
   var u=_u()||{};
   if((u.role!=='owner'&&u.role!=='admin')||!movs||!movs.length){c.innerHTML='';return;}
-  if(AJ_DONE&&AJ3_DONE){c.innerHTML='';return;}
+  if(AJ_DONE&&AJ3_DONE){c.innerHTML=aj4Banner();return;}
   AJ_SET=AJ_DONE?3:1;
   var n=ajOps().length;
   if(AJ_SET===3){
@@ -9120,10 +9190,12 @@ function cotTabHTML(){
 // para notas anteriores) y si el cliente quedó debiendo después de entregarle.
 var REV2={eds:[],mes:'',suc:'',solo:false};
 function rRev2(){
-  var m=document.getElementById('rv-mes');if(m&&!m.value){var d=new Date();d.setMonth(d.getMonth()-1);m.value='2026-10';}
+  var m=document.getElementById('rv-mes');if(m&&!m.value){m.value='2026-10';}
   var desde=(m&&m.value?m.value:'2026-10')+'-01';
-  fetch('/api/activity/ediciones?desde='+desde,{credentials:'include'}).then(function(r){return r.ok?r.json():[];})
-    .then(function(d){REV2.eds=Array.isArray(d)?d:[];revPinta();}).catch(function(){REV2.eds=[];revPinta();});
+  Promise.all([
+    fetch('/api/activity/ediciones?desde='+desde,{credentials:'include'}).then(function(r){return r.ok?r.json():[];}).then(function(d){REV2.eds=Array.isArray(d)?d:[];}).catch(function(){REV2.eds=[];}),
+    revCargarCfg(),cargarBcoOK(),cieCargar()
+  ]).then(revPinta3);
 }
 function revEdsDe(folio){
   var f=String(folio),re=new RegExp('Folio '+f.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\b|\\s|—|·)');
@@ -9143,7 +9215,8 @@ function revFila(p){
     if(cam.length)c1={ok:false,txt:'no · '+cam.join(' · ')};
   }
   var edN=revEdsDe(p.folio).filter(function(e){return /nota|pedido|pagado/i.test(e.accion)&&String(e.ts).slice(0,10)>fIng;});
-  if(edN.length){var u=edN[edN.length-1];c1={ok:false,txt:'no · '+(c1.ok?'editada':c1.txt.slice(5))+' el '+ptFec(String(u.ts).slice(0,10))+' por '+(u.userName||u.user||'?')};}
+  if(edN.length){var u=edN[edN.length-1],dm=edN.filter(function(e){return /Cambio de dinero/.test(e.accion);}).map(function(e){return String(e.detalle||'').replace(/^Folio [^·]*·\s*/,'');}).join(' · ');
+    c1={ok:false,txt:'no · '+(dm||(c1.ok?'editada':c1.txt.slice(5)))+' · el '+ptFec(String(u.ts).slice(0,10))+' por '+(u.userName||u.user||'?')};}
   // ¿Coinciden los pagos después?
   var c2={ok:true,txt:abs.length?'sí':'—'};
   var camA=abs.filter(function(a){return a.orig_monto!=null&&(Math.abs((+a.orig_monto)-(+a.monto||0))>0.009||(a.orig_fecha&&a.orig_fecha!==a.fecha));});
@@ -9171,8 +9244,8 @@ function revPinta(){
   var el=document.getElementById('rv-tabla');if(!el)return;
   var L=revDatos(),nNo=L.filter(function(x){return !x.c1.ok||!x.c2.ok;}).length,nDebe=L.filter(function(x){return x.debe;}).length;
   var tDebe=L.filter(function(x){return x.debe;}).reduce(function(s,x){return s+x.r2;},0);
-  document.getElementById('rv-res').innerHTML=
-    '<div class="card" style="padding:10px 14px;display:flex;gap:22px;flex-wrap:wrap;font-size:13px">'+
+  document.getElementById('rv-sum').innerHTML=
+    '<div class="card" style="padding:10px 14px;margin-bottom:8px;display:flex;gap:22px;flex-wrap:wrap;font-size:13px">'+
     '<span><b>'+L.length+'</b> notas</span>'+
     '<span style="color:'+(nNo?'#C2325F':'#12724C')+'"><b>'+nNo+'</b> ya no coinciden con su día</span>'+
     '<span style="color:'+(nDebe?'#C2325F':'#12724C')+'"><b>'+nDebe+'</b> clientes deben después de entregado · <b class="mono">'+fmt(tDebe)+'</b></span></div>';
@@ -9200,6 +9273,162 @@ function revExcel(){
   var ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Revisión');
   XLSX.writeFile(wb,'Revision_notas_'+((document.getElementById('rv-mes')||{}).value||'')+'.xlsx');
 }
+
+// ═══ REVISIÓN AUTOMÁTICA: cada día verde solo, rojo si algo no cuadra ═════════
+// Por cada día revisa: ¿las notas siguen igual que el día que se capturaron?,
+// ¿el efectivo cuadró en el cierre de caja?, ¿lo cobrado con tarjeta o
+// transferencia ya apareció en el banco?, y ¿algún cliente quedó debiendo
+// después de entregado? Estefania solo abre los días en rojo.
+var REV_OK={},REV_PREG={},REV_SEL=null;
+function revCfg(k){return fetch('/api/config/'+k,{credentials:'include'}).then(function(r){return r.json();}).then(function(d){return (d&&d.valor&&typeof d.valor==='object')?d.valor:{};}).catch(function(){return {};});}
+function revCfgSet(k,v){return fetch('/api/config/'+k,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:v})}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);});}
+function revISO(f){f=String(f||'');var m=f.match(/^(\d{2})\/(\d{2})\/(\d{4})/);return m?m[3]+'-'+m[2]+'-'+m[1]:f.slice(0,10);}
+// Movimientos ya conciliados con el banco, y hasta qué fecha llega lo conciliado
+function revBanco(){
+  var ids={},maxF='';
+  Object.keys(BCO_OK||{}).forEach(function(k){var v=BCO_OK[k];String(v).split(/[^0-9]+/).forEach(function(x){if(x)ids[x]=1;});var f=revISO(k.split('|')[0]);if(f>maxF)maxF=f;});
+  return {ids:ids,hasta:maxF};
+}
+function revProblemasDia(D){
+  var P=[],B=revBanco();
+  var notas=(pedidos||[]).filter(function(p){return String(p.fecha||'').slice(0,10)===D&&String(p.cli||'').toUpperCase()!=='CANCELADA'&&!/^cancel/i.test(String(p.est||''));});
+  notas.forEach(function(p){
+    var x=revFila(p);
+    if(!x.c1.ok)P.push({k:'cambio|'+D+'|'+p.suc+'|'+p.folio,tipo:'cambio',suc:p.suc,folio:p.folio,grave:/→/.test(x.c1.txt)&&revBajo(x.c1.txt),txt:'Nota '+p.folio+' ('+(p.cli||'')+'): '+x.c1.txt.replace(/^no · /,'')});
+    if(!x.c2.ok)P.push({k:'cobro|'+D+'|'+p.suc+'|'+p.folio,tipo:'cambio',suc:p.suc,folio:p.folio,grave:true,txt:'Cobros de la nota '+p.folio+': '+x.c2.txt.replace(/^no · /,'')});
+    if(x.debe)P.push({k:'debe|'+D+'|'+p.suc+'|'+p.folio,tipo:'debe',suc:p.suc,folio:p.folio,p:p,monto:x.r2,txt:'Nota '+p.folio+' ('+(p.cli||'')+'): entregada el '+ptFec(x.fEnt)+' y debe '+fmt(x.r2)+' · '+x.atraso+' día'+(x.atraso===1?'':'s')});
+  });
+  // Caja: desde que existen los cierres de sucursal
+  var dw=new Date(D+'T12:00:00').getDay();
+  if(CIERRES_DESDE&&D>=CIERRES_DESDE&&D<todayStr()&&dw!==0){
+    ['Jardines','Zibata'].forEach(function(sc){
+      var c=CIERRES[sc+'|'+D];
+      if(!c)P.push({k:'caja|'+D+'|'+sc,tipo:'caja',suc:sc,grave:true,txt:sc+': no hizo el cierre de caja'});
+      else if(!c.noab&&Math.abs(+c.dif||0)>=1)P.push({k:'caja|'+D+'|'+sc,tipo:'caja',suc:sc,grave:c.dif<0,txt:sc+': '+(c.dif<0?'faltaron ':'sobraron ')+fmt(Math.abs(c.dif))+' en caja'+(c.com?' · dijo: "'+c.com+'"':'')});
+    });
+  }
+  // Banco: entradas a cuentas bancarias de ese día que no aparecen conciliadas
+  if(B.hasta&&D<=dateStrLocal(new Date(new Date(B.hasta+'T12:00:00').getTime()-2*864e5))){
+    var porCta={};
+    (movs||[]).forEach(function(m){
+      if(String(m.fecha||'').slice(0,10)!==D||m.tipo!=='Entrada')return;
+      if(!/inbursa|hsbc/i.test(String(m.cuenta||'')))return;
+      if(B.ids[String(m.id)])return;
+      var o=porCta[m.cuenta]=porCta[m.cuenta]||{n:0,t:0};o.n++;o.t+=(+m.monto||0);
+    });
+    Object.keys(porCta).forEach(function(c){var o=porCta[c];
+      P.push({k:'banco|'+D+'|'+c,tipo:'banco',suc:'',grave:true,txt:c+': '+o.n+' entrada'+(o.n===1?'':'s')+' por '+fmt(o.t)+' que no aparece'+(o.n===1?'':'n')+' en el banco'});});
+  }
+  return P;
+}
+function revBajo(t){var m=String(t).match(/\$?([\d,\.]+)\s*→\s*\$?([\d,\.]+)/);if(!m)return true;var a=+m[1].replace(/,/g,''),b=+m[2].replace(/,/g,'');return b<a;}
+function revEstadoDia(D){
+  var P=revProblemasDia(D),pend=P.filter(function(x){return !(REV_OK[x.k]&&REV_OK[x.k].res==='ok');});
+  var hayNotas=(pedidos||[]).some(function(p){return String(p.fecha||'').slice(0,10)===D;});
+  return {P:P,pend:pend,est:pend.length?'rojo':(hayNotas||P.length?'verde':'vacio')};
+}
+function revCalendario(){
+  var mes=(document.getElementById('rv-mes')||{}).value||'2026-10',y=+mes.slice(0,4),m=+mes.slice(5,7)-1;
+  var ult=new Date(y,m+1,0).getDate(),hoy=todayStr(),cel='',verdes=0,rojos=0,primerRojo=null;
+  var off=(new Date(y,m,1).getDay()+6)%7;for(var i=0;i<off;i++)cel+='<span></span>';
+  for(var d=1;d<=ult;d++){
+    var D=y+'-'+('0'+(m+1)).slice(-2)+'-'+('0'+d).slice(-2),dw=new Date(y,m,d).getDay();
+    var st=D>hoy?{est:'futuro',pend:[]}:revEstadoDia(D);
+    if(st.est==='verde')verdes++;if(st.est==='rojo'){rojos++;if(!primerRojo)primerRojo=D;}
+    var col={verde:['#E1F5EE','#085041'],rojo:['#FCEBEB','#A32D2D'],vacio:['var(--surface2)','var(--text3)'],futuro:['transparent','var(--text3)']}[st.est];
+    cel+='<button onclick="revDia(\''+D+'\')" style="border:'+(REV_SEL===D?'2px solid #6E3B57':'1px solid transparent')+';background:'+col[0]+';color:'+col[1]+';border-radius:8px;padding:7px 0;font-size:12.5px;font-weight:'+(st.est==='rojo'?'800':'500')+';cursor:pointer;opacity:'+(dw===0?'.45':'1')+'">'+d+(st.est==='rojo'?'<div style="font-size:9.5px">'+st.pend.length+'</div>':'')+'</button>';
+  }
+  if(!REV_SEL||REV_SEL.slice(0,7)!==mes)REV_SEL=primerRojo||null;
+  return {html:'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;font-size:11px;color:var(--text3);margin-bottom:4px"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>'+
+    '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">'+cel+'</div>'+
+    '<div style="font-size:11px;color:var(--text3);margin-top:8px">Verde: cuadró solo o ya lo aceptaste · Rojo: algo que revisar (el número dice cuántas cosas) · Gris: sin notas</div>',verdes:verdes,rojos:rojos};
+}
+function revDia(D){REV_SEL=D;revPinta3();}
+function revPanelDia(D){
+  if(!D)return '<div class="card" style="padding:18px;font-size:13.5px;color:#12724C">✓ No hay días en rojo este mes. Elige un día del calendario si quieres ver su detalle.</div>';
+  var st=revEstadoDia(D),fd=new Date(D+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+  var notas=(pedidos||[]).filter(function(p){return String(p.fecha||'').slice(0,10)===D;});
+  var cob=notas.reduce(function(s,p){return s+(p.ant_ini!=null?+p.ant_ini:+p.ant||0);},0);
+  var ico={cambio:'✏️',caja:'💵',banco:'🏦',debe:'⏳'};
+  var h='<div class="card" style="padding:14px 16px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><b style="font-size:16px">'+fd.charAt(0).toUpperCase()+fd.slice(1)+'</b>'+
+    '<span style="font-size:11.5px;padding:3px 10px;border-radius:20px;background:'+(st.est==='rojo'?'#FCEBEB;color:#A32D2D':'#E1F5EE;color:#085041')+'">'+(st.est==='rojo'?st.pend.length+' por revisar':'✓ todo en orden')+'</span></div>';
+  if(!st.P.length)h+='<div style="font-size:13.5px;color:#12724C;margin-bottom:10px">Todo cuadró: las notas siguen igual, la caja y el banco coinciden y nadie quedó debiendo.</div>';
+  st.P.sort(function(a,b){return (REV_OK[a.k]?1:0)-(REV_OK[b.k]?1:0)||(b.grave?1:0)-(a.grave?1:0);}).forEach(function(x){
+    var ok=REV_OK[x.k],pr=REV_PREG[x.k],col=ok&&ok.res==='ok'?['#F1F7F3','#5F6B63']:x.grave?['#FCEBEB','#791F1F']:['#FAEEDA','#633806'];
+    h+='<div style="background:'+col[0]+';color:'+col[1]+';border-radius:10px;padding:9px 11px;margin-bottom:7px;font-size:13px">'+
+      '<div>'+ico[x.tipo]+' '+ptEsc(x.txt)+'</div>'+
+      (pr?'<div style="font-size:12px;margin-top:4px;opacity:.9">'+(pr.resp?'💬 '+ptEsc(pr.suc||'')+' respondió: "'+ptEsc(pr.resp)+'"':'⏳ Se le pidió explicación a '+ptEsc(pr.suc||'la sucursal')+' el '+ptFec(pr.f))+'</div>':'')+
+      (ok&&ok.res==='ok'?'<div style="font-size:11.5px;margin-top:3px">✓ Aceptado por '+ptEsc(ok.u||'')+' el '+ptFec(ok.f)+' <a href="#" onclick="revMarcar(\''+x.k+'\',null);return false" style="color:inherit">deshacer</a></div>':
+        '<div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap"><button class="btn btn-p btn-xs" onclick="revMarcar(\''+x.k+'\',\'ok\')">Está bien</button>'+
+        (x.suc&&!pr?'<button class="btn btn-s btn-xs" onclick="revPedir(\''+x.k+'\',\''+x.suc+'\')">Pedir explicación a '+ptEsc(x.suc)+'</button>':'')+
+        (x.tipo==='debe'&&x.p&&x.p.tel?'<button class="btn btn-s btn-xs" onclick="revWA('+x.p.id+')">WhatsApp de cobro</button>':'')+'</div>')+'</div>';
+  });
+  h+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px;font-size:12px;text-align:center">'+
+    '<div style="background:var(--surface2);border-radius:8px;padding:7px"><b style="font-size:16px">'+notas.length+'</b><br>notas</div>'+
+    '<div style="background:var(--surface2);border-radius:8px;padding:7px"><b style="font-size:15px">'+fmt(cob)+'</b><br>dejaron a cuenta</div>'+
+    '<div style="background:var(--surface2);border-radius:8px;padding:7px"><b style="font-size:16px">'+st.P.length+'</b><br>cosas encontradas</div></div></div>';
+  return h;
+}
+function revMarcar(k,res){
+  var u=_u()||{};if(res)REV_OK[k]={res:res,u:u.display||u.name||CU||'',f:todayStr()};else delete REV_OK[k];
+  revCfgSet('rev_ok',REV_OK).then(function(){logActivity('Revisión de notas',(res?'Aceptó: ':'Deshizo: ')+k);revPinta3();try{rTab();}catch(e){}})
+    .catch(function(e){alert('⚠️ No se guardó ('+e.message+')');});
+}
+function revPedir(k,suc){
+  var P=revProblemasDia(k.split('|')[1]),x=P.find(function(z){return z.k===k;});if(!x)return;
+  REV_PREG[k]={suc:suc,txt:x.txt,f:todayStr(),resp:''};
+  revCfgSet('rev_preg',REV_PREG).then(function(){logActivity('Pidió explicación',suc+' · '+x.txt);revPinta3();})
+    .catch(function(e){alert('⚠️ No se guardó ('+e.message+')');});
+}
+function revWA(id){
+  var p=(pedidos||[]).find(function(z){return z.id===id;});if(!p)return;var x=revFila(p);
+  var tel=String(p.tel||'').replace(/\D/g,'');if(tel.length===10)tel='52'+tel;if(!tel){alert('La nota no tiene teléfono.');return;}
+  window.open('https://wa.me/'+tel+'?text='+encodeURIComponent('Hola '+(p.cli||'')+', le escribimos de Impulso Galería. Le recordamos el saldo de '+fmt(x.r2)+' de su nota '+p.folio+'. ¡Gracias!'),'_blank');
+  logActivity('Recordatorio de saldo','Nota '+p.folio+' · '+fmt(x.r2));
+}
+function revDeudores(){
+  var L=(pedidos||[]).filter(function(p){return String(p.fecha||'')>='2026-07-01';}).map(revFila).filter(function(x){return x.debe;});
+  var g=[['1–7 días',0,7],['8–30 días',8,30],['Más de 30 días',31,99999]];
+  return '<div class="card" style="padding:12px 14px;margin-top:12px"><div style="font-size:13px;font-weight:800;margin-bottom:6px">⏳ Clientes que deben después de entregado</div>'+
+    (L.length?g.map(function(b){var s=L.filter(function(x){return x.atraso>=b[1]&&x.atraso<=b[2];});if(!s.length)return '';
+      return '<details style="margin:4px 0"><summary style="cursor:pointer;font-size:12.5px'+(b[1]>30?';color:#A32D2D;font-weight:700':'')+'">'+b[0]+' · '+s.length+' · <b class="mono">'+fmt(s.reduce(function(t,x){return t+x.r2;},0))+'</b></summary>'+
+        s.map(function(x){return '<div style="display:flex;gap:6px;align-items:center;font-size:12px;padding:3px 0 3px 12px"><span style="flex:1">'+ptEsc(x.p.folio)+' · '+ptEsc(x.p.cli||'')+' · '+fmt(x.r2)+' · '+x.atraso+' d</span>'+(x.p.tel?'<button class="btn btn-s btn-xs" onclick="revWA('+x.p.id+')">WhatsApp</button>':'')+'</div>';}).join('')+'</details>';}).join('')
+     :'<div style="font-size:12.5px;color:#12724C">Nadie debe después de entregado. 👏</div>')+'</div>';
+}
+function revPinta3(){
+  var cal=revCalendario();
+  document.getElementById('rv-res').innerHTML='<div style="display:grid;grid-template-columns:300px minmax(0,1fr);gap:12px;align-items:start">'+
+    '<div><div class="card" style="padding:12px 14px"><div style="font-size:13px;font-weight:800;margin-bottom:8px">'+cal.verdes+' días en verde · <span style="color:#A32D2D">'+cal.rojos+' en rojo</span></div>'+cal.html+'</div>'+revDeudores()+'</div>'+
+    '<div>'+revPanelDia(REV_SEL)+'</div></div>';
+  revPinta();   // el detalle nota por nota queda abajo
+  var r=document.getElementById('rv-res'),t=document.getElementById('rv-tabla');
+  if(t&&!t.dataset.det){t.dataset.det='1';}
+}
+// Lo que ve la sucursal: lo que Estefania le pidió explicar
+function revTabSuc(){
+  var suc=cieSucDe();if(!suc)return '';
+  var L=Object.keys(REV_PREG).filter(function(k){var x=REV_PREG[k];return x&&x.suc===suc&&!x.resp;});
+  if(!L.length)return '';
+  return '<div class="card" style="padding:10px 14px;margin-bottom:12px;background:#FCEBEB;border-color:#F0B8CB"><div style="font-size:13px;font-weight:800;color:#791F1F;margin-bottom:6px">💬 Estefania te pide explicar '+L.length+' cosa'+(L.length===1?'':'s')+'</div>'+
+    L.map(function(k){var x=REV_PREG[k];return '<div style="font-size:12.5px;margin-bottom:6px">'+ptEsc(x.txt)+'<div style="display:flex;gap:6px;margin-top:4px"><input id="rp-'+btoa(unescape(encodeURIComponent(k))).replace(/=/g,'')+'" placeholder="¿Qué pasó?" style="flex:1"><button class="btn btn-p btn-xs" onclick="revResponder(\''+k.replace(/'/g,"\\'")+'\')">Enviar</button></div></div>';}).join('')+'</div>';
+}
+function revResponder(k){
+  var el=document.getElementById('rp-'+btoa(unescape(encodeURIComponent(k))).replace(/=/g,'')),t=el?el.value.trim():'';
+  if(!t){alert('Escribe qué pasó.');return;}
+  revCfg('rev_preg').then(function(R){if(!R[k])R[k]=REV_PREG[k];R[k].resp=t;R[k].fResp=todayStr();REV_PREG=R;return revCfgSet('rev_preg',R);})
+    .then(function(){logActivity('Respondió revisión',t);rTab();}).catch(function(e){alert('⚠️ No se guardó ('+e.message+')');});
+}
+// Lo que ve Estefania en su tablero
+function revTabDueña(){
+  var u=_u()||{};if(u.role!=='owner'&&u.role!=='admin')return '';
+  var resp=Object.keys(REV_PREG).filter(function(k){var x=REV_PREG[k];return x&&x.resp&&!(REV_OK[k]&&REV_OK[k].res==='ok');}).length;
+  var rojos=0,h=new Date();for(var i=1;i<=31;i++){var d=new Date(h);d.setDate(d.getDate()-i);var D=dateStrLocal(d);if(revEstadoDia(D).est==='rojo')rojos++;}
+  if(!rojos&&!resp)return '';
+  return '<div class="card" style="padding:10px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap"><div style="flex:1;font-size:13px">🔍 <b>Revisión de notas:</b> '+
+    (rojos?rojos+' día'+(rojos===1?'':'s')+' en rojo en el último mes':'')+(rojos&&resp?' · ':'')+(resp?resp+' respuesta'+(resp===1?'':'s')+' de las sucursales por leer':'')+'</div>'+
+    '<button class="btn btn-p btn-sm" onclick="go(\'rev\')">Revisar</button></div>';
+}
+function revCargarCfg(){return Promise.all([revCfg('rev_ok'),revCfg('rev_preg')]).then(function(a){REV_OK=a[0];REV_PREG=a[1];});}
 
 // ═══ MI TABLERO: el avance del día ═══════════════════════════════════════════
 // Cada nota abierta está en una etapa, con sus días y su color. Tres anillos dicen
@@ -9485,7 +9714,7 @@ function rTab(){
   };
   var col=function(k){var M=TB_ETA[k],L=E[k];return '<div class="tb2-col" style="background:'+M.bg+'"><div class="tb2-hd" style="background:'+M.hd+'"><span>'+M.ic+' '+M.t+'</span><b data-n="'+L.length+'">0</b></div>'+cuerpo(k,L)+'</div>';};
 
-  c.innerHTML=limpTab()+cieTabHTML()+cotTabHTML()+
+  c.innerHTML=limpTab()+revTabDueña()+revTabSuc()+cieTabHTML()+cotTabHTML()+
     '<div class="tb2-sem">'+sem('atr','Atrasadas','Atiéndelas primero','#FBE4EC','#8E1F45','#C2325F','#fff')+sem('urg','Urgen','La fecha está encima','#FDF1D6','#7A5208','#E0A21B','#3D2A02')+sem('ok','Van bien','En tiempo','#E1F5EC','#0B5E41','#12A37A','#fff')+'</div>'+
     '<div class="tb2-cols">'+col('pedir')+col('prov')+col('taller')+col('lista')+'</div>'+
     '<div style="font-size:12px;color:var(--text3);margin-top:8px">✓ Las '+tot+' notas abiertas están en su lugar. Toca una nota para ver sus datos y botones; toca un semáforo para ver solo esas.</div>';
@@ -13515,7 +13744,7 @@ function loadData(){
     loadAuditExcl();
     cargarPuentePct();
     stkCargar().then(function(){try{if(document.querySelector('#page-ord.active'))rOrd();}catch(e){}});
-    Promise.all([cieCargar(),nfCargar(),cotCargar()]).then(function(){try{rTab();}catch(e){}try{if(!cieCandado())nfCandado();}catch(e){}});
+    Promise.all([cieCargar(),nfCargar(),cotCargar(),revCargarCfg()]).then(function(){try{rTab();}catch(e){}try{if(!cieCandado())nfCandado();}catch(e){}});
     ajCargar().then(function(){try{if(document.querySelector('#page-mov.active'))ajPintaBanner();}catch(e){}});
     loadBancosCfg().then(()=>{pintarCuentasSelects();tqzAsegurarCuenta();try{if(document.querySelector('#page-ban.active'))rBancos();}catch(e){}});
     if(vends&&vends.length){VENDEDORES=vends;populateVendSel();}
