@@ -8790,13 +8790,22 @@ function tqzAbrir(){
 var FOLIO_OK=false,FOLIO_CTX=null;
 function candadoFolio(suc,folio){
   var n=parseInt(folio,10);if(isNaN(n)||!suc)return false;
-  var nums=(pedidos||[]).filter(function(p){return p.suc===suc;}).map(function(p){return parseInt(p.folio,10);}).filter(function(x){return !isNaN(x);});
-  if(!nums.length)return false;
-  var max=Math.max.apply(null,nums);
-  if(n<=max+1)return false;                       // va en orden, o está llenando un hueco viejo
-  var faltan=[];for(var i=max+1;i<n&&faltan.length<15;i++)faltan.push(i);
+  // Se compara contra las notas registradas más recientemente de la sucursal (no contra
+  // el folio más alto de toda la historia: un folio viejo mal capturado, como 29420,
+  // apagaba el candado para siempre).
+  var mias=(pedidos||[]).filter(function(p){return String(p.suc||'').toLowerCase()===String(suc).toLowerCase();});
+  var todos={};mias.forEach(function(p){var x=parseInt(p.folio,10);if(!isNaN(x))todos[x]=1;});
+  var rec=mias.slice().sort(function(a,b){return (+b.id||0)-(+a.id||0);}).slice(0,30)
+    .map(function(p){return parseInt(p.folio,10);}).filter(function(x){return !isNaN(x)&&x<n;});
+  if(!rec.length)return false;
+  var max=Math.max.apply(null,rec),min=Math.min.apply(null,rec);
+  if(n<=min)return false;                          // está llenando un hueco viejo
+  // Huecos entre las notas recientes y la que se quiere guardar (también los que
+  // quedaron atrás, por ejemplo si ya se saltaron la 2940 y la 2941)
+  var faltan=[];for(var i=min+1;i<n&&faltan.length<15;i++){if(!todos[i])faltan.push(i);}
+  if(!faltan.length)return false;
   FOLIO_CTX={suc:suc,folio:n,faltan:faltan};
-  document.getElementById('cf-txt').innerHTML='Vas a guardar la <b>'+n+'</b>, pero en '+ptEsc(suc)+' la última registrada es la <b>'+max+'</b>. '+
+  document.getElementById('cf-txt').innerHTML='Vas a guardar la <b>'+n+'</b>, pero en '+ptEsc(suc)+' la última registrada es la <b>'+max+'</b>'+(max>n?'':'')+'. '+
     'Falta'+(faltan.length===1?'':'n')+': <b>'+faltan.join(', ')+'</b>. No se puede saltar un folio.';
   document.getElementById('cf-lista').innerHTML=faltan.map(function(f){
     return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border)"><b class="mono" style="width:60px">'+f+'</b>'+
