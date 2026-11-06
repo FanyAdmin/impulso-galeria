@@ -1358,8 +1358,12 @@ tr:hover .ent-edit{opacity:1}
         <div id="c-empty" style="text-align:center;color:var(--text3);padding:1.75rem 0;font-size:12px">Sin artículos todavía</div>
         <div id="c-items" style="display:none">
           <div id="cot-act"></div>
-          <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:#3C3489;background:#EEEDFE;border-radius:9px;padding:7px 10px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="cot-gal" onchange="galToggle(this.checked)"> 🖼 Para Galería (+50%)</label>
-          <div id="cot-gal-cli-w" style="display:none;margin-bottom:8px"><input id="cot-gal-cli" placeholder="Nombre del cliente de Galería" style="width:100%"></div>
+          <label style="display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:#3C3489;background:#EEEDFE;border-radius:9px;padding:7px 10px;margin-bottom:8px;cursor:pointer"><input type="checkbox" id="cot-gal" onchange="galToggle(this.checked)"> 🖼 Para Galería <span id="gal-pct-lbl"></span></label>
+          <div id="cot-gal-cli-w" style="display:none;margin-bottom:8px">
+            <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:6px;font-size:12px;color:#3C3489">Ganancia de Galería:
+              <button class="chip gal-pct" data-p="10" onclick="galPct(10)">10%</button><button class="chip gal-pct" data-p="20" onclick="galPct(20)">20%</button><button class="chip gal-pct" data-p="30" onclick="galPct(30)">30%</button><button class="chip gal-pct" data-p="40" onclick="galPct(40)">40%</button><button class="chip gal-pct" data-p="50" onclick="galPct(50)">50%</button>
+              <input id="gal-pct-otro" type="number" min="0" step="1" placeholder="otro %" style="width:72px;padding:3px 6px;font-size:12px" onchange="galPct(this.value)"></div>
+            <input id="cot-gal-cli" placeholder="Nombre del cliente de Galería" style="width:100%"></div>
           <div id="c-list" style="margin-bottom:.75rem"></div>
           <div class="sbox">
             <div class="srow" id="cs-sub-row" style="display:none"><span>Antes del descuento</span><span class="mono" id="cs-sub">$0.00</span></div>
@@ -2935,7 +2939,7 @@ function rCart(){
       </div>
       <div style="display:flex;justify-content:flex-end;gap:12px;margin-top:4px;align-items:flex-end">
         ${x.regalo?'<div class="mono" style="font-size:11px;color:var(--text3);text-decoration:line-through">'+fmt(x.subIvaOrig||0)+'</div>':''}
-        ${COT_GAL?`<div style="text-align:right"><div style="font-size:9px;color:#3C3489;text-transform:uppercase;letter-spacing:.04em">Cliente</div><div class="mono" style="font-size:12px;font-weight:700;color:#3C3489">${fmt(x.subIva*1.5)}</div></div>`:''}
+        ${COT_GAL?`<div style="text-align:right"><div style="font-size:9px;color:#3C3489;text-transform:uppercase;letter-spacing:.04em">Cliente</div><div class="mono" style="font-size:12px;font-weight:700;color:#3C3489">${fmt(x.subIva*galF())}</div></div>`:''}
         <div style="text-align:right"><div style="font-size:9px;color:var(--green);text-transform:uppercase;letter-spacing:.04em">${COT_GAL?'Impulso':'Precio'}</div><div class="mono" style="font-size:12px;font-weight:600;color:var(--green)">${fmt(x.subIva)}</div></div>
       </div>
     </div>`).join('');
@@ -3013,7 +3017,7 @@ function openModPed(){
   const u_cur=USERS.find(x=>x.key===CU);['mp-f','mp-c','mp-t','mp-a','mp-o'].forEach(id=>document.getElementById(id).value='');if(u_cur){document.getElementById('mp-f').value=getNextFolio(u_cur.suc);}
   if(COT_ACT){document.getElementById('mp-c').value=COT_ACT.cli||'';document.getElementById('mp-t').value=COT_ACT.tel||'';document.getElementById('mp-o').value='De la cotización '+COT_ACT.folio;}
   if(COT_GAL){var _gc=(document.getElementById('cot-gal-cli')||{}).value||'';document.getElementById('mp-c').value='GALERÍA'+(_gc?' · '+_gc:'');
-    var _it=cotTotal();document.getElementById('mp-o').value='Para Galería: el cliente paga '+fmt(_it*1.5)+' (Impulso '+fmt(_it)+' + Galería '+fmt(_it*0.5)+')';}
+    var _it=cotTotal(),_pc=COT_GAL_PCT/100;document.getElementById('mp-o').value='Para Galería (+'+COT_GAL_PCT+'%): el cliente paga '+fmt(_it*(1+_pc))+' (Impulso '+fmt(_it)+' + Galería '+fmt(_it*_pc)+')';}
   // Admin/owner eligen a qué sucursal va el pedido (su usuario no tiene sucursal de venta)
   const sucWrap=document.getElementById('mp-suc-wrap');
   if(u_cur&&(u_cur.role==='admin'||u_cur.role==='owner')){
@@ -9459,25 +9463,33 @@ function revCargarCfg(){return Promise.all([revCfg('rev_ok'),revCfg('rev_preg')]
 // 50% es de Galería. La nota se registra a nombre de Galería por TU precio. El
 // cliente final puede pagarte a ti (entonces el 50% queda como dinero de Galería
 // en "Terceros por devolver") o a Galería (entonces Galería te debe tu precio).
-var COT_GAL=false,GAL_N={};
-function galF(){return COT_GAL?1.5:1;}
-function galToggle(on){COT_GAL=!!on;var w=document.getElementById('cot-gal-cli-w');if(w)w.style.display=COT_GAL?'':'none';rCart();}
+var COT_GAL=false,GAL_N={},COT_GAL_PCT=50;
+function galF(){return COT_GAL?1+COT_GAL_PCT/100:1;}
+function galPct(v){v=parseFloat(v);if(isNaN(v)||v<0)return;COT_GAL_PCT=v;try{localStorage.setItem('gal_pct',String(v));}catch(e){}galPintaPct();rCart();}
+function galPintaPct(){
+  document.querySelectorAll('.gal-pct').forEach(function(b){b.classList.toggle('active',+b.dataset.p===COT_GAL_PCT);});
+  var o=document.getElementById('gal-pct-otro');if(o&&[10,20,30,40,50].indexOf(COT_GAL_PCT)<0)o.value=COT_GAL_PCT;
+  var l=document.getElementById('gal-pct-lbl');if(l)l.textContent='+'+COT_GAL_PCT+'%';
+}
+try{var _gp=parseFloat(localStorage.getItem('gal_pct'));if(!isNaN(_gp))COT_GAL_PCT=_gp;}catch(e){}
+function galToggle(on){COT_GAL=!!on;var w=document.getElementById('cot-gal-cli-w');if(w)w.style.display=COT_GAL?'':'none';galPintaPct();rCart();}
 function galCargar(){return fetch('/api/config/galeria_notas',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){GAL_N=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};}).catch(function(){});}
 function galGuardarN(){return fetch('/api/config/galeria_notas',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:GAL_N})}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);});}
 function galResumenHTML(){
   if(!COT_GAL||!cart.length)return '';
-  var imp=cotTotal(),gal=Math.round(imp*0.5*100)/100;
+  var imp=cotTotal(),gal=Math.round(imp*COT_GAL_PCT/100*100)/100;
   return '<div style="background:#EEEDFE;border-radius:10px;padding:9px 11px;margin-top:8px;font-size:12.5px;color:#3C3489">'+
     '<div style="display:flex;justify-content:space-between;font-weight:800;font-size:14px"><span>Cliente de Galería paga</span><span class="mono">'+fmt(imp+gal)+'</span></div>'+
     '<div style="display:flex;justify-content:space-between;margin-top:4px;color:var(--text2)"><span>Para Impulso</span><span class="mono">'+fmt(imp)+'</span></div>'+
-    '<div style="display:flex;justify-content:space-between"><span>Para Galería (+50%)</span><span class="mono">'+fmt(gal)+'</span></div>'+
-    '<div style="font-size:11px;margin-top:4px;color:var(--text3)">El PDF le muestra al cliente solo los precios con el 50%.</div></div>';
+    '<div style="display:flex;justify-content:space-between"><span>Para Galería (+'+COT_GAL_PCT+'%)</span><span class="mono">'+fmt(gal)+'</span></div>'+
+    '<div style="font-size:11px;margin-top:4px;color:var(--text3)">El PDF le muestra al cliente solo los precios con el '+COT_GAL_PCT+'%.</div></div>';
 }
 // Después de guardar la nota: queda registrada en la cuenta con Galería
 function galNotaGuardada(p){
   if(!COT_GAL||!p)return;
   var imp=+p.total||0;
-  GAL_N[p.id]={folio:p.folio,suc:p.suc,cli:(document.getElementById('cot-gal-cli')||{}).value||'',impulso:imp,galeria:Math.round(imp*0.5*100)/100,cliente:Math.round(imp*1.5*100)/100,fecha:todayStr(),pagoA:''};
+  var pc=COT_GAL_PCT/100;
+  GAL_N[p.id]={folio:p.folio,suc:p.suc,cli:(document.getElementById('cot-gal-cli')||{}).value||'',pct:COT_GAL_PCT,impulso:imp,galeria:Math.round(imp*pc*100)/100,cliente:Math.round(imp*(1+pc)*100)/100,fecha:todayStr(),pagoA:''};
   galGuardarN().catch(function(){});
   COT_GAL=false;var c=document.getElementById('cot-gal');if(c)c.checked=false;var w=document.getElementById('cot-gal-cli-w');if(w)w.style.display='none';
   var ci=document.getElementById('cot-gal-cli');if(ci)ci.value='';
@@ -9510,7 +9522,7 @@ function galPinta(){
   h+=L.length?L.map(function(x){
     var col=x.debeGal>0.5?'#BA7517':x.debeImp>0.5?'#6E3B57':'#1D9E75';
     return '<div style="border-left:4px solid '+col+';background:var(--surface2);border-radius:0 10px 10px 0;padding:8px 11px;margin-bottom:7px;font-size:12.5px">'+
-      '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Nota '+ptEsc(x.g.folio)+' · '+ptEsc(x.g.cli||'cliente de Galería')+'</b><span class="mono">cliente paga '+fmt(x.g.cliente)+' · Impulso '+fmt(x.g.impulso)+' · Galería '+fmt(x.g.galeria)+'</span></div>'+
+      '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Nota '+ptEsc(x.g.folio)+' · '+ptEsc(x.g.cli||'cliente de Galería')+'</b><span class="mono">cliente paga '+fmt(x.g.cliente)+' · Impulso '+fmt(x.g.impulso)+' · Galería '+fmt(x.g.galeria)+' ('+(x.g.pct!=null?x.g.pct:50)+'%)</span></div>'+
       '<div style="color:var(--text2);margin-top:2px">'+x.txt+'</div>'+
       (!x.g.pagoA&&x.saldo>0.5?'<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center"><select id="gal-m-'+x.id+'" style="max-width:190px">'+mets+'</select>'+
         '<button class="btn btn-p btn-xs" onclick="galPagoImpulso(\''+x.id+'\')">Me pagó a mí '+fmt(x.g.cliente)+'</button>'+
