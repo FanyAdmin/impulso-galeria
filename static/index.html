@@ -532,6 +532,7 @@ body.riel-on .content{margin-right:300px}
 /* El chip del depósito abre un menú donde cada opción dice lo que hace. */
 .ent-edit{display:block;margin-top:3px;background:none;border:none;padding:0;font-size:10px;color:var(--text3);cursor:pointer;font-family:inherit;opacity:0;transition:opacity .12s}
 tr:hover .ent-edit{opacity:1}
+.ent-edit{opacity:.6!important}
 .ent-edit:hover{color:var(--ciruela);text-decoration:underline}
 #page-cob .cz-chip{background:#fff;border:1px solid #ccc;color:#333;cursor:pointer}
 #page-cob .cz-chip:hover{border-color:var(--ciruela)}
@@ -3375,7 +3376,7 @@ function guardarEntFechas(){
   // Poner fecha de entrega implica que ya salió; quitarla la regresa a pendiente
   // solo si no estaba liquidada, para no revivir notas ya cerradas por error.
   if(real&&p.est!=='Entregado')campos.est='Entregado';
-  if(!real&&p.est==='Entregado'&&p.rest>0.5)campos.est='Pendiente';
+  if(!real&&p.est==='Entregado')campos.est='Pendiente';
   msg.textContent='Guardando…';
   fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(campos)})
     .then(function(r){if(!r.ok)throw new Error('el servidor respondió '+r.status);return r.json();})
@@ -3904,7 +3905,7 @@ function guardarAb(btn){
       // El servidor suma el cobro al pagado de la nota y devuelve cómo quedó
       registrarCobro(p,abReg).then(()=>{
         logActivity('Abonó a cuenta','Folio '+p.folio+' — '+fmt(m)+' ('+metAb+', '+fechaAb+')');
-        if((p.rest||0)<=0.009&&p.est!=='Entregado')return putPedidoVerificado(p,{est:'Entregado'},{ant:p.ant,rest:p.rest,est:p.est});
+        // Pagada no es entregada: la nota sigue su camino en el taller hasta que se entregue de verdad
       }).then(()=>{libera();CM('mod-ab');rPed();rCxC();rDia();})
       .catch(e=>{libera();alert('🔴 No se registró el cobro\n\nFolio '+p.folio+' · '+(p.cli||'')+'\nMotivo: '+e.message+'\n\nLa nota sigue igual; intenta de nuevo.');});
       return;
@@ -4028,10 +4029,7 @@ function caCargar(){
     // El servidor suma el cobro al pagado de la nota; aquí solo se marca entregada si quedó pagada
     registrarCobro(p,ab)
       .then(function(){
-        if((p.rest||0)>0.5||p.est==='Entregado')return;
-        return fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({est:'Entregado'})})
-          .then(function(r){if(!r.ok)throw new Error('pedido: el servidor respondió '+r.status);return r.json();})
-          .then(function(x){syncPedido(p,x);});
+        return;   // pagada no es entregada: el cobro no cambia el estatus de la nota
       })
       .then(function(){
         bien++;linea('✓ Folio '+p.folio+' · '+f.fecha+' · '+fmt(f.monto)+' — restante ahora '+fmt(p.rest),'#166534');
@@ -4126,7 +4124,6 @@ function guardarCobroManual(btn){
   const libera=btnOcupado(btn||document.getElementById('btn-cobro'),'Registrando…');
   registrarCobro(p,ab).then(()=>{
     logActivity('Registró cobro manual','Folio '+p.folio+' — '+fmt(m)+' ('+met+', '+fecha+')');
-    if((p.rest||0)<=0.009&&p.est!=='Entregado')return putPedidoVerificado(p,{est:'Entregado'},{ant:p.ant,rest:p.rest,est:p.est});
   }).then(()=>{libera();CM('mod-cobro');rPed();rDia();if(document.querySelector('#page-cxc.active'))rCxC();})
   .catch(e=>{libera();alert('🔴 No se registró el cobro: '+e.message);});
 }
