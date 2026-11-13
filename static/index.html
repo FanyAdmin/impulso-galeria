@@ -606,6 +606,7 @@ tr:hover .ent-edit{opacity:1}
 .tb-ring{transition:stroke-dasharray 1.1s cubic-bezier(.2,.8,.2,1)}
 
 #page-cob.cz-on > :not(#cz2){display:none!important}
+#page-fac.fz-on > :not(#fz2){display:none!important}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -2178,6 +2179,7 @@ tr:hover .ent-edit{opacity:1}
 </style>
 <!-- FACTURACION -->
 <div class="page" id="page-fac">
+  <div id="fz2" style="display:none;margin-bottom:12px"></div>
   <div class="ph">
     <div><div class="ph-title">Facturacion</div><div class="ph-sub">Pedidos pendientes de facturar y facturas emitidas</div></div>
     <div style="display:flex;gap:7px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
@@ -2420,7 +2422,7 @@ function aplicarMenuDueno(verTodo){
   document.querySelectorAll('.sb-item').forEach(function(el){
     // La dirección tiene permisos completos, así que al abrir se ve todo.
     el.style.display=verTodo?'':((lista.indexOf(el.id)>=0)?'':'none');
-    if(['nav-cal','nav-hoy'].indexOf(el.id)>=0)el.style.display='none';   // pantallas retiradas
+    if(['nav-cal','nav-hoy','nav-cuadre','nav-audit2'].indexOf(el.id)>=0)el.style.display='none';   // pantallas retiradas
   });
   // Una sección solo aparece si le quedó algún renglón visible
   document.querySelectorAll('.sb-section').forEach(function(sec){
@@ -2565,7 +2567,7 @@ function doLogin(){
       ['nav-pend','nav-ord'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
     }
     // Pantallas retiradas: no se muestran a nadie (se esconden, no se borran)
-    ['nav-cal','nav-hoy'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
+    ['nav-cal','nav-hoy','nav-cuadre','nav-audit2'].forEach(function(id){var el=document.getElementById(id);if(el)el.style.display='none';});
     // Revisión de notas: solo la dueña, la dirección y admin
     (function(){var r=document.getElementById('nav-rev');if(r&&['owner','admin','dueno'].indexOf(u.role)<0)r.style.display='none';})();
     // Una sección solo se ve si le quedó al menos un renglón visible
@@ -2820,7 +2822,7 @@ function go(id){
   const nav=document.getElementById('nav-'+id);if(nav)nav.classList.add('active');
   ({ped:rPed,cxc:rCxC,dia:()=>{cargarMapaCta().then(rDia);},cat:()=>{catPage=0;rCat()},dash:rDash,ord:rOrd,mov:rMovs,er:rER,ban:()=>{cargarBcoOK().then(function(){banInitCta();return cargarEdoCta(vgCtaBan());}).then(rBancos);},conban:()=>{cargarBcoOK().then(function(){banInitCta();return cargarEdoCta(vgCtaBan());}).then(function(){rBancos();banPinta();});},usr:rUsuarios,activity:rActivity,
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
-    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:()=>{initFacMes();rFac();},audit:rAudit,cob:rCob2,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},tab:()=>{rTab();cargarAuditOK().then(function(){try{pintaAvisoAudit();}catch(e){}try{pintaAvisoTerceros();}catch(e){}});},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev2,cuadre:()=>{cargarBcoOK().then(rCuadre);}
+    lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:rFac2,audit:rAudit,cob:rCob2,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},tab:()=>{rTab();cargarAuditOK().then(function(){try{pintaAvisoAudit();}catch(e){}try{pintaAvisoTerceros();}catch(e){}});},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev2,cuadre:()=>{cargarBcoOK().then(rCuadre);}
   })[id]?.();
   try{rRiel();}catch(e){}
   try{var _mc=document.getElementById('mod-cie-suc'),_mn=document.getElementById('mod-nf');
@@ -6348,6 +6350,7 @@ function rCal(){
 // La auditoría no espera a que abran su pantalla: avisa aquí, en la primera
 // pantalla que ven al entrar.
 function pintaAvisoAudit(){
+  var _c=document.getElementById('cal-audit');if(_c)_c.innerHTML='';return;   // revisión automática retirada
   var c=document.getElementById('cal-audit');if(!c)return;
   var uu=_u()||{};
   if(uu.role!=='owner'&&uu.role!=='admin'){c.innerHTML='';return;}
@@ -9717,7 +9720,7 @@ function czPinta(){
   var tab=function(id,t){return '<span onclick="czTab(\''+id+'\')" style="cursor:pointer;padding:6px 12px;border-radius:8px;font-size:12.5px;'+(CZ.tab===id?'background:#F4ECF1;color:#6E3B57;font-weight:700':'color:var(--text2)')+'">'+t+'</span>';};
   var h='<div style="background:#6E3B57;color:#fff;border-radius:12px 12px 0 0;padding:10px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">'+
     '<b style="font-size:15px">Cobranza</b><span style="opacity:.85;font-size:13px">Conciliación INBURSA</span><input type="month" id="cz-mes" value="'+czMes()+'" onchange="CZ.sel=null;CZ.sug={};czPinta()" style="max-width:150px;padding:3px 6px;font-size:12px;border-radius:6px;border:none">'+
-    '<span style="margin-left:auto;display:flex;gap:6px"><label style="background:#ffffff22;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer"><span id="cz-sub-lbl">📥 Subir estado de cuenta</span><input type="file" accept="application/pdf" style="display:none" onchange="czSubir(this)"></label>'+
+    '<span style="margin-left:auto;display:flex;gap:6px"><button onclick="openCierre()" style="background:#ffffff22;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer">🌙 Cierre del día</button><label style="background:#ffffff22;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer"><span id="cz-sub-lbl">📥 Subir estado de cuenta</span><input type="file" accept="application/pdf" style="display:none" onchange="czSubir(this)"></label>'+
     '<button onclick="czConciliar()" style="background:#fff;color:#6E3B57;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">▶ Conciliar</button></span></div>'+
     '<div style="display:flex;gap:4px;padding:10px 4px 0;flex-wrap:wrap">'+tab('por','Por conciliar')+tab('rev','Para revisar'+(nRev?' · '+nRev:''))+tab('ok','Conciliado')+tab('fg','Factura global')+tab('sab','Sábana de cobros')+'</div>';
   if(CZ.tab==='sab'){el.innerHTML=h;return;}
@@ -9734,6 +9737,233 @@ function rCob2(){
   var pg=document.getElementById('page-cob');if(pg&&CZ.tab!=='sab')pg.classList.add('cz-on');
   (rCob2._ok?Promise.resolve():(rCob2._ok=1,loadConcil())).then(czPinta);
   if(CZ.tab==='sab')rCob();
+}
+
+// ═══ FACTURACIÓN (vista nueva) ═══════════════════════════════════════════════
+// Misma estructura que Cobranza: barra ciruela, pestañas por etapa, contadores
+// arriba y lo terminado se quita de en medio. Usa los mismos datos de siempre
+// (FACTURAS, pedidos.factura_num, f.comp); el folio de la factura global de
+// cada mes se guarda en config 'fac_global' {"2026-10":{folio,fecha,monto}}.
+var FZ={tab:'pf',chk:{},sel:null,mes:'',q:'',gm:''};
+var FAC_GLOBAL={};var _fzCfg=false;
+function fzEsAdm(){var u=_u()||{};return u.role==='owner'||u.role==='admin';}
+function fzMesAnt(){var d=new Date();d=new Date(d.getFullYear(),d.getMonth()-1,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function fzMesTxt(k){var m=parseInt(String(k).slice(5,7),10);return (MESES_FAC[m-1]||k).toLowerCase()+' '+String(k).slice(0,4);}
+function fzCargar(){
+  if(_fzCfg)return Promise.resolve();_fzCfg=true;
+  var a=fetch('/api/config/fac_global',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){FAC_GLOBAL=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};}).catch(function(){});
+  var b=(CONCIL&&CONCIL.lineas)?Promise.resolve():loadConcil();
+  return Promise.all([a,b]);
+}
+function fzGuardarGlobal(){return fetch('/api/config/fac_global',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:FAC_GLOBAL})}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);});}
+function fzK(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+function fzPill(t,bg,c){return '<span style="display:inline-block;background:'+bg+';color:'+c+';font-size:11px;font-weight:700;padding:1px 9px;border-radius:20px;white-space:nowrap">'+t+'</span>';}
+// ── datos de cada etapa ──
+function fzPend(){return (pedidos||[]).filter(function(p){return p.tipo_venta==='factura'&&!p.factura_num;}).sort(function(a,b){return String(a.fecha).localeCompare(String(b.fecha))||String(a.folio).localeCompare(String(b.folio));});}
+function fzPorCobrar(){var R=[];FACTURAS.forEach(function(f,i){var s=facSaldo(f);if(s>0.5)R.push({f:f,idx:i,saldo:s,dias:facDias(f.fecha)});});return R.sort(function(a,b){return b.dias-a.dias||b.saldo-a.saldo;});}
+function fzComps(){var R=[];FACTURAS.forEach(function(f,i){var pg=facPagosPPD(f),c=f.comp||{};pg.forEach(function(it){if(c[it.key]&&c[it.key].folio)return;var lim=facLimiteComp(it.ab.fecha);R.push({f:f,idx:i,it:it,lim:lim,dd:facDiasHasta(lim)});});});return R.sort(function(a,b){return a.lim.localeCompare(b.lim)||String(a.it.ab.fecha).localeCompare(String(b.it.ab.fecha));});}
+function fzGlobalDatos(m){
+  var C=(typeof czCobros==='function')?czCobros().filter(function(c){return c.fecha.slice(0,7)===m;}):[];
+  var vg=C.filter(function(c){return !c.fac;});
+  var ok=vg.filter(function(c){return czCobroCasado(c.k);}),sin=vg.filter(function(c){return !czCobroCasado(c.k);});
+  var s=function(L){return L.reduce(function(a,c){return a+c.monto;},0);};
+  return {ok:ok,sin:sin,tot:s(ok),totSin:s(sin)};
+}
+function fzRfcDe(cli){
+  var n=normNom(cli);if(!n)return '';
+  for(var i=0;i<FACTURAS.length;i++){var f=FACTURAS[i];if(!f.rfc)continue;var fol=f.folios||[];
+    for(var j=0;j<fol.length;j++){var p=(pedidos||[]).find(function(x){return x.folio===fol[j];});if(p&&normNom(p.cli)===n)return f.rfc;}}
+  return '';
+}
+// ── contadores ──
+function fzKpis(){
+  var P=fzPend(),pt=P.reduce(function(a,p){return a+(+p.total||0);},0);
+  var C=fzPorCobrar(),ct=C.reduce(function(a,r){return a+r.saldo;},0),viejas=C.filter(function(r){return r.dias>20;}).length;
+  var K=fzComps(),venc=K.filter(function(r){return r.dd<0;}).length;
+  var gm=FZ.gm||fzMesAnt(),G=fzGlobalDatos(gm),reg=FAC_GLOBAL[gm];
+  var k=function(t,v,sub,st){return '<div onclick="'+(st||'')+'" style="cursor:pointer;border:1px solid #ece6ea;border-radius:10px;padding:9px 11px;background:var(--surface)"><div style="font-size:12px;color:var(--text3)">'+t+'</div>'+v+(sub||'')+'</div>';};
+  var sub=function(t,c){return '<div style="font-size:11.5px;color:'+c+';margin-top:2px">'+t+'</div>';};
+  return '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0">'+
+    k('Por facturar','<div style="font-size:17px;font-weight:700">'+P.length+' nota'+(P.length===1?'':'s')+' · <span class="mono">'+fmt(pt)+'</span></div>',P.length?'':sub('todo facturado ✓','#0F6E56'),"fzTab('pf')")+
+    k('Por cobrar','<div class="mono" style="font-size:17px;font-weight:700;color:'+(ct>0.5?'#A32D2D':'#0F6E56')+'">'+fmt(ct)+'</div>',viejas?sub(viejas+' con más de 20 días','#A32D2D'):sub(C.length+' factura'+(C.length===1?'':'s'),'var(--text3)'),"fzTab('pc')")+
+    k('Complementos','<div style="font-size:17px;font-weight:700">'+(K.length?K.length+' pendiente'+(K.length===1?'':'s'):'al día ✓')+'</div>',K.length?(venc?sub(venc+' fuera de tiempo','#A32D2D'):sub('vence el '+ptFec(K[0].lim).slice(0,5),'#854F0B')):'',"fzTab('co')")+
+    '<div onclick="fzTab(\'gl\')" style="cursor:pointer;background:#F7E3A1;border-radius:10px;padding:9px 11px"><div style="font-size:12px;color:#6b5a1e">Global de '+fzMesTxt(gm).split(' ')[0]+'</div><div class="mono" style="font-size:17px;font-weight:700">'+fmt(G.tot)+'</div><div style="font-size:11.5px;color:#6b5a1e;margin-top:2px">'+(reg&&reg.folio?'✓ folio '+ptEsc(reg.folio):'falta registrar el folio')+'</div></div>'+
+  '</div>';
+}
+// ── POR FACTURAR: notas a la izquierda, la factura a la derecha ──
+function fzToggle(fo){if(FZ.chk[fo])delete FZ.chk[fo];else FZ.chk[fo]=1;fzAutoRfc();fzPinta();}
+function fzCliente(cli){var P=fzPend().filter(function(p){return normNom(p.cli)===normNom(cli);});var todas=P.every(function(p){return FZ.chk[p.folio];});
+  FZ.chk={};if(!todas)P.forEach(function(p){FZ.chk[p.folio]=1;});fzAutoRfc();fzPinta();}
+function fzSelPeds(){var P=fzPend();return P.filter(function(p){return FZ.chk[p.folio];});}
+function fzAutoRfc(){var S=fzSelPeds();if(!S.length)return;var r=fzRfcDe(S[0].cli);var el=document.getElementById('fz-rfc');FZ._rfc=r||'';if(el&&!el.dataset.mano)el.value=FZ._rfc;}
+function fzPF(){
+  var P=fzPend(),hoyM=todayStr().slice(0,7);
+  Object.keys(FZ.chk).forEach(function(fo){if(!P.some(function(p){return p.folio===fo;}))delete FZ.chk[fo];});
+  var izq='<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3);background:#faf8f9;padding:7px 12px"><span>Notas que piden factura · toca el nombre para tomar todas las del cliente</span><span>Total</span></div>';
+  izq+=P.length?P.map(function(p){var on=!!FZ.chk[p.folio],viejo=String(p.fecha).slice(0,7)<hoyM;
+    return '<label style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #f2eef0;cursor:pointer;'+(on?'background:#F4ECF1':'')+'">'+
+      '<span><input type="checkbox" '+(on?'checked':'')+' onchange="fzToggle(\''+fzK(p.folio)+'\')" style="margin-right:8px;width:15px;height:15px;vertical-align:-2px"><b class="mono">'+ptEsc(p.folio)+'</b> · <a href="#" onclick="event.preventDefault();fzCliente(\''+fzK(p.cli||'')+'\')" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--text3)">'+ptEsc(p.cli||'')+'</a> · <span style="color:var(--text3)">'+ptFec(p.fecha).slice(0,5)+' · '+ptEsc(p.suc||'')+'</span> '+(viejo?fzPill('de '+fzMesTxt(String(p.fecha).slice(0,7)).split(' ')[0],'#FBE3E3','#A32D2D'):'')+'</span>'+
+      '<span class="mono" style="font-weight:600">'+fmt(+p.total||0)+'</span></label>';}).join('')
+    :'<div class="tbl-empty" style="padding:28px 12px">Todo facturado ✓<br><span style="font-size:12px">Cuando una nota se marque como “Factura” aparece aquí.</span></div>';
+  var S=fzSelPeds(),tot=S.reduce(function(a,p){return a+(+p.total||0);},0);
+  var clis=[];S.forEach(function(p){if(clis.indexOf(p.cli)<0)clis.push(p.cli);});
+  var der;
+  if(!S.length)der='<div class="tbl-empty" style="padding:34px 16px">Palomea las notas que van en la factura.</div>';
+  else der='<div style="padding:14px 16px">'+
+    '<div style="font-weight:700;font-size:14px;margin-bottom:10px">Factura para '+ptEsc(clis[0]||'')+(clis.length>1?' <span style="color:#A32D2D;font-size:12px;font-weight:600">+ '+(clis.length-1)+' cliente'+(clis.length===2?'':'s')+' más</span>':'')+' · '+S.length+' nota'+(S.length===1?'':'s')+'</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'+
+      '<div class="field" style="margin:0"><label>No. de factura</label><input id="fz-num" placeholder="ej. A-0001"></div>'+
+      '<div class="field" style="margin:0"><label>RFC</label><input id="fz-rfc" placeholder="RFC del cliente" value="'+ptEsc(FZ._rfc||'')+'" oninput="this.dataset.mano=1"></div>'+
+      '<div class="field" style="margin:0"><label>Fecha</label><input type="date" id="fz-fecha" value="'+todayStr()+'"></div>'+
+      '<div class="field" style="margin:0"><label>Forma de pago</label><select id="fz-met"><option value="PUE">PUE · un pago</option><option value="PPD"'+(S.some(function(p){return (+p.rest||0)>0.5;})?' selected':'')+'>PPD · parcialidades</option></select></div>'+
+    '</div>'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;background:#faf8f9;border-radius:8px;padding:9px 12px;margin-bottom:12px"><span style="color:var(--text2)">Total de las notas</span><b class="mono" style="font-size:16px">'+fmt(tot)+'</b></div>'+
+    '<button class="btn btn-p btn-sm" style="background:#6E3B57;border-color:#6E3B57" onclick="fzRegistrar()">Registrar factura</button>'+
+    '<div style="margin-top:9px;font-size:11.5px;color:var(--text3)">'+(FZ._rfc?'RFC tomado de su última factura.':'El RFC se llena solo cuando el cliente ya facturó antes.')+(S.some(function(p){return (+p.rest||0)>0.5;})?' Sugerimos PPD porque todavía hay saldo por cobrar.':'')+'</div>'+
+  '</div>';
+  return fzDos(izq,der);
+}
+function fzDos(izq,der){return '<div style="display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);border:1px solid #ece6ea;border-radius:12px;overflow:hidden;background:var(--surface)"><div style="border-right:1px solid #ece6ea;max-height:62vh;overflow:auto">'+izq+'</div><div style="max-height:62vh;overflow:auto">'+der+'</div></div>';}
+function fzRegistrar(){
+  var S=fzSelPeds();if(!S.length)return;
+  var num=(document.getElementById('fz-num').value||'').trim(),rfc=(document.getElementById('fz-rfc').value||'').trim().toUpperCase(),fecha=document.getElementById('fz-fecha').value,metodo=document.getElementById('fz-met').value||'PUE';
+  if(!num||!rfc||!fecha){alert('Falta el No. de factura, el RFC o la fecha.');return;}
+  if(FACTURAS.some(function(f){return normNom(f.num)===normNom(num);})&&!confirm('Ya existe una factura '+num+'. ¿Registrarla de todos modos?'))return;
+  var folios=[],total=0;
+  S.forEach(function(p){folios.push(p.folio);total+=(+p.total||0);p.factura_num=num;
+    if(p.id)fetch('/api/pedidos/'+p.id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({factura_num:num})});});
+  total=Math.round(total*100)/100;
+  var reg={num:num,rfc:rfc,fecha:fecha,folios:folios,total:total,metodo:metodo,comp:{}};
+  fetch('/api/facturas',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(reg)})
+  .then(function(r){return r.json();}).then(function(d){FACTURAS.unshift(d&&d.id?d:reg);})
+  .catch(function(){FACTURAS.unshift(reg);alert('Sin conexión: la factura quedó solo en pantalla y se perderá al recargar.');})
+  .then(function(){logActivity('Emitió factura',num+' — '+metodo+' — '+folios.length+' pedido(s) — '+fmt(total));FZ.chk={};FZ._rfc='';fzToast('✓ Factura '+num+' registrada · '+fmt(total));fzPinta();});
+}
+function fzToast(t){var d=document.createElement('div');d.textContent=t;d.style.cssText='position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#0F6E56;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;z-index:99999;box-shadow:0 8px 20px -8px rgba(0,0,0,.4)';document.body.appendChild(d);setTimeout(function(){d.remove();},2600);}
+// ── POR COBRAR: por antigüedad ──
+function fzPC(){
+  var C=fzPorCobrar();
+  if(!C.length)return '<div class="card tbl-empty" style="padding:30px">Ninguna factura con saldo ✓</div>';
+  var grupos=[['Más de 30 días',function(r){return r.dias>30;},'#A32D2D','#FBE3E3'],['De 16 a 30 días',function(r){return r.dias>15&&r.dias<=30;},'#854F0B','#FAEEDA'],['Recientes',function(r){return r.dias<=15;},'var(--text2)','var(--surface2)']];
+  var h='<div style="border:1px solid #ece6ea;border-radius:12px;overflow:hidden;background:var(--surface)">';
+  grupos.forEach(function(g){var L=C.filter(g[1]);if(!L.length)return;var t=L.reduce(function(a,r){return a+r.saldo;},0);
+    h+='<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700;color:'+g[2]+';background:#faf8f9;padding:8px 14px;border-bottom:1px solid #f2eef0"><span>'+g[0]+' · '+L.length+'</span><span class="mono">'+fmt(t)+'</span></div>';
+    L.forEach(function(r){var fol=(r.f.folios||[])[0]||'';
+      h+='<div style="display:grid;grid-template-columns:110px minmax(0,1fr) 120px 130px 120px;gap:10px;align-items:center;padding:9px 14px;border-bottom:1px solid #f2eef0">'+
+        '<b class="mono">'+ptEsc(r.f.num)+'</b><span>'+facCliente(r.f)+' <span style="color:var(--text3);font-size:11.5px">· '+(r.f.folios||[]).length+' nota'+((r.f.folios||[]).length===1?'':'s')+'</span></span>'+
+        '<span style="font-size:12px;color:var(--text2)">'+ptFec(r.f.fecha)+' '+fzPill(r.dias+' d',g[3],g[2])+'</span>'+
+        '<b class="mono" style="text-align:right">'+fmt(r.saldo)+'</b>'+
+        '<span style="text-align:right">'+(fol?'<button class="btn btn-s btn-xs" onclick="facCobrar(\''+fzK(fol)+'\')">Cobrar en CxC</button>':'')+'</span></div>';});
+  });
+  return h+'</div><div style="margin-top:7px;font-size:11.5px;color:var(--text3)">El saldo sale de las notas ligadas a cada factura; al abonar en CxC se actualiza solo y la factura sale de aquí.</div>';
+}
+// ── COMPLEMENTOS: lista por fecha límite, captura a la derecha (sin ventana) ──
+function fzCO(){
+  var K=fzComps();
+  if(!FZ.sel||!K.some(function(r){return r.it.key===FZ.sel;}))FZ.sel=K.length?K[0].it.key:null;
+  var izq=K.length?K.map(function(r){var on=r.it.key===FZ.sel;
+    var pl=r.dd<0?fzPill('vencido','#FBE3E3','#A32D2D'):r.dd<=5?fzPill(r.dd===0?'hoy':'en '+r.dd+' d','#FAEEDA','#854F0B'):fzPill('en '+r.dd+' d','var(--surface2)','var(--text2)');
+    return '<div onclick="FZ.sel=\''+fzK(r.it.key)+'\';fzPinta()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #f2eef0;'+(on?'background:#E9F1FA':'')+'">'+
+      '<span><b class="mono">'+ptEsc(r.f.num)+'</b> · '+ptEsc(r.it.ped.cli||'')+'<br><span style="font-size:11.5px;color:var(--text3)">pago del '+ptFec(r.it.ab.fecha).slice(0,5)+' · nota '+ptEsc(r.it.ped.folio)+'</span></span>'+
+      '<span style="text-align:right"><b class="mono">'+fmt(+r.it.ab.monto||0)+'</b><br>'+pl+'</span></div>';}).join('')
+    :'<div class="tbl-empty" style="padding:28px 12px">Sin complementos pendientes ✓<br><span style="font-size:12px">Cada abono a una factura PPD aparece aquí.</span></div>';
+  var r=K.find(function(x){return x.it.key===FZ.sel;}),der;
+  if(!r)der='<div class="tbl-empty" style="padding:34px 16px">Nada que capturar.</div>';
+  else der='<div style="padding:14px 16px">'+
+    '<div style="font-weight:700;font-size:14px">Complemento de la factura '+ptEsc(r.f.num)+'</div>'+
+    '<div style="font-size:12.5px;color:var(--text2);margin:4px 0 10px">'+ptEsc(r.it.ped.cli||'')+' · pago del '+ptFec(r.it.ab.fecha)+' por <b class="mono">'+fmt(+r.it.ab.monto||0)+'</b> ('+ptEsc(r.it.ab.met||'')+')</div>'+
+    '<div style="font-size:12px;margin-bottom:10px;color:'+(r.dd<0?'#A32D2D':'#854F0B')+'">'+(r.dd<0?'Se pasó la fecha límite ('+ptFec(r.lim)+'), hace '+Math.abs(r.dd)+' día(s).':'Fecha límite: <b>'+ptFec(r.lim)+'</b> (día 5 del mes siguiente al pago).')+'</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px"><div class="field" style="margin:0"><label>Folio del complemento</label><input id="fz-cfol" placeholder="ej. P-0012"></div><div class="field" style="margin:0"><label>Fecha</label><input type="date" id="fz-cfec" value="'+todayStr()+'"></div></div>'+
+    '<button class="btn btn-p btn-sm" style="background:#6E3B57;border-color:#6E3B57" onclick="fzGuardarComp('+r.idx+',\''+fzK(r.it.key)+'\')">Guardar complemento</button></div>';
+  return fzDos(izq,der);
+}
+function fzGuardarComp(idx,key){
+  var folio=(document.getElementById('fz-cfol').value||'').trim(),fecha=document.getElementById('fz-cfec').value;
+  if(!folio||!fecha){alert('Captura el folio del complemento y su fecha.');return;}
+  var f=FACTURAS[idx];if(!f)return;if(!f.comp)f.comp={};
+  f.comp[key]={folio:folio,fecha:fecha};facGuardar(f,{comp:f.comp});
+  logActivity('Registro complemento',folio+' — factura '+(f.num||''));FZ.sel=null;fzToast('✓ Complemento '+folio+' guardado');fzPinta();
+}
+// ── GLOBAL: el total viene de Cobranza; aquí solo se registra el folio ──
+function fzGL(){
+  var gm=FZ.gm||fzMesAnt(),G=fzGlobalDatos(gm),reg=FAC_GLOBAL[gm];
+  var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:12.5px;color:var(--text2)">Mes de la global</span><input type="month" value="'+gm+'" onchange="FZ.gm=this.value;fzPinta()" style="max-width:160px;padding:3px 6px;font-size:12px"></div>';
+  h+='<div style="background:#F7E3A1;border-radius:12px;padding:14px 18px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:center">'+
+    '<div><div style="font-size:12px;color:#6b5a1e">Venta en general conciliada · '+fzMesTxt(gm)+'</div><div class="mono" style="font-size:26px;font-weight:800">'+fmt(G.tot)+'</div>'+
+    '<div style="font-size:11.5px;color:#6b5a1e">'+G.ok.length+' cobros con tarjeta y transferencia ya casados en Cobranza</div>'+
+    (G.sin.length?'<div style="margin-top:6px;font-size:12px;color:#A32D2D;font-weight:600">⚠ '+G.sin.length+' cobro'+(G.sin.length===1?'':'s')+' sin conciliar ('+fmt(G.totSin)+') — <a href="#" onclick="go(\'cob\');return false" style="color:#A32D2D">terminar en Cobranza</a></div>':'<div style="margin-top:6px;font-size:12px;color:#0F6E56;font-weight:600">✓ Todo el mes conciliado</div>')+'</div>';
+  if(reg&&reg.folio)h+='<div style="background:#fff9;border-radius:10px;padding:12px 14px"><div style="font-size:12px;color:#0F6E56;font-weight:700">✓ Global registrada</div><div style="font-size:15px;font-weight:700;margin:2px 0">Folio '+ptEsc(reg.folio)+'</div><div style="font-size:12px;color:var(--text2)">del '+ptFec(reg.fecha)+' por <span class="mono">'+fmt(+reg.monto||0)+'</span>'+(Math.abs((+reg.monto||0)-G.tot)>0.5?' <span style="color:#A32D2D">· hoy suma '+fmt(G.tot)+'</span>':'')+'</div><a href="#" onclick="fzGlobalQuitar(\''+gm+'\');return false" style="font-size:11.5px;color:var(--text3)">cambiar</a></div>';
+  else h+='<div style="background:#fff9;border-radius:10px;padding:12px 14px"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px"><div class="field" style="margin:0"><label>Folio de la global</label><input id="fz-gfol" placeholder="ej. G-0010"></div><div class="field" style="margin:0"><label>Fecha</label><input type="date" id="fz-gfec" value="'+todayStr()+'"></div></div><button class="btn btn-p btn-sm" style="background:#6E3B57;border-color:#6E3B57" onclick="fzGlobalReg(\''+gm+'\')">Registrar global por '+fmt(G.tot)+'</button></div>';
+  h+='</div>';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0 6px"><b style="font-size:13px">Cobros que entran en la global</b><button class="btn btn-s btn-xs" onclick="fzGlobalCSV(\''+gm+'\')">⬇️ Lista para el contador</button></div>';
+  h+='<div class="tw" style="max-height:44vh;overflow:auto"><table class="tbl" style="font-size:12.5px"><thead><tr><th>Fecha</th><th>Nota</th><th>Cliente</th><th>Sucursal</th><th>Método</th><th style="text-align:right">Monto</th></tr></thead><tbody>'+
+    (G.ok.length?G.ok.slice().sort(function(a,b){return a.fecha.localeCompare(b.fecha);}).map(function(c){return '<tr><td>'+ptFec(c.fecha)+'</td><td class="mono">'+ptEsc(c.folio)+'</td><td>'+ptEsc(c.cli||'')+'</td><td>'+ptEsc(c.suc||'')+'</td><td>'+ptEsc(c.met)+'</td><td class="mono" style="text-align:right">'+fmt(c.monto)+'</td></tr>';}).join(''):'<tr><td colspan="6" class="tbl-empty">Todavía no hay cobros conciliados de este mes.</td></tr>')+'</tbody></table></div>';
+  return h;
+}
+function fzGlobalReg(gm){var fol=(document.getElementById('fz-gfol').value||'').trim(),fe=document.getElementById('fz-gfec').value;if(!fol||!fe){alert('Captura el folio y la fecha de la factura global.');return;}
+  var G=fzGlobalDatos(gm);if(G.sin.length&&!confirm('Todavía hay '+G.sin.length+' cobros sin conciliar ('+fmt(G.totSin)+') en '+fzMesTxt(gm)+'.\n\n¿Registrar la global de todos modos?'))return;
+  FAC_GLOBAL[gm]={folio:fol,fecha:fe,monto:Math.round(G.tot*100)/100};
+  fzGuardarGlobal().then(function(){logActivity('Registró factura global',gm+' · '+fol+' · '+fmt(G.tot));fzToast('✓ Global de '+fzMesTxt(gm)+' registrada');fzPinta();}).catch(function(){alert('⚠️ No se pudo guardar en el servidor.');});}
+function fzGlobalQuitar(gm){if(!confirm('¿Cambiar el folio de la global de '+fzMesTxt(gm)+'? Se borra el registro para capturarlo de nuevo.'))return;delete FAC_GLOBAL[gm];fzGuardarGlobal().then(fzPinta).catch(function(){alert('⚠️ No se pudo guardar.');});}
+function fzGlobalCSV(gm){var L=fzGlobalDatos(gm).ok;var t='Fecha,Nota,Cliente,Sucursal,Metodo,Monto\n'+L.map(function(c){return [c.fecha,c.folio,'"'+String(c.cli||'').replace(/"/g,'')+'"',c.suc,c.met,c.monto.toFixed(2)].join(',');}).join('\n');
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+t],{type:'text/csv'}));a.download='factura_global_'+gm+'.csv';a.click();}
+// ── EMITIDAS: historial limpio del mes (la búsqueda abarca todos) ──
+function fzEstado(f){var s=facSaldo(f),mt=facMetodo(f);
+  if(mt==='PPD'){var c=facCompsDe(f);if(c.faltan)return fzPill('PPD '+c.hechos+'/'+c.total,'#FAEEDA','#854F0B')+(s>0.5?' '+fzPill('Por cobrar','#FBE3E3','#A32D2D'):'');}
+  return s>0.5?fzPill('Por cobrar '+fmt(s),'#FBE3E3','#A32D2D'):fzPill('Pagada','#E1F5EE','#0F6E56');}
+function fzEM(){
+  var m=FZ.mes||todayStr().slice(0,7),q=normNom(FZ.q);
+  var L=FACTURAS.map(function(f,i){return {f:f,i:i};}).filter(function(x){var f=x.f;
+    if(!q)return String(f.fecha||'').slice(0,7)===m;
+    if(normNom(f.num).indexOf(q)>=0||normNom(f.rfc).indexOf(q)>=0)return true;
+    return (f.folios||[]).some(function(fo){if(normNom(fo).indexOf(q)>=0)return true;var p=(pedidos||[]).find(function(x){return x.folio===fo;});return p&&normNom(p.cli).indexOf(q)>=0;});
+  }).sort(function(a,b){return String(b.f.fecha).localeCompare(String(a.f.fecha));});
+  var tot=L.reduce(function(a,x){return a+(+x.f.total||0);},0);
+  var h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'+
+    '<input type="month" value="'+m+'" onchange="FZ.mes=this.value;fzPinta()" style="max-width:160px;padding:3px 6px;font-size:12px"'+(q?' disabled':'')+'>'+
+    '<input id="fz-q" placeholder="🔍 Factura, nota, cliente o RFC (todos los meses)" value="'+ptEsc(FZ.q)+'" oninput="FZ.q=this.value;fzPintaEM()" style="flex:1;min-width:220px;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:7px">'+
+    '<button class="btn btn-s btn-xs" onclick="fzXlsx()">Excel</button></div>';
+  h+='<div id="fz-em-body"><div style="font-size:12.5px;color:var(--text2);margin:0 0 6px 2px">'+L.length+' factura'+(L.length===1?'':'s')+' · <b class="mono">'+fmt(tot)+'</b>'+(q?' <span style="color:var(--text3)">· buscando en todos los meses</span>':'')+'</div>'+fzEMTabla(L)+'</div>';
+  return h;
+}
+function fzEMTabla(L){
+  if(!L.length)return '<div class="card tbl-empty" style="padding:24px">'+(FZ.q?'Ninguna factura coincide.':'Sin facturas este mes.')+'</div>';
+  return '<div class="tw"><table class="tbl" style="font-size:12.5px"><thead><tr><th>Factura</th><th>Cliente</th><th>Fecha</th><th>Notas</th><th style="text-align:right">Total</th><th>Estado</th><th>Pago</th><th></th></tr></thead><tbody>'+
+    L.map(function(x){var f=x.f,fol=f.folios||[];
+      var comps='';if(facMetodo(f)==='PPD'&&f.comp){facPagosPPD(f).forEach(function(pg){var c=f.comp[pg.key];if(c&&c.folio)comps+='<tr style="background:#fcfbfc"><td></td><td colspan="6" style="font-size:11.5px;color:var(--text2)">↳ Complemento <b class="mono">'+ptEsc(c.folio)+'</b> del '+ptFec(c.fecha)+' · pago del '+ptFec(pg.ab.fecha)+' por '+fmt(+pg.ab.monto||0)+'</td><td style="text-align:right"><a href="#" title="Quitar complemento" onclick="borrarComp('+x.i+',\''+fzK(pg.key)+'\');return false" style="color:var(--text3);text-decoration:none">✕</a></td></tr>';});}
+      return '<tr><td class="mono" style="font-weight:700">'+ptEsc(f.num)+'</td><td>'+facCliente(f)+'<div style="font-size:11px;color:var(--text3)">'+ptEsc(f.rfc||'')+'</div></td><td style="color:var(--text2)">'+ptFec(f.fecha)+'</td>'+
+        '<td style="font-size:11.5px;color:var(--text2)" title="'+ptEsc(fol.join(', '))+'">'+(fol.length>2?ptEsc(fol.slice(0,2).join(', '))+' +'+(fol.length-2):ptEsc(fol.join(', ')))+'</td>'+
+        '<td class="mono" style="text-align:right">'+fmt(+f.total||0)+'</td><td>'+fzEstado(f)+'</td>'+
+        '<td><span onclick="facToggleMetodo('+x.i+')" title="Clic para cambiar PUE/PPD" style="cursor:pointer;font-size:11px;font-weight:700;color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:1px 7px">'+facMetodo(f)+'</span></td>'+
+        '<td style="text-align:right"><a href="#" title="Eliminar factura" onclick="delFac('+x.i+');return false" style="color:var(--text3);text-decoration:none">🗑</a></td></tr>'+comps;}).join('')+'</tbody></table></div>';
+}
+function fzPintaEM(){var b=document.getElementById('fz-em-body');if(!b){fzPinta();return;}
+  var tmp=document.createElement('div');tmp.innerHTML=fzEM();var nb=tmp.querySelector('#fz-em-body');b.innerHTML=nb?nb.innerHTML:'';}
+function fzXlsx(){var m=FZ.mes||todayStr().slice(0,7);var L=FACTURAS.filter(function(f){return String(f.fecha||'').slice(0,7)===m;});
+  var rows=[['FACTURAS '+fzMesTxt(m).toUpperCase()],['No. Factura','RFC','Cliente','Fecha','Forma','Notas','Total','Por cobrar']];
+  L.forEach(function(f){rows.push([f.num,f.rfc,facCliente(f).replace(/<[^>]+>/g,''),f.fecha,facMetodo(f),(f.folios||[]).join(', '),+f.total||0,facSaldo(f)]);});
+  xlsxExp(rows,'Facturas_'+m);}
+// ── marco ──
+function fzTab(t){FZ.tab=t;fzPinta();}
+function fzPinta(){
+  var el=document.getElementById('fz2');if(!el)return;var pg=document.getElementById('page-fac');
+  if(!fzEsAdm()){el.style.display='none';if(pg)pg.classList.remove('fz-on');return;}
+  el.style.display='';if(pg)pg.classList.add('fz-on');
+  var nP=fzPend().length,nC=fzPorCobrar().length,nK=fzComps().length,gm=FZ.gm||fzMesAnt();
+  var tab=function(id,t,n){return '<span onclick="fzTab(\''+id+'\')" style="cursor:pointer;padding:6px 12px;border-radius:8px;font-size:12.5px;'+(FZ.tab===id?'background:#F4ECF1;color:#6E3B57;font-weight:700':'color:var(--text2)')+'">'+t+(n?' · '+n:'')+'</span>';};
+  var h='<div style="background:#6E3B57;color:#fff;border-radius:12px 12px 0 0;padding:10px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">'+
+    '<b style="font-size:15px">Facturación</b><span style="opacity:.85;font-size:13px">'+fzMesTxt(todayStr().slice(0,7))+'</span>'+
+    '<button onclick="fzTab(\'pf\')" style="margin-left:auto;background:#fff;color:#6E3B57;border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">＋ Registrar factura</button></div>'+
+    '<div style="display:flex;gap:4px;padding:10px 4px 0;flex-wrap:wrap">'+tab('pf','Por facturar',nP)+tab('pc','Por cobrar',nC)+tab('co','Complementos',nK)+tab('gl','Global'+(FAC_GLOBAL[gm]&&FAC_GLOBAL[gm].folio?' ✓':''))+tab('em','Emitidas')+'</div>';
+  h+=fzKpis();
+  h+=FZ.tab==='pc'?fzPC():FZ.tab==='co'?fzCO():FZ.tab==='gl'?fzGL():FZ.tab==='em'?fzEM():fzPF();
+  var foco=document.activeElement&&document.activeElement.id;
+  el.innerHTML=h;
+  if(foco==='fz-q'){var q=document.getElementById('fz-q');if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length);}}
+}
+function rFac2(){
+  if(!fzEsAdm()){initFacMes();rFac();return;}
+  fzPinta();fzCargar().then(fzPinta);
 }
 
 // ═══ MI TABLERO: el avance del día ═══════════════════════════════════════════
@@ -13781,6 +14011,7 @@ function rFacComp(){
 }
 function limpiarFac(){var q=document.getElementById('fac-q');if(q)q.value='';rFac();}
 function rFac(){
+  var _pf=document.getElementById('page-fac');if(_pf&&_pf.classList.contains('fz-on')){try{fzPinta();}catch(e){}}
   // La búsqueda ignora el mes a propósito: si buscas una nota es justamente
   // porque no sabes de qué mes es. El selector de mes vuelve a mandar al borrarla.
   var qEl=document.getElementById('fac-q');
