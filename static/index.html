@@ -10140,7 +10140,7 @@ function rPed2(){pzPinta();if(PZ.vieja)rPed();}
 //   una entrada repartida = lo que regresó. En sobres de inversión con palabra
 //   (ej. "bastidor") también cuentan las piezas vendidas en notas desde 'desde'.
 var MZ={tab:'di',sel:null,modo:'det',mes:'',pag:0,tipo:'',cta:'',cat:'',q:'',sob:null,_ini:false,_last0:null};
-var MZ_C='#7B2337',MZ_L='#F6E7EB',MZ_PP=60;
+var MZ_C='#A14257',MZ_L='#F8EFF1',MZ_PP=60;
 var SOB={lista:[],rep:{}},_sobOk=false;
 function mzEsc(s){return ptEsc(s);}
 function mzK(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
@@ -10248,7 +10248,7 @@ function mzDetalle(){
     '<div style="font-size:12.5px;color:var(--text2);margin-bottom:12px">'+mzEsc(m.concepto||'')+(m.tercero?' · '+mzEsc(m.tercero):'')+'</div>';
   if(m.id&&(t==='E'||t==='S')){
     var rep=mzRepDe(m),tot=+m.monto||0,usado=rep.reduce(function(a,r){return a+(+r[1]||0);},0),resto=Math.round((tot-usado)*100)/100;
-    var cols=['#7B2337','#D85A30','#2346B8','#0F6E56','#B4700A'];
+    var cols=['#A14257','#D85A30','#2346B8','#0F6E56','#B4700A'];
     h+='<div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:6px">'+(t==='S'?'¿En qué se fue?':'¿A qué sobre regresa?')+'</div>';
     if(rep.length){h+='<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;margin-bottom:6px;background:#EEE">'+rep.map(function(r,i){return '<i style="width:'+Math.max(0,(+r[1]||0)/tot*100)+'%;background:'+cols[i%cols.length]+'"></i>';}).join('')+'</div>';
       h+=rep.map(function(r,i){var s=sobDe(r[0]);return '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #F4ECEE;font-size:12.5px"><span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+cols[i%cols.length]+';margin-right:6px"></i>Sobre · '+mzEsc(s?s.n:'(borrado)')+'</span><span class="mono">'+fmt(+r[1]||0)+(puede?' <a href="#" onclick="mzQuitarRep('+m.id+','+i+');return false" style="color:var(--text3);text-decoration:none;margin-left:6px">✕</a>':'')+'</span></div>';}).join('');}
