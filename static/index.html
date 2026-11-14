@@ -10004,11 +10004,12 @@ function pzFila(p){
   if(pzCanc(p))der='<span style="color:var(--text3)">cancelada</span>';
   else der=(+p.rest||0)>0.5?'<span style="color:#A32D2D;font-weight:600">debe '+fmt(+p.rest)+'</span>':'<span style="color:#0F6E56">pagado</span>';
   var sub=pzEntregado(p)?'entregada '+ptFec(p.entrega_real||'').slice(0,5):td?'<span style="color:#A32D2D">'+td+' día'+(td===1?'':'s')+' tarde</span>':(p.entrega?'promesa '+ptFec(p.entrega).slice(0,5):'');
-  return '<div onclick="pzSel('+p.id+')" style="cursor:pointer;display:grid;grid-template-columns:54px minmax(0,1fr) 78px 104px;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid #EEF1F7;'+(on?'background:'+PZ_AZL+';':'')+'">'+
+  var bE=(!pzEntregado(p)&&!pzCanc(p))?'<button onclick="event.stopPropagation();pzEntregar('+p.id+')" title="Marcar entregada con fecha de hoy" style="border:1px solid #BFD0F2;background:#fff;color:'+PZ_AZ+';border-radius:7px;padding:4px 9px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap">✓ Entregado</button>':'';
+  return '<div onclick="pzSel('+p.id+')" style="cursor:pointer;display:grid;grid-template-columns:54px minmax(0,1fr) 78px 104px 96px;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid #EEF1F7;'+(on?'background:'+PZ_AZL+';':'')+'">'+
     '<b class="mono" style="font-size:13px">'+ptEsc(p.folio)+'</b>'+
     '<div style="min-width:0"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+ptEsc(p.cli||'')+'</div><div style="font-size:11.5px;color:var(--text2)">'+pzTel(p,false)+'</div></div>'+
     '<span>'+pzSucPill(p.suc)+'</span>'+
-    '<div style="text-align:right;font-size:12.5px">'+der+'<div style="font-size:11px;color:var(--text3)">'+sub+'</div></div></div>';
+    '<div style="text-align:right;font-size:12.5px">'+der+'<div style="font-size:11px;color:var(--text3)">'+sub+'</div></div><div style="text-align:right">'+bE+'</div></div>';
 }
 function pzSel(id){PZ.sel=id;PZ.mas=false;pzPinta();}
 function pzPanel(p){
@@ -10034,6 +10035,7 @@ function pzPanel(p){
   var b='display:inline-block;border:1px solid #CBD3E6;border-radius:7px;padding:5px 11px;font-size:12px;background:#fff;cursor:pointer;color:var(--text)';
   h+='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">';
   if(!ent&&!canc)h+='<button onclick="openEnt('+idx+')" style="background:'+PZ_AZ+';color:#fff;border:none;border-radius:7px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer">Entregar y cobrar</button>';
+  if(!ent&&!canc)h+='<button style="'+b+';border-color:#BFD0F2;color:'+PZ_AZ+';font-weight:600" onclick="pzEntregar('+p.id+')">✓ Entregado hoy</button>';
   if(!ent&&!canc&&!pzLista(p))h+='<button style="'+b+'" onclick="pzListaYa('+p.id+',true)">Ya está lista</button>';
   if(!ent&&!canc&&pzLista(p))h+='<button style="'+b+'" onclick="pzListaYa('+p.id+',false)">Regresar a taller</button>';
   h+='<button style="'+b+'" onclick="ticketPedido(pedidos['+idx+'])">Ticket</button>';
@@ -10048,6 +10050,31 @@ function pzPanel(p){
       (adm?(cxcCancelada(p)?'<a href="#" style="'+l+'" onclick="cxcReactivar('+idx+');return false">Reactivar nota</a>':'<a href="#" style="'+l+'" onclick="cxcCancelar('+idx+');return false">Cancelar nota</a>')+'<a href="#" style="'+l+';color:#A32D2D" onclick="delPed('+idx+');return false">Borrar (error de captura)</a>':'')+
     '</div>';}
   return h+'</div>';
+}
+// Un clic: entregada hoy, sin abrir ventana. Si debe, el saldo se queda en CxC
+// como siempre. Se puede deshacer unos segundos por si fue un clic de más.
+function pzEntregar(id){
+  var p=(pedidos||[]).find(function(x){return x.id===id;});if(!p||pzEntregado(p))return;
+  var antes={est:p.est,entrega_real:p.entrega_real||'',entregaF:p.entregaF};
+  p.est='Entregado';p.entregaF=todayStr();p.entrega_real=todayStr();
+  if(PZ.sel===id)PZ.sel=null;pzPinta();
+  fetch('/api/pedidos/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({est:'Entregado',entrega_real:p.entrega_real})})
+    .then(function(r){if(!r.ok)throw new Error('el servidor respondió '+r.status);return r.json();})
+    .then(function(d){if(d&&typeof d.ant!=='undefined')syncPedido(p,d);p.est='Entregado';logActivity('Entregó pedido','Folio '+p.folio+' (botón Entregado)'+((+p.rest||0)>0.5?' — queda debiendo '+fmt(+p.rest):''));try{rCxC();}catch(e){}try{rDia();}catch(e){}})
+    .catch(function(e){p.est=antes.est;p.entrega_real=antes.entrega_real;p.entregaF=antes.entregaF;alert('⚠️ No se guardó la entrega del folio '+p.folio+' ('+(e&&e.message||'sin conexión')+')');pzPinta();});
+  pzAviso('✓ '+p.folio+' entregada hoy'+((+p.rest||0)>0.5?' · debe '+fmt(+p.rest)+' (pasa a CxC)':''),function(){
+    p.est=antes.est;p.entrega_real=antes.entrega_real;p.entregaF=antes.entregaF;pzPinta();
+    fetch('/api/pedidos/'+id,{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({est:antes.est||'Pendiente',entrega_real:antes.entrega_real||''})})
+      .then(function(){logActivity('Deshizo entrega','Folio '+p.folio);try{rCxC();}catch(e){}}).catch(function(){alert('⚠️ No se pudo deshacer en el servidor.');});
+  });
+}
+function pzAviso(t,deshacer){
+  var o=document.getElementById('pz-aviso');if(o)o.remove();
+  var d=document.createElement('div');d.id='pz-aviso';
+  d.style.cssText='position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1B2B5E;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px;z-index:99999;display:flex;gap:14px;align-items:center;box-shadow:0 8px 20px -8px rgba(0,0,0,.4)';
+  d.innerHTML='<span>'+ptEsc(t)+'</span>'+(deshacer?'<a href="#" style="color:#9DB8FF;font-weight:700;text-decoration:none">Deshacer</a>':'');
+  if(deshacer)d.querySelector('a').onclick=function(e){e.preventDefault();d.remove();deshacer();};
+  document.body.appendChild(d);setTimeout(function(){if(d.parentNode)d.remove();},6000);
 }
 function pzListaYa(id,on){
   var p=(pedidos||[]).find(function(x){return x.id===id;});if(!p)return;
