@@ -9974,7 +9974,7 @@ function rFac2(){
 // lista corta a la izquierda (folio, cliente, teléfono, sucursal, debe) y la
 // nota completa a la derecha con sus acciones. Usa las funciones de siempre
 // (openEnt, tbLista, ticketPedido, editPed, cxcCancelar…), no inventa datos.
-var PZ={tab:'pe',sel:null,q:'',suc:'',mas:false,pag:0,vieja:false};var PZ_PP=25;
+var PZ={tab:'to',sel:null,q:'',suc:'',mas:false,pag:0,vieja:false};var PZ_PP=25;
 var PZ_AZ='#2346B8',PZ_AZL='#E6ECFA';
 function pzK(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function pzSucPill(s){var z=String(s||'').toLowerCase().indexOf('zib')>=0;return '<span style="display:inline-block;font-size:11px;font-weight:600;border-radius:10px;padding:1px 8px;background:'+(z?'#FAEEDA':'#E1F5EE')+';color:'+(z?'#633806':'#085041')+'">'+ptEsc(s||'—')+'</span>';}
@@ -9986,10 +9986,10 @@ function pzTarde(p){if(pzEntregado(p)||!p.entrega||String(p.entrega).length<8)re
 function pzRecientes(a,b){return (+b.id||0)-(+a.id||0)||String(b.fecha||'').localeCompare(String(a.fecha||''));}
 function pzBase(){var L=misP();if(PZ.suc)L=L.filter(function(p){return p.suc===PZ.suc;});return L;}
 function pzListas(){
-  var L=pzBase(),pe=[],li=[],en=[];
+  var L=pzBase(),pe=[],li=[],en=[],to=L.slice().sort(pzRecientes);
   L.forEach(function(p){if(pzCanc(p))return;if(pzEntregado(p))en.push(p);else if(pzLista(p))li.push(p);else pe.push(p);});
   pe.sort(pzRecientes);li.sort(pzRecientes);en.sort(pzRecientes);
-  return {pe:pe,li:li,en:en};
+  return {to:to,pe:pe,li:li,en:en};
 }
 function pzBuscar(){var q=normNom(PZ.q),qd=telDigitos(PZ.q);
   return pzBase().filter(function(p){return normNom(p.folio).indexOf(q)>=0||normNom(p.cli).indexOf(q)>=0||(qd.length>=4&&telDigitos(p.tel).indexOf(qd)>=0);})
@@ -10004,8 +10004,8 @@ function pzFila(p){
   if(pzCanc(p))der='<span style="color:var(--text3)">cancelada</span>';
   else der=(+p.rest||0)>0.5?'<span style="color:#A32D2D;font-weight:600">debe '+fmt(+p.rest)+'</span>':'<span style="color:#0F6E56">pagado</span>';
   var sub=pzEntregado(p)?'entregada '+ptFec(p.entrega_real||'').slice(0,5):td?'<span style="color:#A32D2D">'+td+' día'+(td===1?'':'s')+' tarde</span>':(p.entrega?'promesa '+ptFec(p.entrega).slice(0,5):'');
-  var bE=(!pzEntregado(p)&&!pzCanc(p))?'<button onclick="event.stopPropagation();pzEntregar('+p.id+')" title="Marcar entregada con fecha de hoy" style="border:1px solid #BFD0F2;background:#fff;color:'+PZ_AZ+';border-radius:7px;padding:4px 9px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap">✓ Entregado</button>':'';
-  return '<div onclick="pzSel('+p.id+')" style="cursor:pointer;display:grid;grid-template-columns:54px minmax(0,1fr) 78px 104px 96px;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid #EEF1F7;'+(on?'background:'+PZ_AZL+';':'')+'">'+
+  var bE=pzCanc(p)?'<span style="font-size:11.5px;color:var(--text3)">Cancelada</span>':pzEntregado(p)?'<span style="font-size:11.5px;color:#0F6E56;font-weight:600">✓ Entregada</span>':(!pzEntregado(p)&&!pzCanc(p))?(pzLista(p)?'<span style="display:inline-block;font-size:10.5px;font-weight:700;color:#085041;background:#E1F5EE;border-radius:8px;padding:0 6px;margin-right:4px">lista</span>':'')+'<button onclick="event.stopPropagation();pzEntregar('+p.id+')" title="Marcar entregada con fecha de hoy" style="border:1px solid #BFD0F2;background:#fff;color:'+PZ_AZ+';border-radius:7px;padding:4px 9px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap">Marcar entregada</button>':'';
+  return '<div onclick="pzSel('+p.id+')" style="cursor:pointer;display:grid;grid-template-columns:54px minmax(0,1fr) 78px 104px 136px;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid #EEF1F7;'+(on?'background:'+PZ_AZL+';':'')+'">'+
     '<b class="mono" style="font-size:13px">'+ptEsc(p.folio)+'</b>'+
     '<div style="min-width:0"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+ptEsc(p.cli||'')+'</div><div style="font-size:11.5px;color:var(--text2)">'+pzTel(p,false)+'</div></div>'+
     '<span>'+pzSucPill(p.suc)+'</span>'+
@@ -10091,7 +10091,7 @@ function pzPinta(){
   if(PZ.vieja){el.innerHTML='<div style="text-align:right;margin-bottom:6px"><a href="#" onclick="pzVieja(false);return false" style="font-size:12px;color:'+PZ_AZ+'">← volver a la vista nueva</a></div>';el.style.display='';if(pg)pg.classList.remove('pz-on');return;}
   el.style.display='';if(pg)pg.classList.add('pz-on');
   var S=pzListas(),u=_u()||{},adm=u.role==='admin'||u.role==='owner';
-  var L=PZ.q?pzBuscar():PZ.tab==='li'?S.li:PZ.tab==='en'?S.en:S.pe;
+  var L=PZ.q?pzBuscar():PZ.tab==='li'?S.li:PZ.tab==='en'?S.en:PZ.tab==='pe'?S.pe:S.to;
   var nPag=Math.max(1,Math.ceil(L.length/PZ_PP));if(PZ.pag>nPag-1)PZ.pag=nPag-1;if(PZ.pag<0)PZ.pag=0;
   var vis=L.slice(PZ.pag*PZ_PP,(PZ.pag+1)*PZ_PP);
   if(!PZ.sel||!vis.some(function(p){return p.id===PZ.sel;}))PZ.sel=vis.length?vis[0].id:null;
@@ -10108,7 +10108,7 @@ function pzPinta(){
     '<b style="font-size:15px">Pedidos</b>'+
     '<input id="pz-q" value="'+ptEsc(PZ.q)+'" oninput="PZ.q=this.value;PZ.sel=null;PZ.pag=0;pzPinta()" placeholder="Buscar folio, cliente o teléfono" style="flex:0 1 280px;background:#ffffff26;color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12.5px;outline:none">'+
     '<span style="margin-left:auto;display:flex;gap:6px"><button onclick="expPedXlsx()" style="background:#ffffff26;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer">Excel</button><button onclick="expPedPDF()" style="background:#ffffff26;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer">PDF</button></span></div>'+
-    '<div style="display:flex;gap:4px;padding:10px 4px 8px;flex-wrap:wrap;align-items:center">'+tab('pe','Por entregar',S.pe.length)+tab('li','Listos',S.li.length)+tab('en','Entregados',null)+
+    '<div style="display:flex;gap:4px;padding:10px 4px 8px;flex-wrap:wrap;align-items:center">'+tab('to','Todas',S.to.length)+tab('pe','Por entregar',S.pe.length)+tab('li','Listos',S.li.length)+tab('en','Entregados',null)+
     (PZ.q?'<span style="padding:6px 12px;border-radius:8px;font-size:12.5px;background:'+PZ_AZL+';color:'+PZ_AZ+';font-weight:700">Resultados · '+L.length+'</span>':'')+
     (adm?'<span style="margin-left:auto;display:flex;gap:2px">'+sb('','Todas')+sb('Jardines','Jardines')+sb('Zibata','Zibata')+'</span>':'')+'</div>';
   var izq=vis.length?vis.map(pzFila).join(''):'<div class="tbl-empty" style="padding:34px 12px">'+(PZ.q?'Ninguna nota coincide.':PZ.tab==='li'?'No hay trabajos listos esperando.':'Nada por aquí.')+'</div>';
