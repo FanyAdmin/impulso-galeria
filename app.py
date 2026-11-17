@@ -39,6 +39,9 @@ class Pedido(db.Model):
     ant        = db.Column(db.Float, default=0)   # TOTAL PAGADO — ya no se escribe a mano: ant_ini + cobros
     rest       = db.Column(db.Float, default=0)
     ant_ini    = db.Column(db.Float)              # lo que dejó al abrir la nota (NULL = nota por confirmar)
+    orig_total = db.Column(db.Float)              # REGISTRO ORIGINAL: total el día que se capturó (no se edita)
+    orig_ant   = db.Column(db.Float)              # REGISTRO ORIGINAL: a cuenta el día que se capturó (no se edita)
+    orig_ts    = db.Column(db.String(30))         # cuándo se capturó
     obs        = db.Column(db.String(300))
     est        = db.Column(db.String(30), default='Pendiente')
     entrega    = db.Column(db.String(20))   # la PROMETIDA al cliente
@@ -371,6 +374,8 @@ def crear_pedido():
     p.ant_ini = _num(d.get('ant_ini', d.get('ant', 0)))
     p.ant = round(p.ant_ini, 2)
     p.rest = round(max(0.0, _num(p.total) - p.ant), 2)
+    from datetime import datetime
+    p.orig_total = _num(p.total); p.orig_ant = p.ant_ini; p.orig_ts = datetime.utcnow().isoformat()
     db.session.add(p)
     db.session.commit()
     return jsonify(p_dict(p)), 201
@@ -380,6 +385,7 @@ def crear_pedido():
 def actualizar_pedido(pid):
     p = Pedido.query.get_or_404(pid)
     d = request.json or {}
+    antes = {'total': _num(p.total), 'ant_ini': p.ant_ini, 'fecha': p.fecha}
     for campo in ['folio','tipo_venta','tipo_prod','cli','tel','suc','vend','fecha','mes','sub','total','met','obs','est','entrega','entrega_real','taller_est','casillero','factura_num']:
         if campo in d:
             setattr(p, campo, d[campo])
@@ -394,8 +400,19 @@ def actualizar_pedido(pid):
         if 'rest' in d: p.rest = d['rest']
     # Con anticipo inicial conocido, 'ant' y 'rest' que manden se ignoran: se calculan aquí
     recalc_pagado(p)
+    cambios = []
+    if abs(_num(p.total) - antes['total']) > 0.009: cambios.append('total %.2f → %.2f' % (antes['total'], _num(p.total)))
+    if antes['ant_ini'] is not None and p.ant_ini is not None and abs(_num(p.ant_ini) - _num(antes['ant_ini'])) > 0.009:
+        cambios.append('a cuenta %.2f → %.2f' % (_num(antes['ant_ini']), _num(p.ant_ini)))
+    if (antes['fecha'] or '') != (p.fecha or ''): cambios.append('fecha %s → %s' % (antes['fecha'], p.fecha))
+    if cambios: _bitacora_srv('Cambio de dinero en nota', 'Folio %s · %s' % (p.folio, ' · '.join(cambios)))
     db.session.commit()
     return jsonify(p_dict(p))
+
+def _bitacora_srv(accion, detalle):
+    from datetime import datetime
+    db.session.add(ActivityLog(ts=datetime.utcnow().isoformat(), user=session.get('usuario', '?'),
+                               user_name=session.get('usuario', '?'), accion=accion, detalle=detalle[:300]))
 
 @app.route('/api/pedidos/<int:pid>', methods=['DELETE'])
 @requiere_login
@@ -414,6 +431,7 @@ def p_dict(p):
         'sub':p.sub,'total':p.total,'met':p.met,
         'ant':p.ant,'rest':p.rest,'obs':p.obs,
         'ant_ini':p.ant_ini,'pagado_ok':p.ant_ini is not None,
+        'orig_total':p.orig_total,'orig_ant':p.orig_ant,'orig_ts':p.orig_ts or '',
         'est':p.est,'entrega':p.entrega,'entrega_real':p.entrega_real or '',
         'factura_num':p.factura_num or '',
         'taller_est':p.taller_est,'casillero':p.casillero
@@ -773,7 +791,7 @@ def get_config(clave):
 
 # Configuraciones que también guardan las sucursales (candados y tablero).
 # Todo lo demás solo lo guarda admin / dueña.
-CONFIG_SUCURSAL = {'cierres_suc', 'notas_fis', 'tablero_hist', 'ord_stock'}
+CONFIG_SUCURSAL = {'cierres_suc', 'notas_fis', 'tablero_hist', 'ord_stock', 'rev_preg', 'galeria_notas', 'cxc_seg'}
 
 def _suc_de_sesion():
     s = str(session.get('suc') or '').lower()
@@ -938,10 +956,13 @@ class Abono(db.Model):
     met       = db.Column(db.String(30))
     fecha     = db.Column(db.String(20))
     tipo      = db.Column(db.String(20), default='Abono')  # Abono | Liquidacion
+    orig_monto = db.Column(db.Float)       # REGISTRO ORIGINAL del cobro (no se edita)
+    orig_fecha = db.Column(db.String(20))
 
 def ab_dict(a):
     return {'id':a.id,'pedido_id':a.pedido_id,'folio':a.folio,'cli':a.cli,'suc':a.suc,
-            'monto':a.monto,'met':a.met,'fecha':a.fecha,'tipo':a.tipo}
+            'monto':a.monto,'met':a.met,'fecha':a.fecha,'tipo':a.tipo,
+            'orig_monto':a.orig_monto,'orig_fecha':a.orig_fecha or ''}
 
 # ── TOTAL PAGADO CALCULADO ────────────────────────────────────────────────────
 # Antes el pagado (ant) era un número que cada pantalla sumaba a mano; si una
@@ -990,6 +1011,7 @@ def crear_abono():
     a = Abono(pedido_id=d.get('pedido_id') or None, folio=d.get('folio',''), cli=d.get('cli',''),
               suc=d.get('suc',''), monto=d.get('monto',0), met=d.get('met',''),
               fecha=d.get('fecha',''), tipo=d.get('tipo','Abono'))
+    a.orig_monto = _num(a.monto); a.orig_fecha = a.fecha
     p = _pedido_de_abono(a)
     if p and not a.pedido_id:
         a.pedido_id = p.id
@@ -1005,9 +1027,12 @@ def actualizar_abono(aid):
     a = Abono.query.get_or_404(aid)
     d = request.json or {}
     antes = _num(a.monto)
+    f_antes = a.fecha or ''
     for campo in ['monto', 'met', 'fecha', 'tipo']:
         if campo in d:
             setattr(a, campo, d[campo])
+    if abs(_num(a.monto) - antes) > 0.009 or (a.fecha or '') != f_antes:
+        _bitacora_srv('Cambio de dinero en cobro', 'Folio %s · %.2f (%s) → %.2f (%s)' % (a.folio, antes, f_antes, _num(a.monto), a.fecha))
     db.session.flush()
     p = _pedido_de_abono(a)
     recalc_pagado(p, _num(a.monto) - antes)
@@ -1020,6 +1045,7 @@ def borrar_abono(aid):
     a = Abono.query.get_or_404(aid)
     p = _pedido_de_abono(a)
     monto = _num(a.monto)
+    _bitacora_srv('Cambio de dinero en cobro', 'Folio %s · se eliminó el cobro de %.2f del %s' % (a.folio, monto, a.fecha))
     db.session.delete(a)
     db.session.flush()
     recalc_pagado(p, -monto)
@@ -1221,6 +1247,17 @@ def get_activity():
     logs = ActivityLog.query.order_by(ActivityLog.id.desc()).limit(200).all()
     return jsonify([act_dict(a) for a in logs])
 
+@app.route('/api/activity/ediciones', methods=['GET'])
+@requiere_admin
+def get_ediciones():
+    acciones = ['Editó pedido', 'Confirmó pagado de nota', 'Editó cobro', 'Eliminó cobro',
+                'Cambio de dinero en nota', 'Cambio de dinero en cobro']
+    desde = request.args.get('desde', '')
+    q = ActivityLog.query.filter(ActivityLog.accion.in_(acciones))
+    if desde:
+        q = q.filter(ActivityLog.ts >= desde)
+    return jsonify([act_dict(x) for x in q.order_by(ActivityLog.id.asc()).limit(5000).all()])
+
 @app.route('/api/activity', methods=['POST'])
 @requiere_login
 def post_activity():
@@ -1258,6 +1295,11 @@ def migrar_columnas():
         "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_arte FLOAT DEFAULT 10",
         "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS comision_tranquilo FLOAT DEFAULT 10",
         "ALTER TABLE vendedores ADD COLUMN IF NOT EXISTS clientes_desde VARCHAR(20) DEFAULT ''",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS orig_total FLOAT",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS orig_ant FLOAT",
+        "ALTER TABLE pedidos_v3 ADD COLUMN IF NOT EXISTS orig_ts VARCHAR(30)",
+        "ALTER TABLE abonos ADD COLUMN IF NOT EXISTS orig_monto FLOAT",
+        "ALTER TABLE abonos ADD COLUMN IF NOT EXISTS orig_fecha VARCHAR(20)",
         "ALTER TABLE fac_prov ALTER COLUMN oc TYPE VARCHAR(60)",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS diapago VARCHAR(15) DEFAULT ''",
         "ALTER TABLE empleados ADD COLUMN IF NOT EXISTS cumple VARCHAR(10) DEFAULT ''",
