@@ -10466,16 +10466,16 @@ function cpSvCargar(){if(_svOk)return Promise.resolve();_svOk=true;return fetch(
 function cpServicios(){var L=[];
   pedidos.forEach(function(p){if(p.est!=='Pendiente'||!p.items||(soloMira()&&p.suc!==miSuc()))return;
     p.items.forEach(function(it){if(!it.mol||provDe(it)!=='SERVICIO')return;var k=claveItem(p.folio,it.mol);if(SERV_VISTO[k])return;
-      L.push({k:k,mol:it.mol,q:+it.q||1,fol:p.folio,suc:p.suc,fecha:p.fecha,cli:p.cli,med:(it.l1&&it.l2)?it.l1+'×'+it.l2:''});});});
+      L.push({k:k,pid:+p.id||0,mol:it.mol,q:+it.q||1,fol:p.folio,suc:p.suc,fecha:p.fecha,cli:p.cli,med:(it.l1&&it.l2)?it.l1+'×'+it.l2:''});});});
   return L.sort(function(a,b){return String(a.fecha).localeCompare(String(b.fecha));});}
 function cpVisto(){
-  var ks=[].slice.call(document.querySelectorAll('.cp-sv:checked')).map(function(c){return c.value;});
+  var ks=[];[].slice.call(document.querySelectorAll('.cp-sv:checked')).forEach(function(c){c.value.split('##').forEach(function(k){if(k)ks.push(k);});});
   if(!ks.length){alert('Palomea los servicios que ya viste.');return;}
   var u=rcQuien(),f=todayStr();
   fetch('/api/config/serv_visto',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){if(d&&d.valor&&typeof d.valor==='object')SERV_VISTO=d.valor;}).catch(function(){})
   .then(function(){ks.forEach(function(k){SERV_VISTO[k]={f:f,u:u};});cpPinta();
     return fetch('/api/config/serv_visto',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:SERV_VISTO})});})
-  .then(function(r){if(r&&!r.ok)throw new Error('HTTP '+r.status);logActivity('Servicios vistos',ks.length+' servicio(s): '+ks.map(function(k){return k.split('||')[0];}).join(', '));try{rTab();}catch(e){}})
+  .then(function(r){if(r&&!r.ok)throw new Error('HTTP '+r.status);logActivity('Servicios vistos',ks.length+' servicio(s): '+ks.map(function(k){return k.split('|')[0];}).filter(function(v,i,a){return a.indexOf(v)===i;}).join(', '));try{rTab();}catch(e){}})
   .catch(function(e){ks.forEach(function(k){delete SERV_VISTO[k];});alert('⚠️ No se guardó ('+e.message+')');cpPinta();});
 }
 function cpFichaServ(){
@@ -10485,8 +10485,13 @@ function cpFichaServ(){
     '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #EFE7EB;flex-wrap:wrap"><div>'+(soloMira()||!L.length?'':'<button style="'+b1+'" onclick="cpVisto()">Visto</button> <span style="font-size:12px;color:var(--text3);margin-left:6px">no se pide nada: solo confirma que ya lo revisaste</span>')+'</div>'+
     '<div style="display:flex">'+[['Por ver',1],['Visto',0]].map(function(e,i){return '<span style="padding:6px 16px 6px 20px;font-size:12px;margin-left:'+(i?'-5px':'0')+';background:'+(e[1]?CP_C:'#F1EEF0')+';color:'+(e[1]?'#fff':'var(--text2)')+';font-weight:'+(e[1]?'700':'400')+';clip-path:polygon(0 0,calc(100% - 9px) 0,100% 50%,calc(100% - 9px) 100%,0 100%,9px 50%)">'+e[0]+'</span>';}).join('')+'</div></div>'+
     '<div style="padding:14px 16px"><div style="font-size:19px;font-weight:700">Servicios</div><div style="font-size:12.5px;color:var(--text2)">Trabajos sin moldura (restauración, montaje, impresión…). Pasan directo a taller.</div></div>';
-  h+='<div style="overflow-x:auto"><table class="tbl" style="font-size:12.5px;margin:0;table-layout:fixed;width:100%"><thead><tr><th style="width:70px;text-align:right">Pzas</th><th style="width:34%">Servicio</th><th>Medida</th><th style="width:110px">Nota</th><th style="width:130px">Sucursal</th><th style="width:80px">Espera</th></tr></thead><tbody>'+
-    (L.length?L.map(function(x){var d=Math.max(0,ordDias(x.fecha)||0);return '<tr><td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">'+(soloMira()?'':'<input type="checkbox" class="cp-sv" value="'+ptEsc(x.k)+'" checked style="margin-right:6px;vertical-align:-2px">')+x.q+'</td><td style="font-weight:600">'+ptEsc(x.mol)+'<div style="font-size:11px;color:var(--text3);font-weight:400">'+ptEsc(x.cli||'')+'</div></td><td style="color:var(--text2)">'+(x.med||'—')+'</td><td class="mono" style="font-size:11.5px">'+ptEsc(x.fol)+'</td><td>'+cpSucs({suc:x.suc})+'</td><td style="color:'+(d>7?'#A32D2D':'var(--text3)')+'">'+d+' d</td></tr>';}).join('')
+  var G={},ord=[];L.forEach(function(x){if(!G[x.fol]){G[x.fol]={fol:x.fol,pid:x.pid,cli:x.cli,suc:x.suc,fecha:x.fecha,its:[]};ord.push(G[x.fol]);}G[x.fol].its.push(x);});
+  ord.sort(function(a,b){return (b.pid-a.pid)||String(b.fecha).localeCompare(String(a.fecha))||String(b.fol).localeCompare(String(a.fol));});
+  h+='<div style="overflow-x:auto;max-width:100%"><table class="tbl" style="font-size:12.5px;margin:0;table-layout:fixed;width:100%"><thead><tr><th style="width:130px">Nota</th><th>Servicio</th><th style="width:22%">Cliente</th><th style="width:120px">Sucursal</th><th style="width:90px">Fecha</th><th style="width:70px">Espera</th></tr></thead><tbody>'+
+    (ord.length?ord.map(function(g){var d=Math.max(0,ordDias(g.fecha)||0),ks=g.its.map(function(x){return x.k;}).join('##');
+      return '<tr style="vertical-align:top"><td><label style="display:flex;align-items:center;gap:8px;cursor:pointer">'+(soloMira()?'':'<input type="checkbox" class="cp-sv" value="'+ptEsc(ks)+'" checked style="width:16px;height:16px;margin:0;flex:0 0 auto">')+'<b class="mono">'+ptEsc(g.fol)+'</b></label></td>'+
+        '<td>'+g.its.map(function(x){return '<div style="font-weight:600">'+(x.q>1?x.q+' × ':'')+ptEsc(x.mol)+(x.med?' <span style="font-weight:400;color:var(--text3)">· '+x.med+'</span>':'')+'</div>';}).join('')+'</td>'+
+        '<td style="color:var(--text2)">'+ptEsc(g.cli||'—')+'</td><td>'+cpSucs({suc:g.suc})+'</td><td style="color:var(--text2)">'+ptFec(g.fecha)+'</td><td style="color:'+(d>7?'#A32D2D':'var(--text3)')+'">'+d+' d</td></tr>';}).join('')
     :'<tr><td colspan="6" class="tbl-empty" style="padding:24px">Todos los servicios ya se vieron ✓</td></tr>')+'</tbody></table></div></div>';
   return [h,false];
 }
