@@ -10459,6 +10459,37 @@ function cpPorPedir(){
     return {tipo:'pp',pv:pv,items:L,mat:CP_MAT[pv]||[],fecha:f,dias:f?Math.max(0,ordDias(f)||0):0,notas:Object.keys(fol).length,pzas:L.reduce(function(a,b){return a+b.pzas;},0)};})
     .sort(function(a,b){return b.dias-a.dias||b.pzas-a.pzas;});
 }
+// Servicios (concepto libre, sin moldura): no se piden; se marcan "Visto" para que
+// pasen por la misma revisión semanal. config 'serv_visto' {folio||mol:{f,u}}.
+var SERV_VISTO={},_svOk=false;
+function cpSvCargar(){if(_svOk)return Promise.resolve();_svOk=true;return fetch('/api/config/serv_visto',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){SERV_VISTO=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};}).catch(function(){});}
+function cpServicios(){var L=[];
+  pedidos.forEach(function(p){if(p.est!=='Pendiente'||!p.items||(soloMira()&&p.suc!==miSuc()))return;
+    p.items.forEach(function(it){if(!it.mol||provDe(it)!=='SERVICIO')return;var k=claveItem(p.folio,it.mol);if(SERV_VISTO[k])return;
+      L.push({k:k,mol:it.mol,q:+it.q||1,fol:p.folio,suc:p.suc,fecha:p.fecha,cli:p.cli,med:(it.l1&&it.l2)?it.l1+'×'+it.l2:''});});});
+  return L.sort(function(a,b){return String(a.fecha).localeCompare(String(b.fecha));});}
+function cpVisto(){
+  var ks=[].slice.call(document.querySelectorAll('.cp-sv:checked')).map(function(c){return c.value;});
+  if(!ks.length){alert('Palomea los servicios que ya viste.');return;}
+  var u=rcQuien(),f=todayStr();
+  fetch('/api/config/serv_visto',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){if(d&&d.valor&&typeof d.valor==='object')SERV_VISTO=d.valor;}).catch(function(){})
+  .then(function(){ks.forEach(function(k){SERV_VISTO[k]={f:f,u:u};});cpPinta();
+    return fetch('/api/config/serv_visto',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:SERV_VISTO})});})
+  .then(function(r){if(r&&!r.ok)throw new Error('HTTP '+r.status);logActivity('Servicios vistos',ks.length+' servicio(s): '+ks.map(function(k){return k.split('||')[0];}).join(', '));try{rTab();}catch(e){}})
+  .catch(function(e){ks.forEach(function(k){delete SERV_VISTO[k];});alert('⚠️ No se guardó ('+e.message+')');cpPinta();});
+}
+function cpFichaServ(){
+  var L=cpServicios(),b1='background:'+CP_C+';color:#fff;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer';
+  var h='<div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px"><a href="#" onclick="CP.open=null;cpPinta();return false" style="color:var(--text2)">Compras</a><span style="color:var(--text3)">/</span><b>Servicios</b></div>';
+  h+='<div style="border:1px solid #EFE7EB;border-radius:12px;overflow:hidden;background:var(--surface)">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid #EFE7EB;flex-wrap:wrap"><div>'+(soloMira()||!L.length?'':'<button style="'+b1+'" onclick="cpVisto()">Visto</button> <span style="font-size:12px;color:var(--text3);margin-left:6px">no se pide nada: solo confirma que ya lo revisaste</span>')+'</div>'+
+    '<div style="display:flex">'+[['Por ver',1],['Visto',0]].map(function(e,i){return '<span style="padding:6px 16px 6px 20px;font-size:12px;margin-left:'+(i?'-5px':'0')+';background:'+(e[1]?CP_C:'#F1EEF0')+';color:'+(e[1]?'#fff':'var(--text2)')+';font-weight:'+(e[1]?'700':'400')+';clip-path:polygon(0 0,calc(100% - 9px) 0,100% 50%,calc(100% - 9px) 100%,0 100%,9px 50%)">'+e[0]+'</span>';}).join('')+'</div></div>'+
+    '<div style="padding:14px 16px"><div style="font-size:19px;font-weight:700">Servicios</div><div style="font-size:12.5px;color:var(--text2)">Trabajos sin moldura (restauración, montaje, impresión…). Pasan directo a taller.</div></div>';
+  h+='<div style="overflow-x:auto"><table class="tbl" style="font-size:12.5px;margin:0;table-layout:fixed;width:100%"><thead><tr><th style="width:70px;text-align:right">Pzas</th><th style="width:34%">Servicio</th><th>Medida</th><th style="width:110px">Nota</th><th style="width:130px">Sucursal</th><th style="width:80px">Espera</th></tr></thead><tbody>'+
+    (L.length?L.map(function(x){var d=Math.max(0,ordDias(x.fecha)||0);return '<tr><td class="mono" style="text-align:right;font-weight:700;white-space:nowrap">'+(soloMira()?'':'<input type="checkbox" class="cp-sv" value="'+ptEsc(x.k)+'" checked style="margin-right:6px;vertical-align:-2px">')+x.q+'</td><td style="font-weight:600">'+ptEsc(x.mol)+'<div style="font-size:11px;color:var(--text3);font-weight:400">'+ptEsc(x.cli||'')+'</div></td><td style="color:var(--text2)">'+(x.med||'—')+'</td><td class="mono" style="font-size:11.5px">'+ptEsc(x.fol)+'</td><td>'+cpSucs({suc:x.suc})+'</td><td style="color:'+(d>7?'#A32D2D':'var(--text3)')+'">'+d+' d</td></tr>';}).join('')
+    :'<tr><td colspan="6" class="tbl-empty" style="padding:24px">Todos los servicios ya se vieron ✓</td></tr>')+'</tbody></table></div></div>';
+  return [h,false];
+}
 function cpEstOC(o){var its=o.items||[];if(!its.length)return 'll';return its.every(function(i){return i.rec;})?'ll':'pe';}
 function cpOCs(){
   var lim=dateStrLocal(new Date(Date.now()-45*864e5));
@@ -10475,7 +10506,9 @@ function cpBadge(t,d){var B={pp:['#F1EFE8','#5F5E5A','Por pedir'],pe:['#FAEEDA',
 function cpLista(){
   var PP=cpPorPedir(),OC=cpOCs(),q=normNom(CP.q);
   var R=PP.concat(OC.filter(function(r){return r.tipo==='pe';}).sort(function(a,b){return b.dias-a.dias;})).concat(OC.filter(function(r){return r.tipo==='ll';}).sort(function(a,b){return String(b.recf||b.fecha).localeCompare(String(a.recf||a.fecha));}));
-  var n={pp:PP.length,pe:0,ll:0};OC.forEach(function(r){n[r.tipo]++;});
+  var SV=cpServicios();
+  if(SV.length){var fol={};SV.forEach(function(x){fol[x.fol]=1;});var fs=SV[0].fecha;R.unshift({tipo:'pp',pv:'SERVICIO',sv:true,items:[],mat:[],fecha:fs,dias:fs?Math.max(0,ordDias(fs)||0):0,notas:Object.keys(fol).length,pzas:SV.reduce(function(a,b){return a+b.q;},0)});}
+  var n={pp:PP.length+(SV.length?1:0),pe:0,ll:0};OC.forEach(function(r){n[r.tipo]++;});
   if(CP.f!=='to')R=R.filter(function(r){return r.tipo===CP.f;});
   if(q)R=R.filter(function(r){var t=(PROVS[r.pv]||r.pv)+' '+(r.o?r.o.oc:'');var its=r.o?r.o.items:r.items;(its||[]).forEach(function(i){t+=' '+i.mol+' '+(i.fols||[]).join(' ');});return normNom(t).indexOf(q)>=0;});
   var pill=function(k,t,c){var on=CP.f===k;return '<span onclick="CP.f=\''+k+'\';cpPinta()" style="cursor:pointer;padding:5px 12px;border-radius:14px;font-size:12.5px;'+(on?'background:'+CP_L+';color:'+CP_C+';font-weight:700':'color:var(--text2)')+'">'+t+(c!=null?' · '+c:'')+'</span>';};
@@ -10487,8 +10520,8 @@ function cpLista(){
     (CP.f==='pe'&&edoAdm()&&n.pe?'<span style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--text2);margin-left:8px;white-space:nowrap">Dar por recibidas hasta el <input type="date" id="cp-hasta" value="'+dateStrLocal(new Date(Date.now()-7*864e5))+'" style="width:140px;font-size:12px;padding:2px 5px"><button onclick="cpRecibirAntes()" style="white-space:nowrap;background:#fff;color:'+CP_C+';border:1.5px solid '+CP_C+';border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer">Dar por recibidas</button></span>':'')+
     '<span style="margin-left:auto;font-size:12px;color:var(--text3)">'+(function(){var px=proxDiaPedido();return px.hoy?'<b style="color:#0F6E56">Hoy es día de pedido</b>':'Próximo día de pedido: '+(px.f&&px.f.toLocaleDateString?px.f.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'}):(px.f||''));})()+'</span></div>';
   h+='<div style="border:1px solid #EFE7EB;border-radius:12px;overflow:hidden;background:var(--surface)"><table class="tbl" style="font-size:12.5px;margin:0"><thead><tr><th style="width:110px">Referencia</th><th>Proveedor</th><th style="width:80px;text-align:right">Piezas</th><th style="width:70px;text-align:right">Notas</th><th style="width:100px">Fecha</th><th style="width:120px">Estado</th></tr></thead><tbody>'+
-    (R.length?R.map(function(r){var ref=r.o?(r.o.oc||'Sin número'):'Borrador',k=r.o?'o'+r.o.id:'p'+r.pv;var st=provColor(r.pv);
-      return '<tr style="cursor:pointer" onclick="CP.open=\''+cpK(k)+'\';cpPinta()"><td class="mono" style="font-weight:700;'+(r.o?'':'color:var(--text3)')+'">'+ptEsc(ref)+'</td><td><span style="display:inline-flex;align-items:center;gap:9px"><span style="display:inline-flex;width:58px;height:22px;align-items:center">'+provMarca(r.pv,20)+'</span><span style="color:'+st.c+';font-weight:600">'+ptEsc(PROVS[r.pv]||r.pv)+'</span></span>'+(r.mat&&r.mat.length?' <span style="font-size:11px;color:'+CP_C+'">+ '+r.mat.length+' material</span>':'')+'</td><td class="mono" style="text-align:right">'+r.pzas+'</td><td style="text-align:right">'+r.notas+'</td><td style="color:var(--text2)">'+(r.tipo==='ll'&&r.recf?'llegó '+ptFec(r.recf).slice(0,5):r.fecha?ptFec(r.fecha).slice(0,5):'')+(r.tipo==='pp'&&r.dias?' <span style="font-size:11px;color:'+(r.dias>7?'#A32D2D':'var(--text3)')+'">· espera '+r.dias+' d</span>':'')+'</td><td>'+cpBadge(r.tipo,r.dias)+'</td></tr>';}).join('')
+    (R.length?R.map(function(r){var ref=r.o?(r.o.oc||'Sin número'):(r.sv?'Servicios':'Borrador'),k=r.o?'o'+r.o.id:(r.sv?'sv':'p'+r.pv);var st=provColor(r.pv);
+      return '<tr style="cursor:pointer" onclick="CP.open=\''+cpK(k)+'\';cpPinta()"><td class="mono" style="font-weight:700;'+(r.o?'':'color:var(--text3)')+'">'+ptEsc(ref)+'</td><td><span style="display:inline-flex;align-items:center;gap:9px"><span style="display:inline-flex;width:58px;height:22px;align-items:center">'+provMarca(r.pv,20)+'</span><span style="color:'+st.c+';font-weight:600">'+ptEsc(PROVS[r.pv]||r.pv)+'</span></span>'+(r.mat&&r.mat.length?' <span style="font-size:11px;color:'+CP_C+'">+ '+r.mat.length+' material</span>':'')+'</td><td class="mono" style="text-align:right">'+r.pzas+'</td><td style="text-align:right">'+r.notas+'</td><td style="color:var(--text2)">'+(r.tipo==='ll'&&r.recf?'llegó '+ptFec(r.recf).slice(0,5):r.fecha?ptFec(r.fecha).slice(0,5):'')+(r.tipo==='pp'&&r.dias?' <span style="font-size:11px;color:'+(r.dias>7?'#A32D2D':'var(--text3)')+'">· espera '+r.dias+' d</span>':'')+'</td><td>'+(r.sv?'<span style="display:inline-block;font-size:11px;font-weight:700;border-radius:10px;padding:2px 9px;background:#E6F1FB;color:#0C447C">Por ver</span>':cpBadge(r.tipo,r.dias))+'</td></tr>';}).join('')
     :'<tr><td colspan="6" class="tbl-empty" style="padding:30px">'+(CP.f==='pp'?'Todo pedido ✓':CP.f==='pe'?'Nada en camino ✓':'Nada por aquí.')+'</td></tr>')+'</tbody></table></div>'+
     '<div style="text-align:right;margin-top:6px"><a href="#" onclick="cpVieja(true);return false" style="font-size:11.5px;color:var(--text3)">vista anterior (hoja del día, stock, historial)</a></div>';
   return [h,foco];
@@ -10496,7 +10529,7 @@ function cpLista(){
 function cpBarra(t){var E=[['pp','Por pedir'],['pe','Pedido'],['ll','Llegó']];
   return '<div style="display:flex">'+E.map(function(e,i){var on=e[0]===t;return '<span style="padding:6px 16px 6px 20px;font-size:12px;margin-left:'+(i?'-5px':'0')+';background:'+(on?CP_C:'#F1EEF0')+';color:'+(on?'#fff':'var(--text2)')+';font-weight:'+(on?'700':'400')+';clip-path:polygon(0 0,calc(100% - 9px) 0,100% 50%,calc(100% - 9px) 100%,0 100%,9px 50%)">'+e[1]+'</span>';}).join('')+'</div>';}
 function cpFicha(){
-  var k=CP.open,r=null;
+  var k=CP.open,r=null;if(k==='sv')return cpFichaServ();
   if(k.charAt(0)==='p'){r=cpPorPedir().find(function(x){return x.pv===k.slice(1);});if(!r)r={tipo:'pp',pv:k.slice(1),items:[],mat:CP_MAT[k.slice(1)]||[],notas:0,pzas:0};}
   else{var o=(ORDENES||[]).find(function(x){return 'o'+x.id===k;});if(!o){CP.open=null;return cpLista();}r={tipo:cpEstOC(o),o:o,pv:o.prov};}
   var pv=r.pv,nom=PROVS[pv]||pv,b1='background:'+CP_C+';color:#fff;border:none;border-radius:7px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer',b2='background:#fff;color:var(--text);border:1px solid #D8CDD3;border-radius:7px;padding:6px 12px;font-size:12.5px;cursor:pointer';
@@ -10574,7 +10607,7 @@ function cpPinta(){
 }
 function rOrd2(){
   var u=_u()||{};if(u.role==='taller'&&!CP._ini){CP.f='pe';}CP._ini=true;
-  cpPinta();
+  cpPinta();cpSvCargar().then(cpPinta);
 }
 
 // ═══ CUENTAS POR COBRAR (vista nueva) ═══════════════════════════════════════
