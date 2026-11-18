@@ -10510,7 +10510,8 @@ function cpBadge(t,d){var B={pp:['#F1EFE8','#5F5E5A','Por pedir'],pe:['#FAEEDA',
   return '<span style="display:inline-block;font-size:11px;font-weight:700;border-radius:10px;padding:2px 9px;background:'+B[0]+';color:'+B[1]+'">'+B[2]+(t==='pe'?' · '+d+' d':'')+'</span>';}
 function cpLista(){
   var PP=cpPorPedir(),OC=cpOCs(),q=normNom(CP.q);
-  var R=PP.concat(OC.filter(function(r){return r.tipo==='pe';}).sort(function(a,b){return b.dias-a.dias;})).concat(OC.filter(function(r){return r.tipo==='ll';}).sort(function(a,b){return String(b.recf||b.fecha).localeCompare(String(a.recf||a.fecha));}));
+  var cpNum=function(r){return parseInt(String(r.o&&r.o.oc||'').replace(/\D/g,''),10)||0;};
+  var R=PP.concat(OC.filter(function(r){return r.tipo==='pe';}).sort(function(a,b){return String(b.fecha).localeCompare(String(a.fecha))||cpNum(b)-cpNum(a);})).concat(OC.filter(function(r){return r.tipo==='ll';}).sort(function(a,b){return String(b.recf||b.fecha).localeCompare(String(a.recf||a.fecha));}));
   var SV=cpServicios();
   if(SV.length){var fol={};SV.forEach(function(x){fol[x.fol]=1;});var fs=SV[0].fecha;R.unshift({tipo:'pp',pv:'SERVICIO',sv:true,items:[],mat:[],fecha:fs,dias:fs?Math.max(0,ordDias(fs)||0):0,notas:Object.keys(fol).length,pzas:SV.reduce(function(a,b){return a+b.q;},0)});}
   var n={pp:PP.length+(SV.length?1:0),pe:0,ll:0};OC.forEach(function(r){n[r.tipo]++;});
@@ -10524,10 +10525,23 @@ function cpLista(){
     '<div style="display:flex;gap:4px;padding:10px 4px;flex-wrap:wrap;align-items:center">'+pill('pp','Por pedir',n.pp)+pill('pe','Pedido',n.pe)+pill('ll','Llegó',null)+pill('to','Todas',null)+
     (CP.f==='pe'&&edoAdm()&&n.pe?'<span style="display:flex;gap:6px;align-items:center;font-size:12px;color:var(--text2);margin-left:8px;white-space:nowrap">Dar por recibidas hasta el <input type="date" id="cp-hasta" value="'+dateStrLocal(new Date(Date.now()-7*864e5))+'" style="width:140px;font-size:12px;padding:2px 5px"><button onclick="cpRecibirAntes()" style="white-space:nowrap;background:#fff;color:'+CP_C+';border:1.5px solid '+CP_C+';border-radius:6px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer">Dar por recibidas</button></span>':'')+
     '<span style="margin-left:auto;font-size:12px;color:var(--text3)">'+(function(){var px=proxDiaPedido();return px.hoy?'<b style="color:#0F6E56">Hoy es día de pedido</b>':'Próximo día de pedido: '+(px.f&&px.f.toLocaleDateString?px.f.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'}):(px.f||''));})()+'</span></div>';
-  h+='<div style="border:1px solid #EFE7EB;border-radius:12px;overflow:hidden;background:var(--surface)"><table class="tbl" style="font-size:12.5px;margin:0"><thead><tr><th style="width:110px">Referencia</th><th>Proveedor</th><th style="width:80px;text-align:right">Piezas</th><th style="width:70px;text-align:right">Notas</th><th style="width:100px">Fecha</th><th style="width:120px">Estado</th></tr></thead><tbody>'+
-    (R.length?R.map(function(r){var ref=r.o?(r.o.oc||'Sin número'):(r.sv?'Servicios':'Borrador'),k=r.o?'o'+r.o.id:(r.sv?'sv':'p'+r.pv);var st=provColor(r.pv);
-      return '<tr style="cursor:pointer" onclick="CP.open=\''+cpK(k)+'\';cpPinta()"><td class="mono" style="font-weight:700;'+(r.o?'':'color:var(--text3)')+'">'+ptEsc(ref)+'</td><td><span style="display:inline-flex;align-items:center;gap:9px"><span style="display:inline-flex;width:58px;height:22px;align-items:center">'+provMarca(r.pv,20)+'</span><span style="color:'+st.c+';font-weight:600">'+ptEsc(PROVS[r.pv]||r.pv)+'</span></span>'+(r.mat&&r.mat.length?' <span style="font-size:11px;color:'+CP_C+'">+ '+r.mat.length+' material</span>':'')+'</td><td class="mono" style="text-align:right">'+r.pzas+'</td><td style="text-align:right">'+r.notas+'</td><td style="color:var(--text2)">'+(r.tipo==='ll'&&r.recf?'llegó '+ptFec(r.recf).slice(0,5):r.fecha?ptFec(r.fecha).slice(0,5):'')+(r.tipo==='pp'&&r.dias?' <span style="font-size:11px;color:'+(r.dias>7?'#A32D2D':'var(--text3)')+'">· espera '+r.dias+' d</span>':'')+'</td><td>'+(r.sv?'<span style="display:inline-block;font-size:11px;font-weight:700;border-radius:10px;padding:2px 9px;background:#E6F1FB;color:#0C447C">Por ver</span>':cpBadge(r.tipo,r.dias))+'</td></tr>';}).join('')
-    :'<tr><td colspan="6" class="tbl-empty" style="padding:30px">'+(CP.f==='pp'?'Todo pedido ✓':CP.f==='pe'?'Nada en camino ✓':'Nada por aquí.')+'</td></tr>')+'</tbody></table></div>'+
+  var hoyD=new Date(todayStr()+'T12:00:00');
+  var semana=function(f){if(!f)return 'Sin fecha';var d=Math.round((hoyD-new Date(String(f).slice(0,10)+'T12:00:00'))/864e5);return d<=6?'Esta semana':d<=13?'Semana pasada':'Hace 2 semanas o más';};
+  var grupo=function(r){if(CP.f==='to')return r.tipo==='pp'?'Por pedir':r.tipo==='pe'?'Pedido · esperando':'Llegó';if(r.tipo==='pp')return '';return semana(r.tipo==='ll'?(r.recf||r.fecha):r.fecha);};
+  var fila=function(r){var k=r.o?'o'+r.o.id:(r.sv?'sv':'p'+r.pv),st=provColor(r.pv);
+    var fols=[];if(r.o)(r.o.items||[]).forEach(function(i){(i.fols||[]).forEach(function(x){if(fols.indexOf(x)<0)fols.push(x);});});else if(r.items)r.items.forEach(function(i){(i.fols||[]).forEach(function(x){if(fols.indexOf(x)<0)fols.push(x);});});
+    var falta=r.o?(r.o.items||[]).filter(function(i){return !i.rec;}).length:0,tot=r.o?(r.o.items||[]).length:0;
+    var que=r.sv?'Servicios sin moldura · '+r.notas+' nota'+(r.notas===1?'':'s'):(fols.length?'Notas '+fols.slice(0,6).join(', ')+(fols.length>6?' +'+(fols.length-6):''):'Solo material')+(r.mat&&r.mat.length?' · + '+r.mat.length+' material':'')+(r.tipo==='pe'&&falta<tot?' · <b style="color:#854F0B">faltan '+falta+' de '+tot+'</b>':'');
+    var fecha=r.tipo==='ll'&&r.recf?'llegó '+ptFec(r.recf).slice(0,5):r.tipo==='pp'?(r.dias?'espera '+r.dias+' d':'hoy'):ptFec(r.fecha).slice(0,5);
+    var est=r.sv?'<span style="font-size:11px;font-weight:700;border-radius:10px;padding:2px 9px;background:#E6F1FB;color:#0C447C">Por ver</span>':cpBadge(r.tipo,r.dias);
+    return '<div onclick="CP.open=\''+cpK(k)+'\';cpPinta()" style="cursor:pointer;display:grid;grid-template-columns:70px minmax(0,1fr) 70px 90px 110px;gap:12px;align-items:center;padding:11px 16px;border-bottom:1px solid #F3EDF0" onmouseover="this.style.background=\'#FAF7F8\'" onmouseout="this.style.background=\'\'">'+
+      '<span style="display:flex;align-items:center;height:30px">'+provMarca(r.pv,26)+'</span>'+
+      '<div style="min-width:0"><div><b style="font-size:13.5px;color:'+st.c+'">'+ptEsc(r.sv?'Servicios':(PROVS[r.pv]||r.pv))+'</b> <span class="mono" style="font-size:11.5px;color:var(--text3);margin-left:6px">'+ptEsc(r.o?(r.o.oc||'Sin número'):(r.sv?'':'borrador'))+'</span></div><div style="font-size:11.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+que+'</div></div>'+
+      '<span class="mono" style="text-align:right;font-weight:700">'+r.pzas+'<span style="font-weight:400;font-size:11px;color:var(--text3)"> pzas</span></span>'+
+      '<span style="font-size:12px;color:'+(r.tipo==='pp'&&r.dias>7?'#A32D2D':'var(--text2)')+'">'+fecha+'</span><span style="text-align:right">'+est+'</span></div>';};
+  var cuerpo='',gAct=null;
+  R.forEach(function(r){var g=grupo(r);if(g&&g!==gAct){gAct=g;var nG=R.filter(function(x){return grupo(x)===g;}).length;cuerpo+='<div style="display:flex;justify-content:space-between;padding:7px 16px;background:#FAF7F8;font-size:11.5px;font-weight:700;color:var(--text2);letter-spacing:.02em;border-bottom:1px solid #F3EDF0"><span>'+g+'</span><span style="font-weight:400;color:var(--text3)">'+nG+'</span></div>';}cuerpo+=fila(r);});
+  h+='<div style="border:1px solid #EFE7EB;border-radius:12px;overflow:hidden;background:var(--surface)">'+(cuerpo||'<div class="tbl-empty" style="padding:30px">'+(CP.f==='pp'?'Todo pedido ✓':CP.f==='pe'?'Nada en camino ✓':'Nada por aquí.')+'</div>')+'</div>'+
     '<div style="text-align:right;margin-top:6px"><a href="#" onclick="cpVieja(true);return false" style="font-size:11.5px;color:var(--text3)">vista anterior (hoja del día, stock, historial)</a></div>';
   return [h,foco];
 }
@@ -10620,7 +10634,7 @@ function rOrd2(){
 // tabla con cargos (notas) y abonos en orden de fecha, saldo corrido y a qué
 // nota se aplicó cada pago. Seguimiento de cobranza en config 'cxc_seg'
 // {clave:[{f,u,t,p}]} (p = fecha prometida de pago).
-var KZ={tab:'pc',sel:null,q:'',edad:'',vieja:false};var CXC_SEG={},_kzSegOk=false;var KZ_C='#6E4157',KZ_L='#F4EFF2';
+var KZ={tab:'no',sel:null,q:'',edad:'',vieja:false};var CXC_SEG={},_kzSegOk=false;var KZ_C='#6E4157',KZ_L='#F4EFF2';
 function kzK(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function kzSegCargar(){if(_kzSegOk)return Promise.resolve();_kzSegOk=true;return fetch('/api/config/cxc_seg',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){CXC_SEG=(d&&d.valor&&typeof d.valor==='object')?d.valor:{};}).catch(function(){});}
 function kzTramo(d){return d<=15?'a':d<=30?'b':'c';}
@@ -10697,6 +10711,65 @@ function kzCobrados(){
   return '<div style="padding:10px 14px;font-size:12.5px;color:var(--text2)">Cobrado de cuentas por cobrar en '+new Date().toLocaleDateString('es-MX',{month:'long'})+': <b class="mono">'+fmt(T)+'</b></div>'+
     (L.length?L.map(function(x){return '<div onclick="KZ.sel=\''+kzK(x.clave)+'\';kzPinta()" style="cursor:pointer;display:flex;justify-content:space-between;padding:9px 14px;border-bottom:1px solid #F3EDF0;'+(KZ.sel===x.clave?'background:'+KZ_L:'')+'"><span style="font-weight:600">'+ptEsc(x.cli)+' <span style="font-weight:400;font-size:11.5px;color:var(--text3)">· '+x.n+' abono'+(x.n===1?'':'s')+'</span></span><b class="mono" style="color:#0F6E56">'+fmt(x.t)+'</b></div>';}).join(''):'<div class="tbl-empty" style="padding:24px">Sin abonos este mes.</div>');
 }
+// ── Cuentas por cobrar: tres vistas separadas (por nota · por cliente · estado de cuenta) ──
+function kzPorNota(){
+  var L=[];clientesDeudores().forEach(function(g){g._peds.forEach(function(p){L.push({p:p,g:g});});});
+  var q=normNom(KZ.q);if(q)L=L.filter(function(x){return normNom(x.p.folio).indexOf(q)>=0||normNom(x.p.cli).indexOf(q)>=0;});
+  if(KZ.edad)L=L.filter(function(x){return kzTramo(diasDe(x.p.fecha))===KZ.edad;});
+  L.sort(function(a,b){return ((+b.p.id||0)-(+a.p.id||0))||String(b.p.fecha).localeCompare(String(a.p.fecha));});
+  var todas=misC(),cols='grid-template-columns:80px minmax(0,1fr) 96px 110px 110px 110px 60px 80px';
+  var h='<div style="display:grid;'+cols+';gap:10px;font-size:11px;color:var(--text3);padding:8px 14px;background:#FAF8F9"><span>Nota</span><span>Cliente</span><span>Fecha</span><span style="text-align:right">Total</span><span style="text-align:right">Pagado</span><span style="text-align:right">Debe</span><span>Días</span><span></span></div>';
+  h+=L.length?L.map(function(x){var p=x.p,d=diasDe(p.fecha),ix=todas.findIndex(function(c){return c.folio===p.folio&&c.suc===p.suc;}),tot=+p.total||0,deb=+p.rest||0;
+    return '<div onclick="KZ.sel=\''+kzK(x.g.clave)+'\';KZ.tab=\'ed\';kzPinta()" style="cursor:pointer;display:grid;'+cols+';gap:10px;align-items:center;padding:9px 14px;border-bottom:1px solid #F3EDF0" onmouseover="this.style.background=\'#FAF7F8\'" onmouseout="this.style.background=\'\'">'+
+      '<b class="mono">'+ptEsc(p.folio)+'</b><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+ptEsc(p.cli||'—')+' <span style="font-size:11px;color:var(--text3)">· '+ptEsc(p.suc||'')+'</span></span><span style="color:var(--text2)">'+ptFec(p.fecha)+'</span>'+
+      '<span class="mono" style="text-align:right">'+fmt(tot)+'</span><span class="mono" style="text-align:right;color:#0F6E56">'+fmt(Math.max(0,tot-deb))+'</span><span class="mono" style="text-align:right;color:#A32D2D;font-weight:700">'+fmt(deb)+'</span>'+
+      '<span style="color:'+(d>30?'#A32D2D':d>15?'#854F0B':'var(--text3)')+'">'+d+' d</span>'+
+      '<span style="text-align:right">'+(ix>=0&&!soloMira()?'<button onclick="event.stopPropagation();openAbCxC('+ix+')" style="background:#fff;color:'+KZ_C+';border:1px solid #D8CDD3;border-radius:6px;padding:3px 9px;font-size:11.5px;font-weight:700;cursor:pointer">Abonar</button>':'')+'</span></div>';}).join('')
+    :'<div class="tbl-empty" style="padding:30px">'+(KZ.q?'Nada coincide.':'Ninguna nota con saldo ✓')+'</div>';
+  return h;
+}
+function kzPagadoCli(clave){var t=0;try{pedsDeCliente(clave,true).forEach(function(p){t+=Math.max(0,(+p.total||0)-(+p.rest||0));});}catch(e){}return t;}
+function kzPorCliente(){
+  var L=kzClientes(),cols='grid-template-columns:minmax(0,1fr) 90px 130px 130px 70px';
+  var h='<div style="display:grid;'+cols+';gap:10px;font-size:11px;color:var(--text3);padding:8px 14px;background:#FAF8F9"><span>Cliente</span><span>Notas que debe</span><span style="text-align:right">Pagado</span><span style="text-align:right">Debe</span><span>Más vieja</span></div>';
+  h+=L.length?L.map(function(g){var col=g.dias>30?'#A32D2D':g.dias>15?'#854F0B':'var(--text3)';
+    return '<div onclick="KZ.sel=\''+kzK(g.clave)+'\';KZ.tab=\'ed\';kzPinta()" style="cursor:pointer;display:grid;'+cols+';gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid #F3EDF0" onmouseover="this.style.background=\'#FAF7F8\'" onmouseout="this.style.background=\'\'">'+
+      '<div style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+ptEsc(g.cli||'—')+'</div><div style="font-size:11.5px;color:'+(g.seg&&g.seg.p&&g.seg.p<todayStr()?'#A32D2D':'var(--text3)')+'">'+(g.seg?(g.seg.p?'prometió pagar el '+ptFec(g.seg.p):'último contacto '+ptFec(g.seg.f)):'sin seguimiento')+'</div></div>'+
+      '<span>'+g.notas+'</span><span class="mono" style="text-align:right;color:#0F6E56">'+fmt(kzPagadoCli(g.clave))+'</span><span class="mono" style="text-align:right;color:#A32D2D;font-weight:700">'+fmt(g.saldo)+'</span><span style="color:'+col+'">'+g.dias+' d</span></div>';}).join('')
+    :'<div class="tbl-empty" style="padding:30px">'+(KZ.q?'Nadie coincide.':'Nadie con saldo ✓')+'</div>';
+  return h+'<div style="padding:8px 14px;font-size:11.5px;color:var(--text3)">Toca un cliente para abrir su estado de cuenta.</div>';
+}
+function kzEdo2(clave){
+  var D=edoDatos(clave,true);if(!D)return '<div class="tbl-empty" style="padding:40px 16px">Escoge un cliente en “Por cliente” o en “Por nota”.</div>';
+  var todas=misC(),idxDe=function(fol){return todas.findIndex(function(c){return c.folio===fol&&normNom(c.cli||'')===clave;});};
+  var deben=D.filas.filter(function(f){return f.saldo>0.5;}).sort(function(a,b){return String(a.fecha).localeCompare(String(b.fecha));});
+  var pagos=[];D.filas.forEach(function(f){if((+f.total||0)<0.5)return;var ab=D.abonos.filter(function(a){return a.folio===f.folio;}).reduce(function(s,a){return s+a.monto;},0);if(f.pag-ab>0.5)pagos.push({f:f.fecha,t:'Anticipo',m:Math.round((f.pag-ab)*100)/100,fol:f.folio});});
+  D.abonos.forEach(function(a){pagos.push({f:a.fecha,t:a.met?String(a.met).replace(/^\w/,function(c){return c.toUpperCase();}):'Abono',m:a.monto,fol:a.folio});});
+  pagos.sort(function(a,b){return String(b.f).localeCompare(String(a.f));});
+  var totPag=pagos.reduce(function(s,x){return s+x.m;},0),verTodos=KZ.todosPagos===clave,P=verTodos?pagos:pagos.slice(0,12);
+  var b2='background:#fff;color:var(--text);border:1px solid #D8CDD3;border-radius:7px;padding:6px 11px;font-size:12.5px;cursor:pointer';
+  var h='<div style="padding:16px 18px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap"><div><div style="font-size:18px;font-weight:700">'+ptEsc(D.cli)+'</div><div style="font-size:12.5px;color:var(--text2)">Estado de cuenta al '+ptFec(todayStr())+(D.tel?' · '+ptEsc(telBonito(D.tel)):'')+(D.sucs.length?' · '+ptEsc(D.sucs.join(', ')):'')+'</div></div>'+
+    '<div style="display:flex;gap:22px;text-align:right"><div><div style="font-size:12px;color:var(--text3)">Pagado</div><div class="mono" style="font-size:19px;font-weight:800;color:#0F6E56">'+fmt(totPag)+'</div></div><div><div style="font-size:12px;color:var(--text3)">Debe</div><div class="mono" style="font-size:19px;font-weight:800;color:'+(D.T.saldo>0.5?'#A32D2D':'#0F6E56')+'">'+fmt(D.T.saldo)+'</div></div></div></div>';
+  h+='<div style="display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px;margin-top:14px">';
+  h+='<div style="border:1px solid #F0D9D9;border-radius:10px;overflow:hidden"><div style="display:flex;justify-content:space-between;padding:9px 12px;background:#FCEBEB;color:#791F1F;font-weight:700"><span>Lo que debe</span><span class="mono">'+fmt(D.T.saldo)+'</span></div>'+
+    (deben.length?'<div style="display:grid;grid-template-columns:64px 88px minmax(0,1fr) 100px 60px;gap:8px;font-size:11px;color:var(--text3);padding:6px 12px"><span>Nota</span><span>Fecha</span><span>Qué es</span><span style="text-align:right">Debe</span><span></span></div>'+deben.map(function(f){var ix=idxDe(f.folio);
+      return '<div style="display:grid;grid-template-columns:64px 88px minmax(0,1fr) 100px 60px;gap:8px;align-items:center;padding:7px 12px;border-top:1px solid #F7EAEA;font-size:12.5px"><b class="mono">'+ptEsc(f.folio)+'</b><span style="color:var(--text2)">'+ptFec(f.fecha)+'</span><span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text2)" title="'+ptEsc(f.desc||'')+'">'+ptEsc(f.desc||'')+' <span style="color:var(--text3)">· total '+fmt(f.total)+'</span></span><span class="mono" style="text-align:right;color:#A32D2D;font-weight:700">'+fmt(f.saldo)+'</span><span style="text-align:right">'+(ix>=0&&!soloMira()?'<a href="#" onclick="openAbCxC('+ix+');return false" style="font-size:11.5px;color:'+KZ_C+';font-weight:700">abonar</a>':'')+'</span></div>';}).join('')
+    :'<div style="padding:16px 12px;color:#0F6E56;font-weight:600">No debe nada ✓</div>')+'</div>';
+  h+='<div style="border:1px solid #D5EEE3;border-radius:10px;overflow:hidden"><div style="display:flex;justify-content:space-between;padding:9px 12px;background:#E1F5EE;color:#085041;font-weight:700"><span>Lo pagado</span><span class="mono">'+fmt(totPag)+'</span></div>'+
+    (P.length?'<div style="display:grid;grid-template-columns:88px minmax(0,1fr) 64px 100px;gap:8px;font-size:11px;color:var(--text3);padding:6px 12px"><span>Fecha</span><span>Forma</span><span>Nota</span><span style="text-align:right">Monto</span></div>'+P.map(function(x){
+      return '<div style="display:grid;grid-template-columns:88px minmax(0,1fr) 64px 100px;gap:8px;align-items:center;padding:7px 12px;border-top:1px solid #EAF6F0;font-size:12.5px"><span style="color:var(--text2)">'+ptFec(x.f)+'</span><span>'+ptEsc(x.t)+'</span><span class="mono" style="font-size:11.5px;color:var(--text2)">'+ptEsc(x.fol)+'</span><span class="mono" style="text-align:right;color:#0F6E56">'+fmt(x.m)+'</span></div>';}).join('')+
+      (pagos.length>12?'<div style="padding:7px 12px;border-top:1px solid #EAF6F0"><a href="#" onclick="KZ.todosPagos='+(verTodos?'null':'\''+kzK(clave)+'\'')+';kzPinta();return false" style="font-size:12px;color:var(--text2)">'+(verTodos?'ver menos':'ver los '+pagos.length+' pagos')+'</a></div>':'')
+    :'<div style="padding:16px 12px;color:var(--text3)">Todavía no hay pagos.</div>')+'</div></div>';
+  var ixV=deben.length?idxDe(deben[0].folio):-1;
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:14px">'+(ixV>=0&&!soloMira()?'<button onclick="openAbCxC('+ixV+')" style="background:'+KZ_C+';color:#fff;border:none;border-radius:7px;padding:7px 14px;font-size:12.5px;font-weight:700;cursor:pointer" title="Se aplica a la nota más vieja: '+ptEsc(deben[0].folio)+'">Registrar abono</button>':'')+
+    '<button style="'+b2+'" onclick="edoWA(\''+kzK(clave)+'\')">Mandar por WhatsApp</button><button style="'+b2+'" onclick="edoCuenta(\''+kzK(clave)+'\',false)">PDF de lo que debe</button><button style="'+b2+'" onclick="edoCuenta(\''+kzK(clave)+'\',true)">PDF completo</button></div>';
+  var S=CXC_SEG[clave]||[];
+  h+='<div style="font-size:12px;font-weight:700;color:var(--text2);margin-top:18px">Seguimiento</div>'+
+    (S.length?S.slice().reverse().map(function(x){return '<div style="display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid #F3EDF0;font-size:12.5px"><span><span style="color:var(--text3)">'+ptFec(x.f)+' · '+ptEsc(x.u||'')+'</span> · '+ptEsc(x.t)+'</span>'+(x.p?'<span style="white-space:nowrap;color:'+(x.p<todayStr()?'#A32D2D':'#854F0B')+'">promete '+ptFec(x.p)+'</span>':'')+'</div>';}).join(''):'<div style="font-size:12px;color:var(--text3);padding:4px 0">Nadie ha anotado nada todavía.</div>')+
+    '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><input id="kz-st" placeholder="¿Qué te dijo? ej. llamé, pagan el viernes" style="flex:1;min-width:200px;font-size:12.5px;padding:5px 8px;border:1px solid var(--border);border-radius:7px"><input id="kz-sp" type="date" title="Fecha en que prometió pagar (opcional)" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:7px"><button onclick="kzSegGuardar(\''+kzK(clave)+'\')" style="'+b2+';border-color:'+KZ_C+';color:'+KZ_C+';font-weight:700">Anotar</button></div>';
+  return h+'</div>';
+}
 function kzVieja(on){KZ.vieja=on;var pg=document.getElementById('page-cxc');if(pg)pg.classList.toggle('kz-on',!on);kzPinta();if(on){try{rCxC();}catch(e){}}}
 function kzPinta(){
   var el=document.getElementById('kz2');if(!el)return;var pg=document.getElementById('page-cxc');
@@ -10704,19 +10777,20 @@ function kzPinta(){
   el.style.display='';if(pg)pg.classList.add('kz-on');
   var foco=document.activeElement&&document.activeElement.id==='kz-q';
   var L=kzClientes(),nV=clientesDeudores().filter(function(g){return g.vieja&&diasDe(g.vieja)>30;}).length;
-  if(KZ.tab!=='co'&&(!KZ.sel||!L.some(function(g){return g.clave===KZ.sel;})))KZ.sel=L.length?L[0].clave:null;
-  var tab=function(id,t){return '<span onclick="KZ.tab=\''+id+'\';KZ.sel=null;kzPinta()" style="cursor:pointer;padding:6px 12px;border-radius:8px;font-size:12.5px;'+(KZ.tab===id?'background:'+KZ_L+';color:'+KZ_C+';font-weight:700':'color:var(--text2)')+'">'+t+'</span>';};
+  if(KZ.tab==='ed'&&!KZ.sel&&L.length)KZ.sel=L[0].clave;
+  var tab=function(id,t){return '<span onclick="KZ.tab=\''+id+'\';kzPinta()" style="cursor:pointer;padding:6px 14px;border-radius:8px;font-size:12.5px;'+(KZ.tab===id?'background:'+KZ_L+';color:'+KZ_C+';font-weight:700':'color:var(--text2)')+'">'+t+'</span>';};
   var sb=function(v,t){var on=EDO_SUC===v;return '<span onclick="EDO_SUC=\''+v+'\';KZ.sel=null;kzPinta()" style="cursor:pointer;font-size:12px;padding:3px 9px;border-radius:12px;'+(on?'background:'+KZ_C+';color:#fff':'color:var(--text2)')+'">'+t+'</span>';};
+  var nNotas=0;clientesDeudores().forEach(function(g){nNotas+=g._peds.length;});
+  var cliSel=KZ.sel?(clientesDeudores().find(function(g){return g.clave===KZ.sel;})||{}).cli:'';
   var h='<div style="background:'+KZ_C+';color:#fff;border-radius:12px 12px 0 0;padding:10px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"><b style="font-size:15px">Cuentas por cobrar</b>'+
-    '<input id="kz-q" value="'+ptEsc(KZ.q)+'" oninput="KZ.q=this.value;KZ.sel=null;kzPinta()" placeholder="Buscar cliente o folio" style="flex:0 1 260px;background:#ffffff26;color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12.5px;outline:none">'+
+    '<input id="kz-q" value="'+ptEsc(KZ.q)+'" oninput="KZ.q=this.value;if(KZ.tab===\'ed\')KZ.tab=\'cl\';kzPinta()" placeholder="Buscar cliente o folio" style="flex:0 1 260px;background:#ffffff26;color:#fff;border:none;border-radius:7px;padding:6px 10px;font-size:12.5px;outline:none">'+
     '<button onclick="galAbrir()" style="margin-left:auto;background:#fff;color:'+KZ_C+';border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">Cuenta con Galería</button></div>'+
-    '<div style="display:flex;gap:4px;padding:10px 4px 0;flex-wrap:wrap;align-items:center">'+tab('pc','Por cobrar · '+clientesDeudores().length)+tab('ve','Vencidas · '+nV)+tab('co','Cobrado este mes')+
+    '<div style="display:flex;gap:4px;padding:10px 4px 0;flex-wrap:wrap;align-items:center">'+tab('no','Por nota · '+nNotas)+tab('cl','Por cliente · '+clientesDeudores().length)+tab('ed','Estado de cuenta'+(cliSel&&KZ.tab==='ed'?' · '+ptEsc(cliSel):''))+
     (edoAdm()?'<span style="margin-left:auto;display:flex;gap:2px">'+sb('Todas','Todas')+sb('Jardines','Jardines')+sb('Zibata','Zibata')+'</span>':'')+'</div>';
   h+=kzKpis();
-  var izq=KZ.tab==='co'?kzCobrados():('<div style="display:grid;grid-template-columns:minmax(0,1fr) 64px 110px;gap:8px;font-size:11px;color:var(--text3);padding:7px 14px;background:#FAF8F9"><span>Cliente</span><span>Más vieja</span><span style="text-align:right">Debe</span></div>'+
-    (L.length?L.map(kzFila).join(''):'<div class="tbl-empty" style="padding:30px">'+(KZ.q?'Nadie coincide.':'Nadie con saldo ✓')+'</div>'));
-  h+='<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);border:1px solid #EFE7EB;border-radius:12px;overflow:hidden;background:var(--surface)"><div style="border-right:1px solid #EFE7EB">'+izq+'</div><div><div style="position:sticky;top:0">'+(KZ.sel?kzEdo(KZ.sel):'<div class="tbl-empty" style="padding:40px 16px">Toca un cliente para ver su estado de cuenta.</div>')+'</div></div></div>'+
-    '<div style="text-align:right;margin-top:6px"><a href="#" onclick="kzVieja(true);return false" style="font-size:11.5px;color:var(--text3)">vista anterior por nota</a></div>';
+  var cuerpo=KZ.tab==='cl'?kzPorCliente():KZ.tab==='ed'?(KZ.sel?kzEdo2(KZ.sel):'<div class="tbl-empty" style="padding:40px 16px">Escoge un cliente en “Por cliente” o toca una nota.</div>'):kzPorNota();
+  h+='<div style="border:1px solid #EFE7EB;border-radius:12px;overflow:hidden;background:var(--surface)">'+cuerpo+'</div>'+
+    '<div style="text-align:right;margin-top:6px"><a href="#" onclick="kzVieja(true);return false" style="font-size:11.5px;color:var(--text3)">vista anterior</a></div>';
   el.innerHTML=h;
   if(foco){var q=document.getElementById('kz-q');if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length);}}
 }
