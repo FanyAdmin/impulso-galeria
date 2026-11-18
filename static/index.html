@@ -9833,42 +9833,43 @@ function fzNoFact(fo){var p=(pedidos||[]).find(function(x){return x.folio===fo&&
     .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);logActivity('Nota ya no se factura','Nota '+fo+' pagada en meses anteriores → venta en general');})
     .catch(function(e){p.tipo_venta='factura';alert('⚠️ No se guardó ('+e.message+')');fzPinta();});}
 function fzPF(){
-  var P=fzPend(),mes=todayStr().slice(0,7);
+  var P=fzPend(),mes=todayStr().slice(0,7),mN=fzMesNom(mes);
   Object.keys(FZ.chk).forEach(function(fo){if(!P.some(function(p){return p.folio===fo;}))delete FZ.chk[fo];});
-  var izq='<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3);background:#faf8f9;padding:7px 12px"><span>Notas que piden factura · toca el nombre para tomar todas las del cliente</span><span>Se puede facturar</span></div>';
-  izq+=P.length?P.map(function(p){var on=!!FZ.chk[p.folio],c=fzCuenta(p),nada=c.fact<0.5;
-    var info=c.P.length+' pago'+(c.P.length===1?'':'s')+(c.ult?' · último '+ptFec(c.ult):'')+(c.rest>0.5?' · debe '+fmt(c.rest):'');
-    var aviso=c.antes>0.5?'<span style="display:inline-block;margin-top:3px;font-size:11px;font-weight:600;border-radius:8px;padding:1px 8px;background:#FCEBEB;color:#791F1F">'+fmt(c.antes)+' se cobró antes de '+fzMesNom(mes)+' · ya no se factura</span>':'';
-    return '<label style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:9px 12px;border-bottom:1px solid #f2eef0;cursor:pointer;'+(on?'background:#F4ECF1;':'')+(nada?'opacity:.75;':'')+'">'+
-      '<span style="min-width:0"><input type="checkbox" '+(on?'checked':'')+(nada?' disabled':'')+' onchange="fzToggle(\''+fzK(p.folio)+'\')" style="margin-right:8px;width:15px;height:15px;vertical-align:-2px"><b class="mono">'+ptEsc(p.folio)+'</b> · <a href="#" onclick="event.preventDefault();fzCliente(\''+fzK(p.cli||'')+'\')" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--text3)">'+ptEsc(p.cli||'')+'</a> <span style="color:var(--text3)">· '+ptFec(p.fecha)+' · '+ptEsc(p.suc||'')+'</span>'+
-        '<div style="font-size:11.5px;color:var(--text2);margin:2px 0 0 23px">Total '+fmt(c.tot)+' · '+info+'</div>'+(aviso?'<div style="margin-left:23px">'+aviso+'</div>':'')+
-        (nada?'<div style="margin:3px 0 0 23px"><a href="#" onclick="event.preventDefault();fzNoFact(\''+fzK(p.folio)+'\')" style="font-size:11.5px;color:#791F1F;font-weight:600">Ya no se factura · quitar de aquí</a></div>':'')+'</span>'+
-      '<span class="mono" style="font-weight:700;white-space:nowrap;'+(nada?'color:var(--text3)':'')+'">'+fmt(c.fact)+'</span></label>';}).join('')
-    :'<div class="tbl-empty" style="padding:28px 12px">Todo facturado ✓<br><span style="font-size:12px">Cuando una nota se marque como “Factura” aparece aquí.</span></div>';
-  var S=fzSelPeds(),C=S.map(fzCuenta),tot=C.reduce(function(a,c){return a+c.tot;},0),antes=C.reduce(function(a,c){return a+c.antes;},0),este=C.reduce(function(a,c){return a+c.este;},0),rest=C.reduce(function(a,c){return a+c.rest;},0),fact=C.reduce(function(a,c){return a+c.fact;},0);
+  var A=[],B=[];P.forEach(function(p){var c=fzCuenta(p);(c.fact>=0.5?A:B).push({p:p,c:c});});
+  A.sort(function(a,b){return ((+b.p.id||0)-(+a.p.id||0));});
+  var fila=function(x){var p=x.p,c=x.c,on=!!FZ.chk[p.folio];
+    var chip=c.antes>0.5?'<span style="font-size:11px;color:#854F0B">'+fmt(c.antes)+' ya fue en la global</span>':c.P.length===0?'<span style="font-size:11px;color:var(--text3)">sin pagos todavía</span>':'';
+    return '<label style="display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 14px;border-bottom:1px solid #F3EDF0;cursor:pointer;'+(on?'background:#F4ECF1':'')+'">'+
+      '<input type="checkbox" '+(on?'checked':'')+' onchange="fzToggle(\''+fzK(p.folio)+'\')" style="width:16px;height:16px;margin:0">'+
+      '<div style="min-width:0"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><b class="mono">'+ptEsc(p.folio)+'</b> <a href="#" onclick="event.preventDefault();fzCliente(\''+fzK(p.cli||'')+'\')" style="color:inherit;text-decoration:none;margin-left:4px">'+ptEsc(p.cli||'')+'</a></div>'+
+        '<div style="font-size:11.5px;color:var(--text3)">'+ptFec(p.fecha)+' · '+ptEsc(p.suc||'')+(chip?' · '+chip:'')+'</div></div>'+
+      '<b class="mono" style="font-size:13.5px">'+fmt(c.fact)+'</b></label>';};
+  var izq='<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:#FAF7F8;border-bottom:1px solid #F3EDF0"><b style="font-size:12.5px">Para facturar · '+A.length+'</b><span style="font-size:11.5px;color:var(--text3)">lo que se puede facturar</span></div>';
+  izq+=A.length?A.map(fila).join(''):'<div class="tbl-empty" style="padding:28px 12px">Nada pendiente de facturar ✓</div>';
+  if(B.length){izq+='<details style="border-top:1px solid #F3EDF0"><summary style="cursor:pointer;padding:9px 14px;font-size:12px;color:var(--text2);background:#FAF7F8">'+B.length+' nota'+(B.length===1?'':'s')+' que ya no se facturan (se pagaron antes de '+mN+')</summary>'+
+    B.map(function(x){return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 14px;border-top:1px solid #F3EDF0;font-size:12.5px"><span><b class="mono">'+ptEsc(x.p.folio)+'</b> '+ptEsc(x.p.cli||'')+' <span style="color:var(--text3);font-size:11.5px">· '+fmt(x.c.tot)+' cobrado antes de '+mN+'</span></span><button onclick="fzNoFact(\''+fzK(x.p.folio)+'\')" style="background:#fff;border:1px solid #D8CDD3;border-radius:6px;padding:3px 9px;font-size:11.5px;cursor:pointer;white-space:nowrap">Quitar</button></div>';}).join('')+'</details>';}
+  var S=fzSelPeds(),C=S.map(fzCuenta),tot=C.reduce(function(a,c){return a+c.tot;},0),antes=C.reduce(function(a,c){return a+c.antes;},0),rest=C.reduce(function(a,c){return a+c.rest;},0),fact=C.reduce(function(a,c){return a+c.fact;},0);
   FZ._fact=Math.round(fact*100)/100;
   var clis=[];S.forEach(function(p){if(clis.indexOf(p.cli)<0)clis.push(p.cli);});
   var der;
-  if(!S.length)der='<div class="tbl-empty" style="padding:34px 16px">Palomea las notas que van en la factura.</div>';
+  if(!S.length)der='<div class="tbl-empty" style="padding:50px 16px">Palomea las notas que van en la factura.</div>';
   else{
-    var ln=function(t,v,c,b){return '<div style="display:flex;justify-content:space-between;padding:5px 0;'+(b?'border-top:1px solid #e9e2e6;margin-top:4px;padding-top:8px;font-weight:700;font-size:14px':'font-size:12.5px')+'"><span style="color:'+(b?'var(--text)':'var(--text2)')+'">'+t+'</span><b class="mono" style="color:'+(c||'var(--text)')+'">'+v+'</b></div>';};
-    var pagosHtml=S.map(function(p,ii){var c=C[ii];return '<div style="font-size:11.5px;color:var(--text3);margin-top:6px">Nota '+ptEsc(p.folio)+'</div>'+(c.P.length?c.P.map(function(x){var ant=String(x.f).slice(0,7)<mes;
-        return '<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;'+(ant?'color:#9a8f95;text-decoration:line-through':'')+'"><span>'+ptFec(x.f)+' · '+ptEsc(x.t)+(x.met?' · '+ptEsc(String(x.met).toLowerCase()):'')+'</span><span class="mono">'+fmt(x.m)+'</span></div>';}).join(''):'<div style="font-size:12px;color:var(--text3)">sin pagos todavía</div>');}).join('');
-    der='<div style="padding:14px 16px">'+
-    '<div style="font-weight:700;font-size:14px;margin-bottom:10px">Factura para '+ptEsc(clis[0]||'')+(clis.length>1?' <span style="color:#A32D2D;font-size:12px;font-weight:600">+ '+(clis.length-1)+' cliente'+(clis.length===2?'':'s')+' más</span>':'')+' · '+S.length+' nota'+(S.length===1?'':'s')+'</div>'+
-    '<div style="background:#faf8f9;border-radius:8px;padding:9px 12px;margin-bottom:12px">'+
-      ln('Total de las notas',fmt(tot))+(antes>0.5?ln('Cobrado antes de '+fzMesNom(mes)+' (ya fue en la global)','− '+fmt(antes),'#A32D2D'):'')+ln('Cobrado en '+fzMesNom(mes),fmt(este),'#0F6E56')+(rest>0.5?ln('Falta por cobrar',fmt(rest),'#854F0B'):'')+
-      ln('A facturar',fmt(fact),'',true)+
-      '<details style="margin-top:6px"><summary style="cursor:pointer;font-size:12px;color:var(--text2)">Ver los pagos</summary>'+pagosHtml+'</details></div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'+
-      '<div class="field" style="margin:0"><label>No. de factura</label><input id="fz-num" placeholder="ej. A-0001"></div>'+
-      '<div class="field" style="margin:0"><label>RFC</label><input id="fz-rfc" placeholder="RFC del cliente" value="'+ptEsc(FZ._rfc||'')+'" oninput="this.dataset.mano=1"></div>'+
-      '<div class="field" style="margin:0"><label>Fecha</label><input type="date" id="fz-fecha" value="'+todayStr()+'"></div>'+
-      '<div class="field" style="margin:0"><label>Forma de pago</label><select id="fz-met"><option value="PUE">PUE · un pago</option><option value="PPD"'+(rest>0.5?' selected':'')+'>PPD · parcialidades</option></select></div>'+
-    '</div>'+
-    '<button class="btn btn-p btn-sm" style="background:#6E3B57;border-color:#6E3B57" onclick="fzRegistrar()">Registrar factura por '+fmt(fact)+'</button>'+
-    '<div style="margin-top:9px;font-size:11.5px;color:var(--text3)">'+(FZ._rfc?'RFC tomado de su última factura. ':'')+(antes>0.5?'Lo cobrado en meses anteriores no se vuelve a facturar porque ya entró en la factura global de ese mes. ':'')+(rest>0.5?'Sugerimos PPD porque todavía hay saldo por cobrar.':'')+'</div>'+
-  '</div>';}
+    var pagos=[];S.forEach(function(p,ii){C[ii].P.forEach(function(x){pagos.push({x:x,fol:p.folio});});});pagos.sort(function(a,b){return String(a.x.f).localeCompare(String(b.x.f));});
+    der='<div style="padding:18px 20px">'+
+      '<div style="font-size:12px;color:var(--text3)">Factura para</div><div style="font-size:17px;font-weight:700;margin-bottom:2px">'+ptEsc(clis[0]||'')+(clis.length>1?' <span style="color:#A32D2D;font-size:12px;font-weight:600">+ '+(clis.length-1)+' cliente'+(clis.length===2?'':'s')+' más</span>':'')+'</div>'+
+      '<div style="font-size:12.5px;color:var(--text2)">Nota'+(S.length===1?' ':'s ')+S.map(function(p){return ptEsc(p.folio);}).join(', ')+'</div>'+
+      '<div style="margin:16px 0 4px;font-size:12px;color:var(--text3)">A facturar</div><div class="mono" style="font-size:28px;font-weight:800;line-height:1.1">'+fmt(fact)+'</div>'+
+      (antes>0.5||rest>0.5?'<div style="font-size:12.5px;color:var(--text2);margin-top:4px">de '+fmt(tot)+(antes>0.5?' · <span style="color:#854F0B">'+fmt(antes)+' ya fue en la global</span>':'')+(rest>0.5?' · <span style="color:#854F0B">'+fmt(rest)+' por cobrar</span>':'')+'</div>':'')+
+      (pagos.length?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 4px">'+pagos.map(function(o){var ant=String(o.x.f).slice(0,7)<mes;return '<span title="'+ptEsc(o.x.t+(o.x.met?' · '+o.x.met:'')+' · nota '+o.fol)+'" style="font-size:11.5px;border-radius:12px;padding:3px 9px;'+(ant?'background:#F1EFE8;color:#888780;text-decoration:line-through':'background:#E1F5EE;color:#085041;font-weight:600')+'">'+ptFec(o.x.f).slice(0,5)+' · '+fmt(o.x.m)+'</span>';}).join('')+'</div><div style="font-size:11px;color:var(--text3)">Tachados: cobrados en meses anteriores, no se facturan.</div>':'')+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 12px">'+
+        '<div class="field" style="margin:0"><label>No. de factura</label><input id="fz-num" placeholder="A-0001"></div>'+
+        '<div class="field" style="margin:0"><label>RFC</label><input id="fz-rfc" placeholder="RFC del cliente" value="'+ptEsc(FZ._rfc||'')+'" oninput="this.dataset.mano=1"></div>'+
+        '<div class="field" style="margin:0"><label>Fecha</label><input type="date" id="fz-fecha" value="'+todayStr()+'"></div>'+
+        '<div class="field" style="margin:0"><label>Forma de pago</label><select id="fz-met"><option value="PUE">PUE · un pago</option><option value="PPD"'+(rest>0.5?' selected':'')+'>PPD · parcialidades</option></select></div>'+
+      '</div>'+
+      '<button class="btn btn-p" style="background:#6E3B57;border-color:#6E3B57;width:100%;padding:10px" onclick="fzRegistrar()">Registrar factura por '+fmt(fact)+'</button>'+
+      ((FZ._rfc||rest>0.5)?'<div style="margin-top:8px;font-size:11.5px;color:var(--text3)">'+(FZ._rfc?'RFC tomado de su última factura. ':'')+(rest>0.5?'PPD porque todavía hay saldo por cobrar.':'')+'</div>':'')+
+    '</div>';}
   return fzDos(izq,der);
 }
 function fzDos(izq,der){return '<div style="display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);border:1px solid #ece6ea;border-radius:12px;overflow:hidden;background:var(--surface)"><div style="border-right:1px solid #ece6ea;max-height:62vh;overflow:auto">'+izq+'</div><div style="max-height:62vh;overflow:auto">'+der+'</div></div>';}
@@ -9997,7 +9998,7 @@ function fzPinta(){
   var el=document.getElementById('fz2');if(!el)return;var pg=document.getElementById('page-fac');
   if(!fzEsAdm()){el.style.display='none';if(pg)pg.classList.remove('fz-on');return;}
   el.style.display='';if(pg)pg.classList.add('fz-on');
-  var nP=fzPend().length,nC=fzPorCobrar().length,nK=fzComps().length,gm=FZ.gm||fzMesAnt();
+  var nP=fzPend().filter(function(p){return fzCuenta(p).fact>=0.5;}).length,nC=fzPorCobrar().length,nK=fzComps().length,gm=FZ.gm||fzMesAnt();
   var tab=function(id,t,n){return '<span onclick="fzTab(\''+id+'\')" style="cursor:pointer;padding:6px 12px;border-radius:8px;font-size:12.5px;'+(FZ.tab===id?'background:#F4ECF1;color:#6E3B57;font-weight:700':'color:var(--text2)')+'">'+t+(n?' · '+n:'')+'</span>';};
   var h='<div style="background:#6E3B57;color:#fff;border-radius:12px 12px 0 0;padding:10px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">'+
     '<b style="font-size:15px">Facturación</b><span style="opacity:.85;font-size:13px">'+fzMesTxt(todayStr().slice(0,7))+'</span>'+
