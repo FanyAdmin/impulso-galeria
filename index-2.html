@@ -13338,18 +13338,23 @@ function detalleCom(vidx,mes){
   var d=comDesglose(v,mes),com=comisionDe(v,d);
   document.getElementById('comdet-ttl').textContent='Detalle: '+v.nombre+' — '+M[mes]+' 2026';
   var h='';
-  h+='<div style="background:#F3F4F6;border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px">👤 Comisiona solo por sus notas (campo Vendedor)'+(d.desde?' y solo de clientes que compraron por primera vez desde el <b>'+ptFec(d.desde)+'</b>':'')+' · 🖼️ Marcos '+v.comision+'% · 🎨 Arte '+pctArteDe(v)+'% · 🟪 Tranquilo '+pctTqDe(v)+'%</div>';
-  if(d.cobArte>0||d.cobMarcos>0||d.cobTq>0)h+='<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;margin-bottom:12px"><span>🖼️ Marcos: <b>'+fmt(d.cobMarcos)+'</b> × '+v.comision+'% = <b>'+fmt(d.cobMarcos*(v.comision/100))+'</b></span><span>🎨 Arte: <b>'+fmt(d.cobArte)+'</b> × '+pctArteDe(v)+'% = <b>'+fmt(d.cobArte*(pctArteDe(v)/100))+'</b></span><span>🟪 Tranquilo: <b>'+fmt(d.cobTq)+'</b> × '+pctTqDe(v)+'% = <b>'+fmt(d.cobTq*(pctTqDe(v)/100))+'</b></span><span style="color:var(--green);font-weight:700">Total comisión: '+fmt(com)+'</span></div>';
-  h+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">🧾 Pedidos nuevos del mes (comisiona el anticipo)</div>';
-  h+=d.nuevos.length?'<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>¿Nuevo?</th><th>Sucursal</th><th>Vend. capturado</th><th>Fecha</th><th style="text-align:right">Anticipo</th></tr></thead><tbody>'+
-    d.nuevos.map(function(x){return '<tr><td class="mono" style="font-weight:600">'+x.folio+'</td><td>'+x.cli+'</td><td>'+cliBadge(x.cli,x.fecha,x.folio,d.desde)+'</td><td>'+(x.suc||'—')+'</td><td style="color:var(--text3)">'+x.vend+'</td><td style="color:var(--text3)">'+(x.fecha||'—')+'</td><td class="mono" style="text-align:right">'+fmt(x.monto)+'</td></tr>';}).join('')+
-    '<tr style="font-weight:700;background:var(--green-l)"><td colspan="6">Subtotal pedidos nuevos</td><td class="mono" style="text-align:right">'+fmt(d.totNuevos)+'</td></tr></tbody></table></div>'
-    :'<div style="color:var(--text3);padding:4px 0 10px">Sin pedidos nuevos este mes.</div>';
-  h+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 5px">💵 Saldos cobrados de notas pasadas (abonos/liquidaciones del mes)</div>';
-  h+=d.abonos.length?'<div class="tw"><table class="tbl"><thead><tr><th>Folio</th><th>Cliente</th><th>¿De quién?</th><th>Sucursal</th><th>Vend. capturado</th><th>Nota del</th><th>Cobrado el</th><th>Tipo</th><th style="text-align:right">Monto</th></tr></thead><tbody>'+
-    d.abonos.map(function(x){return '<tr><td class="mono" style="font-weight:600">'+x.folio+'</td><td>'+x.cli+'</td><td>'+cliBadge(x.cli,x.fechaPed,x.folio,d.desde)+'</td><td>'+(x.suc||'—')+'</td><td style="color:var(--text3)">'+x.vend+'</td><td style="color:var(--text3)">'+(x.fechaPed||'—')+'</td><td style="color:var(--text3)">'+x.fecha+'</td><td><span class="badge '+(x.tipo==='Liquidacion'?'bg':'by')+'">'+(x.tipo==='Liquidacion'?'Liquidación':'Abono')+'</span></td><td class="mono" style="text-align:right">'+fmt(x.monto)+'</td></tr>';}).join('')+
-    '<tr style="font-weight:700;background:var(--green-l)"><td colspan="8">Subtotal abonos del mes</td><td class="mono" style="text-align:right">'+fmt(d.totAbonos)+'</td></tr></tbody></table></div>'
-    :'<div style="color:var(--text3);padding:4px 0 10px">Sin abonos de notas pasadas este mes.</div>';
+  h+='<div style="background:#F3F4F6;border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px">👤 Comisiona solo por sus notas (campo Vendedor)'+(d.desde?' y solo de clientes que compraron por primera vez desde el <b>'+ptFec(d.desde)+'</b>':'')+'. Cada cobro cuenta una sola vez, en el mes en que se cobró.</div>';
+  // Dividido por línea: Marcos, Galería (arte) y Tranquilo; cada una con sus notas y su comisión
+  var LINEAS=[['marcos','🖼️','Marcos',+v.comision||0,'#6E4157'],['arte','🎨','Galería · arte',pctArteDe(v),'#B4700A'],['tranquilo','🟪','Tranquilo',pctTqDe(v),'#534AB7']];
+  LINEAS.forEach(function(L){
+    var R=d.nuevos.filter(function(x){return x.tp===L[0];}).map(function(x){return {folio:x.folio,cli:x.cli,suc:x.suc,fecha:x.fecha,fechaPed:x.fecha,monto:x.monto,que:'Anticipo · nota nueva'};})
+      .concat(d.abonos.filter(function(x){return x.tp===L[0];}).map(function(x){return {folio:x.folio,cli:x.cli,suc:x.suc,fecha:x.fecha,fechaPed:x.fechaPed,monto:x.monto,que:(x.tipo==='Liquidacion'?'Liquidación':'Abono')+' · nota del '+(x.fechaPed&&x.fechaPed!=='—'?ptFec(x.fechaPed):'—')};}));
+    var tot=R.reduce(function(a,x){return a+x.monto;},0),com=tot*L[3]/100,fol={};R.forEach(function(x){fol[x.folio]=1;});var nN=Object.keys(fol).length;
+    h+='<div style="border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;background:var(--surface2);border-left:4px solid '+L[4]+'">'+
+        '<div><b style="font-size:14px">'+L[1]+' '+L[2]+'</b> <span style="font-size:12.5px;color:var(--text2)">· '+nN+' nota'+(nN===1?'':'s')+'</span></div>'+
+        '<div style="font-size:12.5px;color:var(--text2)">Cobrado <b class="mono" style="color:var(--text)">'+fmt(tot)+'</b> × '+L[3]+'% = <b class="mono" style="color:var(--green);font-size:14px">'+fmt(com)+'</b></div></div>';
+    h+=R.length?'<div class="tw" style="margin:0;border:none;border-radius:0"><table class="tbl" style="margin:0"><thead><tr><th>Folio</th><th>Cliente</th><th>¿De quién?</th><th>Sucursal</th><th>Qué se cobró</th><th>Cobrado el</th><th style="text-align:right">Monto</th></tr></thead><tbody>'+
+      R.map(function(x){return '<tr><td class="mono" style="font-weight:600">'+x.folio+'</td><td>'+x.cli+'</td><td>'+cliBadge(x.cli,x.fechaPed,x.folio,d.desde)+'</td><td>'+(x.suc||'—')+'</td><td style="color:var(--text2)">'+x.que+'</td><td style="color:var(--text3)">'+(x.fecha?ptFec(x.fecha):'—')+'</td><td class="mono" style="text-align:right">'+fmt(x.monto)+'</td></tr>';}).join('')+
+      '<tr style="font-weight:700;background:var(--green-l)"><td colspan="6">'+L[2]+': '+nN+' nota'+(nN===1?'':'s')+' · comisión '+L[3]+'%</td><td class="mono" style="text-align:right">'+fmt(com)+'</td></tr></tbody></table></div>'
+      :'<div style="padding:10px 14px;font-size:12.5px;color:var(--text3)">Sin cobros de '+L[2]+' este mes.</div>';
+    h+='</div>';
+  });
   if(d.antiguos.length){
     h+='<div style="font-size:10px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin:14px 0 5px">🚫 Clientes antiguos · no comisionan (ya compraban antes del '+ptFec(d.desde)+')</div>';
     h+='<div class="tw"><table class="tbl" style="opacity:.75"><thead><tr><th>Folio</th><th>Cliente</th><th>Desde</th><th>Qué fue</th><th>Fecha</th><th style="text-align:right">Monto</th></tr></thead><tbody>'+
