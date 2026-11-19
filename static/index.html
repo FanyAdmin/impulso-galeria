@@ -9606,11 +9606,29 @@ function czLineas(){return ((CONCIL.lineas||{}).INBURSA)||[];}
 function czTipo(l){var d=String(l.det||'').toUpperCase();if(/AMEX/.test(d))return 'AMEX';if(/DEBITO|DÉBITO/.test(d))return 'Débito';if(/CREDITO|CRÉDITO/.test(d))return 'Crédito';if(l.tipo==='spei'||/SPEI/.test(d))return 'SPEI';return 'Depósito';}
 function czMes(){var m=document.getElementById('cz-mes');if(m&&!m.value)m.value=todayStr().slice(0,7);return (m&&m.value)||todayStr().slice(0,7);}
 // Todos los cobros con tarjeta o transferencia (mismas llaves que la sábana)
+// ¿Qué factura ampara ESTE cobro? Reparte lo facturado de cada mes entre los cobros
+// de ese mes en orden. Devuelve el número de factura, 'pend' (nota con factura, cobrado
+// este mes y aún sin facturar) o '' (va en la factura global / venta en general).
+function facDeCobro(p,key){
+  if(!p)return '';
+  var P=[],a0=antIni(p);if(a0>0.5)P.push({k:'p'+(p.id||p.folio),f:String(p.fecha||'').slice(0,10),m:a0});
+  abonosDePed(p).forEach(function(a){P.push({k:'a'+(a.id||a.folio+'_'+a.fecha+'_'+a.monto),f:String(a.fecha||'').slice(0,10),m:+a.monto||0});});
+  P.sort(function(x,y){return x.f.localeCompare(y.f);});
+  var me=P.find(function(x){return x.k===key;});if(!me)return '';
+  var F=(FACTURAS||[]).filter(function(f){return (f.folios||[]).indexOf(p.folio)>=0;}),m=me.f.slice(0,7);
+  var ppd=F.filter(function(f){return facMetodo(f)==='PPD'&&String(f.fecha||'').slice(0,7)<=m;});if(ppd.length)return ppd[0].num;
+  var tot=F.reduce(function(a,f){return a+fzParte(f,p);},0);if(F.length&&tot>=(+p.total||0)-0.5)return F.map(function(f){return f.num;}).join(', ');
+  var fm=F.filter(function(f){return facMetodo(f)!=='PPD'&&String(f.fecha||'').slice(0,7)===m;}).map(function(f){return {num:f.num,q:fzParte(f,p)};});
+  var antes=0;P.forEach(function(x){if(x.f.slice(0,7)===m&&x.f+x.k<me.f+me.k)antes+=x.m;});
+  var acc=0;for(var i=0;i<fm.length;i++){acc+=fm[i].q;if(antes+me.m<=acc+0.5)return fm[i].num;}
+  if(p.tipo_venta==='factura'&&m===todayStr().slice(0,7))return 'pend';
+  return '';
+}
 function czCobros(){
   var R=[];
-  (pedidos||[]).forEach(function(p){var ao=antIni(p);if(ao>0)R.push({k:'p'+(p.id||p.folio),fecha:String(p.fecha||'').slice(0,10),folio:p.folio,cli:p.cli,suc:p.suc,met:p.met||'',monto:ao,fac:p.factura_num||'',tipo:'Anticipo'});});
+  (pedidos||[]).forEach(function(p){var ao=antIni(p);if(ao>0)R.push({k:'p'+(p.id||p.folio),fecha:String(p.fecha||'').slice(0,10),folio:p.folio,cli:p.cli,suc:p.suc,met:p.met||'',monto:ao,fac:facDeCobro(p,'p'+(p.id||p.folio)),tipo:'Anticipo'});});
   (ABONOS||[]).forEach(function(a){var ped=(pedidos||[]).find(function(p){return p.folio===a.folio;});
-    R.push({k:'a'+(a.id||a.folio+'_'+a.fecha+'_'+a.monto),fecha:String(a.fecha||'').slice(0,10),folio:a.folio,cli:a.cli||(ped?ped.cli:''),suc:a.suc,met:a.met||'',monto:+a.monto||0,fac:ped&&ped.factura_num||'',tipo:a.tipo||'Abono'});});
+    R.push({k:'a'+(a.id||a.folio+'_'+a.fecha+'_'+a.monto),fecha:String(a.fecha||'').slice(0,10),folio:a.folio,cli:a.cli||(ped?ped.cli:''),suc:a.suc,met:a.met||'',monto:+a.monto||0,fac:ped?facDeCobro(ped,'a'+(a.id||a.folio+'_'+a.fecha+'_'+a.monto)):'',tipo:a.tipo||'Abono'});});
   return R.filter(function(r){var g=metGrupoCob(r.met);return r.monto>0&&(g==='Tarjeta'||g==='Transferencia');});
 }
 function czGrupoDeLinea(k){return (CONCIL.grupos||[]).find(function(g){return g.dep===k;})||null;}
@@ -9717,7 +9735,7 @@ function czDer(){
   h+=C.length?C.map(function(c){var on=!!CZ.chk[c.k];var dw=new Date(c.fecha+'T12:00:00').toLocaleDateString('es-MX',{weekday:'short',day:'numeric'});
     return '<label style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #f2eef0;cursor:pointer;'+(on?'background:#F4ECF1':'')+'">'+
       '<span><input type="checkbox" '+(on?'checked':'')+' onchange="czToggle(\''+c.k.replace(/'/g,"\\'")+'\')" style="margin-right:8px;width:15px;height:15px">'+ptEsc(c.folio)+' · '+ptEsc(c.suc||'')+' · '+dw+' · <b class="mono">'+fmt(c.monto)+'</b> <span style="color:var(--text3);font-size:11.5px">'+ptEsc(c.cli||'')+'</span></span>'+
-      '<span style="font-size:11.5px;color:'+(c.fac?'#2F6FB3':'var(--text3)')+'">'+(c.fac?'F.'+ptEsc(c.fac):'Venta general')+'</span></label>';}).join('')
+      '<span style="font-size:11.5px;color:'+(c.fac==='pend'?'#854F0B':c.fac?'#2F6FB3':'var(--text3)')+'">'+(c.fac==='pend'?'Por facturar':c.fac?'F.'+ptEsc(c.fac):'Venta general')+'</span></label>';}).join('')
    :'<div class="tbl-empty" style="padding:20px">No hay cobros libres en esos días. Prueba "ver un día más".</div>';
   return h;
 }
@@ -9800,7 +9818,7 @@ function fzRfcDe(cli){
 }
 // ── contadores ──
 function fzKpis(){
-  var P=fzPend().filter(function(p){return fzCuenta(p).fact>=0.5;}),pt=P.reduce(function(a,p){return a+fzFactSel(fzCuenta(p));},0);
+  var P=fzPend().filter(function(p){return fzFactSel(fzCuenta(p))>=0.5;}),pt=P.reduce(function(a,p){return a+fzFactSel(fzCuenta(p));},0);
   var C=fzPorCobrar(),ct=C.reduce(function(a,r){return a+r.saldo;},0),viejas=C.filter(function(r){return r.dias>20;}).length;
   var K=fzComps(),venc=K.filter(function(r){return r.dd<0;}).length;
   var gm=FZ.gm||fzMesAnt(),G=fzGlobalDatos(gm),reg=FAC_GLOBAL[gm];
@@ -9854,7 +9872,8 @@ function fzNoFact(fo){var p=(pedidos||[]).find(function(x){return x.folio===fo&&
 function fzPF(){
   var P=fzPend(),mes=todayStr().slice(0,7),mN=fzMesNom(mes);
   Object.keys(FZ.chk).forEach(function(fo){if(!P.some(function(p){return p.folio===fo;}))delete FZ.chk[fo];});
-  var A=[],B=[],Cp=[];P.forEach(function(p){var c=fzCuenta(p);if(c.fact>=0.5)A.push({p:p,c:c});else if(c.facs.length)Cp.push({p:p,c:c});else B.push({p:p,c:c});});
+  var A=[],B=[],Cp=[],W=[];P.forEach(function(p){var c=fzCuenta(p);if(c.fact>=0.5&&fzFactSel(c)>=0.5)A.push({p:p,c:c});else if(c.fact>=0.5)W.push({p:p,c:c});else if(c.facs.length)Cp.push({p:p,c:c});else B.push({p:p,c:c});});
+  W.sort(function(a,b){return ((+b.p.id||0)-(+a.p.id||0));});
   A.sort(function(a,b){return ((+b.p.id||0)-(+a.p.id||0));});
   var fila=function(x){var p=x.p,c=x.c,on=!!FZ.chk[p.folio];
     var chip=c.facs.length?'<span style="font-size:11px;color:#185FA5">ya tiene factura '+ptEsc(c.facs.map(function(f){return f.num;}).join(', '))+' · pagó más en '+fzMesNom(mes)+'</span>':c.antes>0.5?'<span style="font-size:11px;color:#854F0B">'+fmt(c.antes)+' ya fue en la global</span>':c.P.length===0?'<span style="font-size:11px;color:var(--text3)">sin pagos todavía</span>':'';
@@ -9865,6 +9884,8 @@ function fzPF(){
       '<b class="mono" style="font-size:13.5px">'+fmt(fzFactSel(c))+'</b></label>';};
   var izq='<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:#FAF7F8;border-bottom:1px solid #F3EDF0"><b style="font-size:12.5px">Para facturar · '+A.length+'</b><span style="font-size:11.5px;color:var(--text3)">lo que se puede facturar</span></div>';
   izq+=A.length?A.map(fila).join(''):'<div class="tbl-empty" style="padding:28px 12px">Nada pendiente de facturar ✓</div>';
+  if(W.length){izq+='<div style="padding:9px 14px;background:#FAF7F8;border-top:1px solid #F3EDF0;border-bottom:1px solid #F3EDF0"><b style="font-size:12.5px">Esperando pago · '+W.length+'</b> <span style="font-size:11.5px;color:var(--text3)">aún no pagan este mes; se facturan cuando paguen (o palomea para hacer factura PPD)</span></div>'+
+    W.map(function(x){var p=x.p,on=!!FZ.chk[p.folio];return '<label style="display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 14px;border-bottom:1px solid #F3EDF0;cursor:pointer;font-size:12.5px;'+(on?'background:#F4ECF1':'')+'"><input type="checkbox" '+(on?'checked':'')+' onchange="FZ.modo=\'ppd\';fzToggle(\''+fzK(p.folio)+'\')" style="width:16px;height:16px;margin:0"><div style="min-width:0"><b class="mono">'+ptEsc(p.folio)+'</b> '+ptEsc(p.cli||'')+'<div style="font-size:11.5px;color:var(--text3)">'+ptFec(p.fecha)+' · '+ptEsc(p.suc||'')+'</div></div><span style="font-size:12px;color:#854F0B;white-space:nowrap">debe '+fmt(x.c.rest)+'</span></label>';}).join('');}
   if(Cp.length){izq+='<div style="padding:9px 14px;background:#FAF7F8;border-top:1px solid #F3EDF0;border-bottom:1px solid #F3EDF0"><b style="font-size:12.5px">Facturadas en parte · '+Cp.length+'</b> <span style="font-size:11.5px;color:var(--text3)">el saldo se factura cuando paguen; aquí aparecerá solo</span></div>'+
     Cp.map(function(x){return '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 14px;border-bottom:1px solid #F3EDF0;font-size:12.5px"><div style="min-width:0"><b class="mono">'+ptEsc(x.p.folio)+'</b> '+ptEsc(x.p.cli||'')+'<div style="font-size:11.5px;color:var(--text3)">Factura '+ptEsc(x.c.facs.map(function(f){return f.num+' ('+fmt(fzParte(f,x.p))+')';}).join(', '))+' · total nota '+fmt(x.c.tot)+'</div></div><span style="font-size:12px;color:#854F0B;white-space:nowrap">debe '+fmt(x.c.rest)+'</span></div>';}).join('');}
   if(B.length){izq+='<details style="border-top:1px solid #F3EDF0"><summary style="cursor:pointer;padding:9px 14px;font-size:12px;color:var(--text2);background:#FAF7F8">'+B.length+' nota'+(B.length===1?'':'s')+' que ya no se facturan (se pagaron antes de '+mN+')</summary>'+
@@ -10008,7 +10029,7 @@ function fzRegSinReg(i){
 }
 function fzSinRegHtml(){
   var L=fzSinRegistro();if(!L.length)return '';
-  var h='<div style="border:1px solid #F3D9A6;background:#FFF9EC;border-radius:12px;margin-bottom:10px;overflow:hidden"><div onclick="FZ.verSR=!FZ.verSR;fzPinta()" style="cursor:pointer;display:flex;justify-content:space-between;gap:10px;padding:10px 14px;font-size:12.5px;color:#633806"><span>⚠ <b>'+L.length+' factura'+(L.length===1?'':'s')+'</b> aparecen en notas pero no están registradas aquí (ej. <b>'+ptEsc(L[0].num)+'</b> · nota '+ptEsc(L[0].peds[0].folio)+'). Sin registro, la plataforma no sabe qué ya facturaste.</span><b>'+(FZ.verSR?'cerrar':'Revisar')+'</b></div>';
+  var h='<div style="border:1px solid #F3D9A6;background:#FFF9EC;border-radius:12px;margin-bottom:10px;overflow:hidden"><div onclick="FZ.verSR=!FZ.verSR;fzPinta()" style="cursor:pointer;display:flex;justify-content:space-between;gap:10px;padding:10px 14px;font-size:12.5px;color:#633806"><span>⚠ <b>'+L.length+' factura'+(L.length===1?'':'s')+'</b> '+(L.length===1?'aparece en una nota pero no está registrada':'aparecen en notas pero no están registradas')+' aquí (ej. <b>'+ptEsc(L[0].num)+'</b> · nota '+ptEsc(L[0].peds[0].folio)+'). Sin registro, la plataforma no sabe qué ya facturaste.</span><b>'+(FZ.verSR?'cerrar':'Revisar')+'</b></div>';
   if(FZ.verSR)h+='<div style="background:#fff;border-top:1px solid #F3D9A6"><div style="display:grid;grid-template-columns:90px minmax(0,1fr) 140px 120px 100px 96px;gap:8px;font-size:11px;color:var(--text3);padding:7px 14px"><span>Factura</span><span>Nota · cliente</span><span>Fecha (Aspel)</span><span>Monto (Aspel)</span><span>Forma</span><span></span></div>'+
     L.map(function(g,i){return '<div style="display:grid;grid-template-columns:90px minmax(0,1fr) 140px 120px 100px 96px;gap:8px;align-items:center;padding:7px 14px;border-top:1px solid #F5EFE3;font-size:12.5px"><b class="mono">'+ptEsc(g.num)+'</b><span style="min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+g.peds.map(function(p){return ptEsc(p.folio);}).join(', ')+' · '+ptEsc(g.peds[0].cli||'')+'</span>'+
       '<input type="date" id="fz-sr-f'+i+'" value="'+g.fecha+'" style="font-size:12px;padding:3px 5px"><input type="number" step="0.01" id="fz-sr-m'+i+'" value="'+g.monto+'" style="font-size:12px;padding:3px 6px">'+
@@ -10055,7 +10076,7 @@ function fzPinta(){
   var el=document.getElementById('fz2');if(!el)return;var pg=document.getElementById('page-fac');
   if(!fzEsAdm()){el.style.display='none';if(pg)pg.classList.remove('fz-on');return;}
   el.style.display='';if(pg)pg.classList.add('fz-on');
-  var nP=fzPend().filter(function(p){return fzCuenta(p).fact>=0.5;}).length,nC=fzPorCobrar().length,nK=fzComps().length,gm=FZ.gm||fzMesAnt();
+  var nP=fzPend().filter(function(p){return fzFactSel(fzCuenta(p))>=0.5;}).length,nC=fzPorCobrar().length,nK=fzComps().length,gm=FZ.gm||fzMesAnt();
   var tab=function(id,t,n){return '<span onclick="fzTab(\''+id+'\')" style="cursor:pointer;padding:6px 12px;border-radius:8px;font-size:12.5px;'+(FZ.tab===id?'background:#F4ECF1;color:#6E3B57;font-weight:700':'color:var(--text2)')+'">'+t+(n?' · '+n:'')+'</span>';};
   var h='<div style="background:#6E3B57;color:#fff;border-radius:12px 12px 0 0;padding:10px 14px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">'+
     '<b style="font-size:15px">Facturación</b><span style="opacity:.85;font-size:13px">'+fzMesTxt(todayStr().slice(0,7))+'</span>'+
@@ -11938,14 +11959,15 @@ function cobRows(){
     if(esVenta&&p.suc!==u.suc)return;
     if(!en(p.fecha))return;
     const ao=antIni(p);
-    if(ao>0)rows.push({k:'p'+(p.id||p.folio),fecha:p.fecha,folio:p.folio,cli:p.cli,tipo:'Anticipo',met:p.met||'—',monto:ao,vend:p.vend||'—',suc:p.suc,ref:p.factura_num?('F.'+p.factura_num):'',fac:!!p.factura_num});
+    if(ao>0){const fc=facDeCobro(p,'p'+(p.id||p.folio));rows.push({k:'p'+(p.id||p.folio),fecha:p.fecha,folio:p.folio,cli:p.cli,tipo:'Anticipo',met:p.met||'—',monto:ao,vend:p.vend||'—',suc:p.suc,ref:fc==='pend'?'por facturar':(fc?('F.'+fc):''),fac:!!fc&&fc!=='pend'});}
     else rows.push({k:'p'+(p.id||p.folio),fecha:p.fecha,folio:p.folio,cli:p.cli,tipo:'Nota sin anticipo',met:'No dejó anticipo',monto:0,vend:p.vend||'—',suc:p.suc,ref:p.factura_num?('F.'+p.factura_num):'',fac:!!p.factura_num});
   });
   (ABONOS||[]).forEach(a=>{
     if(esVenta&&a.suc!==u.suc)return;
     if(!en(a.fecha))return;
     const ped=pedidos.find(p=>p.folio===a.folio);
-    rows.push({k:'a'+(a.id||a.folio+'_'+a.fecha+'_'+a.monto),fecha:a.fecha,folio:a.folio,cli:a.cli||(ped?ped.cli:'—'),tipo:a.tipo||'Abono',met:a.met||'—',monto:a.monto||0,vend:(ped&&ped.vend)||'—',suc:a.suc||(ped&&ped.suc)||'—',ref:(ped&&ped.factura_num)?('F.'+ped.factura_num):'',fac:!!(ped&&ped.factura_num)});
+    const fc=ped?facDeCobro(ped,'a'+(a.id||a.folio+'_'+a.fecha+'_'+a.monto)):'';
+    rows.push({k:'a'+(a.id||a.folio+'_'+a.fecha+'_'+a.monto),fecha:a.fecha,folio:a.folio,cli:a.cli||(ped?ped.cli:'—'),tipo:a.tipo||'Abono',met:a.met||'—',monto:a.monto||0,vend:(ped&&ped.vend)||'—',suc:a.suc||(ped&&ped.suc)||'—',ref:fc==='pend'?'por facturar':(fc?('F.'+fc):''),fac:!!fc&&fc!=='pend'});
   });
   return rows;
 }
