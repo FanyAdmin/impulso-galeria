@@ -2149,8 +2149,8 @@ tr:hover .ent-edit{opacity:1}
 </div>
 <!-- LFT -->
 <div class="page" id="page-lft">
-  <div class="ph"><div><div class="ph-title">Calculadora LFT</div></div><button class="btn btn-s btn-sm" onclick="aguTodosAbrir()">📋 Aguinaldos de todos</button></div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+  <div class="ph"><div><div class="ph-title">Calculadora LFT</div></div><div style="display:flex;gap:7px"><button class="btn btn-s btn-sm" id="lft-tabla-btn" onclick="lftTablaVer()">📖 Ver tabla LFT</button><button class="btn btn-s btn-sm" onclick="aguTodosAbrir()">📋 Aguinaldos de todos</button></div></div>
+  <div id="lft-grid" style="display:grid;grid-template-columns:minmax(0,780px);gap:1rem">
     <div class="card">
       <div class="card-title">Empleado</div>
       <div class="field"><label>Selecciona</label><select id="lft-emp" onchange="calcLFT()"><option value="">- Selecciona -</option><option value="1">Alondra Trejo</option><option value="2">Roberto</option><option value="3">Christian Ramirez</option><option value="4">Delia Mesa</option><option value="5">Yesica</option><option value="6">Ana Karen Ramirez</option></select></div>
@@ -2168,7 +2168,7 @@ tr:hover .ent-edit{opacity:1}
         <button class="btn btn-p btn-sm" id="lft-btn-rec" style="margin-top:.75rem" onclick="genRecibo()">Generar recibo</button>
       </div>
     </div>
-    <div class="card">
+    <div class="card" id="lft-tabla" style="display:none">
       <div class="card-title">Tabla LFT</div>
       <div class="tw" style="margin-bottom:.875rem"><table class="tbl"><thead><tr><th>Años cumplidos</th><th>Días</th><th>Prima</th></tr></thead>
       <tbody><tr><td>1</td><td>12</td><td>25%</td></tr><tr><td>2</td><td>14</td><td>25%</td></tr><tr><td>3</td><td>16</td><td>25%</td></tr><tr><td>4</td><td>18</td><td>25%</td></tr><tr><td>5</td><td>20</td><td>25%</td></tr><tr><td>6-10</td><td>22</td><td>25%</td></tr><tr><td>11-15</td><td>24</td><td>25%</td></tr><tr><td>16-20</td><td>26</td><td>25%</td></tr><tr><td>21-25</td><td>28</td><td>25%</td></tr><tr><td>26-30</td><td>30</td><td>25%</td></tr><tr><td>31-35</td><td>32</td><td>25%</td></tr></tbody></table></div>
@@ -14231,7 +14231,7 @@ function calcLFT(){
   var info=document.getElementById('lft-info');if(!emp){info.style.display='none';return;}info.style.display='block';
   var bEl=document.getElementById('lft-baja');if(bEl&&!bEl.value)bEl.value=todayStr();
   if(!VAC_OK){document.getElementById('lft-cont').innerHTML='<div class="sbox" style="color:var(--text3)">Cargando…</div>';cargarVac().then(calcLFT);return;}
-  VAC_PAGO=null;LFT_COM={agu:false,aguTipo:'dic',pri:false,priDias:null,vac:false,vacDias:null,otro:false,otroDesc:'',otroMonto:0};
+  VAC_PAGO=null;LFT_COM={agu:false,aguTipo:'dic',pri:false,priDias:null,vac:false,vacDias:null,otro:false,otroDesc:'',otroMonto:0,paso:2};
   var v=lftVals(emp);
   document.getElementById('lft-datos').innerHTML='<div class="srow"><span>Empleado</span><span style="font-weight:500">'+emp.nombre+'</span></div><div class="srow"><span>Ingreso</span><span>'+emp.ingreso+'</span></div><div class="srow"><span>Antiguedad al ultimo dia</span><span>'+v.txt+'</span></div><div class="srow"><span>Salario semanal</span><span class="mono">'+fmt(emp.salario)+'</span></div><div class="srow"><span>Salario diario (÷7)</span><span class="mono">'+fmt(v.sd)+'</span></div>'+
     '<div class="srow" style="border-top:1px dashed var(--border);margin-top:4px;padding-top:6px"><span>Aguinaldo acumulado al '+v.baja.toLocaleDateString('es-MX')+' <span style="color:var(--text3);font-size:11px">('+v.dAguiBr+' días'+lftFalTxt(v)+')</span></span><span class="mono" style="font-weight:700">'+fmt(v.aguProp)+'</span></div>'+
@@ -14241,7 +14241,7 @@ function calcLFT(){
 function lftTab(tab,el){var tabs=document.querySelectorAll('#page-lft .tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');el.classList.add('active');lftTabAct=tab;var empId=parseInt(document.getElementById('lft-emp').value);var emp=null;for(var i=0;i<EMPLEADOS.length;i++){if(EMPLEADOS[i].id===empId){emp=EMPLEADOS[i];break;}}if(emp)renderLFT(emp,lftVals(emp));}
 function renderLFT(emp,v){
   var h='';
-  var _btn=document.getElementById('lft-btn-rec');if(_btn)_btn.textContent=lftTabAct==='vac'?'Imprimir constancia de vacaciones':lftTabAct==='com'?'Generar recibo combinado':'Generar recibo';
+  var _btn=document.getElementById('lft-btn-rec');if(_btn)_btn.textContent=lftTabAct==='vac'?'Imprimir constancia de vacaciones':lftTabAct==='com'?'Generar recibo combinado':'Generar recibo';if(_btn)_btn.style.display=lftTabAct==='com'?'none':'';
   if(lftTabAct==='vac'){
     h=vacRender(emp,v)+lftVacValorHTML(emp,v);
   }
@@ -14338,23 +14338,57 @@ function lftVacValorHTML(emp,v){
 }
 // ── Pago combinado: elegir varios conceptos y un solo recibo ──
 var LFT_COM={agu:false,aguTipo:'dic',pri:false,priDias:null,vac:false,vacDias:null,otro:false,otroDesc:'',otroMonto:0};
+var RH_C='#4F6B3A',RH_L='#EEF2E9';
 function lftComHTML(emp,v){
   var d=lftVacDisp(emp),C=LFT_COM;
-  if(C.priDias===null)C.priDias=d;if(C.vacDias===null)C.vacDias=0;
-  var ck=function(k,lbl){return '<label style="display:flex;align-items:center;gap:7px;font-weight:600;cursor:pointer"><input type="checkbox" '+(C[k]?'checked':'')+' onchange="LFT_COM.'+k+'=this.checked;lftComRe()" style="width:16px;height:16px">'+lbl+'</label>';};
-  var h='<div class="sbox" style="display:flex;flex-direction:column;gap:12px">';
-  h+='<div>'+ck('agu','Aguinaldo')+'<div style="margin:5px 0 0 23px;font-size:12.5px;display:flex;gap:14px;flex-wrap:wrap">'+
-    '<label><input type="radio" name="lftc-agu" '+(C.aguTipo==='dic'?'checked':'')+' onchange="LFT_COM.aguTipo=\'dic\';lftComRe()"> Completo a diciembre ('+v.dDic+' días) · '+fmt(v.aguDic)+'</label>'+
-    '<label><input type="radio" name="lftc-agu" '+(C.aguTipo==='hoy'?'checked':'')+' onchange="LFT_COM.aguTipo=\'hoy\';lftComRe()"> Acumulado al '+v.baja.toLocaleDateString('es-MX')+' ('+v.dAgui+' días) · '+fmt(v.aguProp)+'</label></div></div>';
-  h+='<div>'+ck('pri','Prima vacacional (de los días que va a descansar)')+'<div style="margin:5px 0 0 23px;font-size:12.5px">Días: <input type="number" min="0" step="1" value="'+C.priDias+'" onchange="LFT_COM.priDias=+this.value||0;lftComRe()" style="width:70px"> × '+fmt(v.sd)+' × 25% <span style="color:var(--text3)">(tiene '+d+' disponibles)</span></div></div>';
-  h+='<div>'+ck('vac','Vacaciones pagadas en efectivo (días sin descansar)')+'<div style="margin:5px 0 0 23px;font-size:12.5px">Días: <input type="number" min="0" step="1" value="'+C.vacDias+'" onchange="LFT_COM.vacDias=+this.value||0;lftComRe()" style="width:70px"> × '+fmt(v.sd)+
-    (C.vac?'<div style="color:var(--borgona);font-size:11.5px;margin-top:4px">⚠️ Mientras trabaja, la ley no permite cambiar vacaciones por dinero (art. 79): esos días se le podrían reclamar otra vez. Úsalo solo si estás segura.</div>':'')+'</div></div>';
-  h+='<div>'+ck('otro','Otro concepto (bono, ajuste…)')+'<div style="margin:5px 0 0 23px;font-size:12.5px;display:flex;gap:8px;flex-wrap:wrap"><input placeholder="Descripción" value="'+ptEsc(C.otroDesc)+'" onchange="LFT_COM.otroDesc=this.value;lftComRe()" style="flex:1;min-width:160px"><input type="number" step="0.01" placeholder="Monto" value="'+(C.otroMonto||'')+'" onchange="LFT_COM.otroMonto=+this.value||0;lftComRe()" style="width:110px"></div></div>';
-  var c=lftComCalc(emp,v);
-  h+='<div style="border-top:1px solid var(--border);padding-top:8px">'+(c.total>0?c.det:'<div style="color:var(--text3);font-size:12.5px">Elige uno o varios conceptos.</div>')+
-    '<div class="srow tot"><span>Total a pagar</span><span class="mono">'+fmt(c.total)+'</span></div></div></div>';
+  if(C.priDias===null)C.priDias=d;if(C.vacDias===null)C.vacDias=0;if(!C.paso)C.paso=2;
+  var mAgu=C.aguTipo==='dic'?v.aguDic:v.aguProp,mPri=(C.priDias||0)*v.sd*0.25,mVac=(C.vacDias||0)*v.sd,mOtro=+C.otroMonto||0;
+  var inp='font-size:13px;padding:5px 8px;border:1px solid var(--border);border-radius:7px';
+  var c=lftComCalc(emp,v),n=['agu','pri','vac','otro'].filter(function(k){return C[k];}).length;
+  var bola=function(num,est,txt,click){var hecho=est==='ok',act=est==='on';
+    return '<div '+(click?'onclick="'+click+'" ':'')+'style="display:flex;align-items:center;gap:6px;'+(click?'cursor:pointer':'')+'"><span style="width:24px;height:24px;border-radius:50%;'+(hecho||act?'background:'+RH_C+';color:#fff':'border:1.5px solid #B9B9B9;color:var(--text3)')+';display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">'+(hecho?'✓':num)+'</span><span style="font-size:13px;font-weight:'+(act||hecho?'700':'500')+';color:'+(act||hecho?RH_C:'var(--text3)')+'">'+txt+'</span></div>';};
+  var linea=function(on){return '<div style="flex:1;height:2px;background:'+(on?RH_C:'var(--border)')+'"></div>';};
+  var h='<div style="display:flex;align-items:center;gap:8px;margin:4px 0 14px">'+
+    bola(1,'ok','Persona',"document.getElementById('lft-emp').focus()")+linea(true)+
+    bola(2,C.paso===2?'on':'ok','Qué se paga',C.paso===3?'LFT_COM.paso=2;lftComRe()':'')+linea(C.paso===3)+
+    bola(3,C.paso===3?'on':'','Recibo',c.total>0&&C.paso===2?'LFT_COM.paso=3;lftComRe()':'')+'</div>';
+  if(C.paso===3){
+    h+='<div style="border:1.5px solid '+RH_C+';border-radius:12px;background:var(--surface);padding:16px 18px">'+
+      '<div style="font-size:12px;color:var(--text3)">Paso 3 · Recibo</div>'+
+      '<div style="font-weight:700;font-size:15px;margin:2px 0 12px">Recibo de '+ptEsc(emp.nombre||emp.name||'')+' · '+new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short',year:'numeric'})+'</div>'+
+      c.det+
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;border-top:1.5px solid var(--text);margin-top:8px;padding-top:10px"><b>Total a pagar</b><b class="mono" style="font-size:24px">'+fmt(c.total)+'</b></div>'+
+      '<div style="display:flex;justify-content:space-between;gap:8px;margin-top:16px"><button class="btn btn-s btn-sm" onclick="LFT_COM.paso=2;lftComRe()">← Cambiar</button>'+
+      '<button class="btn btn-sm" style="background:'+RH_C+';color:#fff;border:none" onclick="genRecibo()">🖨️ Imprimir para firma</button></div></div>';
+    return h;
+  }
+  var fila=function(k,tit,sub,monto,cuerpo,aviso){var on=!!C[k];
+    return '<div style="border-bottom:1px solid var(--border)">'+
+      '<div onclick="LFT_COM.'+k+'=!LFT_COM.'+k+';lftComRe()" style="cursor:pointer;display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 4px">'+
+        '<span style="width:20px;height:20px;border-radius:5px;border:1.5px solid '+(on?RH_C:'#B9B9B9')+';background:'+(on?RH_C:'#fff')+';color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">'+(on?'✓':'')+'</span>'+
+        '<div style="min-width:0"><div style="font-weight:'+(on?'700':'600')+';font-size:14px;color:'+(on?'var(--text)':'var(--text2)')+'">'+tit+'</div><div style="font-size:12px;color:var(--text3)">'+sub+'</div></div>'+
+        '<b class="mono" style="font-size:14.5px;color:'+(on?'var(--text)':'var(--text3)')+'">'+(on?fmt(monto):'—')+'</b></div>'+
+      (on&&cuerpo?'<div style="padding:0 4px 12px 38px;font-size:12.5px">'+cuerpo+(aviso||'')+'</div>':'')+'</div>';};
+  h+='<div style="border:1.5px solid '+RH_C+';border-radius:12px;background:var(--surface);padding:12px 16px">'+
+    '<div style="font-size:12px;color:var(--text3);margin-bottom:4px">Paso 2 · Marca lo que se le paga</div><div style="border-top:1px solid var(--border)">';
+  h+=fila('agu','Aguinaldo',C.aguTipo==='dic'?'Completo a diciembre · '+v.dDic+' días':'Acumulado al '+v.baja.toLocaleDateString('es-MX')+' · '+v.dAgui+' días',mAgu,
+    '<div style="display:flex;gap:6px;flex-wrap:wrap">'+[['dic','Completo a diciembre',v.aguDic],['hoy','Acumulado a hoy',v.aguProp]].map(function(o){var on=C.aguTipo===o[0];return '<span onclick="LFT_COM.aguTipo=\''+o[0]+'\';lftComRe()" style="cursor:pointer;border:1.5px solid '+(on?RH_C:'var(--border)')+';background:'+(on?RH_L:'transparent')+';color:'+(on?RH_C:'var(--text2)')+';border-radius:999px;padding:5px 12px"><b>'+o[1]+'</b> · <span class="mono">'+fmt(o[2])+'</span></span>';}).join('')+'</div>');
+  var adel=(C.priDias||0)-d;
+  h+=fila('pri','Prima vacacional',(C.priDias||0)+' día'+((C.priDias||0)===1?'':'s')+' × '+fmt(v.sd)+' × 25%',mPri,
+    '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">Días que va a descansar <input type="number" min="0" step="1" value="'+C.priDias+'" onchange="LFT_COM.priDias=+this.value||0;lftComRe()" style="width:70px;'+inp+'"> <span style="color:var(--text3)">tiene '+d+' disponible'+(d===1?'':'s')+'</span></div>'+
+    '<div style="color:var(--text3);margin-top:5px">El sueldo de esos días ya va en su nómina; aquí solo se paga la prima.</div>',
+    adel>0?'<div style="margin-top:8px;padding:7px 10px;border-radius:8px;background:#FFF6DD;color:#7A5300">⚠️ '+(d>0?'Solo tiene '+d+': le estarías adelantando '+adel:'Todavía no tiene días: le estarías adelantando '+adel)+'. Se descuentan de los que le toquen después.</div>':'');
+  h+=fila('vac','Vacaciones en efectivo','días que se pagan sin descansar',mVac,
+    '<div style="display:flex;align-items:center;gap:8px">Días <input type="number" min="0" step="1" value="'+C.vacDias+'" onchange="LFT_COM.vacDias=+this.value||0;lftComRe()" style="width:70px;'+inp+'"> × '+fmt(v.sd)+'</div>',
+    '<div style="margin-top:8px;padding:7px 10px;border-radius:8px;background:#FFF6DD;color:#7A5300">⚠️ Mientras trabaja, la ley no permite cambiar vacaciones por dinero (art. 79): se le podrían volver a reclamar. Úsalo solo al terminar la relación.</div>');
+  h+=fila('otro','Otro concepto',C.otroDesc?ptEsc(C.otroDesc):'bono, ajuste…',mOtro,
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><input placeholder="Descripción" value="'+ptEsc(C.otroDesc)+'" onchange="LFT_COM.otroDesc=this.value;lftComRe()" style="flex:1;min-width:160px;'+inp+'"><input type="number" step="0.01" placeholder="Monto" value="'+(C.otroMonto||'')+'" onchange="LFT_COM.otroMonto=+this.value||0;lftComRe()" style="width:120px;'+inp+'"></div>');
+  h+='</div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px">'+
+    '<span style="color:var(--text2);font-size:13px">'+(n?n+' concepto'+(n===1?'':'s')+' · <b class="mono" style="color:var(--text)">'+fmt(c.total)+'</b>':'Marca al menos un concepto')+'</span>'+
+    '<button class="btn btn-sm" '+(c.total>0?'onclick="LFT_COM.paso=3;lftComRe()"':'onclick="alert(\'Marca al menos un concepto.\')"')+' style="background:'+(c.total>0?RH_C:'#B9B9B9')+';color:#fff;border:none">Ver recibo →</button></div></div>';
   return h;
 }
+function lftTablaVer(){var t=document.getElementById('lft-tabla'),g=document.getElementById('lft-grid'),b=document.getElementById('lft-tabla-btn');var ver=t.style.display==='none';t.style.display=ver?'':'none';g.style.gridTemplateColumns=ver?'1fr 1fr':'minmax(0,780px)';if(b)b.textContent=ver?'Ocultar tabla LFT':'📖 Ver tabla LFT';}
 function lftComCalc(emp,v){
   var C=LFT_COM,tot=0,det='',r=function(t,m){tot+=m;det+='<div class="r srow"><span>'+t+'</span><span class="mono">'+fmt(m)+'</span></div>';};
   if(C.agu){if(C.aguTipo==='dic')r('Aguinaldo '+v.baja.getFullYear()+' (15 × '+Math.min(v.dDic,365)+'/365 × '+fmt(v.sd)+')',v.aguDic);else r('Aguinaldo acumulado al '+v.baja.toLocaleDateString('es-MX')+' (15 × '+v.dAgui+'/365)',v.aguProp);}
