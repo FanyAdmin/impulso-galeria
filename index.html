@@ -1217,7 +1217,7 @@ tr:hover .ent-edit{opacity:1}
       <div id="sb-wm"><div class="sb-imp">IMPULSO</div><div class="sb-gal">galería</div></div>
     </div>
     <div class="sb-sub" id="sb-suc">—</div>
-    <div class="sb-ver">versión 24-nov · pagar en pasos</div>
+    <div class="sb-ver">versión 24-nov · nómina con vacaciones</div>
   </div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
@@ -2132,7 +2132,7 @@ tr:hover .ent-edit{opacity:1}
     <div class="metric"><div class="m-label">Empleados</div><div class="m-val" id="nom-nem">0</div></div>
   </div>
   <div id="nom-avance" style="font-size:13px;margin:0 0 12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px"></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Empleado</th><th>Sucursal</th><th>Dias</th><th>Faltas</th><th>Salario</th><th>Descuento</th><th>Horas extra</th><th>A pagar</th><th>Se paga</th><th>¿Pagado?</th><th></th></tr></thead><tbody id="nom-body"></tbody></table></div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Empleado</th><th>Sucursal</th><th>Dias</th><th>Faltas</th><th>Salario</th><th>Descuento</th><th>Horas extra</th><th>Prima vac.</th><th>A pagar</th><th>Se paga</th><th>¿Pagado?</th><th></th></tr></thead><tbody id="nom-body"></tbody></table></div>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:.875rem;flex-wrap:wrap">
     <span style="font-size:11.5px;color:var(--text3)">Cada pago se registra por persona con la casilla <b>¿Pagado?</b> y crea su salida en Movimientos.</span>
     <button class="btn btn-s" onclick="verBitacoraNom()">📋 Bitácora de pagos</button>
@@ -13958,7 +13958,8 @@ function togPagoNom(id,sem,monto,nombre){
   var ya=pagoDe(sem,id);
   if(ya)return deshacerPagoNom(id,sem,nombre);
   var e=(EMPLEADOS||[]).find(function(x){return String(x.id)===String(id);})||{};
-  nomPagoCtx={id:id,sem:sem,monto:monto,nombre:nombre,suc:e.suc||''};
+  var pvN=nomPrimas(e,sem);
+  nomPagoCtx={id:id,sem:sem,monto:monto,nombre:nombre,suc:e.suc||'',vac:pvN.lista.map(function(x){return x.id;}),prima:pvN.monto};
   document.getElementById('nomp-ttl').textContent='💸 Pagar a '+nombre;
   document.getElementById('nomp-info').innerHTML='Semana <b>'+semanaNum(sem)+'</b> · '+(e.suc||'')+
     (e.diapago?' · se le paga los '+e.diapago:'')+(e.metpago?' · '+e.metpago:'');
@@ -13973,7 +13974,7 @@ function togPagoNom(id,sem,monto,nombre){
   selCo.innerHTML=conceptos.map(function(c){return '<option'+(c==='Nómina'?' selected':'')+'>'+c+'</option>';}).join('');
   document.getElementById('nomp-monto').value=(+monto||0).toFixed(2);
   document.getElementById('nomp-desc').value='Pago de nomina '+(String(e.suc||'').toLowerCase().indexOf('zibata')>=0?'Zibata ':'')+
-    'Semana '+semanaNum(sem)+' ('+nombre+')';
+    'Semana '+semanaNum(sem)+' ('+nombre+')'+(pvN.monto>0?' + prima vacacional '+fmt(pvN.monto):'');
   OM('mod-nom-pago');
   rNom();   // deja la casilla como estaba hasta que confirme
 }
@@ -13996,8 +13997,10 @@ function confPagoNom(){
     if(mvSrv&&mvSrv.id)movs.unshift(mvSrv);
     if(!NOM_PAGOS[c.sem])NOM_PAGOS[c.sem]={};
     NOM_PAGOS[c.sem][String(c.id)]={fecha:fecha,monto:monto,cuenta:cta,concepto:concepto,
-      desc:desc,mov_id:(mvSrv&&mvSrv.id)||null};
-    return guardarNomPagos();
+      desc:desc,mov_id:(mvSrv&&mvSrv.id)||null,prima:c.prima||0,vac:c.vac||[]};
+    var gv=Promise.resolve();
+    if((c.vac||[]).length){var stV=vacEmp(c.id);(stV.salidas||[]).forEach(function(x){if(c.vac.indexOf(x.id)>=0){x.pagada=true;x.fpago=fecha;x.cuenta=cta;x.mov_id=(mvSrv&&mvSrv.id)||null;x.nom=c.sem;}});gv=guardarVac();}
+    return Promise.all([guardarNomPagos(),gv]);
   })
   .then(function(){
     if(typeof logActivity==='function')logActivity('Pagó nómina',c.nombre+' — '+fmt(monto)+' desde '+cta);
@@ -14015,28 +14018,47 @@ function deshacerPagoNom(id,sem,nombre){
   borrar.then(function(){
     if(p.mov_id)movs=movs.filter(function(m){return m.id!==p.mov_id;});
     delete NOM_PAGOS[sem][String(id)];
-    return guardarNomPagos();
+    var gv=Promise.resolve();
+    if(typeof VAC_OK!=='undefined'&&VAC_OK){var stV=vacEmp(+id||id),cambio=false;(stV.salidas||[]).forEach(function(x){if(x.nom===sem){x.pagada=false;x.fpago='';x.cuenta='';x.mov_id=null;delete x.nom;cambio=true;}});if(cambio)gv=guardarVac();}
+    return Promise.all([guardarNomPagos(),gv]);
   }).then(function(){
     if(typeof logActivity==='function')logActivity('Deshizo pago de nómina',nombre);
     rNom();
   }).catch(function(e){alert('No se pudo deshacer: '+e.message);});
 }
 
+// Vacaciones que caen en la semana: su sueldo ya va en la semana completa y
+// aquí se suma la prima, para pagar todo junto en un solo recibo y movimiento.
+// Cada salida cuenta en la semana donde EMPIEZA (no se parte en dos pagos).
+function nomPrimas(e,sv){
+  var r={lista:[],monto:0,dias:0,aparte:[]};
+  if(typeof VAC_OK==='undefined'||!VAC_OK)return r;
+  var fin=new Date(sv+'T12:00:00');fin.setDate(fin.getDate()+6);
+  var ff=fin.getFullYear()+'-'+String(fin.getMonth()+1).padStart(2,'0')+'-'+String(fin.getDate()).padStart(2,'0');
+  (vacEmp(e.id).salidas||[]).forEach(function(x){
+    if(!x.del||x.del<sv||x.del>ff)return;
+    if(x.pagada&&x.nom!==sv){r.aparte.push(x);return;}   // se pagó aparte desde la calculadora
+    r.lista.push(x);r.monto+=(+x.prima||0);r.dias+=(+x.dias||0);
+  });
+  r.monto=Math.round(r.monto*100)/100;return r;
+}
 function rNom(){
+  if(typeof VAC_OK!=='undefined'&&!VAC_OK&&typeof cargarVac==='function'){cargarVac().then(function(){rNom();});}
   var sv=document.getElementById('nom-sem').value,si=new Date(sv),mes=si.getMonth();
   var body=document.getElementById('nom-body');
   var EMPS=empActivos();
-  if(!EMPS.length){body.innerHTML='<tr><td colspan="11" class="tbl-empty">Sin empleados</td></tr>';document.getElementById('nom-tot').textContent='$0';document.getElementById('nom-desc').textContent='$0';document.getElementById('nom-nem').textContent='0';return;}
+  if(!EMPS.length){body.innerHTML='<tr><td colspan="12" class="tbl-empty">Sin empleados</td></tr>';document.getElementById('nom-tot').textContent='$0';document.getElementById('nom-desc').textContent='$0';document.getElementById('nom-nem').textContent='0';return;}
   var tp=0,td=0,tx=0,h='',pagado=0,porPagar=0;
   for(var i=0;i<EMPS.length;i++){
     var e=EMPS[i],t=0,f=0,d=new Date(si);
-    var jus=0,apl=0,dsc=0,hx=0;
+    var jus=0,apl=0,dsc=0,hx=0,nvac=0;
     for(var j=0;j<7;j++,d.setDate(d.getDate()+1)){var dow=d.getDay();if(dow===0)continue;
       if(!diaAplica(e,d))continue;            // aún no entraba, o ya salió
       apl++;
       var dk=e.id+'_'+d.getFullYear()+'_'+d.getMonth();var da=ASISTENCIAS[dk]||{};var ed=da[d.getDate()];
       if(ed===false)f++;                      // falta: descuenta
-      else if(ed==='inc'||ed==='vac'){jus++;t++;}  // justificada: NO descuenta
+      else if(ed==='vac'){nvac++;t++;}        // vacaciones: día pagado
+      else if(ed==='inc'){jus++;t++;}         // justificada: NO descuenta
       else if(ed==='desc'){dsc++;t++;}        // le tocaba libre
       else t++;
       hx+=extraDe(e.id,d.getFullYear(),d.getMonth(),d.getDate());}
@@ -14048,13 +14070,17 @@ function rNom(){
     // Las extras se pagan por SEMANA, y la nómina es semanal: este es el lugar
     // exacto donde aplica el art. 68 (9 al doble, de la 10 en adelante al triple).
     var vh=salarioHora(e), px=pagoExtras(hx,vh);
-    var ap=base-desc+px.monto;tp+=ap;td+=desc;tx+=px.monto;
+    var pv=nomPrimas(e,sv);
+    var ap=base-desc+px.monto+pv.monto;tp+=ap;td+=desc;tx+=px.monto;
     h+='<tr><td style="font-weight:500">'+e.nombre+'</td><td>'+e.suc+'</td><td>'+t+(apl<6?'<div style="font-size:10px;color:#B45309;font-weight:700">semana parcial · '+apl+' de 6 días</div>':'')+'</td>';
-    h+='<td>'+(f>0?'<span class="badge br">'+f+'</span>':'0')+(jus>0?' <span class="badge" style="background:var(--amber-l);color:#92400E">'+jus+' just.</span>':'')+'</td>';
+    h+='<td>'+(f>0?'<span class="badge br">'+f+'</span>':'0')+(jus>0?' <span class="badge" style="background:var(--amber-l);color:#92400E">'+jus+' just.</span>':'')+(nvac>0?' <span class="badge" style="background:#EEF2E9;color:#4F6B3A">🌴 '+nvac+' vac</span>':'')+'</td>';
     h+='<td class="mono">'+fmt(base)+(apl<6?'<div style="font-size:10px;color:var(--text3)">de '+fmt(e.salario)+'</div>':'')+'</td><td class="mono" style="'+(desc>0?'color:var(--red)':'')+'">'+( desc>0?fmt(desc):'-')+'</td>';
     h+='<td class="mono">'+(hx>0
         ?('<b style="color:var(--ciruela)">'+fmt(px.monto)+'</b><div style="font-size:10px;color:var(--text3)">'+hx+' h · '+px.dobles+' al doble'+(px.triples?' + '+px.triples+' al triple':'')+'<br>hora '+fmt(vh)+'</div>')
         :'-')+'</td>';
+    h+='<td class="mono">'+(pv.monto>0
+        ?'<b style="color:#4F6B3A">'+fmt(pv.monto)+'</b><div style="font-size:10px;color:var(--text3)">'+pv.dias+' día'+(pv.dias!==1?'s':'')+' · '+pv.lista.map(function(x){return vacFC(x.del)+(x.al!==x.del?'–'+vacFC(x.al):'');}).join(', ')+'</div>'
+        :(pv.aparte.length?'<span style="font-size:10.5px;color:var(--text3)">ya pagada aparte</span>':'-'))+'</td>';
     h+='<td class="mono" style="font-weight:700">'+fmt(ap)+'</td>';
     // Día de pago: se resalta cuando ese día es HOY
     var hoyNom=DIAS_SEM[new Date().getDay()];
@@ -14179,6 +14205,11 @@ function genReciboNom(empId,sv,ap,faltas,desc){
        detExtra.map(function(x){return x.d+': '+x.h+' h después de las '+x.sale;}).join('<br>')+'<br>'+
        'Pago: '+px.dobles+' h al doble'+(px.triples?' y '+px.triples+' h al triple':'')+', conforme al artículo 68 de la Ley Federal del Trabajo (las primeras 9 horas extra de la semana al doble, de la décima en adelante al triple).'+
        '</div>';
+  }
+  var pvR=nomPrimas(emp,sv);
+  if(pvR.monto>0){
+    h+='<div class="r"><span>Prima vacacional 25% ('+pvR.dias+' día'+(pvR.dias!==1?'s':'')+' de vacaciones: '+pvR.lista.map(function(x){return vacFC(x.del)+' al '+vacFC(x.al);}).join(', ')+')</span><span>+ '+fmt(pvR.monto)+'</span></div>';
+    h+='<div style="font-size:10.5px;color:#666;padding:2px 0 6px">El sueldo de los días de vacaciones ya está incluido en el salario semanal.</div>';
   }
   h+='<div class="r t"><span>TOTAL A PAGAR</span><span style="color:#1A5C3A">'+fmt(ap)+'</span></div></div>';
   h+='<div style="display:flex;justify-content:space-between;margin-top:1.3rem;padding-top:8px;border-top:1px solid #eee"><div style="width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:#aaa">Firma autorizada</div><div style="width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:#aaa">Firma del empleado</div></div>';
@@ -14652,8 +14683,8 @@ function vacPrev(){
     (quedan<0?'<div style="margin-top:8px;padding:7px 10px;border-radius:8px;background:#FFF6DD;color:#7A5300;font-size:12.5px">⚠️ '+(s.pend>0?'Solo tiene '+s.pend+': le estarías adelantando '+(-quedan):'Todavía no tiene días: le estarías adelantando '+(-quedan))+'. Se descuentan de los que gane después.</div>'
       :'<div style="margin-top:8px;font-size:12px;color:var(--text3)">Después de esto le quedan '+quedan+' día'+(quedan!==1?'s':'')+'.</div>')+
     '<div style="font-size:12px;color:var(--text3);margin:16px 0 6px">Paso 3 · Registrar</div>'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:12px;color:var(--text3)">Se marcan en Asistencias y se abre el recibo de la prima para firma.</span>'+
-    '<button class="btn btn-sm" style="background:'+RH_C+';color:#fff;border:none" onclick="vacRegistrar()">Registrar e imprimir recibo</button></div>';
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><span style="font-size:12px;color:var(--text3)">Se marcan en Asistencias y la prima se suma sola a su <b>Nómina semanal</b> de esa semana, en el mismo recibo.</span>'+
+    '<button class="btn btn-sm" style="background:'+RH_C+';color:#fff;border:none" onclick="vacRegistrar()">Registrar vacaciones</button></div>';
 }
 function vacValida(emp,del,al){
   if(al<del)return 'La fecha "Al" va antes que "Del".';
@@ -14684,10 +14715,11 @@ function vacRegistrar(){
   if(n>s.pend&&!confirm('Solo le quedan '+Math.max(0,s.pend)+' días ganados.\n\n¿Registrar de todos modos? Los '+(n-Math.max(0,s.pend))+' de más se descuentan de su siguiente periodo.'))return;
   var st=vacEmp(emp.id),x=vacNueva(emp,r.dias,del,al);
   st.salidas.push(x);vacMarcar(emp,r.dias,true);
-  var w=vacRecibo(emp.id,x.id); // se abre antes de guardar para que el navegador no la bloquee
+  var w=null; // la prima ya no se paga aquí: se suma a la Nómina semanal de esa semana
   Promise.all([guardarVac(),guardarAsistVac()]).then(function(){
     logActivity('Registró vacaciones',emp.nombre+' — '+vacFC(del)+' al '+vacFC(al)+' ('+n+' días, prima '+fmt(x.prima)+')');
     renderLFT(emp,lftVals(emp));
+    alert('Listo: '+n+' días de vacaciones registrados.\n\nSu prima de '+fmt(x.prima)+' ya aparece en la Nómina semanal, en la semana del '+vacFC(del)+', para pagarla junto con su sueldo.');
   }).catch(function(e){
     st.salidas=st.salidas.filter(function(y){return y.id!==x.id;});vacMarcar(emp,r.dias,false);
     if(w)try{w.close();}catch(_){}
@@ -14757,6 +14789,7 @@ function vacPagar(id){
 }
 function vacDeshacerPago(id){
   var emp=vacEmpSel();if(!emp)return;var st=vacEmp(emp.id),x=st.salidas.find(function(y){return y.id===id;});if(!x)return;
+  if(x.nom){alert('Esta prima se pagó junto con la nómina de la semana. Para deshacerla, quita la palomita ¿Pagado? en Nómina semanal.');return;}
   if(!confirm('¿Deshacer el pago de prima de '+fmt(x.prima)+'?\n\nTambién se borra su Salida en Movimientos.'))return;
   var borrar=x.mov_id?fetch('/api/movimientos/'+x.mov_id,{method:'DELETE',credentials:'include'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);}):Promise.resolve();
   borrar.then(function(){
