@@ -236,6 +236,28 @@ body.riel-on .content{margin-right:300px}
 .vac-prima .l2{font-size:11px;color:var(--ciruela-l);margin-top:3px}
 .vac-urge{display:inline-flex;border:1.5px solid var(--ciruela);color:var(--ciruela);font-weight:700;font-size:11.5px;padding:2px 10px;border-radius:99px;white-space:nowrap}
 @media (max-width:600px){.vac-big{font-size:22px}.vac-tok{width:32px;height:32px}.vac-prima{min-width:0;flex:1}}
+/* ── RECURSOS HUMANOS en verde olivo (calculadora y vacaciones) ── */
+#page-lft{--rh:#4F6B3A;--rh-l:#EEF2E9;--rh-d:#3B5229}
+#page-lft .tab.active{color:var(--rh)}
+#page-lft .btn-p{background:var(--rh)}#page-lft .btn-p:hover{background:var(--rh-d)}
+#page-lft .tbl th{background:var(--rh-l);color:var(--rh)}
+#page-lft select:focus,#page-lft input:focus{border-color:var(--rh);box-shadow:0 0 0 3px rgba(79,107,58,.15)}
+#page-lft .vac-hero{border-radius:12px;padding:16px 18px}
+#page-lft .vac-hand{font-family:var(--ui);font-weight:600;font-size:12.5px;color:var(--text3)}
+#page-lft .vac-big{font-family:var(--ui);font-weight:700;font-size:21px;letter-spacing:-.01em;margin-top:4px}
+#page-lft .vac-mk{background:var(--rh-l);color:var(--rh);border-radius:6px;padding:0 7px}
+#page-lft .vac-tok{border-radius:9px}
+#page-lft .vac-tok.t{background:var(--rh);color:#fff}
+#page-lft .vac-tok.l{background:var(--rh-l);color:var(--rh)}
+#page-lft .vac-tok.l.u{box-shadow:inset 0 0 0 2px var(--rh)}
+#page-lft .vac-tok.l.au{background:#fff;box-shadow:inset 0 0 0 1.5px var(--rh);color:var(--rh)}
+#page-lft .vac-tok.f{border:1.5px dashed #C9CFC2;color:var(--text3)}
+#page-lft .vac-tok.a{background:var(--rh);color:#fff;box-shadow:inset 0 0 0 2px #E5B93C}
+#page-lft .vac-prima{background:var(--rh-l);border:1px solid #D5DECB;border-radius:12px}
+#page-lft .vac-prima .l1{color:var(--rh);font-weight:600}
+#page-lft .vac-prima .n{font-family:var(--ui);font-size:26px;font-weight:800;color:var(--rh)}
+#page-lft .vac-prima .l2{color:var(--text3)}
+#page-lft .vac-urge{border-color:var(--rh);color:var(--rh)}
 
 /* ── BADGES ── */
 .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:99px;font-size:11.5px;font-weight:600;white-space:nowrap;letter-spacing:0}
@@ -1217,7 +1239,7 @@ tr:hover .ent-edit{opacity:1}
       <div id="sb-wm"><div class="sb-imp">IMPULSO</div><div class="sb-gal">galería</div></div>
     </div>
     <div class="sb-sub" id="sb-suc">—</div>
-    <div class="sb-ver">versión 24-nov · nómina con vacaciones</div>
+    <div class="sb-ver">versión 25-nov · RH verde olivo</div>
   </div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
@@ -14638,7 +14660,7 @@ function vacRender(emp,v){
     lista.forEach(function(x){
       var enHist=x.del<s.desde;
       h+='<tr'+(enHist?' style="opacity:.6"':'')+'><td>'+vacFC(x.del)+' – '+vacFF(x.al)+(enHist?'<div style="font-size:10.5px;color:var(--text3)">historial · no descuenta del saldo</div>':'')+'</td><td>'+x.dias+'</td><td class="mono">'+fmt(x.prima)+'</td><td>'+
-        (x.pagada?'<span class="badge bg">Pagada '+vacFC(x.fpago)+(x.cuenta?' · '+x.cuenta:'')+'</span>':'<span class="vac-urge">prima por pagar</span>')+'</td><td style="white-space:nowrap;text-align:right">'+
+        (x.pagada?'<span class="badge" style="background:#EEF2E9;color:#4F6B3A">✓ Pagada '+vacFC(x.fpago)+(x.nom?' · con la nómina':(x.cuenta?' · '+x.cuenta:''))+'</span>':'<span class="vac-urge">prima va en su nómina</span>')+'</td><td style="white-space:nowrap;text-align:right">'+
         '<button class="btn btn-s btn-xs" title="Recibo para firma" onclick="vacRecibo('+emp.id+','+x.id+')">🖨</button> '+
         (x.pagada?'<button class="btn btn-s btn-xs" title="Deshacer pago" onclick="vacDeshacerPago('+x.id+')">↩️</button> ':'<button class="btn btn-s btn-xs" title="Pagar prima" onclick="VAC_PAGO='+x.id+';renderLFT(vacEmpSel(),lftVals(vacEmpSel()))">💸</button> ')+
         '<button class="btn btn-s btn-xs" title="Borrar salida" onclick="vacBorrar('+x.id+')">🗑</button></td></tr>';
