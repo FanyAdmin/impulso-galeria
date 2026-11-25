@@ -631,6 +631,7 @@ tr:hover .ent-edit{opacity:1}
 #page-fac.fz-on > :not(#fz2){display:none!important}
 #page-ped.pz-on > :not(#pz2){display:none!important}
 #page-mov.mz-on > :not(#mz2){display:none!important}
+#mz2{--border:#E5E7EB;--border2:#D1D5DB}
 #page-ord.cp-on > :not(#cp2){display:none!important}
 #page-cxc.kz-on > :not(#kz2){display:none!important}
 </style>
@@ -1239,7 +1240,7 @@ tr:hover .ent-edit{opacity:1}
       <div id="sb-wm"><div class="sb-imp">IMPULSO</div><div class="sb-gal">galería</div></div>
     </div>
     <div class="sb-sub" id="sb-suc">—</div>
-    <div class="sb-ver">versión 25-nov · prestaciones en una pantalla</div>
+    <div class="sb-ver">versión 25-nov · movimientos en gris</div>
   </div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
@@ -10276,7 +10277,7 @@ function rPed2(){pzPinta();if(PZ.vieja)rPed();}
 //   una entrada repartida = lo que regresó. En sobres de inversión con palabra
 //   (ej. "bastidor") también cuentan las piezas vendidas en notas desde 'desde'.
 var MZ={tab:'di',sel:null,modo:'det',mes:'',pag:0,tipo:'',cta:'',cat:'',q:'',sob:null,_ini:false,_last0:null};
-var MZ_C='#6E4157',MZ_L='#F4EFF2',MZ_PP=60;
+var MZ_C='#6E4157',MZ_L='#F1F2F4',MZ_PP=60;
 var SOB={lista:[],rep:{}},_sobOk=false;
 function mzEsc(s){return ptEsc(s);}
 function mzK(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
@@ -10324,7 +10325,7 @@ function mzInit(){
 function mzKpis(){
   var m=mzMes(),V=mzVisibles().filter(function(x){return String(x.fecha||'').slice(0,7)===m;});
   var e=0,s=0,r=0;V.forEach(function(x){var t=mzTipo(x);if(t==='E')e+=+x.monto||0;else if(t==='S')s+=+x.monto||0;else if(t==='R')r+=+x.monto||0;});
-  var q=e-s-r,k=function(t,v,c){return '<div style="background:#FAF6F7;border-radius:10px;padding:9px 12px"><div style="font-size:12px;color:var(--text3)">'+t+'</div><div class="mono" style="font-size:17px;font-weight:700;'+(c?'color:'+c:'')+'">'+v+'</div></div>';};
+  var q=e-s-r,k=function(t,v,c){return '<div style="background:#F3F4F6;border-radius:10px;padding:9px 12px"><div style="font-size:12px;color:var(--text3)">'+t+'</div><div class="mono" style="font-size:17px;font-weight:700;'+(c?'color:'+c:'')+'">'+v+'</div></div>';};
   return '<div style="display:grid;grid-template-columns:repeat('+(esOwnerCU()?4:3)+',minmax(0,1fr));gap:10px;margin:10px 0">'+k('Entró',fmt(e))+k('Salió',fmt(s))+(esOwnerCU()?k('Retiros',fmt(r)):'')+k('Quedó',mzSg(q),q>=0?'#0F6E56':'#A32D2D')+'</div>';
 }
 function mzHead(){
@@ -10364,9 +10365,9 @@ function mzDiario(){
   var vis=L.slice(MZ.pag*MZ_PP,(MZ.pag+1)*MZ_PP),h='',dia='';
   vis.forEach(function(m){var f=String(m.fecha||'').slice(0,10);if(f!==dia){dia=f;
     var tD=L.filter(function(x){return String(x.fecha||'').slice(0,10)===f;}).reduce(function(a,x){var t=mzTipo(x);return a+(t==='E'?(+x.monto||0):t==='T'?0:-(+x.monto||0));},0);
-    h+='<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3);padding:8px 14px 4px;background:#FAF6F7"><span style="text-transform:capitalize">'+mzDiaTxt(f)+'</span><span class="mono">'+mzSg(tD)+'</span></div>';}
+    h+='<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3);padding:8px 14px 4px;background:#F3F4F6"><span style="text-transform:capitalize">'+mzDiaTxt(f)+'</span><span class="mono">'+mzSg(tD)+'</span></div>';}
     h+=mzFila(m);});
-  var fl='border:1px solid #E5CDD4;background:#fff;border-radius:7px;width:30px;height:28px;font-size:15px;cursor:pointer;color:'+MZ_C;
+  var fl='border:1px solid #E5E7EB;background:#fff;border-radius:7px;width:30px;height:28px;font-size:15px;cursor:pointer;color:'+MZ_C;
   var pager='<div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:7px 14px;font-size:12.5px;color:var(--text2)">'+(L.length?(MZ.pag*MZ_PP+1)+'–'+Math.min(L.length,(MZ.pag+1)*MZ_PP)+' de '+L.length:'')+
     '<button style="'+fl+(MZ.pag===0?';opacity:.35':'')+'" '+(MZ.pag?'onclick="MZ.pag--;mzPinta()"':'')+'>‹</button><span>pág. '+(MZ.pag+1)+' de '+nP+'</span><button style="'+fl+(MZ.pag>=nP-1?';opacity:.35':'')+'" '+(MZ.pag<nP-1?'onclick="MZ.pag++;mzPinta()"':'')+'>›</button></div>';
   return mzFiltros()+pager+(h||'<div class="tbl-empty" style="padding:30px">Sin movimientos con estos filtros.</div>')+(vis.length>12?pager:'');
@@ -10424,7 +10425,7 @@ function mzSobres(){
       '<div style="height:6px;border-radius:3px;background:#F1E6E9;overflow:hidden;margin:9px 0 7px"><i style="display:block;height:6px;width:'+pct+'%;background:'+(pct>=100?'#0F6E56':MZ_C)+'"></i></div>'+
       '<div style="display:flex;justify-content:space-between;font-size:12px"><span style="color:var(--text2)">'+(pre?'Te ha pagado':'Ha regresado')+' '+Math.round(pct)+'%</span><span class="mono">'+fmt(c.rec)+' de '+fmt(c.met)+'</span></div>'+
       '<div style="font-size:12.5px;margin-top:5px;font-weight:600;color:'+(pre?(res>0.5?'#A32D2D':'#0F6E56'):(res>=0?'#0F6E56':'#A32D2D'))+'">'+(pre?(res>0.5?'Te debe '+fmt(res):'Ya te pagó todo ✓'):(res>=0?'Ganancia +'+fmt(res):'Falta '+fmt(-res)+' para salir tablas'))+'</div></div>';});
-  if(MZ.nuevo){var bt=function(v,t,d){var on=MZ.nTipo===v;return '<span onclick="MZ.nTipo=\''+v+'\';mzPinta()" style="cursor:pointer;flex:1;border:1.5px solid '+(on?MZ_C:'#E5CDD4')+';background:'+(on?MZ_L:'#fff')+';border-radius:8px;padding:6px 8px;font-size:12px"><b style="color:'+(on?MZ_C:'var(--text)')+'">'+t+'</b><br><span style="color:var(--text3);font-size:11px">'+d+'</span></span>';};
+  if(MZ.nuevo){var bt=function(v,t,d){var on=MZ.nTipo===v;return '<span onclick="MZ.nTipo=\''+v+'\';mzPinta()" style="cursor:pointer;flex:1;border:1.5px solid '+(on?MZ_C:'#E5E7EB')+';background:'+(on?MZ_L:'#fff')+';border-radius:8px;padding:6px 8px;font-size:12px"><b style="color:'+(on?MZ_C:'var(--text)')+'">'+t+'</b><br><span style="color:var(--text3);font-size:11px">'+d+'</span></span>';};
     h+='<div style="border:1.5px solid '+MZ_C+';border-radius:12px;padding:12px 14px;background:var(--surface)">'+
       '<input id="mz-sn" placeholder="Nombre (ej. Bastidores, Justqro)" style="width:100%;font-size:13px;padding:6px 8px;border:1px solid var(--border);border-radius:7px;margin-bottom:8px">'+
       '<div style="display:flex;gap:6px;margin-bottom:8px">'+bt('inv','Inversión','tuya, se recupera')+bt('pre','Préstamo','te lo regresan')+'</div>'+
