@@ -1240,7 +1240,7 @@ tr:hover .ent-edit{opacity:1}
       <div id="sb-wm"><div class="sb-imp">IMPULSO</div><div class="sb-gal">galería</div></div>
     </div>
     <div class="sb-sub" id="sb-suc">—</div>
-    <div class="sb-ver">versión 25-nov · lectura del mes</div>
+    <div class="sb-ver">versión 25-nov · bancos saldos arriba</div>
   </div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
@@ -1786,10 +1786,11 @@ tr:hover .ent-edit{opacity:1}
     </div>
   </div>
 
-  <div id="ban-hero"></div>
-  <div id="ban-barra"></div>
-  <div id="ban-falta"></div>
-  <div id="ban-custodia"></div>
+  <div id="ban-resumen"></div>
+  <div id="ban-hero" style="display:none"></div>
+  <div id="ban-barra" style="display:none"></div>
+  <div id="ban-falta" style="display:none"></div>
+  <div id="ban-custodia" style="display:none"></div>
   <div id="ban-puente-wrap" style="display:none"><div id="ban-puente"></div></div>
 
   <div class="tw"><div style="padding:11px 15px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700">Saldo por cuenta</div>
@@ -13274,6 +13275,63 @@ function banRegistrarCom(){
   }).catch(function(e){alert('No se pudo registrar: '+e.message);});
 }
 
+// ═══ BANCOS: los saldos arriba, separados en disponible / guardado / no es tuyo ═══
+var CTAS_GUARDADO=['El Patio'];
+function banEsGuardado(c){return CTAS_GUARDADO.some(function(x){return String(x).toLowerCase()===String(c).toLowerCase();});}
+function banUltMov(c){var u=null;(movs||[]).forEach(function(m){if(m.cuenta!==c&&m.cta_destino!==c)return;if(!u||String(m.fecha)>String(u.fecha)||(String(m.fecha)===String(u.fecha)&&(m.id||0)>(u.id||0)))u=m;});return u;}
+function banVerMovs(c){MZ.cta=c;MZ.cat='';MZ.tipo='';MZ.q='';MZ.tab='di';MZ.pag=0;MZ.mes=String(todayStr()).slice(0,7);go('mov');}
+function banTopHTML(){
+  var todas=Object.keys(BANCOS_INIT);
+  var disp=todas.filter(function(c){return !banEsCustodia(c)&&!banEsGuardado(c);}).map(function(c){return {c:c,v:banSaldoMio(c),u:banUltMov(c)};})
+    .filter(function(x){return Math.abs(x.v)>0.5||x.u;}).sort(function(a,b){return b.v-a.v;});
+  var tot=disp.reduce(function(a,x){return a+x.v;},0),pos=disp.filter(function(x){return x.v>0.5;});
+  var tonos=['#6E4157','#A97C93','#D9C3CE','#C9B5BF','#E8DCE2'];
+  var arg=function(c){return JSON.stringify(c).replace(/"/g,'&quot;');};
+  // lo que hay que ver hoy
+  var ver=[];
+  disp.forEach(function(x){var c=x.c,p=banPuente(c),pend=banSinConciliar(c);
+    if(p&&Math.abs(p.mio-p.banco)>1)ver.push({t:'r',b:c+' difiere '+fmt(Math.abs(p.mio-p.banco))+' contra el banco.',a:'<a href="#" onclick="banVerPuente('+arg(c)+');return false" style="color:#6E4157;font-weight:600">Ver por qué</a>'});
+    else if(pend>0)ver.push({t:'a',b:c+': '+pend+' movimiento'+(pend===1?'':'s')+' por conciliar.',a:'<a href="#" onclick="go(\'conban\');return false" style="color:#6E4157;font-weight:600">Conciliar</a>'});});
+  var ult='';(movs||[]).forEach(function(m){if(/cierre del d[ií]a/i.test(m.desc||'')&&String(m.fecha)>ult)ult=String(m.fecha).slice(0,10);});
+  var ay=new Date();ay.setDate(ay.getDate()-1);if(ay.getDay()===0)ay.setDate(ay.getDate()-1);
+  var ayS=ay.getFullYear()+'-'+String(ay.getMonth()+1).padStart(2,'0')+'-'+String(ay.getDate()).padStart(2,'0');
+  if(ult&&ult<ayS)ver.push({t:'a',b:'Falta el cierre del día: el último fue el '+ptFec(ult).slice(0,5)+'.',a:'<a href="#" onclick="go(\'cob\');return false" style="color:#6E4157;font-weight:600">Ir a Cobranza</a>'});
+  var ok=disp.filter(function(x){var p=banPuente(x.c);return p&&Math.abs(p.mio-p.banco)<=1&&!banSinConciliar(x.c);}).map(function(x){return x.c;});
+  if(ok.length)ver.push({t:'v',b:ok.join(', ')+' cuadra'+(ok.length>1?'n':'')+' con el banco.',a:''});
+  if(!ver.length)ver.push({t:'v',b:'Nada pendiente.',a:''});
+  var ico={r:['⚠','#A32D2D'],a:['!','#854F0B'],v:['✓','#0F6E56']};
+  var h='<div style="display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:12px;margin-bottom:12px">'+
+    '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:16px 18px">'+
+      '<div style="font-size:12.5px;color:var(--text2)">Disponible para operar</div>'+
+      '<div class="mono" style="font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.2">'+fmt(tot)+'</div>'+
+      (pos.length?'<div style="display:flex;height:11px;border-radius:6px;overflow:hidden;margin:12px 0 6px">'+pos.map(function(x,i){return '<div title="'+x.c+'" style="flex:'+Math.max(1,Math.round(x.v))+';background:'+tonos[i%tonos.length]+'"></div>';}).join('')+'</div>'+
+        '<div style="font-size:11.5px;color:var(--text3)">'+pos.map(function(x){return x.c+' '+(tot>0?Math.round(x.v/tot*100):0)+'%';}).join(' · ')+'</div>':'')+
+    '</div>'+
+    '<div style="background:#fff;border:1.5px solid #6E4157;border-radius:14px;padding:12px 16px"><b style="font-size:14px">Lo que hay que ver hoy</b>'+
+      ver.map(function(x){return '<div style="display:flex;gap:9px;padding:7px 0;border-top:1px solid #EEF0F2;font-size:12.5px;margin-top:4px"><b style="color:'+ico[x.t][1]+';width:14px;text-align:center;flex-shrink:0">'+ico[x.t][0]+'</b><span><b style="font-weight:600">'+x.b+'</b> '+x.a+'</span></div>';}).join('')+
+    '</div></div>';
+  h+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin-bottom:12px">'+disp.map(function(x,i){
+      var st=banEstadoCta(x.c),u=x.u,col=x.v<=0.5?'#D3D1C7':(st.cls==='alerta'?'#E24B4A':tonos[Math.min(i,tonos.length-1)]);
+      var stc=st.cls==='alerta'?'#A32D2D':st.cls==='st-esp'?'#854F0B':'#0F6E56';
+      var uTxt=u?((u.tipo==='Entrada'||(u.tipo==='Traspaso'&&u.cta_destino===x.c))?'+':'−')+fmt(+u.monto||0).replace('.00','')+' '+String(u.desc||u.concepto||'').slice(0,26)+' · '+ptFec(u.fecha).slice(0,5):'sin movimientos';
+      return '<div style="background:#fff;border:1px solid #E5E7EB;border-top:3px solid '+col+';border-radius:12px;padding:11px 13px">'+
+        '<div style="display:flex;justify-content:space-between;gap:6px;font-size:12.5px;color:var(--text2)"><span style="font-weight:600">'+x.c+'</span><span style="color:'+stc+';font-size:11px;white-space:nowrap">'+st.t+'</span></div>'+
+        '<div class="mono" style="font-size:22px;font-weight:800;'+(x.v<=0.5?'color:var(--text3)':'')+'">'+fmt(x.v)+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+ptEsc(uTxt)+'">último: '+ptEsc(uTxt)+'</div>'+
+        '<a href="#" onclick="banVerMovs('+arg(x.c)+');return false" style="display:inline-block;margin-top:7px;font-size:11.5px;color:#6E4157;font-weight:600">Ver movimientos →</a></div>';}).join('')+'</div>';
+  var gu=todas.filter(banEsGuardado),cu=todas.filter(banEsCustodia);
+  if(gu.length||cu.length){
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:14px">';
+    gu.forEach(function(c){h+='<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px">'+
+      '<div><div style="font-size:12.5px;color:#085041;font-weight:700">Guardado · '+c+'</div><div style="font-size:11.5px;color:var(--text2)">inversión que no se toca · no cuenta en el disponible</div>'+
+      '<a href="#" onclick="banVerMovs('+arg(c)+');return false" style="font-size:11.5px;color:#085041;font-weight:600">Ver movimientos →</a></div><div class="mono" style="font-size:21px;font-weight:800;color:#085041">'+fmt(banSaldoMio(c))+'</div></div>';});
+    cu.forEach(function(c){h+='<div style="border:1.5px dashed #B4B2A9;border-radius:12px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px">'+
+      '<div><div style="font-size:12.5px;color:var(--text2);font-weight:700">No es tuyo · '+c+'</div><div style="font-size:11.5px;color:var(--text3)">solo pasa por ti · pendiente de entregar</div>'+
+      '<a href="#" onclick="banVerMovs('+arg(c)+');return false" style="font-size:11.5px;color:var(--text2);font-weight:600">Ver movimientos →</a></div><div class="mono" style="font-size:21px;font-weight:800;color:var(--text3)">'+fmt(banSaldoMio(c))+'</div></div>';});
+    h+='</div>';
+  }
+  return h;
+}
 function rBancos(){
   var selM=document.getElementById('ban-mes');
   var meses=banMesLista();
@@ -13299,6 +13357,7 @@ function rBancos(){
     selC.innerHTML=Object.keys(BANCOS_INIT).map(function(c){return '<option>'+c+'</option>';}).join('');
     if(Object.keys(BANCOS_INIT).indexOf('INBURSA')>=0)selC.value='INBURSA';
   }
+  document.getElementById('ban-resumen').innerHTML=banTopHTML();
   document.getElementById('ban-hero').innerHTML=banHeroHTML();
   document.getElementById('ban-barra').innerHTML=banBarraHTML();
   document.getElementById('ban-falta').innerHTML=banFaltaHTML();
@@ -13330,7 +13389,7 @@ function rBancos(){
 
 function rBancosSaldos(){
   if(!document.getElementById('ban-tabla'))return;   // la reemplazaron las tarjetas de cuenta
-  const ctas=Object.keys(BANCOS_INIT);
+  const ctas=Object.keys(BANCOS_INIT).filter(c=>{const x=saldoCta(c);return (BANCOS_INIT[c]||0)||x.e||x.s;});
   let total=0;
   const rows=ctas.map(c=>{
     const {e,s}=saldoCta(c);
