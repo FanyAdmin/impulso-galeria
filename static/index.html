@@ -1239,7 +1239,7 @@ tr:hover .ent-edit{opacity:1}
       <div id="sb-wm"><div class="sb-imp">IMPULSO</div><div class="sb-gal">galería</div></div>
     </div>
     <div class="sb-sub" id="sb-suc">—</div>
-    <div class="sb-ver">versión 25-nov · RH verde olivo</div>
+    <div class="sb-ver">versión 25-nov · prestaciones en una pantalla</div>
   </div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
@@ -2154,7 +2154,7 @@ tr:hover .ent-edit{opacity:1}
     <div class="metric"><div class="m-label">Empleados</div><div class="m-val" id="nom-nem">0</div></div>
   </div>
   <div id="nom-avance" style="font-size:13px;margin:0 0 12px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px"></div>
-  <div class="tw"><table class="tbl"><thead><tr><th>Empleado</th><th>Sucursal</th><th>Dias</th><th>Faltas</th><th>Salario</th><th>Descuento</th><th>Horas extra</th><th>Prima vac.</th><th>A pagar</th><th>Se paga</th><th>¿Pagado?</th><th></th></tr></thead><tbody id="nom-body"></tbody></table></div>
+  <div class="tw"><table class="tbl"><thead><tr><th>Empleado</th><th>Sucursal</th><th>Dias</th><th>Faltas</th><th>Salario</th><th>Descuento</th><th>Horas extra</th><th>Prestaciones</th><th>A pagar</th><th>Se paga</th><th>¿Pagado?</th><th></th></tr></thead><tbody id="nom-body"></tbody></table></div>
   <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:.875rem;flex-wrap:wrap">
     <span style="font-size:11.5px;color:var(--text3)">Cada pago se registra por persona con la casilla <b>¿Pagado?</b> y crea su salida en Movimientos.</span>
     <button class="btn btn-s" onclick="verBitacoraNom()">📋 Bitácora de pagos</button>
@@ -2180,11 +2180,9 @@ tr:hover .ent-edit{opacity:1}
       <div id="lft-info" style="display:none">
         <div class="sbox" id="lft-datos"></div>
         <div class="tabs">
-          <div class="tab active" onclick="lftTab('com',this)">Pagar</div>
-          <div class="tab" onclick="lftTab('vac',this)">Vacaciones</div>
-          <div class="tab" onclick="lftTab('agu',this)">Aguinaldo</div>
-          <div class="tab" onclick="lftTab('fin',this)">Finiquito</div>
-          <div class="tab" onclick="lftTab('liq',this)">Liquidacion</div>
+          <div class="tab active" onclick="lftTab('pre',this)">Prestaciones</div>
+          <div class="tab" onclick="lftTab('fin',this)">Si se va: finiquito</div>
+          <div class="tab" onclick="lftTab('liq',this)">Liquidación</div>
         </div>
         <div id="lft-cont"></div>
         <button class="btn btn-p btn-sm" id="lft-btn-rec" style="margin-top:.75rem" onclick="genRecibo()">Generar recibo</button>
@@ -13622,7 +13620,7 @@ function loadEmpleados(){
   }).catch(()=>{});
 }
 function refreshEmpUI(){if(document.getElementById('emp-body'))rEmps();initAsistSels();populateLFT();initNomSems();}
-var editEmpIdx=null,lftTabAct='com';
+var editEmpIdx=null,lftTabAct='pre';
 // ── LO QUE VIVÍA SOLO EN EL NAVEGADOR ───────────────────────────────────────
 // Asistencias, bajas de personal, comisiones pagadas y VIP se guardaban en
 // localStorage: solo existían en la compu donde se capturaron y se perdían al
@@ -13996,7 +13994,7 @@ function togPagoNom(id,sem,monto,nombre){
   selCo.innerHTML=conceptos.map(function(c){return '<option'+(c==='Nómina'?' selected':'')+'>'+c+'</option>';}).join('');
   document.getElementById('nomp-monto').value=(+monto||0).toFixed(2);
   document.getElementById('nomp-desc').value='Pago de nomina '+(String(e.suc||'').toLowerCase().indexOf('zibata')>=0?'Zibata ':'')+
-    'Semana '+semanaNum(sem)+' ('+nombre+')'+(pvN.monto>0?' + prima vacacional '+fmt(pvN.monto):'');
+    'Semana '+semanaNum(sem)+' ('+nombre+')'+(pvN.monto>0?' + prima vacacional '+fmt(pvN.monto):'')+(nomAgu(e,sem).monto>0?' + aguinaldo '+fmt(nomAgu(e,sem).monto):'');
   OM('mod-nom-pago');
   rNom();   // deja la casilla como estaba hasta que confirme
 }
@@ -14019,14 +14017,14 @@ function confPagoNom(){
     if(mvSrv&&mvSrv.id)movs.unshift(mvSrv);
     if(!NOM_PAGOS[c.sem])NOM_PAGOS[c.sem]={};
     NOM_PAGOS[c.sem][String(c.id)]={fecha:fecha,monto:monto,cuenta:cta,concepto:concepto,
-      desc:desc,mov_id:(mvSrv&&mvSrv.id)||null,prima:c.prima||0,vac:c.vac||[]};
+      desc:desc,mov_id:(mvSrv&&mvSrv.id)||null,prima:c.prima||0,vac:c.vac||[],agu:(NOM_AGU[c.sem]||{})[String(c.id)]||''};
     var gv=Promise.resolve();
     if((c.vac||[]).length){var stV=vacEmp(c.id);(stV.salidas||[]).forEach(function(x){if(c.vac.indexOf(x.id)>=0){x.pagada=true;x.fpago=fecha;x.cuenta=cta;x.mov_id=(mvSrv&&mvSrv.id)||null;x.nom=c.sem;}});gv=guardarVac();}
     return Promise.all([guardarNomPagos(),gv]);
   })
   .then(function(){
     if(typeof logActivity==='function')logActivity('Pagó nómina',c.nombre+' — '+fmt(monto)+' desde '+cta);
-    CM('mod-nom-pago');nomPagoCtx=null;rNom();
+    CM('mod-nom-pago');nomPagoCtx=null;rNom();if(document.querySelector('#page-lft.active'))calcLFTKeep();
     if(typeof rMovs==='function'&&document.querySelector('#page-mov.active'))rMovs();
   })
   .catch(function(e){alert('⚠️ No se pudo registrar el pago: '+e.message+'\nNada quedó guardado, inténtalo de nuevo.');});
@@ -14045,10 +14043,130 @@ function deshacerPagoNom(id,sem,nombre){
     return Promise.all([guardarNomPagos(),gv]);
   }).then(function(){
     if(typeof logActivity==='function')logActivity('Deshizo pago de nómina',nombre);
-    rNom();
+    rNom();if(document.querySelector('#page-lft.active'))calcLFTKeep();
   }).catch(function(e){alert('No se pudo deshacer: '+e.message);});
 }
 
+function vacRegHTML(emp){
+  var h='';
+  h+='<div style="border:1.5px solid '+RH_C+';border-radius:12px;padding:14px 16px;margin:1rem 0 .4rem;background:var(--surface)">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px"><span style="font-weight:700;font-size:14px">Registrar vacaciones</span>'+
+    '<button class="btn btn-s btn-xs" onclick="vacAutorizar()">+ Autorizar adelanto</button></div>'+
+    '<div id="vac-steps">'+vacPasos(1)+'</div>'+
+    '<div style="font-size:12px;color:var(--text3);margin:12px 0 6px">Paso 1 · ¿Qué días va a descansar?</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="field" style="margin:0"><label>Del</label><input type="date" id="vac-del" min="'+String(emp.ingreso).slice(0,10)+'" onchange="vacPrev()"></div>'+
+    '<div class="field" style="margin:0"><label>Al</label><input type="date" id="vac-al" min="'+String(emp.ingreso).slice(0,10)+'" onchange="vacPrev()"></div></div><div id="vac-prev"></div></div>';
+  return h;
+}
+// Aguinaldo agregado al pago de una semana (config nom_agu: {sem:{id:'dic'|'hoy'}})
+var NOM_AGU={},NOM_AGU_OK=false,NOM_AGU_PROM=null;
+function cargarNomAgu(){if(!NOM_AGU_PROM)NOM_AGU_PROM=cfgGet('nom_agu',{}).then(function(v){NOM_AGU=(v&&typeof v==='object'&&!Array.isArray(v))?v:{};NOM_AGU_OK=true;return NOM_AGU;});return NOM_AGU_PROM;}
+function nomAgu(e,sv){var t=(NOM_AGU[sv]||{})[String(e.id)];if(!t)return {tipo:'',monto:0};var v=lftVals(e);return {tipo:t,monto:Math.round((t==='dic'?v.aguDic:v.aguProp)*100)/100};}
+function nomAguSet(id,sv,tipo){
+  if(pagoDe(sv,id)){alert('Esa semana ya está pagada. Deshaz el pago en Nómina para cambiar el aguinaldo.');calcLFTKeep();return;}
+  if(!NOM_AGU[sv])NOM_AGU[sv]={};if(tipo)NOM_AGU[sv][String(id)]=tipo;else delete NOM_AGU[sv][String(id)];
+  cfgSet('nom_agu',NOM_AGU).then(function(){calcLFTKeep();}).catch(function(e){alert('No se guardó: '+e.message);});
+}
+function nomLunes(f){var d=f?new Date(f+'T12:00:00'):new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+// Lo que se le paga a una persona en una semana (mismo cálculo que Nómina semanal)
+function nomFila(e,sv){
+  var d=new Date(sv+'T12:00:00'),t=0,f=0,jus=0,apl=0,hx=0,nvac=0,dias=[];
+  for(var j=0;j<7;j++,d.setDate(d.getDate()+1)){var dow=d.getDay();if(dow===0)continue;
+    var ok=diaAplica(e,d),ed=ok?(ASISTENCIAS[e.id+'_'+d.getFullYear()+'_'+d.getMonth()]||{})[d.getDate()]:null;
+    dias.push({d:new Date(d),dow:dow,ok:ok,ed:ed});
+    if(!ok)continue;apl++;
+    if(ed===false)f++;else if(ed==='vac'){nvac++;t++;}else if(ed==='inc'){jus++;t++;}else t++;
+    hx+=extraDe(e.id,d.getFullYear(),d.getMonth(),d.getDate());}
+  var diario=e.salario/6,base=(apl>=6)?e.salario:Math.round(diario*apl*100)/100,desc=f*diario;
+  var px=pagoExtras(hx,salarioHora(e)),pv=nomPrimas(e,sv),ag=nomAgu(e,sv);
+  return {dias:dias,base:base,desc:desc,f:f,nvac:nvac,jus:jus,apl:apl,px:px,hx:hx,pv:pv,ag:ag,total:Math.round((base-desc+px.monto+pv.monto+ag.monto)*100)/100};
+}
+function prePagar(id,sv,monto,nombre){
+  var sel=document.getElementById('nom-sem');if(sel&&!sel.options.length&&typeof initNomSems==='function')initNomSems();
+  if(sel)sel.value=sv;
+  togPagoNom(id,sv,monto,nombre);
+}
+function preHTML(emp,v){
+  if(!VAC_OK||!NOM_AGU_OK||!PRE_NP){Promise.all([cargarVac(),cargarNomAgu(),cargarNomPagos()]).then(function(){PRE_NP=true;calcLFTKeep();});return '<div style="padding:1rem;color:var(--text3)">Cargando…</div>';}
+  var sv=nomLunes(),fin=new Date(sv+'T12:00:00');fin.setDate(fin.getDate()+6);
+  var r=nomFila(emp,sv),pg=pagoDe(sv,emp.id),sd=emp.salario/7,hoyS=todayStr();
+  var DN=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  var caja='border:1px solid var(--border);border-radius:12px;background:var(--surface);padding:14px 16px;margin-bottom:10px';
+  var mono='font-family:var(--mono,monospace)';
+  var fila=function(t,sub,m,extra){return '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)'+(extra||'')+'"><span style="font-size:13.5px">'+t+(sub?' <span style="color:var(--text3);font-size:12px">· '+sub+'</span>':'')+'</span><span class="mono" style="font-size:14px">'+m+'</span></div>';};
+  // 1 · pago de esta semana
+  var h='<div style="'+caja+';border:1.5px solid '+RH_C+'">'+
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap"><b style="font-size:14.5px">1 · Pago de esta semana</b><span style="font-size:12px;color:var(--text2)">Semana '+semanaNum(sv)+' · '+vacFC(sv)+' al '+vacFF(fin.getFullYear()+'-'+String(fin.getMonth()+1).padStart(2,'0')+'-'+String(fin.getDate()).padStart(2,'0'))+' · se paga en Nómina</span></div>';
+  h+='<div style="display:flex;gap:4px;margin:12px 0 8px">'+r.dias.map(function(x){
+      var iso=x.d.getFullYear()+'-'+String(x.d.getMonth()+1).padStart(2,'0')+'-'+String(x.d.getDate()).padStart(2,'0');
+      var et,st;
+      if(!x.ok){et='no aplica';st='background:var(--surface2);color:var(--text3)';}
+      else if(x.ed==='vac'){et='vacaciones';st='background:'+RH_C+';color:#fff';}
+      else if(x.ed===false){et='falta';st='background:var(--red-l);color:var(--red)';}
+      else if(x.ed==='inc'){et='incapacidad';st='background:var(--amber-l);color:#92400E';}
+      else if(x.ed==='desc'){et='descanso';st='background:var(--surface2);color:var(--text2)';}
+      else if(iso>hoyS){et='por venir';st='border:1px dashed #C9CFC2;color:var(--text3)';}
+      else {et='trabajó';st='background:var(--surface2);color:var(--text2)';}
+      return '<div style="flex:1;text-align:center;padding:6px 0;border-radius:7px;font-size:11px;line-height:1.35;'+st+'"><b>'+DN[x.dow]+' '+x.d.getDate()+'</b><br>'+et+'</div>';}).join('')+'</div>';
+  h+='<div style="border-top:1px solid var(--border)">';
+  var trab=0,porV=0;r.dias.forEach(function(x){if(!x.ok||x.ed==='vac'||x.ed===false||x.ed==='inc'||x.ed==='desc')return;var iso=x.d.getFullYear()+'-'+String(x.d.getMonth()+1).padStart(2,'0')+'-'+String(x.d.getDate()).padStart(2,'0');if(iso>hoyS)porV++;else trab++;});
+  h+=fila('Sueldo de la semana'+(r.apl<6?' (parcial: '+r.apl+' de 6 días)':' completa'),(r.nvac?[trab?trab+' trabajado'+(trab!==1?'s':''):'',r.nvac+' de vacaciones ('+fmt(r.nvac*sd)+')',porV?porV+' por venir':''].filter(Boolean).join(' + '):''),fmt(r.base));
+  if(r.f>0)h+=fila('Descuento por '+r.f+' falta'+(r.f!==1?'s':''),'',('− '+fmt(r.desc)),';color:var(--red)');
+  if(r.px.monto>0)h+=fila('Horas extra',r.hx+' h',fmt(r.px.monto));
+  if(r.pv.monto>0)h+=fila('Prima vacacional 25%',r.pv.dias+' día'+(r.pv.dias!==1?'s':'')+' × '+fmt(sd*0.25),fmt(r.pv.monto));
+  else if(r.pv.aparte.length)h+=fila('Prima vacacional','ya se pagó aparte','—',';color:var(--text3)');
+  var aDic=v.aguDic,aHoy=v.aguProp,at=r.ag.tipo;
+  h+='<div style="padding:8px 0;border-bottom:1px solid var(--border)"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px">'+
+    '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;'+(at?'':'color:var(--text2)')+'"><input type="checkbox" '+(at?'checked':'')+' style="width:17px;height:17px;accent-color:'+RH_C+'" onchange="nomAguSet('+emp.id+',\''+sv+'\',this.checked?\'dic\':\'\')"> Agregar aguinaldo</label>'+
+    '<span class="mono" style="font-size:14px">'+(at?fmt(r.ag.monto):'—')+'</span></div>'+
+    (at?'<div style="display:flex;gap:6px;margin:6px 0 0 25px;flex-wrap:wrap">'+[['dic','Completo a diciembre',aDic],['hoy','Acumulado a hoy',aHoy]].map(function(o){var on=at===o[0];return '<span onclick="nomAguSet('+emp.id+',\''+sv+'\',\''+o[0]+'\')" style="cursor:pointer;font-size:12px;border:1.5px solid '+(on?RH_C:'var(--border)')+';background:'+(on?RH_L:'transparent')+';color:'+(on?RH_C:'var(--text2)')+';border-radius:999px;padding:4px 11px"><b>'+o[1]+'</b> · <span class="mono">'+fmt(o[2])+'</span></span>';}).join('')+'</div>'
+       :'<div style="font-size:11.5px;color:var(--text3);margin:3px 0 0 25px">completo a diciembre '+fmt(aDic)+' · acumulado a hoy '+fmt(aHoy)+'</div>')+'</div>';
+  h+='</div>';
+  var nomb=String(emp.nombre).replace(/'/g,'');
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px">'+
+    '<div><span style="color:var(--text2);font-size:13px">Total a pagarle esta semana</span> <b class="mono" style="font-size:24px;margin-left:6px">'+fmt(r.total)+'</b></div>'+
+    '<div style="display:flex;gap:6px;align-items:center">'+
+      '<button class="btn btn-s btn-sm" onclick="genReciboNom('+emp.id+',\''+sv+'\','+r.total.toFixed(2)+','+r.f+','+r.desc.toFixed(2)+')">🖨️ Recibo</button>'+
+      (pg?'<span style="font-size:12px;color:'+RH_C+';font-weight:700">✓ Pagado el '+vacFC(pg.fecha)+(pg.cuenta?' · '+pg.cuenta:'')+'</span>'
+         :'<button class="btn btn-sm" style="background:'+RH_C+';color:#fff;border:none" onclick="prePagar('+emp.id+',\''+sv+'\','+r.total.toFixed(2)+',\''+nomb+'\')">✓ Marcar pagado</button>')+
+    '</div></div></div>';
+  // 2 · vacaciones
+  var s=vacSaldo(emp),hoy=lftFecha(hoyS),st=vacEmp(emp.id);
+  var card=function(lbl,val,tono,sub){var c=tono==='ok'?'background:'+RH_L+';color:'+RH_C:tono==='ojo'?'background:#FFF6DD;color:#7A5300':'background:var(--surface2);color:var(--text2)';
+    return '<div style="border-radius:9px;padding:9px 11px;'+c+'"><div style="font-size:11.5px">'+lbl+'</div><div style="font-size:21px;font-weight:800;color:'+(tono==='ok'?'#3B5229':tono==='ojo'?'#7A5300':'var(--text)')+'">'+val+(sub?' <span style="font-size:12px;font-weight:500;color:var(--text3)">'+sub+'</span>':'')+'</div></div>';};
+  var c3,c4;
+  if(s.n<1&&s.m6>hoy){c3=card(vacFF(s.m6)+' recibe',VAC_ADEL_DIAS,'',s.adelantados?'(le quedan '+Math.max(0,VAC_ADEL_DIAS-s.adelantados)+')':'');c4=card(vacFF(s.sigAniv)+' recibe',s.sigDias-VAC_ADEL_DIAS,'');}
+  else{c3=card(vacFF(s.sigAniv)+' recibe',s.sigDias,'');c4=card('Tomados',s.tomados||0,'');}
+  h+='<div style="'+caja+'"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><b style="font-size:14.5px">2 · Sus vacaciones</b>'+
+    '<div style="display:flex;gap:6px">'+(PRE_REG?'':'<button class="btn btn-s btn-xs" onclick="vacAutorizar()">Autorizar adelanto</button>')+
+    '<button class="btn btn-sm" style="border:1.5px solid '+RH_C+';color:'+RH_C+';background:#fff" onclick="PRE_REG=!PRE_REG;calcLFTKeep()">'+(PRE_REG?'Cerrar':'+ Registrar días')+'</button></div></div>'+
+    '<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0">'+card('Disponibles hoy',s.pend,'ok')+card('Adelantados',s.adelantados||0,(s.adelantados?'ojo':''))+c3+c4+'</div>';
+  var sue=vacSueltos(emp,s.desde);
+  if(sue.length)h+='<div style="font-size:12px;padding:7px 10px;border:1px solid '+RH_C+';border-radius:8px;margin-bottom:8px">Hay '+sue.length+' día'+(sue.length!==1?'s':'')+' marcado'+(sue.length!==1?'s':'')+' 🌴 en Asistencias sin registrar: '+sue.slice(0,6).map(vacFC).join(', ')+'. <a href="#" onclick="vacRegistrarSueltos();return false" style="color:'+RH_C+';font-weight:700">Registrarlos</a></div>';
+  if(PRE_REG)h+=vacRegHTML(emp);
+  var lista=st.salidas.slice().sort(function(a,b){return a.del<b.del?1:a.del>b.del?-1:0;});
+  h+='<div style="font-size:11.5px;color:var(--text3);margin:10px 0 2px">Historial · lo más reciente arriba</div>';
+  if(!lista.length)h+='<div style="font-size:12.5px;color:var(--text3);padding:6px 0">Sin vacaciones registradas.</div>';
+  lista.forEach(function(x){
+    var semX=nomLunes(x.del),est;
+    if(x.pagada)est='<span style="color:'+RH_C+'">✓ Prima pagada '+vacFC(x.fpago)+(x.nom?' con la nómina':' aparte')+'</span>';
+    else est='<span style="color:'+RH_C+'">● Prima en el pago de '+(semX===sv?'esta semana':'la semana '+semanaNum(semX))+'</span>';
+    h+='<div style="display:grid;grid-template-columns:minmax(0,1.5fr) 60px 90px minmax(0,1.8fr) auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--border);font-size:13px">'+
+      '<span>'+vacFC(x.del)+' – '+vacFF(x.al)+'</span><span>'+x.dias+' día'+(x.dias!==1?'s':'')+'</span><span class="mono">'+fmt(x.prima)+'</span><span style="font-size:12px">'+est+'</span>'+
+      '<span style="white-space:nowrap"><button class="btn btn-s btn-xs" title="Constancia para firma" onclick="vacRecibo('+emp.id+','+x.id+')">🖨</button> <button class="btn btn-s btn-xs" title="Borrar" onclick="vacBorrar('+x.id+')">🗑</button></span></div>';
+  });
+  h+='</div>';
+  // 3 · aguinaldo
+  var y=new Date().getFullYear();
+  h+='<div style="'+caja+'"><b style="font-size:14.5px">3 · Su aguinaldo '+y+'</b>'+
+    '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px">'+
+    card('Acumulado a hoy','<span class="mono" style="font-size:17px">'+fmt(aHoy)+'</span>','')+
+    card('Completo a diciembre','<span class="mono" style="font-size:17px">'+fmt(aDic)+'</span>','')+
+    card('Se paga a más tardar','<span style="font-size:17px">20 dic</span>','')+'</div>'+
+    '<div style="font-size:11.5px;color:var(--text3);margin-top:6px">15 días × '+fmt(v.sd)+' proporcional a los días trabajados en el año. Para pagarlo, marca "Agregar aguinaldo" en el pago de la semana.</div></div>';
+  return h;
+}
+var PRE_REG=false,PRE_NP=false;
 // Vacaciones que caen en la semana: su sueldo ya va en la semana completa y
 // aquí se suma la prima, para pagar todo junto en un solo recibo y movimiento.
 // Cada salida cuenta en la semana donde EMPIEZA (no se parte en dos pagos).
@@ -14066,6 +14184,7 @@ function nomPrimas(e,sv){
 }
 function rNom(){
   if(typeof VAC_OK!=='undefined'&&!VAC_OK&&typeof cargarVac==='function'){cargarVac().then(function(){rNom();});}
+  if(!NOM_AGU_OK){cargarNomAgu().then(function(){rNom();});}
   var sv=document.getElementById('nom-sem').value,si=new Date(sv),mes=si.getMonth();
   var body=document.getElementById('nom-body');
   var EMPS=empActivos();
@@ -14092,8 +14211,8 @@ function rNom(){
     // Las extras se pagan por SEMANA, y la nómina es semanal: este es el lugar
     // exacto donde aplica el art. 68 (9 al doble, de la 10 en adelante al triple).
     var vh=salarioHora(e), px=pagoExtras(hx,vh);
-    var pv=nomPrimas(e,sv);
-    var ap=base-desc+px.monto+pv.monto;tp+=ap;td+=desc;tx+=px.monto;
+    var pv=nomPrimas(e,sv),ag=nomAgu(e,sv);
+    var ap=base-desc+px.monto+pv.monto+ag.monto;tp+=ap;td+=desc;tx+=px.monto;
     h+='<tr><td style="font-weight:500">'+e.nombre+'</td><td>'+e.suc+'</td><td>'+t+(apl<6?'<div style="font-size:10px;color:#B45309;font-weight:700">semana parcial · '+apl+' de 6 días</div>':'')+'</td>';
     h+='<td>'+(f>0?'<span class="badge br">'+f+'</span>':'0')+(jus>0?' <span class="badge" style="background:var(--amber-l);color:#92400E">'+jus+' just.</span>':'')+(nvac>0?' <span class="badge" style="background:#EEF2E9;color:#4F6B3A">🌴 '+nvac+' vac</span>':'')+'</td>';
     h+='<td class="mono">'+fmt(base)+(apl<6?'<div style="font-size:10px;color:var(--text3)">de '+fmt(e.salario)+'</div>':'')+'</td><td class="mono" style="'+(desc>0?'color:var(--red)':'')+'">'+( desc>0?fmt(desc):'-')+'</td>';
@@ -14102,7 +14221,8 @@ function rNom(){
         :'-')+'</td>';
     h+='<td class="mono">'+(pv.monto>0
         ?'<b style="color:#4F6B3A">'+fmt(pv.monto)+'</b><div style="font-size:10px;color:var(--text3)">'+pv.dias+' día'+(pv.dias!==1?'s':'')+' · '+pv.lista.map(function(x){return vacFC(x.del)+(x.al!==x.del?'–'+vacFC(x.al):'');}).join(', ')+'</div>'
-        :(pv.aparte.length?'<span style="font-size:10.5px;color:var(--text3)">ya pagada aparte</span>':'-'))+'</td>';
+        :(pv.aparte.length?'<span style="font-size:10.5px;color:var(--text3)">prima ya pagada aparte</span>':(ag.monto>0?'':'-')))+
+        (ag.monto>0?'<div><b style="color:#4F6B3A">'+fmt(ag.monto)+'</b><div style="font-size:10px;color:var(--text3)">aguinaldo '+(ag.tipo==='dic'?'completo':'a hoy')+'</div></div>':'')+'</td>';
     h+='<td class="mono" style="font-weight:700">'+fmt(ap)+'</td>';
     // Día de pago: se resalta cuando ese día es HOY
     var hoyNom=DIAS_SEM[new Date().getDay()];
@@ -14233,6 +14353,7 @@ function genReciboNom(empId,sv,ap,faltas,desc){
     h+='<div class="r"><span>Prima vacacional 25% ('+pvR.dias+' día'+(pvR.dias!==1?'s':'')+' de vacaciones: '+pvR.lista.map(function(x){return vacFC(x.del)+' al '+vacFC(x.al);}).join(', ')+')</span><span>+ '+fmt(pvR.monto)+'</span></div>';
     h+='<div style="font-size:10.5px;color:#666;padding:2px 0 6px">El sueldo de los días de vacaciones ya está incluido en el salario semanal.</div>';
   }
+  var agR=nomAgu(emp,sv);if(agR.monto>0)h+='<div class="r"><span>Aguinaldo '+new Date().getFullYear()+' ('+(agR.tipo==='dic'?'completo a diciembre':'acumulado a la fecha')+')</span><span>+ '+fmt(agR.monto)+'</span></div>';
   h+='<div class="r t"><span>TOTAL A PAGAR</span><span style="color:#1A5C3A">'+fmt(ap)+'</span></div></div>';
   h+='<div style="display:flex;justify-content:space-between;margin-top:1.3rem;padding-top:8px;border-top:1px solid #eee"><div style="width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:#aaa">Firma autorizada</div><div style="width:160px;border-top:1px solid #999;padding-top:4px;text-align:center;font-size:10px;color:#aaa">Firma del empleado</div></div>';
   h+='<scr'+'ipt>window.onload=function(){window.print();}<'+'/scr'+'ipt></body></html>';
@@ -14289,13 +14410,16 @@ function calcLFT(){
   document.getElementById('lft-datos').innerHTML='<div class="srow"><span>Empleado</span><span style="font-weight:500">'+emp.nombre+'</span></div><div class="srow"><span>Ingreso</span><span>'+emp.ingreso+'</span></div><div class="srow"><span>Antiguedad al ultimo dia</span><span>'+v.txt+'</span></div><div class="srow"><span>Salario semanal</span><span class="mono">'+fmt(emp.salario)+'</span></div><div class="srow"><span>Salario diario (÷7)</span><span class="mono">'+fmt(v.sd)+'</span></div>'+
     '<div class="srow" style="border-top:1px dashed var(--border);margin-top:4px;padding-top:6px"><span>Aguinaldo acumulado al '+v.baja.toLocaleDateString('es-MX')+' <span style="color:var(--text3);font-size:11px">('+v.dAguiBr+' días'+lftFalTxt(v)+')</span></span><span class="mono" style="font-weight:700">'+fmt(v.aguProp)+'</span></div>'+
     '<div class="srow"><span>Aguinaldo a diciembre si sigue <span style="color:var(--text3);font-size:11px">('+v.dDicBr+' días'+lftFalTxt(v)+')</span></span><span class="mono">'+fmt(v.aguDic)+'</span></div>';
-  lftTabAct='com';var tabs=document.querySelectorAll('#page-lft .tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.toggle('active',i===0);renderLFT(emp,v);
+  lftTabAct='pre';var tabs=document.querySelectorAll('#page-lft .tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.toggle('active',i===0);renderLFT(emp,v);
 }
 function lftTab(tab,el){var tabs=document.querySelectorAll('#page-lft .tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.remove('active');el.classList.add('active');lftTabAct=tab;var empId=parseInt(document.getElementById('lft-emp').value);var emp=null;for(var i=0;i<EMPLEADOS.length;i++){if(EMPLEADOS[i].id===empId){emp=EMPLEADOS[i];break;}}if(emp)renderLFT(emp,lftVals(emp));}
 function renderLFT(emp,v){
   var h='';
-  var _btn=document.getElementById('lft-btn-rec');if(_btn)_btn.textContent=lftTabAct==='vac'?'Imprimir constancia de vacaciones':lftTabAct==='com'?'Generar recibo combinado':'Generar recibo';if(_btn)_btn.style.display=lftTabAct==='com'?'none':'';
-  if(lftTabAct==='vac'){
+  var _btn=document.getElementById('lft-btn-rec');if(_btn)_btn.textContent=lftTabAct==='vac'?'Imprimir constancia de vacaciones':lftTabAct==='com'?'Generar recibo combinado':'Generar recibo';if(_btn)_btn.style.display=(lftTabAct==='com'||lftTabAct==='pre')?'none':'';
+  if(lftTabAct==='pre'){
+    h=preHTML(emp,v);
+  }
+  else if(lftTabAct==='vac'){
     h=vacRender(emp,v)+lftVacValorHTML(emp,v);
   }
   else if(lftTabAct==='com'){
@@ -14323,7 +14447,7 @@ function renderLFT(emp,v){
 var LFT_AGU_JUST=(function(){try{return localStorage.getItem('lft_agu_just')==='1';}catch(e){return false;}})();
 function lftAguJustSet(v){LFT_AGU_JUST=!!v;try{localStorage.setItem('lft_agu_just',v?'1':'0');}catch(e){}
   var emp=vacEmpSel();if(emp)calcLFTKeep();if(document.getElementById('mod-agt')&&document.getElementById('mod-agt').style.display!=='none')aguTodosPinta();}
-function calcLFTKeep(){var t=lftTabAct;calcLFT();var tabs=document.querySelectorAll('#page-lft .tab'),ord=['com','vac','agu','fin','liq'],i=ord.indexOf(t);
+function calcLFTKeep(){var t=lftTabAct;calcLFT();var tabs=document.querySelectorAll('#page-lft .tab'),ord=['pre','fin','liq'],i=ord.indexOf(t);
   if(i>0&&tabs[i])lftTab(t,tabs[i]);}
 function lftFaltas(emp,desde,hasta){
   var r={n:0,inj:0,just:0,inc:0};if(!emp||!ASISTENCIAS)return r;
@@ -14642,14 +14766,7 @@ function vacRender(emp,v){
   if((s.autos||[]).length)h+='<div style="font-size:12px;padding:7px 9px;background:var(--mant-l);color:var(--mant-d);border-radius:6px;margin-bottom:.6rem;line-height:1.6">'+
     s.autos.map(function(a){return 'Le autorizaste <b>'+a.dias+' día'+(a.dias!==1?'s':'')+'</b> de adelanto el '+vacFF(a.fecha)+(a.motivo?' · '+a.motivo:'')+' <a href="#" onclick="vacQuitarAdel('+a.id+');return false" style="color:var(--mant-d)">quitar</a>';}).join('<br>')+
     '</div>';
-  // registrar: 3 pasos (fechas → cuánto es → registrar)
-  h+='<div style="border:1.5px solid '+RH_C+';border-radius:12px;padding:14px 16px;margin:1rem 0 .4rem;background:var(--surface)">'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px"><span style="font-weight:700;font-size:14px">Registrar vacaciones</span>'+
-    '<button class="btn btn-s btn-xs" onclick="vacAutorizar()">+ Autorizar adelanto</button></div>'+
-    '<div id="vac-steps">'+vacPasos(1)+'</div>'+
-    '<div style="font-size:12px;color:var(--text3);margin:12px 0 6px">Paso 1 · ¿Qué días va a descansar?</div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div class="field" style="margin:0"><label>Del</label><input type="date" id="vac-del" min="'+String(emp.ingreso).slice(0,10)+'" onchange="vacPrev()"></div>'+
-    '<div class="field" style="margin:0"><label>Al</label><input type="date" id="vac-al" min="'+String(emp.ingreso).slice(0,10)+'" onchange="vacPrev()"></div></div><div id="vac-prev"></div></div>';
+  h+=vacRegHTML(emp);
   // historial
   var lista=st.salidas.slice().sort(function(a,b){return a.del<b.del?1:a.del>b.del?-1:0;});
   h+='<div style="font-size:12.5px;font-weight:600;color:var(--text2);margin:1rem 0 .35rem">Historial</div>';
