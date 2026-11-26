@@ -1240,7 +1240,7 @@ tr:hover .ent-edit{opacity:1}
       <div id="sb-wm"><div class="sb-imp">IMPULSO</div><div class="sb-gal">galería</div></div>
     </div>
     <div class="sb-sub" id="sb-suc">—</div>
-    <div class="sb-ver">versión 25-nov · bancos saldos arriba</div>
+    <div class="sb-ver">versión 26-nov · PDF estado de resultados</div>
   </div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
@@ -1766,6 +1766,7 @@ tr:hover .ent-edit{opacity:1}
       <button class="btn btn-s btn-sm" onclick="erTodas(true)">▾ Abrir todo</button>
       <button class="btn btn-s btn-sm" onclick="erTodas(false)">▸ Cerrar todo</button>
       <label style="font-size:11.5px;color:var(--text3);display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" onchange="erVacios(this)" style="width:14px;height:14px;cursor:pointer">ver los vacíos</label>
+      <button class="btn btn-s btn-sm" onclick="erPDF()">📄 PDF</button>
       <button class="btn btn-s btn-sm" onclick="abrirEditorER()">⚙️ Conceptos</button>
       <button class="btn btn-s btn-sm" onclick="OM('mod-conc')">+ Agregar concepto</button>
       <select id="er-yr" onchange="rER()" style="width:85px"><option>2026</option><option>2025</option></select>
@@ -11455,9 +11456,54 @@ function erLectura(mesesIdx,mesesVis,totals,sections){
   if(cub.length)zh+='<div style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#F3F4F6;font-size:12.5px;color:var(--text2)">💡 Zibata cubrió lo que cuesta en <b>'+cubOk+' de '+cub.length+'</b> meses anteriores.'+(cub.length-cubOk?' Le faltó en: '+zib.slice(0,k).map(function(x,i){return x.en>0&&x.queda<0?mesesVis[i]+' ('+fmt(-x.queda)+')':'';}).filter(Boolean).join(', ')+'.':'')+(z.ser?'':' Ojo: todavía no veo su renta.')+'</div>';
   if(sinSuc&&canEdit())zh+='<div style="margin-top:8px;font-size:12.5px">Hay <b>'+sinSuc+'</b> gasto'+(sinSuc!==1?'s':'')+' de Servicios sin sucursal. <a href="#" onclick="marcarSucAbrir(\'Servicios\');return false" style="color:#6E4157;font-weight:700">Marcarlos</a> para que la renta de Zibata cuente aquí.</div>';
   zh+='</div>';
+  if(typeof ER_LAST==='object'&&ER_LAST){ER_LAST.hall=hall;ER_LAST.zib=zib;ER_LAST.nombreMes=nombreMes;ER_LAST.parcial=parcial;ER_LAST.dia=dia;}
   box.innerHTML='<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:12px;margin-bottom:0">'+
     '<div style="background:#fff;border:1px solid #E5E7EB;border-radius:12px;padding:12px 14px"><div style="font-size:12px;color:var(--text2);margin-bottom:8px">Utilidad neta por mes</div>'+bars+'</div>'+
     '<div style="background:#fff;border:1.5px solid #6E4157;border-radius:12px;padding:12px 16px"><b style="font-size:14.5px">Lectura de '+nombreMes+'</b><div style="font-size:11.5px;color:var(--text3);margin-bottom:6px">'+(parcial?'al día '+dia+' · ':'')+'se actualiza sola con cada movimiento</div>'+lis+'</div></div>'+zh+'<div style="height:14px"></div>';
+}
+var ER_LAST=null;
+// PDF del Estado de resultados: lectura del mes + Zibata + la tabla con todos
+// los conceptos que tienen montos (los vacíos no salen). Incluye retiros: el
+// reporte es para los dueños.
+function erPDF(){
+  if(!ER_LAST){alert('Abre primero el Estado de resultados.');return;}
+  var L=ER_LAST,N=L.mesesIdx.length,k=N-1,t=L.totals,suma=function(a){return a.reduce(function(x,y){return x+y;},0);};
+  var w=window.open('','_blank');if(!w){alert('Permite las ventanas emergentes para generar el PDF.');return;}
+  var f=function(v){return v?(v<0?'−':'')+fmt(Math.abs(v)).replace('$',''):'—';};
+  var hoy=new Date().toLocaleDateString('es-MX',{day:'numeric',month:'long',year:'numeric'});
+  var y=new Date().getFullYear();
+  var cos=(t.cos[k]||0)+(t.gv[k]||0)+(t.ga[k]||0);
+  var h='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Estado de resultados '+L.mesesVis[0]+'–'+L.mesesVis[k]+' '+y+'</title><style>'+
+    '@page{size:letter;margin:12mm}body{font-family:Helvetica,Arial,sans-serif;color:#212636;font-size:10px;margin:0}'+
+    '.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #6E4157;padding-bottom:6px;margin-bottom:10px}'+
+    '.k{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}.k div{background:#F3F4F6;border-radius:5px;padding:6px 8px}.k s{display:block;text-decoration:none;font-size:8.5px;color:#6B7280}.k b{font-size:13px}'+
+    'h3{font-size:11.5px;margin:10px 0 4px}.li{border-top:1px solid #E5E7EB;padding:4px 0}.zb{display:flex;justify-content:space-between;background:#F3F4F6;border-radius:5px;padding:6px 8px;margin:10px 0}'+
+    'table{width:100%;border-collapse:collapse;font-size:9px}th{background:#6E4157;color:#fff;padding:4px 5px;text-align:right;font-weight:600}th:first-child{text-align:left}'+
+    'td{padding:3px 5px;text-align:right;border-bottom:1px solid #EEF0F2;font-variant-numeric:tabular-nums}td:first-child{text-align:left}'+
+    'tr.s td{background:#F3F4F6;font-weight:700}tr.i td:first-child{padding-left:14px;color:#4B5563}tr.t td{font-weight:700;border-top:1.5px solid #6E4157;color:#6E4157}.neg{color:#A32D2D}'+
+    'tr{page-break-inside:avoid}</style></head><body>';
+  h+='<div class="hd"><div><img src="/static/logo-impulso.png" style="height:34px" onerror="this.outerHTML=\'<b style=letter-spacing:.3em;font-size:14px>IMPULSO</b>\'"></div>'+
+    '<div style="text-align:right"><div style="font-size:14px;font-weight:700">Estado de resultados</div><div style="font-size:9px;color:#6B7280">'+L.mesesVis[0]+' – '+L.mesesVis[k]+' '+y+' · generado el '+hoy+'</div></div></div>';
+  h+='<div class="k"><div><s>Ingresos '+L.mesesVis[k]+'</s><b>'+fmt(t.ing[k])+'</b></div><div><s>Costos y gastos '+L.mesesVis[k]+'</s><b>'+fmt(cos)+'</b></div>'+
+    '<div><s>Utilidad neta '+L.mesesVis[k]+'</s><b class="'+(t.un[k]<0?'neg':'')+'">'+(t.un[k]<0?'−':'')+fmt(Math.abs(t.un[k]))+'</b></div><div><s>Utilidad neta '+N+' meses</s><b>'+fmt(suma(t.un))+'</b></div></div>';
+  if(L.hall&&L.hall.length){
+    var ic={r:'⚠',a:'↗',v:'✓',i:'→'};
+    h+='<h3>Lectura de '+L.nombreMes+(L.parcial?' (al día '+L.dia+')':'')+'</h3>'+L.hall.map(function(x){return '<div class="li">'+ic[x.t]+' <b>'+x.b+'</b> '+x.d+'</div>';}).join('');
+  }
+  if(L.zib){var z=L.zib[k];h+='<div class="zb"><span><b>Zibata:</b> entró '+fmt(z.en)+' · sueldos '+fmt(z.sue)+' · renta y servicios '+fmt(z.ser)+(z.otr?' · otros '+fmt(z.otr):'')+'</span><b class="'+(z.queda<0?'neg':'')+'">le queda '+(z.queda<0?'−':'')+fmt(Math.abs(z.queda))+'</b></div>';}
+  h+='<table><thead><tr><th>Concepto</th>'+L.mesesVis.map(function(m){return '<th>'+m+'</th>';}).join('')+'<th>Total</th></tr></thead><tbody>';
+  L.sections.forEach(function(sec){
+    var vals=t[sec.key]||[],tot=suma(vals);
+    if(sec.total){h+='<tr class="t"><td>'+sec.label+'</td>'+vals.map(function(v){return '<td class="'+(v<0?'neg':'')+'">'+f(v)+'</td>';}).join('')+'<td class="'+(tot<0?'neg':'')+'">'+f(tot)+'</td></tr>';return;}
+    if(!sec.items)return;
+    var filas=sec.items.map(function(it){var iv=L.mesesIdx.map(function(mi){return sec.fn(it,mi);});return {it:it,iv:iv,t:suma(iv)};}).filter(function(x){return x.t>0;});
+    if(!filas.length&&!tot)return;
+    h+='<tr class="s"><td>'+sec.label+'</td>'+vals.map(function(v){return '<td>'+f(v)+'</td>';}).join('')+'<td>'+f(tot)+'</td></tr>';
+    filas.forEach(function(x){h+='<tr class="i"><td>'+ptEsc(x.it)+'</td>'+x.iv.map(function(v){return '<td>'+(v>0?f(v):'—')+'</td>';}).join('')+'<td>'+f(x.t)+'</td></tr>';});
+  });
+  h+='</tbody></table><div style="margin-top:8px;font-size:8px;color:#9CA3AF">Montos en pesos. Solo se muestran los conceptos con movimiento en el periodo.</div>';
+  h+='<script>window.onload=function(){setTimeout(function(){window.print();},350);};<\/script></body></html>';
+  w.document.open();w.document.write(h);w.document.close();
 }
 function erVerMovs(cat,mi,y){MZ.mes=y+'-'+String(mi+1).padStart(2,'0');MZ.cat=cat;MZ.tipo='';MZ.q='';MZ.tab='di';MZ.pag=0;go('mov');}
 function rER(){
@@ -11512,6 +11558,7 @@ function rER(){
     }
   });
   tbl.innerHTML=head+`<tbody>${rows}</tbody>`;
+  ER_LAST={mesesIdx:mesesIdx,mesesVis:mesesVis,totals:totals,sections:sections};
   try{erLectura(mesesIdx,mesesVis,totals,sections);}catch(e){console.error(e);}
   // El puente no es ingreso ni gasto, pero mueve dinero real: va aparte,
   // debajo del Estado de Resultados, para que no quede sin dueño.
