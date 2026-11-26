@@ -1240,7 +1240,7 @@ tr:hover .ent-edit{opacity:1}
       <div id="sb-wm"><div class="sb-imp">IMPULSO</div><div class="sb-gal">galería</div></div>
     </div>
     <div class="sb-sub" id="sb-suc">—</div>
-    <div class="sb-ver">versión 26-nov · PDF estado de resultados</div>
+    <div class="sb-ver">versión 26-nov · movimientos por año</div>
   </div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
@@ -10288,6 +10288,8 @@ function mzK(s){return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function mzSg(v){return (v<0?'−':'+')+fmt(Math.abs(v));}
 function mzDest(m){var t=mzTipo(m);return (t==='T'||t==='R')&&m.cta_destino&&m.cta_destino!==m.cuenta?' → '+mzEsc(m.cta_destino):'';}
 function mzMes(){return MZ.mes||todayStr().slice(0,7);}
+function mzYr(){return MZ.yr||mzMes().slice(0,4);}
+function mzEnPer(f){f=String(f||'');return MZ.anio?f.slice(0,4)===mzYr():f.slice(0,7)===mzMes();}
 function mzMesTxt(k){var M=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];return (M[parseInt(k.slice(5,7),10)-1]||k)+' '+k.slice(0,4);}
 function sobCargar(){if(_sobOk)return Promise.resolve();_sobOk=true;return fetch('/api/config/sobres_v1',{credentials:'include'}).then(function(r){return r.json();}).then(function(d){if(d&&d.valor&&typeof d.valor==='object'){SOB=d.valor;SOB.lista=SOB.lista||[];SOB.rep=SOB.rep||{};}}).catch(function(){});}
 function sobGuardar(){return fetch('/api/config/sobres_v1',{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({valor:SOB})}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);});}
@@ -10295,7 +10297,7 @@ function mzVisibles(){return esOwnerCU()?movs:movs.filter(function(m){return !es
 function mzTipo(m){var t=String(m.tipo||'').toLowerCase();return t.indexOf('entrada')>=0?'E':t.indexOf('salida')>=0?'S':t.indexOf('retiro')>=0?'R':'T';}
 function mzLista(){
   var m=mzMes(),q=(MZ.q||'').toLowerCase();
-  var L=mzVisibles().filter(function(x){return String(x.fecha||'').slice(0,7)===m||(q&&true);});
+  var L=mzVisibles().filter(function(x){return mzEnPer(x.fecha)||(q&&true);});
   if(q)L=mzVisibles().filter(function(x){return ((x.desc||'')+' '+(x.concepto||'')+' '+(x.tercero||'')+' '+x.monto).toLowerCase().indexOf(q)>=0;});
   if(MZ.tipo)L=L.filter(function(x){return mzTipo(x)===MZ.tipo;});
   if(MZ.cta)L=L.filter(function(x){return x.cuenta===MZ.cta||x.cta_destino===MZ.cta;});
@@ -10327,7 +10329,7 @@ function mzInit(){
   var tp=document.getElementById('mv-ter-panel');if(tp)document.getElementById('mz-guarda').appendChild(tp);
 }
 function mzKpis(){
-  var m=mzMes(),V=mzVisibles().filter(function(x){return String(x.fecha||'').slice(0,7)===m;});
+  var m=mzMes(),V=mzVisibles().filter(function(x){return mzEnPer(x.fecha);});
   var e=0,s=0,r=0;V.forEach(function(x){var t=mzTipo(x);if(t==='E')e+=+x.monto||0;else if(t==='S')s+=+x.monto||0;else if(t==='R')r+=+x.monto||0;});
   var q=e-s-r,k=function(t,v,c){return '<div style="background:#F3F4F6;border-radius:10px;padding:9px 12px"><div style="font-size:12px;color:var(--text3)">'+t+'</div><div class="mono" style="font-size:17px;font-weight:700;'+(c?'color:'+c:'')+'">'+v+'</div></div>';};
   return '<div style="display:grid;grid-template-columns:repeat('+(esOwnerCU()?4:3)+',minmax(0,1fr));gap:10px;margin:10px 0">'+k('Entró',fmt(e))+k('Salió',fmt(s))+(esOwnerCU()?k('Retiros',fmt(r)):'')+k('Quedó',mzSg(q),q>=0?'#0F6E56':'#A32D2D')+'</div>';
@@ -10337,7 +10339,10 @@ function mzHead(){
   var tab=function(id,t){return '<span onclick="mzTab(\''+id+'\')" style="cursor:pointer;padding:6px 12px;border-radius:8px;font-size:12.5px;'+(MZ.tab===id?'background:'+MZ_L+';color:'+MZ_C+';font-weight:700':'color:var(--text2)')+'">'+t+'</span>';};
   var foco=document.activeElement&&document.activeElement.id==='mz-q';
   var h='<div style="background:'+MZ_C+';color:#fff;border-radius:12px 12px 0 0;padding:10px 14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'+
-    '<b style="font-size:15px">Movimientos</b><input type="month" value="'+mzMes()+'" onchange="MZ.mes=this.value;MZ.pag=0;MZ.sel=null;mzPinta()" style="max-width:150px;padding:3px 6px;font-size:12px;border-radius:6px;border:none">'+
+    '<b style="font-size:15px">Movimientos</b>'+
+    '<span style="display:flex;background:#ffffff26;border-radius:8px;padding:2px">'+[['Mes',false],['Año',true]].map(function(o){var on=!!MZ.anio===o[1];return '<span onclick="MZ.anio='+o[1]+';MZ.pag=0;MZ.sel=null;mzPinta()" style="cursor:pointer;padding:3px 11px;border-radius:6px;font-size:12px;'+(on?'background:#fff;color:'+MZ_C+';font-weight:700':'color:#fff')+'">'+o[0]+'</span>';}).join('')+'</span>'+
+    (MZ.anio?'<select onchange="MZ.yr=this.value;MZ.pag=0;MZ.sel=null;mzPinta()" style="width:auto;max-width:100px;padding:3px 6px;font-size:12px;border-radius:6px;border:none">'+mzAnios().map(function(y){return '<option'+(y===mzYr()?' selected':'')+'>'+y+'</option>';}).join('')+'</select>'
+      :'<input type="month" value="'+mzMes()+'" onchange="MZ.mes=this.value;MZ.pag=0;MZ.sel=null;mzPinta()" style="max-width:150px;padding:3px 6px;font-size:12px;border-radius:6px;border:none">')+
     '<span style="margin-left:auto;display:flex;gap:6px"><button onclick="expMovXlsx()" style="background:#ffffff22;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer">Excel</button><button onclick="expMovPDF()" style="background:#ffffff22;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer">PDF</button><button onclick="tqzAbrir()" style="background:#ffffff22;color:#fff;border:none;border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer">Ventas Tranquilo</button>'+
     '<button onclick="mzRegistrar()" style="background:#fff;color:'+MZ_C+';border:none;border-radius:6px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer">＋ Registrar</button></span></div>'+
     '<div style="display:flex;gap:4px;padding:10px 4px 0;flex-wrap:wrap">'+tab('di','Diario')+tab('cu','Cuentas')+tab('so','Sobres'+(nS?' · '+nS:''))+tab('te','Terceros'+(E&&E.total>0.5?' · '+fmt(E.total):''))+'</div>';
@@ -10364,9 +10369,31 @@ function mzFila(m){
 function mzDiaTxt(f){var hoy=todayStr(),d=new Date(hoy+'T12:00:00');d.setDate(d.getDate()-1);var ay=dateStrLocal(d);
   if(f===hoy)return 'Hoy · '+ptFec(f).slice(0,5);if(f===ay)return 'Ayer · '+ptFec(f).slice(0,5);
   return new Date(f+'T12:00:00').toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'short'});}
+function mzAnios(){var y={};y[todayStr().slice(0,4)]=1;(movs||[]).forEach(function(m){var a=String(m.fecha||'').slice(0,4);if(/^\d{4}$/.test(a))y[a]=1;});return Object.keys(y).sort().reverse();}
+// Suma de lo filtrado: cuánto, cuántos y (en año) cuánto por mes.
+function mzSumaHTML(L){
+  var fil=MZ.cat||MZ.cta||MZ.tipo||MZ.q;if(!fil&&!MZ.anio)return '';
+  if(!L.length)return '';
+  var neto=0,ent=0,sal=0;L.forEach(function(x){var t=mzTipo(x),v=+x.monto||0;if(t==='E'){ent+=v;neto+=v;}else if(t!=='T'){sal+=v;neto-=v;}});
+  var tit=[MZ.cat,MZ.cta,MZ.tipo==='E'?'Entradas':MZ.tipo==='S'?'Salidas':MZ.tipo==='T'?'Traspasos':'',MZ.q?'“'+MZ.q+'”':''].filter(Boolean).join(' · ')||'Todo';
+  var per=MZ.q?'todos los meses':MZ.anio?mzYr():mzMesTxt(mzMes());
+  var h='<div style="margin:10px 12px;border:1.5px solid '+MZ_C+';border-radius:10px;padding:11px 14px;background:#fff">'+
+    '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap"><span><b>'+mzEsc(tit)+' · '+per+'</b> <span style="color:var(--text3);font-size:12px">· '+L.length+' movimiento'+(L.length!==1?'s':'')+(ent&&sal?' · entró '+fmt(ent)+' · salió '+fmt(sal):'')+'</span></span>'+
+    '<b class="mono" style="font-size:19px;color:'+(neto<0?'#A32D2D':'#0F6E56')+'">'+mzSg(neto)+'</b></div>';
+  if(MZ.anio&&!MZ.q){
+    var y=mzYr(),M=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'],por=M.map(function(){return 0;});
+    L.forEach(function(x){var mi=parseInt(String(x.fecha).slice(5,7),10)-1,t=mzTipo(x),v=+x.monto||0;if(mi>=0&&t!=='T')por[mi]+=Math.abs(t==='E'?v:v);});
+    var mx=Math.max.apply(null,por.concat([1])),hoyM=todayStr().slice(0,7);
+    h+='<div style="display:flex;gap:4px;align-items:flex-end;height:66px;margin-top:10px">'+por.map(function(v,i){var k=y+'-'+String(i+1).padStart(2,'0');
+      return '<div onclick="MZ.anio=false;MZ.mes=\''+k+'\';MZ.pag=0;mzPinta()" title="'+M[i]+': '+fmt(v)+'" style="cursor:pointer;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:10px;color:var(--text3)">'+
+        (v?'<span style="font-size:9.5px;color:var(--text2)">'+(v>=1000?Math.round(v/1000)+'k':Math.round(v))+'</span><div style="width:100%;height:'+Math.max(3,Math.round(v/mx*40))+'px;background:'+(k===hoyM?MZ_C:'#A97C93')+';border-radius:3px 3px 0 0;margin:2px 0"></div>':'')+M[i]+'</div>';}).join('')+'</div>'+
+      '<div style="font-size:11px;color:var(--text3);margin-top:4px">Toca un mes para ver solo ese mes.</div>';
+  }
+  return h+'</div>';
+}
 function mzDiario(){
   var L=mzLista(),nP=Math.max(1,Math.ceil(L.length/MZ_PP));if(MZ.pag>nP-1)MZ.pag=nP-1;
-  var vis=L.slice(MZ.pag*MZ_PP,(MZ.pag+1)*MZ_PP),h='',dia='';
+  var vis=L.slice(MZ.pag*MZ_PP,(MZ.pag+1)*MZ_PP),h=mzSumaHTML(L),dia='';
   vis.forEach(function(m){var f=String(m.fecha||'').slice(0,10);if(f!==dia){dia=f;
     var tD=L.filter(function(x){return String(x.fecha||'').slice(0,10)===f;}).reduce(function(a,x){var t=mzTipo(x);return a+(t==='E'?(+x.monto||0):t==='T'?0:-(+x.monto||0));},0);
     h+='<div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--text3);padding:8px 14px 4px;background:#F3F4F6"><span style="text-transform:capitalize">'+mzDiaTxt(f)+'</span><span class="mono">'+mzSg(tD)+'</span></div>';}
