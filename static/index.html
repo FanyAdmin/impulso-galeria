@@ -632,6 +632,32 @@ tr:hover .ent-edit{opacity:1}
 #page-ped.pz-on > :not(#pz2){display:none!important}
 #page-mov.mz-on > :not(#mz2){display:none!important}
 #mz2{--border:#E5E7EB;--border2:#D1D5DB}
+#page-cot.qt-on #cot-armar{display:none!important}
+#page-cot.qt-on > .ph .ph-title,#page-cot.qt-on > .ph .ph-sub{display:none}
+#qt-arm .card{border:none!important;box-shadow:none!important;background:transparent!important;border-left:3px solid #6E4157!important;border-radius:0!important;padding:4px 0 4px 12px!important;margin:0 0 10px!important}
+#qt-arm .card::before{display:none!important}
+#qt-arm .card-title{margin:0!important;font-size:13px}
+#qt-arm .card:nth-child(1){display:grid;grid-template-columns:120px minmax(0,2fr) minmax(0,1fr);gap:8px;align-items:center}
+#qt-arm .card:nth-child(1) #mol-sel{grid-column:2/4;grid-row:2;margin:0!important;min-height:0!important}
+#qt-arm .card:nth-child(1) > .card-title{grid-column:1;grid-row:1}
+#qt-arm .card:nth-child(1) .search-wrap{grid-column:2;grid-row:1}
+#qt-arm .card:nth-child(1) > div:last-child{margin:0!important;grid-column:3;grid-row:1}
+#qt-arm .card:nth-child(1) > div:last-child label{display:none}
+#qt-arm .card:nth-child(1) #mol-var{max-width:none!important}
+#qt-arm .card:nth-child(1) .search-wrap{margin:0}
+#qt-arm .card:nth-child(2){display:grid;grid-template-columns:120px minmax(0,1fr);gap:8px;align-items:end}
+#qt-arm .card:nth-child(2) .card-title{flex-direction:column;align-items:flex-start!important;gap:6px;align-self:center}
+#qt-arm .card:nth-child(2) .g3{margin:0!important}
+#qt-arm .card:nth-child(3){display:grid;grid-template-columns:120px minmax(0,1fr);gap:6px 8px;align-items:center}
+#qt-arm .card:nth-child(3) > :nth-child(2),#qt-arm .card:nth-child(3) > :nth-child(4){display:none}
+#qt-arm .card:nth-child(3) > .card-title{grid-row:1/4;align-self:start;padding-top:6px}
+#qt-arm .card:nth-child(3) > .card-title span:not(.cot-n){display:none}
+#qt-arm .card:nth-child(3) > :nth-child(3),#qt-arm .card:nth-child(3) > :nth-child(5),#qt-arm .card:nth-child(3) > :nth-child(6){grid-column:2;margin:0!important}
+#qt-arm .card:nth-child(3) > :nth-child(7),#qt-arm .card:nth-child(3) > :nth-child(8){grid-column:1/3;margin-top:4px!important}
+#qt-arm .xgrid{display:flex!important;flex-wrap:wrap;gap:6px}
+#qt-svc .card{border:none!important;box-shadow:none!important;padding:8px 4px!important;margin:0!important;background:transparent!important}
+#qt-svc .card::before{display:none!important}
+#qt-svc .card-title{display:none}
 #page-ord.cp-on > :not(#cp2){display:none!important}
 #page-cxc.kz-on > :not(#kz2){display:none!important}
 </style>
@@ -1240,7 +1266,7 @@ tr:hover .ent-edit{opacity:1}
       <div id="sb-wm"><div class="sb-imp">IMPULSO</div><div class="sb-gal">galería</div></div>
     </div>
     <div class="sb-sub" id="sb-suc">—</div>
-    <div class="sb-ver">versión 26-nov · movimientos por año</div>
+    <div class="sb-ver">versión 26-nov · cuenta galería corregida</div>
   </div>
   <div id="activity-badge-wrap" class="owner-only" style="display:none;padding:6px 12px 0"><div onclick="go('activity')" style="background:#dc2626;color:white;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🔔 Cambios recientes <span id="activity-badge" style="background:white;color:#dc2626;border-radius:10px;padding:1px 6px;font-weight:700;display:none"></span></div></div>
   <div class="sb-section">Ventas</div>
@@ -1312,6 +1338,7 @@ tr:hover .ent-edit{opacity:1}
   <div class="ph"><div><div class="ph-title">Cotizador</div><div class="ph-sub">Arma la cotización del cliente</div></div>
     <div style="display:flex;gap:6px"><button class="chip active" id="cot-tab-a" onclick="cotVista('a')">🧮 Cotizar</button><button class="chip" id="cot-tab-g" onclick="cotVista('g')">💾 Guardadas <span id="cot-n-g"></span></button></div></div>
   <div id="cot-guardadas" style="display:none"></div>
+  <div id="qt2"></div>
   <div id="cot-armar" style="display:grid;grid-template-columns:1fr 380px;gap:1rem">
     <div>
       <div class="card">
@@ -2859,6 +2886,7 @@ function go(id){
     rh:rEmps,asist:()=>{initAsistSels();rAsist();},nom:()=>{initNomSems();cargarNomPagos().then(rNom);},
     lft:populateLFT,pend:()=>{rPend();},vip:()=>{rVIP();},vends:rVends,com:rCom,fac:rFac2,audit:rAudit,cob:rCob2,cxp:()=>{loadCxP().then(rCxP);cargarFP();},hoy:()=>{cargarAuditOK().then(rHoy);},cal:()=>{cargarCalNotas().then(cargarAuditOK).then(rCal);},rec:rRec,tab:()=>{rTab();cargarAuditOK().then(function(){try{pintaAvisoAudit();}catch(e){}try{pintaAvisoTerceros();}catch(e){}});},audit2:()=>{cargarAuditOK().then(rAudit2);},rev:rRev2,cuadre:()=>{cargarBcoOK().then(rCuadre);}
   })[id]?.();
+  if(id==='cot'){try{qtPinta();}catch(e){console.error(e);}}
   try{rRiel();}catch(e){}
   try{var _mc=document.getElementById('mod-cie-suc'),_mn=document.getElementById('mod-nf');
     var _ab=function(m){return m&&m.style.display&&m.style.display!=='none';};
@@ -2961,6 +2989,7 @@ function addCart(){
   Object.keys(XP).forEach(k=>{const el=document.getElementById('x-'+k);if(el)el.checked=false;const xb=document.getElementById('xb-'+k);if(xb)xb.classList.remove('on');});
 }
 function rCart(){
+  try{setTimeout(qtPinta,0);}catch(e){}
   const e=document.getElementById('c-empty'),it=document.getElementById('c-items');
   // El botón ya no es de ancho completo: el conteo va a un lado para no perderlo de vista
   const cn=document.getElementById('cot-cuantos');
@@ -3011,7 +3040,7 @@ function rmCart(i){cart.splice(i,1);rCart();}
 function clrCart(){cart=[];COT_ACT=null;rCart();}
 
 // PDF
-function genPDF(){
+function genPDFViejo(){
   if(!cart.length){alert('El carrito está vacío');return;}
   const subRaw=cart.reduce((a,b)=>a+b.sub,0),descMonto=subRaw*cotDesc/100,sub=subRaw-descMonto,iva=sub*.16,total=sub+iva;
   const fecha=new Date().toLocaleDateString('es-MX');
@@ -3051,6 +3080,151 @@ function genPDF(){
   const w=window.open('','_blank');w.document.write(html);w.document.close();
 }
 
+// ═══ COTIZADOR estilo Odoo: la cotización como documento ═══
+window.addEventListener('load',function(){setTimeout(function(){try{if(document.getElementById('page-cot'))qtPinta();}catch(e){}},800);});
+var QT={arm:false,svc:false,desc:false,cli:'',tel:'',log:[],ini:false,galMod:'pct',galObj:''};
+var QT_C='#6E4157',QT_L='#F6F0F3',QT_ENTREGA='12 días hábiles';
+function qtLog(t){var d=new Date();QT.log.unshift({t:t,h:d.toLocaleTimeString('es-MX',{hour:'numeric',minute:'2-digit'})});QT.log=QT.log.slice(0,6);}
+function qtInit(){
+  if(QT.ini)return;var q=document.getElementById('qt2'),ar=document.getElementById('cot-armar');if(!q||!ar)return;
+  QT.ini=true;document.getElementById('page-cot').classList.add('qt-on');
+  q.innerHTML='<div id="qt-doc"></div><div id="qt-hold" style="display:none"><div id="qt-arm"></div><div id="qt-svc"></div><div id="qt-galcli"></div></div>';
+  var cards=ar.querySelectorAll(':scope > div:first-child > .card');
+  var arm=document.getElementById('qt-arm');for(var i=0;i<3&&i<cards.length;i++)arm.appendChild(cards[i]);
+  if(cards[3])document.getElementById('qt-svc').appendChild(cards[3]);
+  var gc=document.getElementById('cot-gal-cli');if(gc)document.getElementById('qt-galcli').appendChild(gc);
+  var b=arm.querySelector('button[onclick="addCart()"]');if(b)b.innerHTML='＋ Agregar a cotización';
+  qtLog('Cotización nueva');
+}
+function qtMini(x){
+  var w=+x.l1||30,h=+x.l2||40,mx=Math.max(w,h),W=Math.max(10,Math.round(w/mx*20)),H=Math.max(10,Math.round(h/mx*28)),ml=(x.ek||[]).some(function(k){return k==='ml'||k==='2m';});
+  return '<svg width="22" height="30" viewBox="0 0 22 30" aria-hidden="true" style="flex-shrink:0"><rect x="'+((22-W)/2)+'" y="'+((30-H)/2)+'" width="'+W+'" height="'+H+'" fill="#2C2C2A"/>'+
+    (ml?'<rect x="'+((22-W)/2+2)+'" y="'+((30-H)/2+2)+'" width="'+(W-4)+'" height="'+(H-4)+'" fill="#FBFAF7"/><rect x="'+((22-W)/2+4)+'" y="'+((30-H)/2+4)+'" width="'+(W-8)+'" height="'+(H-8)+'" fill="#E6F1FB"/>'
+        :'<rect x="'+((22-W)/2+2)+'" y="'+((30-H)/2+2)+'" width="'+(W-4)+'" height="'+(H-4)+'" fill="#E6F1FB"/>')+'</svg>';
+}
+function qtTot(){
+  var subRaw=cart.reduce(function(a,b){return a+(+b.sub||0);},0),desc=subRaw*(cotDesc||0)/100,sub=subRaw-desc,iva=sub*.16,tot=sub+iva,f=(typeof galF==='function')?galF():1;
+  return {subRaw:subRaw,desc:desc,sub:sub,iva:iva,tot:tot,f:f,cli:tot*f};
+}
+function qtGalTotal(v){var t=qtTot();v=parseFloat(String(v).replace(/[^0-9.]/g,''));QT.galObj=isNaN(v)?'':v;if(!v||!t.tot)return;var p=Math.round((v/t.tot-1)*100*1000)/1000;if(p<0){alert('El total que quieres cobrar es menor que el precio de Impulso.');return;}galPct(p);}
+function qtGalOn(){var cb=document.getElementById('cot-gal');var on=!COT_GAL;if(cb)cb.checked=on;galToggle(on);}
+function qtPinta(){
+  qtInit();var box=document.getElementById('qt-doc');if(!box)return;
+  var t=qtTot(),ca=COT_ACT,est=ca?(ca.estado==='convertida'?'p':'e'):'b',hold=document.getElementById('qt-hold');
+  var arm=document.getElementById('qt-arm'),svc=document.getElementById('qt-svc'),gcl=document.getElementById('qt-galcli');
+  if(arm&&arm.parentNode!==hold)hold.appendChild(arm);if(svc&&svc.parentNode!==hold)hold.appendChild(svc);if(gcl&&gcl.parentNode!==hold)hold.appendChild(gcl);
+  var marcos=[],servs=[];cart.forEach(function(x,i){(x.esServicio?servs:marcos).push({x:x,i:i});});
+  var sm=marcos.reduce(function(a,o){return a+(+o.x.subIva||0);},0)*t.f,ss=servs.reduce(function(a,o){return a+(+o.x.subIva||0);},0)*t.f;
+  var btn='border:none;border-radius:6px;cursor:pointer;font:inherit';
+  var vence=ca&&ca.vence?ca.vence:'';var dias=vence?Math.round((new Date(vence+'T12:00:00')-new Date(todayStr()+'T12:00:00'))/864e5):COT_VIG;
+  var u=_u()||{};
+  // izquierda
+  var h='<div style="display:grid;grid-template-columns:185px minmax(0,1fr);gap:30px;background:#fff;border:1px solid #E5E7EB;border-radius:14px;padding:24px 24px 28px">';
+  h+='<div><div style="background:'+QT_C+';border-radius:12px;padding:14px;color:#fff"><div style="font-size:11px;opacity:.8">Total'+(COT_GAL?' cliente':'')+'</div>'+
+    '<div class="mono" style="font-size:23px;font-weight:800;color:#FBE7A1;letter-spacing:-.02em">'+fmt(t.cli)+'</div><div style="font-size:11px;opacity:.85">anticipo '+fmt(t.cli/2)+'</div>'+
+    '<button onclick="openModPed()" style="'+btn+';margin-top:10px;width:100%;background:#fff;color:'+QT_C+';padding:8px 0;font-weight:800">✓ Convertir a pedido</button></div>'+
+    '<div style="display:flex;gap:6px;margin-top:8px"><button onclick="genPDF()" title="PDF" style="'+btn+';flex:1;padding:7px 0;background:#F1F3F5">🖨 PDF</button><button onclick="qtWA()" title="WhatsApp" style="'+btn+';flex:1;padding:7px 0;background:#F1F3F5">💬</button><button onclick="cotGuardarAbrir()" title="Guardar" style="'+btn+';flex:1;padding:7px 0;background:#F1F3F5">💾</button></div>'+
+    (cart.length?'<button onclick="if(confirm(\'¿Vaciar la cotización?\')){clrCart();qtLog(\'Se vació\');}" style="'+btn+';margin-top:6px;width:100%;background:none;color:#ADB5BD;font-size:11.5px">vaciar</button>':'')+
+    '<div style="margin-top:20px;font-size:10.5px;color:#868E96;font-weight:800;letter-spacing:.06em">HISTORIAL</div><div style="margin-top:8px;border-left:2px solid '+QT_L+';padding-left:11px;font-size:11.5px;line-height:1.45">'+
+    (ca?'<div style="position:relative;margin-bottom:8px"><span style="position:absolute;left:-16px;top:4px;width:8px;height:8px;border-radius:50%;background:'+QT_C+'"></span><b style="font-weight:600">'+ptEsc(ca.folio)+' guardada</b><div style="color:#868E96">'+ptFec(ca.fecha||'')+(ca.usuario?' · '+ptEsc(ca.usuario):'')+'</div></div>':'')+
+    QT.log.map(function(e,i){return '<div style="position:relative;margin-bottom:8px"><span style="position:absolute;left:-16px;top:4px;width:8px;height:8px;border-radius:50%;background:'+(i===0&&!ca?QT_C:'#D9C3CE')+'"></span><b style="font-weight:600">'+ptEsc(e.t)+'</b><div style="color:#868E96">hoy '+e.h+'</div></div>';}).join('')+'</div>'+
+    '<div style="margin-top:14px;font-size:11.5px;color:#868E96">'+(ca?'Vence en <b style="color:'+(dias<=3?'#B45309':'#212529')+';font-weight:600">'+(dias<0?'— ya venció':dias+' día'+(dias===1?'':'s'))+'</b>':'Vigencia <b style="color:#212529;font-weight:600">'+COT_VIG+' días</b> al guardar')+'<br>Atiende <b style="color:#212529;font-weight:600">'+ptEsc(u.display||u.name||'')+'</b></div></div>';
+  // documento
+  var paso=function(t2,on,ini,fin){return '<span style="padding:5px 16px 5px '+(ini?12:18)+'px;background:'+(on?QT_C:'#E9ECEF')+';color:'+(on?'#fff':'#495057')+';'+(ini?'':'margin-left:-7px;')+'clip-path:polygon('+(ini?'0 0,':'0 0,')+(fin?'100% 0,100% 100%,':'90% 0,100% 50%,90% 100%,')+'0 100%'+(ini?'':',9% 50%')+')">'+t2+'</span>';};
+  h+='<div style="min-width:0"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div style="font-size:26px;color:#111">Cotización - <i style="color:'+QT_C+'">'+(ca?ptEsc(ca.folio):'nueva')+'</i></div>'+
+    '<span style="display:flex;font-size:11.5px">'+paso('Borrador',est==='b',true,false)+paso('Enviada',est==='e',false,false)+paso('Pedido',est==='p',false,true)+'</span></div>';
+  var inp='border:none;border-bottom:1.5px dashed #D9C3CE;background:none;font:inherit;padding:2px 2px;outline:none';
+  h+='<div style="margin-top:10px;font-size:14px;color:#495057;display:flex;align-items:center;gap:6px;flex-wrap:wrap">Para '+
+    (ca?'<b style="font-weight:600;color:#111">'+ptEsc(ca.cli||'')+'</b>'+(ca.tel?' · '+ptEsc(ca.tel):'')
+       :'<input value="'+ptEsc(QT.cli)+'" oninput="QT.cli=this.value" placeholder="nombre del cliente" style="'+inp+';color:#111;font-weight:600;width:200px"> · <input value="'+ptEsc(QT.tel)+'" oninput="QT.tel=this.value" placeholder="teléfono" style="'+inp+';width:130px">')+
+    ' · '+ptEsc(u.suc||'')+'</div>';
+  var franja=function(t2,m){return '<div style="margin-top:22px;background:'+QT_L+';color:'+QT_C+';padding:8px 12px;border-radius:6px;font-weight:800;display:flex;justify-content:space-between"><span>'+t2+'</span><span class="mono">'+fmt(m)+'</span></div>';};
+  var acc=function(i,x){var b2='background:none;border:none;cursor:pointer;padding:2px 4px;font-size:13px;color:#ADB5BD';
+    return '<span style="white-space:nowrap">'+(x.esServicio?'':'<button title="'+(x.regalo?'Quitar regalo':'Regalo ($0)')+'" onclick="giftCart('+i+')" style="'+b2+(x.regalo?';color:#B45309':'')+'">🎁</button><button title="Otro igual" onclick="cartDup('+i+');qtLog(\'Se duplicó una pieza\')" style="'+b2+'">＋</button><button title="Otra medida con esta moldura" onclick="cartCargar('+i+');QT.arm=true;qtPinta()" style="'+b2+'">✎</button>')+'<button title="Quitar" onclick="rmCart('+i+');qtLog(\'Se quitó una pieza\')" style="'+b2+'">✕</button></span>';};
+  h+=franja('Marcos',sm);
+  if(!marcos.length&&!QT.arm)h+='<div style="padding:14px 12px;color:#ADB5BD;font-size:12.5px">Todavía no hay piezas.</div>';
+  marcos.forEach(function(o){var x=o.x,un=(+x.subIva||0)*t.f/(x.q||1);
+    h+='<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid #F1F3F5'+(x.regalo?';background:#FFFBEB':'')+'">'+qtMini(x)+
+      '<div style="flex:1;min-width:0"><div>Marco '+x.l1+' × '+x.l2+' · '+ptEsc(x.mol)+(x.regalo?' <span style="background:#FCD34D;color:#92400E;border-radius:99px;padding:1px 7px;font-size:10px;font-weight:800">REGALO</span>':'')+'</div>'+
+      '<div style="font-size:11.5px;color:#868E96">'+((x.en||[]).filter(function(e){return e!=='Regalo';}).join(' · ')||'sin extras')+' · '+(x.q||1)+' × '+fmt(un)+'</div></div>'+
+      '<b class="mono" style="font-weight:600">'+fmt((+x.subIva||0)*t.f)+'</b>'+acc(o.i,x)+'</div>';});
+  if(QT.arm)h+='<div id="qt-arm-slot" style="margin:12px 0;border:1.5px solid '+QT_C+';border-radius:10px;padding:14px 16px 12px;background:#FDFBFC"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><b style="color:'+QT_C+'">Agregar pieza</b><a href="#" onclick="QT.arm=false;qtPinta();return false" style="color:#868E96;font-size:12px">cerrar</a></div></div>';
+  else h+='<button onclick="QT.arm=true;qtPinta();setTimeout(function(){var e=document.getElementById(\'mol-q\');if(e)e.focus();},50)" style="'+btn+';margin:12px 0;width:100%;border:1.5px dashed '+QT_C+';background:#fff;padding:11px 0;color:'+QT_C+';font-weight:800">＋ Agregar pieza</button>';
+  h+=franja('Servicios',ss);
+  servs.forEach(function(o){var x=o.x;h+='<div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid #F1F3F5"><div style="flex:1">'+ptEsc(x.mol)+'</div><b class="mono" style="font-weight:600">'+fmt((+x.subIva||0)*t.f)+'</b>'+acc(o.i,x)+'</div>';});
+  h+=QT.svc?'<div id="qt-svc-slot" style="margin:8px 0;border:1.5px solid '+QT_C+';border-radius:10px;padding:10px 14px;background:#FDFBFC"><div style="display:flex;justify-content:space-between"><b style="color:'+QT_C+'">Concepto libre</b><a href="#" onclick="QT.svc=false;qtPinta();return false" style="color:#868E96;font-size:12px">cerrar</a></div></div>'
+    :'<a href="#" onclick="QT.svc=true;qtPinta();return false" style="display:inline-block;padding:10px 12px;color:'+QT_C+';font-weight:700">＋ concepto libre</a>';
+  // galería
+  var imp=t.tot,gal=imp*(t.f-1);
+  h+='<div style="margin-top:18px;background:#F8F7FE;border-radius:10px;padding:12px 14px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;color:#3C3489;font-weight:700"><input type="checkbox" '+(COT_GAL?'checked':'')+' onchange="qtGalOn()" style="accent-color:#534AB7;width:16px;height:16px"> 🖼 Para Galería</label>'+
+    (COT_GAL?'<span style="display:flex;border-radius:999px;overflow:hidden;font-size:11.5px;border:1px solid #CECBF6">'+[['pct','por %'],['tot','por total']].map(function(o){var on=QT.galMod===o[0];return '<span onclick="QT.galMod=\''+o[0]+'\';qtPinta()" style="cursor:pointer;padding:3px 11px;'+(on?'background:#534AB7;color:#fff':'color:#3C3489')+'">'+o[1]+'</span>';}).join('')+'</span>':'')+'</div>';
+  if(COT_GAL){
+    if(QT.galMod==='pct')h+='<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;align-items:center">'+[10,20,30,40,50].map(function(p){var on=+COT_GAL_PCT===p;return '<span onclick="galPct('+p+')" style="cursor:pointer;padding:3px 11px;border-radius:999px;font-size:12px;'+(on?'background:#534AB7;color:#fff':'border:1px solid #CECBF6;color:#3C3489')+'">'+p+'%</span>';}).join('')+
+      '<input type="number" placeholder="otro %" value="'+([10,20,30,40,50].indexOf(+COT_GAL_PCT)<0?COT_GAL_PCT:'')+'" onchange="galPct(this.value)" style="width:80px;padding:3px 8px;font-size:12px;border:1px solid #CECBF6;border-radius:999px"></div>';
+    else h+='<div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:#3C3489">Quiero cobrar <input value="'+(QT.galObj||'')+'" onchange="qtGalTotal(this.value)" placeholder="$ total" style="width:130px;padding:4px 8px;border:1px solid #CECBF6;border-radius:8px;font-family:var(--mono,monospace)"> <span>→ <b>'+(Math.round(COT_GAL_PCT*1000)/1000)+'%</b></span></div>';
+    h+='<div id="qt-galcli-slot" style="margin-top:8px"></div>';
+    if(imp>0)h+='<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin:10px 0 5px"><div style="flex:'+Math.round(imp)+';background:'+QT_C+'"></div><div style="flex:'+Math.max(1,Math.round(gal))+';background:#AFA9EC"></div></div>'+
+      '<div style="display:flex;justify-content:space-between;font-size:11.5px"><span style="color:'+QT_C+'">Impulso '+fmt(imp)+'</span><span style="color:#534AB7">Galería '+fmt(gal)+'</span></div>';
+  }
+  h+='</div>';
+  // descuento y totales
+  h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-top:16px;flex-wrap:wrap"><div>'+
+    (QT.desc?'<div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center"><span style="font-size:12px;color:#868E96">Descuento</span>'+[0,5,10,15,16,50].map(function(p){var on=(cotDesc||0)===p;return '<span onclick="setCotDesc('+p+')" style="cursor:pointer;padding:3px 10px;border-radius:999px;font-size:12px;'+(on?'background:'+QT_C+';color:#fff':'border:1px solid #DEE2E6;color:#495057')+'">'+(p?p+'%':'sin')+'</span>';}).join('')+'</div>'
+      :'<span onclick="QT.desc=true;qtPinta()" style="cursor:pointer;display:inline-block;padding:6px 13px;border-radius:999px;border:1px solid #DEE2E6;color:#868E96;font-size:12px">％ Descuento'+(cotDesc?': '+cotDesc+'%':'')+'</span>')+'</div>'+
+    '<div style="min-width:240px;flex:0 1 300px">'+
+    (cotDesc?'<div style="display:flex;justify-content:space-between;padding:3px 0;color:#868E96"><span>Antes del descuento</span><span class="mono">'+fmt(t.subRaw*1.16*t.f)+'</span></div><div style="display:flex;justify-content:space-between;padding:3px 0;color:#C0392B"><span>Descuento '+cotDesc+'%</span><span class="mono">−'+fmt(t.desc*1.16*t.f)+'</span></div>':'')+
+    '<div style="display:flex;justify-content:space-between;padding:3px 0;color:#868E96"><span>Subtotal</span><span class="mono">'+fmt(t.sub*t.f)+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:3px 0;color:#868E96"><span>IVA 16%</span><span class="mono">'+fmt(t.iva*t.f)+'</span></div>'+
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid '+QT_C+';font-size:16px;font-weight:800;color:'+QT_C+'"><span>Total</span><span class="mono">'+fmt(t.cli)+'</span></div></div></div>';
+  h+='</div></div>';
+  box.innerHTML=h;
+  var s1=document.getElementById('qt-arm-slot');if(s1&&arm)s1.appendChild(arm);
+  var s2=document.getElementById('qt-svc-slot');if(s2&&svc)s2.appendChild(svc);
+  var s3=document.getElementById('qt-galcli-slot');if(s3&&gcl){s3.appendChild(gcl);var gi=document.getElementById('cot-gal-cli');if(gi){gi.style.cssText='width:100%;padding:5px 9px;font-size:12.5px;border:1px solid #CECBF6;border-radius:8px';}}
+}
+function qtWA(){
+  if(!cart.length){alert('La cotización está vacía.');return;}
+  var t=qtTot(),tel=String((COT_ACT&&COT_ACT.tel)||QT.tel||'').replace(/\D/g,'');
+  var L=['*Cotización Impulso*'+(COT_ACT?' '+COT_ACT.folio:''),''];
+  cart.forEach(function(x){L.push((x.q||1)+' × '+(x.esServicio?x.mol:'Marco '+x.l1+'×'+x.l2+' '+x.mol+((x.en||[]).length?' ('+x.en.join(', ')+')':''))+' — '+fmt((+x.subIva||0)*t.f));});
+  L.push('','*Total: '+fmt(t.cli)+'* (IVA incluido)','Anticipo 50%: '+fmt(t.cli/2),'Entrega aproximada: '+QT_ENTREGA+'.');
+  qtLog('Enviada por WhatsApp');qtPinta();
+  window.open('https://wa.me/'+(tel?(tel.length===10?'52'+tel:tel):'')+'?text='+encodeURIComponent(L.join('\n')),'_blank');
+}
+// PDF de la cotización con el mismo diseño de documento
+function genPDF(){
+  if(!cart.length){alert('El carrito está vacío');return;}
+  var t=qtTot(),u=_u()||{},ca=COT_ACT,hoy=new Date(),v=ca&&ca.vence?new Date(ca.vence+'T12:00:00'):new Date(hoy.getTime()+COT_VIG*864e5);
+  var fd=function(d){return d.toLocaleDateString('es-MX',{day:'numeric',month:'short',year:'numeric'});};
+  var cli=ca?ca.cli:(QT.cli||''),tel=ca?ca.tel:(QT.tel||'');
+  if(COT_GAL){var gc=document.getElementById('cot-gal-cli');if(gc&&gc.value.trim())cli=gc.value.trim();}
+  var fila=function(x){var un=(+x.subIva||0)*t.f/(x.q||1);
+    var d=x.esServicio?ptEsc(x.mol):'Marco '+x.l1+' × '+x.l2+' cm · moldura '+ptEsc(x.mol)+((x.en||[]).filter(function(e){return e!=='Regalo';}).length?' · '+x.en.filter(function(e){return e!=='Regalo';}).map(ptEsc).join(' · '):'')+(x.regalo?' · <b>obsequio</b>':'');
+    return '<tr><td>'+d+'</td><td class="r">'+(x.q||1)+'</td><td class="r">'+fmt(un)+'</td><td class="r">'+fmt((+x.subIva||0)*t.f)+'</td></tr>';};
+  var M=cart.filter(function(x){return !x.esServicio;}),S=cart.filter(function(x){return x.esServicio;});
+  var grupo=function(tit,L){if(!L.length)return '';var st=L.reduce(function(a,x){return a+(+x.subIva||0)*t.f;},0);
+    return '<tr class="g"><td colspan="4">'+tit+'</td></tr>'+L.map(fila).join('')+'<tr class="st"><td colspan="3" class="r">Subtotal</td><td class="r">'+fmt(st)+'</td></tr>';};
+  var h='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cotización Impulso'+(ca?' '+ca.folio:'')+'</title><style>'+
+    '@page{size:letter;margin:14mm}*{box-sizing:border-box}body{font-family:Helvetica,Arial,sans-serif;color:#212529;font-size:12px;margin:0}'+
+    '.top{display:flex;justify-content:space-between;align-items:flex-start}.ttl{font-size:26px;color:#111}.ttl i{color:#6E4157}'+
+    '.bar{height:3px;background:#6E4157;margin:12px 0 16px}.cols{display:grid;grid-template-columns:1fr 1fr;gap:28px}'+
+    'h4{font-size:14px;font-weight:400;border-bottom:1px solid #DEE2E6;padding-bottom:3px;margin:0 0 6px}.kv{display:grid;grid-template-columns:110px 1fr;row-gap:3px}.kv b{font-weight:600}'+
+    'h3{font-size:18px;font-weight:400;margin:22px 0 6px}table{width:100%;border-collapse:collapse}th{text-align:left;font-weight:600;padding:6px 5px;border-bottom:1px solid #DEE2E6}'+
+    'td{padding:7px 5px;border-bottom:1px solid #F1F3F5;vertical-align:top}.r{text-align:right;white-space:nowrap}tr.g td{background:#F6F0F3;color:#6E4157;font-weight:700}tr.st td{font-weight:600;border-bottom:1px solid #DEE2E6}'+
+    '.tot{margin-left:auto;width:300px;margin-top:12px}.tot div{display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid #DEE2E6}.tot .t{font-size:15px;font-weight:700;color:#6E4157;border-bottom:none;border-top:2px solid #6E4157}'+
+    '.ant{color:#6E4157}.pie{margin-top:36px;padding-top:8px;border-top:1px solid #DEE2E6;font-size:10.5px;color:#6B7280;line-height:1.6}tr{page-break-inside:avoid}</style></head><body>';
+  h+='<div class="top"><div><img src="'+(typeof LOGO_B64!=='undefined'?LOGO_B64:'/static/logo-impulso.png')+'" style="height:70px"></div><div style="text-align:right"><div class="ttl">Cotización - <i>'+(ca?ptEsc(ca.folio):'#'+Date.now().toString().slice(-5))+'</i></div></div></div><div class="bar"></div>';
+  h+='<div class="cols"><div><h4>Información</h4><div class="kv"><b>Fecha:</b><span>'+fd(hoy)+'</span><b>Válida hasta:</b><span>'+fd(v)+'</span><b>Entrega:</b><span>'+QT_ENTREGA+' a partir del anticipo</span><b>Atiende:</b><span>'+ptEsc(u.display||u.name||'')+(u.suc?' · '+ptEsc(u.suc):'')+'</span></div></div>'+
+    '<div><h4>Cliente</h4><div>'+(ptEsc(cli)||'&nbsp;')+'</div>'+(tel?'<div style="color:#495057">Tel. '+ptEsc(tel)+'</div>':'')+'</div></div>';
+  h+='<h3>Detalle</h3><table><thead><tr><th>Descripción</th><th class="r">Cant.</th><th class="r">Precio</th><th class="r">Importe</th></tr></thead><tbody>'+grupo('Marcos',M)+grupo('Servicios',S)+'</tbody></table>';
+  h+='<div class="tot">'+(cotDesc?'<div><span>Antes del descuento</span><span>'+fmt(t.subRaw*1.16*t.f)+'</span></div><div style="color:#C0392B"><span>Descuento '+cotDesc+'%</span><span>−'+fmt(t.desc*1.16*t.f)+'</span></div>':'')+
+    '<div><span>Subtotal</span><span>'+fmt(t.sub*t.f)+'</span></div><div><span>IVA 16%</span><span>'+fmt(t.iva*t.f)+'</span></div><div class="t"><span>Total</span><span>'+fmt(t.cli)+'</span></div><div class="ant" style="border:none"><span>Anticipo 50% para iniciar</span><span>'+fmt(t.cli/2)+'</span></div></div>';
+  h+='<div class="pie">Precios en pesos mexicanos, IVA incluido. Cotización válida hasta el '+fd(v)+'.<br>IMPULSO Marcos &amp; Giclée · Hacienda Escolásticas 107, Jardines de la Hacienda, Querétaro · (442) 216 52 03 · pedidos@impulsogaleria.com</div>';
+  h+='<script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script></body></html>';
+  var w=window.open('','_blank');if(!w){alert('Permite las ventanas emergentes para generar el PDF.');return;}
+  w.document.open();w.document.write(h);w.document.close();qtLog('PDF generado');qtPinta();
+}
 // Modal pedido
 function openModPed(){
   if(!cart.length){alert('El carrito está vacío');return;}
@@ -9145,6 +9319,7 @@ function cotActPinta(){
 function cotCargar(){return fetch('/api/cotizaciones',{credentials:'include'}).then(function(r){return r.ok?r.json():[];}).then(function(d){COTS=Array.isArray(d)?d:[];cotContador();}).catch(function(){});}
 function cotContador(){var n=COTS.filter(function(c){return cotEstadoVis(c)==='abierta';}).length;var el=document.getElementById('cot-n-g');if(el)el.textContent=n?'('+n+')':'';}
 function cotVista(v){
+  var _q=document.getElementById('qt2');if(_q)_q.style.display=v==='a'?'':'none';
   document.getElementById('cot-armar').style.display=v==='a'?'grid':'none';
   document.getElementById('cot-guardadas').style.display=v==='g'?'':'none';
   document.getElementById('cot-tab-a').classList.toggle('active',v==='a');
@@ -9156,6 +9331,7 @@ function cotGuardarAbrir(){
   document.getElementById('cg-cli').value=COT_ACT?COT_ACT.cli:'';
   document.getElementById('cg-tel').value=COT_ACT?COT_ACT.tel:'';
   document.getElementById('cg-dias').value=COT_VIG;
+  if(!COT_ACT){if(QT.cli)document.getElementById('cg-cli').value=QT.cli;if(QT.tel)document.getElementById('cg-tel').value=QT.tel;}
   document.getElementById('cg-ttl').textContent=COT_ACT?'💾 Actualizar '+COT_ACT.folio:'💾 Guardar cotización';
   OM('mod-cot-g');
 }
@@ -9169,7 +9345,7 @@ function cotGuardar(){
   else{Object.assign(body,{fecha:hoy,suc:u.suc||'',usuario:u.display||u.name||CU||''});
     req=fetch('/api/cotizaciones',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
   req.then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
-    COT_ACT=d;var i=COTS.findIndex(function(c){return c.id===d.id;});if(i>=0)COTS[i]=d;else COTS.unshift(d);
+    COT_ACT=d;qtLog('Guardada como '+d.folio);var i=COTS.findIndex(function(c){return c.id===d.id;});if(i>=0)COTS[i]=d;else COTS.unshift(d);
     logActivity('Cotización guardada',d.folio+' · '+d.cli+' · '+fmt(d.total));
     CM('mod-cot-g');rCart();cotContador();
     alert('💾 Guardada como '+d.folio+'. La encuentras en "Guardadas".');
@@ -9552,6 +9728,13 @@ function galFilas(){
     var pag=(p.ant_ini!=null?+p.ant_ini:0)+cobrosDe(p).reduce(function(t,a){return t+(+a.monto||0);},0);
     var saldo=Math.max(0,Math.round(((+p.total||0)-pag)*100)/100);
     var debeImp=0,debeGal=0,txt='';
+    // La nota puede cambiar después (se agrega impresión, etc.): Impulso = total actual de la nota.
+    // Si el cliente ya pagó, Galería = lo que pagó el cliente menos lo de Impulso.
+    var pc=(+g.pct||0)/100;g=Object.assign({},g);g.impulso=Math.round((+p.total||0)*100)/100;
+    if(g.pagoA==='impulso'&&g.galReal!=null)g.galeria=+g.galReal;else if(g.pagoA!=='impulso')g.galeria=Math.round(g.impulso*pc*100)/100;
+    g.cliente=Math.round((g.impulso+(+g.galeria||0))*100)/100;
+    if(g.pagoA==='impulso'&&saldo>0.5){txt='⚠️ Está marcada como "me pagó a mí", pero la nota sigue debiendo '+fmt(saldo)+'. Usa ↩ Deshacer y vuelve a registrar el pago.';debeImp=0;
+      return {id:id,g:g,p:p,saldo:saldo,debeImp:0,debeGal:0,txt:txt,mal:true};}
     if(g.pagoA==='impulso'){
       var falta=g.mov&&pendPuente[g.mov]!=null?pendPuente[g.mov]:(g.mov&&g.devuelto?0:g.galeria);
       debeImp=g.devuelto?0:(+falta||0);txt=debeImp>0.5?'El cliente te pagó a ti → le debes a Galería '+fmt(debeImp):'El cliente te pagó a ti · Galería ya recibió su parte';
@@ -9574,6 +9757,7 @@ function galPinta(){
     return '<div style="border-left:4px solid '+col+';background:var(--surface2);border-radius:0 10px 10px 0;padding:8px 11px;margin-bottom:7px;font-size:12.5px">'+
       '<div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>Nota '+ptEsc(x.g.folio)+' · '+ptEsc(x.g.cli||'cliente de Galería')+'</b><span class="mono">cliente paga '+fmt(x.g.cliente)+' · Impulso '+fmt(x.g.impulso)+' · Galería '+fmt(x.g.galeria)+' ('+(x.g.pct!=null?x.g.pct:50)+'%)</span></div>'+
       '<div style="color:var(--text2);margin-top:2px">'+x.txt+'</div>'+
+      (x.g.pagoA&&!x.g.devuelto?'<div style="margin-top:6px"><button class="btn btn-s btn-xs" onclick="galDeshacer(\''+x.id+'\')">↩ Deshacer</button></div>':'')+
       (!x.g.pagoA&&x.saldo>0.5?'<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center"><select id="gal-m-'+x.id+'" style="max-width:190px">'+mets+'</select>'+
         '<button class="btn btn-p btn-xs" onclick="galPagoImpulso(\''+x.id+'\')">Me pagó a mí '+fmt(x.g.cliente)+'</button>'+
         '<button class="btn btn-s btn-xs" onclick="galPagoGaleria(\''+x.id+'\')">Le pagó a Galería</button></div>':'')+'</div>';}).join('')
@@ -9586,13 +9770,28 @@ function galPagoImpulso(id){
   var met=(document.getElementById('gal-m-'+id)||{}).value||'',cta=ctaDeMetodo(met,p.suc);
   if(!cta){alert('Elige cómo pagó el cliente (efectivo, tarjeta o transferencia).');return;}
   var x=galFilas().find(function(z){return z.id===id;}),f=todayStr();
-  if(!confirm('El cliente pagó '+fmt(g.cliente)+' con '+met+':\n\n• '+fmt(x.saldo)+' se cobran a la nota '+g.folio+' (lo tuyo)\n• '+fmt(g.galeria)+' quedan en '+cta+' como dinero de Galería por entregarle\n\n¿Registrar?'))return;
+  var r=prompt('¿Cuánto te pagó el cliente en total?\n\nLo tuyo (lo que debe la nota '+g.folio+'): '+fmt(x.saldo)+'\nLo que pase de eso es de Galería.',String(x.g.cliente));if(r==null)return;
+  var monto=parseFloat(String(r).replace(/[^0-9.]/g,''));if(!monto){alert('Escribe el monto que pagó el cliente.');return;}
+  var galR=Math.round((monto-x.saldo)*100)/100;if(galR<0){alert('Lo que pagó el cliente ('+fmt(monto)+') no alcanza para lo de la nota ('+fmt(x.saldo)+'). Regístralo como abono normal en la nota.');return;}
+  if(!confirm('El cliente pagó '+fmt(monto)+' con '+met+':\n\n• '+fmt(x.saldo)+' se cobran a la nota '+g.folio+' (lo tuyo)\n• '+fmt(galR)+' quedan en '+cta+' como dinero de Galería por entregarle\n\n¿Registrar?'))return;
   var ab={pedido_id:p.id,folio:p.folio,cli:p.cli,suc:p.suc,monto:x.saldo,met:met,fecha:f,tipo:'Liquidacion'};
-  (x.saldo>0.5?registrarCobro(p,ab):Promise.resolve()).then(function(){
-    return ptPostMov({tipo:'Entrada',concepto:PUENTE_IN,desc:'Parte de Galería · nota '+g.folio+' · '+(g.cli||''),cuenta:cta,cta_destino:'',socio:'',monto:g.galeria,fecha:f,mes:new Date().getMonth(),tercero:'Galería'});
-  }).then(function(m){g.pagoA='impulso';g.mov=m&&m.id;g.fPago=f;return galGuardarN();})
+  (x.saldo>0.5?registrarCobro(p,ab):Promise.resolve(null)).then(function(a){
+    g.ab=a&&a.id||null;
+    return galR>0.5?ptPostMov({tipo:'Entrada',concepto:PUENTE_IN,desc:'Parte de Galería · nota '+g.folio+' · '+(g.cli||''),cuenta:cta,cta_destino:'',socio:'',monto:galR,fecha:f,mes:new Date().getMonth(),tercero:'Galería'}):null;
+  }).then(function(m){g.pagoA='impulso';g.mov=m&&m.id;g.fPago=f;g.galReal=galR;g.cobrado=monto;g.devuelto=false;return galGuardarN();})
     .then(function(){logActivity('Cliente de Galería pagó a Impulso','Nota '+g.folio+' · '+fmt(g.cliente));galPinta();})
     .catch(function(e){alert('⚠️ No se terminó de registrar ('+e.message+'). Revisa la nota y Movimientos.');galPinta();});
+}
+function galDeshacer(id){
+  var g=GAL_N[id];if(!g)return;
+  var mv=g.mov?(movs||[]).find(function(m){return m.id===g.mov;}):null,ab=g.ab?(ABONOS||[]).find(function(a){return a.id===g.ab;}):null;
+  if(!confirm('¿Regresar la nota '+g.folio+' a "el cliente todavía no paga"?\n\n'+(mv?'• Se borra la entrada "Parte de Galería" de '+fmt(+mv.monto||0)+' ('+mv.cuenta+')\n':'')+(ab?'• Se borra el cobro de '+fmt(+ab.monto||0)+' de la nota\n':'')+(!mv&&!ab?'• No hay movimientos ligados que borrar\n':'')))return;
+  var p=Promise.resolve();
+  if(mv)p=p.then(function(){return fetch('/api/movimientos/'+mv.id,{method:'DELETE',credentials:'include'}).then(function(r){if(!r.ok&&r.status!==404)throw new Error('no se borró el movimiento ('+r.status+')');movs=movs.filter(function(m){return m.id!==mv.id;});});});
+  if(ab)p=p.then(function(){return fetch('/api/abonos/'+ab.id,{method:'DELETE',credentials:'include'}).then(function(r){return r.json();}).then(function(d){if(d&&d.error)throw new Error(d.error);ABONOS=ABONOS.filter(function(a){return a.id!==ab.id;});if(d&&d.pedido){var q=(pedidos||[]).find(function(z){return z.id===d.pedido.id;});if(q)syncPedido(q,d.pedido);}});});
+  p.then(function(){['pagoA','mov','ab','fPago','galReal','cobrado','devuelto'].forEach(function(k){delete g[k];});return galGuardarN();})
+   .then(function(){logActivity('Deshizo pago de cliente de Galería','Nota '+g.folio);galPinta();try{rCxC();rPed();}catch(e){}})
+   .catch(function(e){alert('⚠️ '+e.message);galPinta();});
 }
 function galPagoGaleria(id){
   var g=GAL_N[id];if(!g)return;
